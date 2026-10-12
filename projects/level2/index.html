@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>Level 2 – Motor und Baumeister</title>
+<script src="assets/gsap.min.js"></script>
+<style>
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-500-normal.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Space Grotesk"; src: url("assets/fonts/space-grotesk-latin-700-normal.woff2") format("woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-600-normal.woff2") format("woff2"); font-weight: 600; }
+:root { --bg:#F3F1EC; --card:#FFFFFF; --ink:#1C1B19; --muted:#6F6A62; --line:#DDD8CF; --accent:#E8590C; --ok:#1F9D55; --err:#D93025; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:"Space Grotesk", sans-serif; }
+#root { position:relative; width:100%; height:100%; overflow:hidden; background:var(--bg); }
+.scene { position:absolute; inset:0; }
+.title { position:absolute; left:0; right:0; top:380px; text-align:center; font-weight:700; font-size:110px; letter-spacing:-2px; }
+.title small { display:block; font-weight:500; font-size:38px; color:var(--muted); letter-spacing:0; margin-top:10px; }
+
+/* n8n window */
+#win { position:absolute; left:240px; top:110px; width:1440px; height:700px; background:var(--card); border-radius:22px;
+        box-shadow:0 30px 80px rgba(40,30,20,.12), 0 2px 6px rgba(40,30,20,.06); overflow:hidden; transform-origin:100% 0; }
+.whead { position:absolute; left:0; right:0; top:0; height:72px; border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 28px; gap:16px; }
+.whead .brand { font-weight:700; font-size:28px; display:flex; align-items:center; gap:10px; }
+.crumb { position:relative; font-size:24px; color:var(--muted); width:520px; height:32px; }
+.crumb span { position:absolute; left:0; top:0; white-space:nowrap; }
+.toggle { margin-left:auto; display:flex; align-items:center; gap:12px; font-size:22px; color:var(--muted); }
+.sw { width:56px; height:30px; border-radius:15px; background:#CFCAC1; position:relative; }
+.sw i { position:absolute; left:3px; top:3px; width:24px; height:24px; border-radius:50%; background:#fff; }
+#swon { position:absolute; inset:0; border-radius:15px; background:var(--ok); opacity:0; }
+#knob { z-index:2; }
+.canvas { position:absolute; left:0; right:0; top:73px; bottom:0;
+          background-image:radial-gradient(#D9D4CA 1.6px, transparent 1.6px); background-size:28px 28px; }
+.layer { position:absolute; inset:0; }
+.nodewrap { position:absolute; top:200px; width:132px; display:flex; flex-direction:column; align-items:center; }
+.node { position:relative; width:132px; height:132px; background:#fff; border:2.5px solid #CFC9BF; border-radius:22px;
+        display:flex; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(40,30,20,.08); }
+.node.trigger { border-radius:66px 22px 22px 66px; }
+.nlabel { margin-top:16px; font-size:24px; font-weight:500; white-space:nowrap; }
+.badge { position:absolute; right:-14px; top:-14px; width:40px; height:40px; border-radius:50%; color:#fff; font-size:24px; font-weight:700;
+         display:flex; align-items:center; justify-content:center; opacity:0; }
+.badge.ok { background:var(--ok); } .badge.err { background:var(--err); }
+.link { position:absolute; top:265px; height:4px; background:#BDB6AA; border-radius:2px; transform-origin:0 50%; }
+.dot { position:absolute; top:255px; left:0; width:24px; height:24px; border-radius:50%; background:var(--accent);
+       box-shadow:0 0 0 8px rgba(232,89,12,.18); opacity:0; }
+#execs { position:absolute; right:28px; bottom:28px; background:#F7F5F1; border:1px solid var(--line); border-radius:16px; padding:16px 22px;
+         font-size:22px; color:var(--muted); text-align:right; opacity:0; }
+#execs b { display:block; font-size:44px; color:var(--ink); font-weight:700; }
+#errtip { position:absolute; left:960px; top:420px; background:#FDECEA; color:var(--err); border:1.5px solid #F5C2BD; border-radius:12px;
+          padding:12px 18px; font-size:24px; font-weight:500; white-space:nowrap; opacity:0; }
+
+/* terminal */
+#term { position:absolute; left:80px; top:150px; width:860px; height:600px; background:#1F1E1C; border-radius:20px;
+         box-shadow:0 30px 80px rgba(20,15,10,.25); overflow:hidden; opacity:0; font-family:"JetBrains Mono", monospace; }
+.thead { height:64px; display:flex; align-items:center; gap:14px; padding:0 24px; border-bottom:1px solid #34322E; color:#EDE9E3; font-size:22px; }
+.thead .dots i { display:inline-block; width:14px; height:14px; border-radius:50%; background:#4A4741; margin-right:8px; }
+.thead .path { margin-left:auto; color:#8E887E; }
+.tbody { padding:26px 30px; color:#EDE9E3; font-size:25px; line-height:1.55; }
+.tl { white-space:nowrap; opacity:0; }
+.tl .p { color:var(--accent); font-weight:600; }
+.tl.g { color:#7FD49B; } .tl.r { color:#FF8A80; } .tl.m { color:#A9A398; }
+.typed { display:inline-block; white-space:nowrap; }
+
+/* roles */
+.role { position:absolute; top:190px; width:640px; height:420px; background:var(--card); border-radius:26px; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:18px; box-shadow:0 30px 80px rgba(40,30,20,.12); opacity:0; }
+.role .nm { font-size:34px; font-weight:500; color:var(--muted); }
+.role .rl { white-space:nowrap; font-size:76px; font-weight:700; letter-spacing:-1px; }
+.role .rl em { font-style:normal; color:var(--accent); }
+.role .sub { font-size:26px; color:var(--muted); }
+#roleA { left:300px; } #roleB { left:980px; }
+
+/* credentials dialog */
+#cred { position:absolute; left:610px; top:470px; width:700px; height:360px; background:var(--card); border-radius:22px; padding:30px 36px; box-sizing:border-box;
+        box-shadow:0 30px 80px rgba(40,30,20,.14); opacity:0; }
+#cred .ch { display:flex; align-items:center; gap:16px; font-size:30px; font-weight:700; }
+.field { margin-top:22px; height:56px; border:1.5px solid var(--line); border-radius:12px; display:flex; align-items:center; padding:0 18px; font-size:24px; color:var(--muted); }
+.field b { margin-left:auto; color:var(--ink); letter-spacing:4px; }
+#btn { position:absolute; right:36px; bottom:28px; background:var(--accent); color:#fff; font-size:24px; font-weight:700; padding:14px 26px; border-radius:12px; }
+#btnok { position:absolute; right:36px; bottom:28px; background:var(--ok); color:#fff; font-size:24px; font-weight:700; padding:14px 26px; border-radius:12px; opacity:0; }
+#credtag { position:absolute; left:36px; bottom:40px; font-size:24px; font-weight:700; color:var(--accent); }
+
+/* avatar circle placeholder (real HeyGen avatar goes here) */
+#avatar { position:absolute; left:40px; bottom:40px; width:238px; height:238px; border-radius:50%; border:3px dashed var(--accent);
+          background:rgba(28,27,25,.04); display:flex; align-items:center; justify-content:center; text-align:center; font-size:22px; color:var(--muted); box-sizing:border-box; }
+
+/* captions */
+.cap { position:absolute; left:340px; right:340px; bottom:70px; text-align:center; font-weight:700; font-size:60px; letter-spacing:-.5px; opacity:0; white-space:nowrap; }
+.cap .w { display:inline-block; opacity:0; }
+.cap .hl { color:var(--accent); }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="level2" data-start="0" data-width="1920" data-height="1080" data-duration="36">
+  <audio id="vo" src="assets/vo.mp3" data-start="0" data-duration="36" data-track-index="9"></audio>
+  <section class="scene clip" id="main" data-start="0" data-duration="36" data-track-index="0">
+
+    <div class="title" id="title">Zwei Werkzeuge<small>für deine Automationen</small></div>
+
+    <div id="win">
+      <div class="whead">
+        <div class="brand"><svg viewBox="0 0 24 24" width="40" height="40" aria-hidden="true"><path fill="#EA4B71" d="M21.4737 5.6842c-1.1772 0-2.1663.8051-2.4468 1.8947h-2.8955c-1.235 0-2.289.893-2.492 2.111l-.1038.623a1.263 1.263 0 0 1-1.246 1.0555H11.289c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947s-2.1663.8051-2.4467 1.8947H4.973c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947C1.1311 9.4737 0 10.6047 0 12s1.131 2.5263 2.5263 2.5263c1.1772 0 2.1663-.8051 2.4468-1.8947h1.4223c.2804 1.0896 1.2696 1.8947 2.4467 1.8947 1.1772 0 2.1663-.8051 2.4468-1.8947h1.0008a1.263 1.263 0 0 1 1.2459 1.0555l.1038.623c.203 1.218 1.257 2.111 2.492 2.111h.3692c.2804 1.0895 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263c-1.1772 0-2.1664.805-2.4468 1.8947h-.3692a1.263 1.263 0 0 1-1.246-1.0555l-.1037-.623A2.52 2.52 0 0 0 13.9607 12a2.52 2.52 0 0 0 .821-1.4794l.1038-.623a1.263 1.263 0 0 1 1.2459-1.0555h2.8955c.2805 1.0896 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263m0 1.2632a1.263 1.263 0 0 1 1.2631 1.2631 1.263 1.263 0 0 1-1.2631 1.2632 1.263 1.263 0 0 1-1.2632-1.2632 1.263 1.263 0 0 1 1.2632-1.2631M2.5263 10.7368A1.263 1.263 0 0 1 3.7895 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 1.2632 12a1.263 1.263 0 0 1 1.2631-1.2632m6.3158 0A1.263 1.263 0 0 1 10.1053 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 7.579 12a1.263 1.263 0 0 1 1.2632-1.2632m10.1053 3.7895a1.263 1.263 0 0 1 1.2631 1.2632 1.263 1.263 0 0 1-1.2631 1.2631 1.263 1.263 0 0 1-1.2632-1.2631 1.263 1.263 0 0 1 1.2632-1.2632"/></svg> n8n</div>
+        <div class="crumb"><span id="crA">Workflows / Neue Anfrage verarbeiten</span><span id="crB">Workflows / Neuer Workflow</span></div>
+        <div class="toggle">Aktiv <div class="sw"><div id="swon"></div><i id="knob"></i></div></div>
+      </div>
+      <div class="canvas">
+        <div class="layer" id="layerA"><div class="link" id="la0" style="left:222px;width:120px"></div><div class="link" id="la1" style="left:482px;width:120px"></div><div class="link" id="la2" style="left:742px;width:120px"></div><div class="link" id="la3" style="left:1002px;width:120px"></div><div class="nodewrap" id="a0" style="left:90px"><div class="node trigger" id="a0-box"><svg viewBox="0 0 24 24" width="60" height="60" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="none" stroke="#E8590C" stroke-width="2"/><rect x="7" y="7" width="10" height="2" rx="1" fill="#E8590C"/><rect x="7" y="11" width="10" height="2" rx="1" fill="#E8590C"/><rect x="7" y="15" width="6" height="2" rx="1" fill="#E8590C"/></svg><div class="badge ok" id="a0-ok">✓</div><div class="badge err" id="a0-err">✕</div></div><div class="nlabel">Neue Anfrage</div></div><div class="nodewrap" id="a1" style="left:350px"><div class="node" id="a1-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg><div class="badge ok" id="a1-ok">✓</div><div class="badge err" id="a1-err">✕</div></div><div class="nlabel">E-Mail</div></div><div class="nodewrap" id="a2" style="left:610px"><div class="node" id="a2-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#4285F4" d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24h12.632v-5.684H5.684V24zM18.316 5.684V0H1.895A1.894 1.894 0 0 0 0 1.895v16.421h5.684V5.684h12.632zm-7.207 6.25v-.065c.272-.144.5-.349.687-.617s.279-.595.279-.982c0-.379-.099-.72-.3-1.025a2.05 2.05 0 0 0-.832-.714 2.703 2.703 0 0 0-1.197-.257c-.6 0-1.094.156-1.481.467-.386.311-.65.671-.793 1.078l1.085.452c.086-.249.224-.461.413-.633.189-.172.445-.257.767-.257.33 0 .602.088.816.264a.86.86 0 0 1 .322.703c0 .33-.12.589-.36.778-.24.19-.535.284-.886.284h-.567v1.085h.633c.407 0 .748.109 1.02.327.272.218.407.499.407.843 0 .336-.129.614-.387.832s-.565.327-.924.327c-.351 0-.651-.103-.897-.311-.248-.208-.422-.502-.521-.881l-1.096.452c.178.616.505 1.082.977 1.401.472.319.984.478 1.538.477a2.84 2.84 0 0 0 1.293-.291c.382-.193.684-.458.902-.794.218-.336.327-.72.327-1.149 0-.429-.115-.797-.344-1.105a2.067 2.067 0 0 0-.881-.689zm2.093-1.931l.602.913L15 10.045v5.744h1.187V8.446h-.827l-2.158 1.557zM22.105 0h-3.289v5.184H24V1.895A1.894 1.894 0 0 0 22.105 0zm-3.289 23.5l4.684-4.684h-4.684V23.5zM0 22.105C0 23.152.848 24 1.895 24h3.289v-5.184H0v3.289z"/></svg><div class="badge ok" id="a2-ok">✓</div><div class="badge err" id="a2-err">✕</div></div><div class="nlabel">Kalender</div></div><div class="nodewrap" id="a3" style="left:870px"><div class="node" id="a3-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#34A853" d="M11.318 12.545H7.91v-1.909h3.41v1.91zM14.728 0v6h6l-6-6zm1.363 10.636h-3.41v1.91h3.41v-1.91zm0 3.273h-3.41v1.91h3.41v-1.91zM20.727 6.5v15.864c0 .904-.732 1.636-1.636 1.636H4.909a1.636 1.636 0 0 1-1.636-1.636V1.636C3.273.732 4.005 0 4.909 0h9.318v6.5h6.5zm-3.273 2.773H6.545v7.909h10.91v-7.91zm-6.136 4.636H7.91v1.91h3.41v-1.91z"/></svg><div class="badge ok" id="a3-ok">✓</div><div class="badge err" id="a3-err">✕</div></div><div class="nlabel">Tabelle</div></div><div class="nodewrap" id="a4" style="left:1130px"><div class="node" id="a4-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#FF7A59" d="M18.164 7.93V5.084a2.198 2.198 0 001.267-1.978v-.067A2.2 2.2 0 0017.238.845h-.067a2.2 2.2 0 00-2.193 2.193v.067a2.196 2.196 0 001.252 1.973l.013.006v2.852a6.22 6.22 0 00-2.969 1.31l.012-.01-7.828-6.095A2.497 2.497 0 104.3 4.656l-.012.006 7.697 5.991a6.176 6.176 0 00-1.038 3.446c0 1.343.425 2.588 1.147 3.607l-.013-.02-2.342 2.343a1.968 1.968 0 00-.58-.095h-.002a2.033 2.033 0 102.033 2.033 1.978 1.978 0 00-.1-.595l.005.014 2.317-2.317a6.247 6.247 0 104.782-11.134l-.036-.005zm-.964 9.378a3.206 3.206 0 113.215-3.207v.002a3.206 3.206 0 01-3.207 3.207z"/></svg><div class="badge ok" id="a4-ok">✓</div><div class="badge err" id="a4-err">✕</div></div><div class="nlabel">CRM</div></div><div class="dot" id="dotA"></div></div>
+        <div class="layer" id="layerB"><div class="link" id="lb0" style="left:382px;width:250px"></div><div class="link" id="lb1" style="left:772px;width:250px"></div><div class="nodewrap" id="b0" style="left:250px"><div class="node trigger" id="b0-box"><svg viewBox="0 0 24 24" width="60" height="60" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2.5" fill="none" stroke="#E8590C" stroke-width="2"/><rect x="7" y="7" width="10" height="2" rx="1" fill="#E8590C"/><rect x="7" y="11" width="10" height="2" rx="1" fill="#E8590C"/><rect x="7" y="15" width="6" height="2" rx="1" fill="#E8590C"/></svg><div class="badge ok" id="b0-ok">✓</div><div class="badge err" id="b0-err">✕</div></div><div class="nlabel">Neue Anfrage</div></div><div class="nodewrap" id="b1" style="left:640px"><div class="node" id="b1-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#FF7A59" d="M18.164 7.93V5.084a2.198 2.198 0 001.267-1.978v-.067A2.2 2.2 0 0017.238.845h-.067a2.2 2.2 0 00-2.193 2.193v.067a2.196 2.196 0 001.252 1.973l.013.006v2.852a6.22 6.22 0 00-2.969 1.31l.012-.01-7.828-6.095A2.497 2.497 0 104.3 4.656l-.012.006 7.697 5.991a6.176 6.176 0 00-1.038 3.446c0 1.343.425 2.588 1.147 3.607l-.013-.02-2.342 2.343a1.968 1.968 0 00-.58-.095h-.002a2.033 2.033 0 102.033 2.033 1.978 1.978 0 00-.1-.595l.005.014 2.317-2.317a6.247 6.247 0 104.782-11.134l-.036-.005zm-.964 9.378a3.206 3.206 0 113.215-3.207v.002a3.206 3.206 0 01-3.207 3.207z"/></svg><div class="badge ok" id="b1-ok">✓</div><div class="badge err" id="b1-err">✕</div></div><div class="nlabel">CRM anlegen</div></div><div class="nodewrap" id="b2" style="left:1030px"><div class="node" id="b2-box"><svg viewBox="0 0 24 24" width="58" height="58" aria-hidden="true"><path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg><div class="badge ok" id="b2-ok">✓</div><div class="badge err" id="b2-err">✕</div></div><div class="nlabel">Bestätigung</div></div><div class="dot" id="dotB"></div><div id="errtip">Empfänger fehlt</div></div>
+        <div id="execs">Ausführungen heute<b id="execn">0</b></div>
+      </div>
+    </div>
+
+    <div id="term">
+      <div class="thead"><span class="dots"><i></i><i></i><i></i></span><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg> Claude Code<span class="path">~/automationen</span></div>
+      <div class="tbody">
+        <div class="tl m" id="t0">✻ Willkommen bei Claude Code</div>
+        <div class="tl" id="t1"><span class="p">&gt; </span><span class="typed" id="ty1">Wenn eine neue Anfrage reinkommt:</span></div>
+        <div class="tl" id="t2"><span class="p">&nbsp;&nbsp;</span><span class="typed" id="ty2">im CRM anlegen, Bestätigung senden.</span></div>
+        <div class="tl m" id="t3">● Plane Workflow … 3 Schritte</div>
+        <div class="tl g" id="t4">● n8n: Workflow erstellt ✓</div>
+        <div class="tl m" id="t5">● n8n: Test läuft …</div>
+        <div class="tl r" id="t6">✕ E-Mail: Empfänger fehlt</div>
+        <div class="tl g" id="t7">● Repariert: Empfänger aus Formular ✓</div>
+        <div class="tl g" id="t8">● Test erneut: alles grün ✓</div>
+      </div>
+    </div>
+
+    <div class="role" id="roleA"><svg viewBox="0 0 24 24" width="96" height="96" aria-hidden="true"><path fill="#EA4B71" d="M21.4737 5.6842c-1.1772 0-2.1663.8051-2.4468 1.8947h-2.8955c-1.235 0-2.289.893-2.492 2.111l-.1038.623a1.263 1.263 0 0 1-1.246 1.0555H11.289c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947s-2.1663.8051-2.4467 1.8947H4.973c-.2805-1.0896-1.2696-1.8947-2.4468-1.8947C1.1311 9.4737 0 10.6047 0 12s1.131 2.5263 2.5263 2.5263c1.1772 0 2.1663-.8051 2.4468-1.8947h1.4223c.2804 1.0896 1.2696 1.8947 2.4467 1.8947 1.1772 0 2.1663-.8051 2.4468-1.8947h1.0008a1.263 1.263 0 0 1 1.2459 1.0555l.1038.623c.203 1.218 1.257 2.111 2.492 2.111h.3692c.2804 1.0895 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263c-1.1772 0-2.1664.805-2.4468 1.8947h-.3692a1.263 1.263 0 0 1-1.246-1.0555l-.1037-.623A2.52 2.52 0 0 0 13.9607 12a2.52 2.52 0 0 0 .821-1.4794l.1038-.623a1.263 1.263 0 0 1 1.2459-1.0555h2.8955c.2805 1.0896 1.2696 1.8947 2.4468 1.8947 1.3952 0 2.5263-1.131 2.5263-2.5263s-1.131-2.5263-2.5263-2.5263m0 1.2632a1.263 1.263 0 0 1 1.2631 1.2631 1.263 1.263 0 0 1-1.2631 1.2632 1.263 1.263 0 0 1-1.2632-1.2632 1.263 1.263 0 0 1 1.2632-1.2631M2.5263 10.7368A1.263 1.263 0 0 1 3.7895 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 1.2632 12a1.263 1.263 0 0 1 1.2631-1.2632m6.3158 0A1.263 1.263 0 0 1 10.1053 12a1.263 1.263 0 0 1-1.2632 1.2632A1.263 1.263 0 0 1 7.579 12a1.263 1.263 0 0 1 1.2632-1.2632m10.1053 3.7895a1.263 1.263 0 0 1 1.2631 1.2632 1.263 1.263 0 0 1-1.2631 1.2631 1.263 1.263 0 0 1-1.2632-1.2631 1.263 1.263 0 0 1 1.2632-1.2632"/></svg><div class="nm">n8n</div><div class="rl">der <em>Motor</em></div><div class="sub">führt aus · rund um die Uhr</div></div>
+    <div class="role" id="roleB"><svg viewBox="0 0 24 24" width="96" height="96" aria-hidden="true"><path fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg><div class="nm">Claude Code</div><div class="rl">der <em>Baumeister</em></div><div class="sub">baut · testet · repariert</div></div>
+
+    <div id="cred">
+      <div class="ch"><svg viewBox="0 0 24 24" width="44" height="44" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" fill="#E8590C"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="#E8590C" stroke-width="2.2"/></svg> Zugangsdaten · <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true"><path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg> Gmail</div>
+      <div class="field">E-Mail-Konto <b>••••••••</b></div>
+      <div class="field">Passwort <b>••••••••••</b></div>
+      <div id="credtag">trägst du selbst ein</div>
+      <div id="btn">Speichern</div><div id="btnok">Gespeichert ✓</div>
+    </div>
+
+    <div id="avatar">Avatar-Kreis</div>
+    <div class="cap" id="cap0"><span class="w" id="w0_0">Für</span> <span class="w" id="w0_1">unsere</span> <span class="w" id="w0_2">Automationen</span></div><div class="cap" id="cap1"><span class="w" id="w1_0">brauchen</span> <span class="w" id="w1_1">wir</span> <span class="w" id="w1_2">zwei</span> <span class="w" id="w1_3">Werkzeuge.</span></div><div class="cap" id="cap2"><span class="w" id="w2_0">Das</span> <span class="w" id="w2_1">Erste</span> <span class="w" id="w2_2">ist</span> <span class="w hl" id="w2_3">n8n.</span></div><div class="cap" id="cap3"><span class="w hl" id="w3_0">n8n</span> <span class="w" id="w3_1">verbindet</span> <span class="w" id="w3_2">deine</span> <span class="w" id="w3_3">Programme,</span></div><div class="cap" id="cap4"><span class="w" id="w4_0">also</span> <span class="w" id="w4_1">E-Mail,</span> <span class="w" id="w4_2">Kalender,</span> <span class="w" id="w4_3">Tabellen</span></div><div class="cap" id="cap5"><span class="w" id="w5_0">oder</span> <span class="w" id="w5_1">dein</span> <span class="w hl" id="w5_2">CRM</span></div><div class="cap" id="cap6"><span class="w" id="w6_0">und</span> <span class="w" id="w6_1">führt</span> <span class="w" id="w6_2">Abläufe</span> <span class="w hl" id="w6_3">automatisch</span> <span class="w" id="w6_4">aus,</span></div><div class="cap" id="cap7"><span class="w" id="w7_0">Tag</span> <span class="w" id="w7_1">und</span> <span class="w" id="w7_2">Nacht.</span></div><div class="cap" id="cap8"><span class="w" id="w8_0">Das</span> <span class="w" id="w8_1">Zweite</span> <span class="w" id="w8_2">ist</span> <span class="w hl" id="w8_3">Claude</span> <span class="w hl" id="w8_4">Code.</span></div><div class="cap" id="cap9"><span class="w hl" id="w9_0">Claude</span> <span class="w hl" id="w9_1">Code</span> <span class="w" id="w9_2">ist</span> <span class="w" id="w9_3">eine</span> <span class="w hl" id="w9_4">KI,</span></div><div class="cap" id="cap10"><span class="w" id="w10_0">die</span> <span class="w" id="w10_1">nicht</span> <span class="w" id="w10_2">nur</span> <span class="w" id="w10_3">redet,</span></div><div class="cap" id="cap11"><span class="w" id="w11_0">sondern</span> <span class="w hl" id="w11_1">selbst</span> <span class="w hl" id="w11_2">arbeitet.</span></div><div class="cap" id="cap12"><span class="w" id="w12_0">Du</span> <span class="w" id="w12_1">beschreibst</span> <span class="w" id="w12_2">ihm,</span> <span class="w" id="w12_3">was</span> <span class="w" id="w12_4">passieren</span> <span class="w" id="w12_5">soll,</span></div><div class="cap" id="cap13"><span class="w" id="w13_0">und</span> <span class="w" id="w13_1">er</span> <span class="w hl" id="w13_2">baut</span> <span class="w" id="w13_3">den</span> <span class="w" id="w13_4">Ablauf</span> <span class="w" id="w13_5">in</span> <span class="w hl" id="w13_6">n8n,</span></div><div class="cap" id="cap14"><span class="w hl" id="w14_0">testet</span> <span class="w" id="w14_1">ihn</span> <span class="w" id="w14_2">und</span> <span class="w hl" id="w14_3">repariert</span> <span class="w" id="w14_4">ihn,</span></div><div class="cap" id="cap15"><span class="w" id="w15_0">wenn</span> <span class="w" id="w15_1">etwas</span> <span class="w" id="w15_2">hakt.</span></div><div class="cap" id="cap16"><span class="w" id="w16_0">Merk</span> <span class="w" id="w16_1">dir</span> <span class="w" id="w16_2">ein</span> <span class="w" id="w16_3">Bild:</span></div><div class="cap" id="cap17"><span class="w hl" id="w17_0">n8n</span> <span class="w" id="w17_1">ist</span> <span class="w" id="w17_2">der</span> <span class="w hl" id="w17_3">Motor,</span></div><div class="cap" id="cap18"><span class="w hl" id="w18_0">Claude</span> <span class="w hl" id="w18_1">Code</span> <span class="w" id="w18_2">ist</span> <span class="w" id="w18_3">der</span> <span class="w hl" id="w18_4">Baumeister.</span></div><div class="cap" id="cap19"><span class="w" id="w19_0">Nur</span> <span class="w" id="w19_1">deine</span> <span class="w hl" id="w19_2">Passwörter,</span></div><div class="cap" id="cap20"><span class="w" id="w20_0">die</span> <span class="w" id="w20_1">trägst</span> <span class="w" id="w20_2">du</span> <span class="w hl" id="w20_3">selbst</span> <span class="w" id="w20_4">ein.</span></div>
+  </section>
+</div>
+<script>
+const G = [{"s": 0.1, "e": 1.22, "n": 3, "t": [0.1, 0.22, 0.52]}, {"s": 1.26, "e": 2.66, "n": 4, "t": [1.26, 1.54, 1.7, 1.92]}, {"s": 2.7, "e": 4.64, "n": 4, "t": [2.7, 2.92, 3.28, 3.8]}, {"s": 4.68, "e": 6.64, "n": 4, "t": [4.68, 5.32, 5.76, 6.06]}, {"s": 6.68, "e": 9.2, "n": 4, "t": [6.68, 7.1, 7.74, 8.52]}, {"s": 9.24, "e": 10.42, "n": 3, "t": [9.24, 9.48, 9.7]}, {"s": 10.46, "e": 13.3, "n": 5, "t": [10.46, 10.66, 11.06, 11.76, 12.7]}, {"s": 13.34, "e": 14.36, "n": 3, "t": [13.34, 13.66, 13.84]}, {"s": 14.4, "e": 16.16, "n": 5, "t": [14.4, 14.58, 14.98, 15.24, 15.56]}, {"s": 16.2, "e": 17.92, "n": 5, "t": [16.2, 16.46, 16.88, 17.08, 17.32]}, {"s": 17.96, "e": 19.14, "n": 4, "t": [17.96, 18.1, 18.34, 18.52]}, {"s": 19.18, "e": 20.6, "n": 3, "t": [19.18, 19.5, 19.94]}, {"s": 20.64, "e": 22.74, "n": 6, "t": [20.64, 20.74, 21.28, 21.68, 21.88, 22.34]}, {"s": 22.78, "e": 25.16, "n": 7, "t": [22.78, 22.98, 23.16, 23.38, 23.58, 24.06, 24.32]}, {"s": 25.2, "e": 27.1, "n": 5, "t": [25.2, 25.68, 25.98, 26.14, 26.7]}, {"s": 27.14, "e": 28.16, "n": 3, "t": [27.14, 27.34, 27.68]}, {"s": 28.2, "e": 29.14, "n": 4, "t": [28.2, 28.42, 28.54, 28.7]}, {"s": 29.18, "e": 30.72, "n": 4, "t": [29.18, 29.94, 30.08, 30.22]}, {"s": 30.76, "e": 32.48, "n": 5, "t": [30.76, 31.02, 31.46, 31.6, 31.74]}, {"s": 32.52, "e": 33.5, "n": 3, "t": [32.52, 32.68, 32.92]}, {"s": 33.54, "e": 35.6, "n": 5, "t": [33.54, 33.68, 33.98, 34.1, 34.44]}];
+const tl = gsap.timeline({ paused: true });
+
+// initial states
+gsap.set(["#win", "#term", ".role", "#cred", ".cap", ".cap .w", ".nodewrap", ".badge", "#execs", "#crB", "#errtip", ".dot", "#btnok"], { opacity: 0 });
+gsap.set(".link", { scaleX: 0 });
+gsap.set("#win", { y: 40 });
+gsap.set("#title", { opacity: 0, y: 30 });
+gsap.set(".nodewrap", { y: 18 });
+gsap.set(".tl", { opacity: 0 });
+gsap.set(["#ty1", "#ty2"], { clipPath: "inset(0 100% 0 0)" });
+
+// S1 title
+tl.to("#title", { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, .15)
+  .to("#title", { opacity: 0, y: -20, duration: .4, ease: "power2.in" }, 2.45);
+
+// S2 n8n window + nodes appear on the words
+tl.to("#win", { opacity: 1, y: 0, duration: .7, ease: "power3.out" }, 3.7);
+const pop = (sel, t) => tl.to(sel, { opacity: 1, y: 0, duration: .45, ease: "back.out(1.7)" }, t);
+const grow = (sel, t) => tl.to(sel, { scaleX: 1, duration: .35, ease: "power2.out" }, t);
+pop("#a0", 4.70); grow("#la0", 6.70);
+pop("#a1", 7.10); grow("#la1", 7.55);
+pop("#a2", 7.74); grow("#la2", 8.30);
+pop("#a3", 8.52); grow("#la3", 9.45);
+pop("#a4", 9.70);
+// activate + execution run
+tl.to("#swon", { opacity: 1, duration: .3, ease: "sine.inOut" }, 11.6)
+  .to("#knob", { x: 26, duration: .3, ease: "power2.out" }, 11.6);
+const AX = [90, 350, 610, 870, 1130];
+tl.to("#dotA", { opacity: 1, x: AX[0] + 54, duration: .01 }, 11.8);
+AX.forEach((x, i) => {
+  tl.to("#dotA", { x: x + 54, duration: .26, ease: "power1.inOut" }, 11.8 + i * .28);
+  tl.to("#a" + i + "-ok", { opacity: 1, scale: 1, duration: .2, ease: "back.out(2)" }, 11.95 + i * .28);
+});
+tl.to("#dotA", { opacity: 0, duration: .2 }, 13.25);
+// day & night: counter
+tl.to("#execs", { opacity: 1, duration: .3, ease: "power2.out" }, 13.3);
+const cnt = { v: 1 };
+tl.to(cnt, { v: 248, duration: 1.0, ease: "power2.out", onUpdate: () => { document.getElementById("execn").textContent = Math.round(cnt.v); } }, 13.34);
+
+// S3 Claude Code: window shrinks right, terminal appears
+tl.to("#win", { scale: .62, x: 170, y: 40, duration: .7, ease: "power3.inOut" }, 14.45)
+  .to(["#layerA", "#execs"], { opacity: 0, duration: .35, ease: "power2.in" }, 14.6)
+  .to("#crA", { opacity: 0, duration: .2 }, 14.7).to("#crB", { opacity: 1, duration: .2 }, 14.9)
+  .to("#swon", { opacity: 0, duration: .2 }, 14.7).to("#knob", { x: 0, duration: .2 }, 14.7)
+  .to("#term", { opacity: 1, duration: .5, ease: "power3.out" }, 15.2)
+  .fromTo("#term", { x: -40 }, { x: 0, duration: .6, ease: "expo.out" }, 15.2)
+  .to("#t0", { opacity: 1, duration: .3 }, 15.6);
+// typing the prompt
+tl.to("#t1", { opacity: 1, duration: .01 }, 20.64)
+  .to("#ty1", { clipPath: "inset(0 0% 0 0)", duration: 1.0, ease: "steps(33)" }, 20.7)
+  .to("#t2", { opacity: 1, duration: .01 }, 21.75)
+  .to("#ty2", { clipPath: "inset(0 0% 0 0)", duration: 1.0, ease: "steps(35)" }, 21.8);
+// build
+tl.to("#t3", { opacity: 1, duration: .25 }, 23.1)
+  .to("#t4", { opacity: 1, duration: .25 }, 24.3);
+pop("#b0", 23.40); grow("#lb0", 23.75);
+pop("#b1", 23.85); grow("#lb1", 24.20);
+pop("#b2", 24.30);
+// test
+const BX = [250, 640, 1030];
+tl.to("#t5", { opacity: 1, duration: .25 }, 25.2)
+  .to("#dotB", { opacity: 1, x: BX[0] + 54, duration: .01 }, 25.25);
+tl.to("#dotB", { x: BX[1] + 54, duration: .3, ease: "power1.inOut" }, 25.3)
+  .to("#b0-ok", { opacity: 1, duration: .2, ease: "back.out(2)" }, 25.35)
+  .to("#dotB", { x: BX[2] + 54, duration: .3, ease: "power1.inOut" }, 25.62)
+  .to("#b1-ok", { opacity: 1, duration: .2, ease: "back.out(2)" }, 25.67)
+  .to("#dotB", { opacity: 0, duration: .15 }, 25.95)
+  .to("#b2-err", { opacity: 1, duration: .2, ease: "back.out(2)" }, 25.95)
+  .to("#b2-box", { borderColor: "#D93025", duration: .2 }, 25.95)
+  .to("#errtip", { opacity: 1, duration: .25, ease: "power2.out" }, 26.0)
+  .to("#t6", { opacity: 1, duration: .25 }, 26.0);
+// repair
+tl.to("#t7", { opacity: 1, duration: .25 }, 26.65)
+  .to(["#b2-err", "#errtip"], { opacity: 0, duration: .2 }, 26.7)
+  .to("#b2-box", { borderColor: "#1F9D55", duration: .3, ease: "sine.inOut" }, 26.7)
+  .to("#b2-ok", { opacity: 1, duration: .2, ease: "back.out(2)" }, 26.75)
+  .to("#t8", { opacity: 1, duration: .25 }, 27.3)
+  .to("#swon", { opacity: 1, duration: .3 }, 27.4).to("#knob", { x: 26, duration: .3, ease: "power2.out" }, 27.4);
+
+// S4 roles
+tl.to(["#win", "#term"], { opacity: 0, y: -30, duration: .45, ease: "power2.in" }, 28.25)
+  .fromTo("#roleA", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, 29.18)
+  .fromTo("#roleB", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, 30.76);
+
+// S5 credentials
+tl.to(".role", { y: -110, scale: .72, duration: .6, ease: "power3.inOut" }, 32.45)
+  .fromTo("#cred", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .55, ease: "expo.out" }, 32.75)
+  .to("#btn", { scale: .94, duration: .12, ease: "power1.inOut", yoyo: true, repeat: 1 }, 33.95)
+  .to("#btnok", { opacity: 1, duration: .2 }, 34.2);
+
+// captions: group shows, words appear on their timestamp
+G.forEach((g, gi) => {
+  tl.to("#cap" + gi, { opacity: 1, duration: .01 }, g.s - .02);
+  g.t.forEach((t, wi) => tl.fromTo("#w" + gi + "_" + wi, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: .18, ease: "power2.out" }, t));
+  tl.to("#cap" + gi, { opacity: 0, duration: .01 }, g.e);
+});
+
+window.__timelines["level2"] = tl;
+</script>
+</body>
+</html>

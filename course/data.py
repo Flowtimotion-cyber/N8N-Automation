@@ -1,0 +1,93 @@
+"""All learner-facing content for Modul 1.1 (from curriculum_modul1-1.md)."""
+
+TITLE = "Automationen verstehen und planen"
+SUBTITLE = "Modul 1 · Teil 1 von 3 · ca. 25–30 Minuten"
+
+LEVELS = [
+ {"id": 1, "title": "Der Mitarbeiter, der nie müde wird", "videos": ["TRAILER", "V1"],
+  "merksatz": "Was du zweimal pro Woche von Hand machst, ist ein Kandidat für eine Automation.",
+  "type": "sliders",
+  "intro": "Bevor wir loslegen: Wo geht bei dir heute Zeit verloren? Schieb die Regler – es gibt kein Richtig oder Falsch.",
+  "sliders": [
+    {"id": "hours", "q": "Wie viele Stunden pro Woche verbringst du mit Aufgaben, die sich ständig wiederholen?", "min": 0, "max": 15, "step": 1, "val": 4, "unit": " Std.", "maxlabel": "15+ Std."},
+    {"id": "tools", "q": "Wie viele verschiedene Programme nutzt du oder dein Team täglich (E-Mail, Kalender, CRM, Tabellen …)?", "min": 1, "max": 10, "step": 1, "val": 4, "unit": "", "maxlabel": "10+"},
+    {"id": "tech", "q": "Wie fit fühlst du dich mit Technik?", "min": 1, "max": 5, "step": 1, "val": 3, "unit": "", "minlabel": "Ich bin froh, wenn der Drucker geht", "maxlabel": "Ich richte gern Tools ein"}],
+  "xp": 50},
+ {"id": 2, "title": "Motor und Baumeister", "videos": ["V2"],
+  "merksatz": "n8n führt aus, Claude Code baut.",
+  "type": "flip",
+  "intro": "Irrtum oder Fakt? Tippe deine Einschätzung – dann dreht sich die Karte um.",
+  "cards": [
+    {"s": "Für n8n muss ich programmieren können.", "a": "irrtum", "r": "n8n arbeitet mit Bausteinen. Und mit Claude Code beschreibst du den Ablauf sogar nur in normaler Sprache."},
+    {"s": "n8n kann auf meinem eigenen Server laufen.", "a": "fakt", "r": "Dann bleiben deine Daten bei dir. Wie das geht, lernst du in Teil 3."},
+    {"s": "Claude Code legt automatisch meine Passwörter und Zugänge in n8n an.", "a": "irrtum", "r": "Zugangsdaten hinterlegst du immer selbst. So behältst du die Kontrolle."},
+    {"s": "Claude Code kann einen Fehler im Workflow finden und reparieren.", "a": "fakt", "r": "Er liest die Fehlermeldung, schlägt eine Lösung vor und setzt sie um."}],
+  "xp_each": 25},
+ {"id": 3, "title": "Die fünf Bausteine", "videos": ["V3"],
+  "merksatz": "Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.",
+  "type": "dnd",
+  "intro": "Ordne jedes Beispiel dem richtigen Baustein zu. Ziehen oder antippen – dann die Kategorie antippen.",
+  "cats": ["Trigger", "Node", "Credential", "Execution"],
+  "items": [
+    {"t": "Ein Kunde füllt das Kontaktformular aus", "c": "Trigger", "f": "Das Formular startet den Ablauf – es ist der Auslöser."},
+    {"t": "Jeden Montag um 8 Uhr", "c": "Trigger", "f": "Auch eine Uhrzeit kann einen Workflow starten."},
+    {"t": "Kontakt im CRM anlegen", "c": "Node", "f": "Eine einzelne Aufgabe auf dem Band ist eine Node."},
+    {"t": "Bestätigungsmail versenden", "c": "Node", "f": "Eine Station mit genau einer Aufgabe ist eine Node."},
+    {"t": "Der API-Schlüssel für dein CRM", "c": "Credential", "f": "Zugangsdaten, mit denen n8n sich anmelden darf, sind Credentials."},
+    {"t": "Der Durchlauf von heute 14:03 Uhr mit Fehler", "c": "Execution", "f": "Jeder einzelne Durchlauf ist eine Execution."}],
+  "xp_each": 10},
+ {"id": 4, "title": "Wie Programme miteinander reden", "videos": ["V4"],
+  "merksatz": "API = du fragst nach, Webhook = du wirst benachrichtigt, MCP = die KI darf die Werkzeuge bedienen.",
+  "type": "binary",
+  "intro": "Welche Schnittstelle passt? Entscheide dich für eine der zwei Möglichkeiten.",
+  "items": [
+    {"q": "Dein Online-Shop soll n8n sofort melden, wenn eine Bestellung eingeht.", "o": ["Webhook", "API"], "a": 0, "r": "Der Shop klingelt bei n8n, sobald etwas passiert."},
+    {"q": "n8n soll jeden Morgen den aktuellen Kontostand aus deinem Buchhaltungsprogramm abfragen.", "o": ["Webhook", "API"], "a": 1, "r": "n8n fragt aktiv nach und bekommt eine Antwort."},
+    {"q": "Claude Code soll in deinem n8n einen neuen Workflow anlegen.", "o": ["MCP", "Webhook"], "a": 0, "r": "Über MCP darf die KI die Werkzeuge in n8n bedienen."},
+    {"q": "Ein Kunde füllt dein Kontaktformular aus, und der Workflow startet sofort.", "o": ["Webhook", "API"], "a": 0, "r": "Das Formular benachrichtigt n8n von selbst."},
+    {"q": "n8n holt sich die Liste aller offenen Rechnungen.", "o": ["API", "MCP"], "a": 0, "r": "Ein Programm fragt ein anderes nach Daten – das ist eine API."}],
+  "xp_each": 15},
+ {"id": 5, "title": "Lohnt sich das?", "videos": ["V5"],
+  "merksatz": "Wiederkehrend, regelbasiert, mehrere Tools – dann lohnt es sich.",
+  "type": "rapid", "image": "IMG_SORT", "seconds": 6,
+  "intro": "Automatisieren – ja oder nein? Du hast pro Karte 6 Sekunden.",
+  "items": [
+    {"t": "Neue Kontaktanfragen ins CRM übernehmen", "a": True, "r": "regelmäßig, klare Regel, zwei Programme"},
+    {"t": "Terminbestätigung nach einer Buchung verschicken", "a": True, "r": "passiert bei jeder Buchung gleich"},
+    {"t": "Ein schwieriges Reklamationsgespräch führen", "a": False, "r": "braucht Fingerspitzengefühl"},
+    {"t": "Rechnungs-PDFs aus E-Mails in einen Ordner ablegen", "a": True, "r": "wiederkehrend und regelbasiert"},
+    {"t": "Einmal jährlich die Firmenstrategie planen", "a": False, "r": "selten und kreativ"},
+    {"t": "Erinnerung an Kunden mit offener Rechnung nach 14 Tagen", "a": True, "r": "feste Regel mit Datum"},
+    {"t": "Mit einem neuen Großkunden über den Preis verhandeln", "a": False, "r": "persönliche Beziehung, keine feste Regel"},
+    {"t": "Urlaubsanträge des Teams ins Teamkalender-Tool übertragen und bestätigen", "a": True, "r": "regelmäßig, klare Regel, mehrere Programme"},
+    {"t": "Ein Feedbackgespräch mit einem Mitarbeiter führen", "a": False, "r": "persönlich, braucht Fingerspitzengefühl"},
+    {"t": "Jeden Freitag die Wochenzahlen aus drei Tools in eine Tabelle sammeln", "a": True, "r": "regelmäßig, mehrere Programme"}],
+  "xp_each": 10},
+ {"id": 6, "title": "Der Prozess-Steckbrief", "videos": ["V6"],
+  "merksatz": "Gut beschrieben ist halb gebaut.",
+  "type": "errors",
+  "intro": "In diesem Steckbrief „Terminbuchung“ stecken drei Fehler. Tippe die fehlerhaften Zeilen an.",
+  "lines": [
+    {"l": "Auslöser", "t": "Wenn irgendwas reinkommt.", "err": True, "f": "Zu ungenau. Besser: „Wenn jemand im Kalender-Tool einen Termin bucht.“"},
+    {"l": "Schritte", "t": "1. Kontakt im CRM anlegen oder aktualisieren. 2. Bestätigungsmail mit Termin und Link senden. 3. Erinnerung einen Tag vorher.", "err": False, "f": "Diese Zeile ist korrekt: klare Reihenfolge, jede Aufgabe einzeln."},
+    {"l": "Tools", "t": "E-Mail.", "err": True, "f": "Kalender-Tool und CRM fehlen."},
+    {"l": "Ergebnis", "t": "Termin steht im CRM, Kunde hat Bestätigung und Erinnerung bekommen.", "err": False, "f": "Diese Zeile ist korrekt: Man kann prüfen, ob es geklappt hat."},
+    {"l": "Fehlerfall", "t": "Passiert schon nichts.", "err": True, "f": "Es braucht einen Plan, z. B. „Wenn die Mail nicht zugestellt wird: Nachricht ans Team.“"}],
+  "xp_each": 20, "xp_own": 30,
+  "own": ["Auslöser", "Schritte", "Tools", "Ergebnis", "Fehlerfall"],
+  "own_hints": ["Was startet den Ablauf?", "Was soll der Reihe nach passieren?", "Welche Programme sind beteiligt?", "Woran erkennst du, dass es geklappt hat?", "Was soll passieren, wenn etwas schiefgeht?"]},
+]
+
+CHECK = [
+ {"q": "Was macht n8n?", "a": "Es verbindet Programme und führt Abläufe automatisch aus.", "d": ["Es schreibt Texte für deine Website.", "Es ist ein CRM.", "Es ersetzt dein E-Mail-Programm."], "lv": 2},
+ {"q": "Was macht Claude Code in diesem Kurs?", "a": "Es baut, testet und repariert Workflows nach deiner Beschreibung.", "d": ["Es führt die Workflows rund um die Uhr aus.", "Es speichert deine Passwörter.", "Es ersetzt n8n."], "lv": 2},
+ {"q": "Was legt Claude Code nicht selbst an?", "a": "Die Zugangsdaten (Credentials) zu deinen Programmen", "d": ["Neue Workflows", "Neue Nodes", "Tests"], "lv": 2},
+ {"q": "Was ist ein Trigger?", "a": "Der Auslöser, der einen Workflow startet", "d": ["Eine einzelne Aufgabe im Workflow", "Ein Durchlauf", "Ein Zugangsschlüssel"], "lv": 3},
+ {"q": "Was ist eine Execution?", "a": "Ein einzelner Durchlauf eines Workflows", "d": ["Der gesamte Ablauf", "Ein Programm", "Ein Fehler"], "lv": 3},
+ {"q": "Dein Shop soll n8n sofort Bescheid geben, wenn eine Bestellung eingeht. Was nutzt du?", "a": "Webhook", "d": ["API-Abfrage jede Stunde", "MCP", "Eine E-Mail an dich"], "lv": 4},
+ {"q": "Wofür steht MCP in diesem Kurs?", "a": "Eine Schnittstelle, über die eine KI Werkzeuge wie n8n bedienen kann", "d": ["Ein Programm zum Mailversand", "Ein Server-Anbieter", "Eine Art Trigger"], "lv": 4},
+ {"q": "Welcher Prozess eignet sich am besten für eine Automation?", "a": "Jede neue Anfrage ins CRM übernehmen und bestätigen", "d": ["Ein Preisgespräch mit einem Großkunden", "Die Jahresstrategie", "Ein Bewerbungsgespräch"], "lv": 5},
+ {"q": "Welche drei Fragen prüfen, ob sich eine Automation lohnt?", "a": "Regelmäßig? Feste Regeln? Mehrere Programme?", "d": ["Teuer? Neu? Kompliziert?", "Dringend? Wichtig? Spaß?", "Online? Mobil? Schnell?"], "lv": 5},
+ {"q": "Was gehört in einen Prozess-Steckbrief?", "a": "Auslöser, Schritte, Tools, Ergebnis, Fehlerfall", "d": ["Budget, Logo, Farben", "Nur die Tools", "Nur das Ergebnis"], "lv": 6},
+]
+PASS = 7

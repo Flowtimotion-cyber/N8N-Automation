@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+renders/
+projects/m11_*/
+projects/*/snapshots/
+course/embed/
+course/shots/
+media/*.mp4
+.env
+.DS_Store
