@@ -1,0 +1,398 @@
+<meta charset="utf-8">
+<title>Automationen verstehen und planen</title>
+<style>
+{{FONTS}}
+:root { color-scheme:light; --hdr:rgba(243,241,236,.94); --bg:#F3F1EC; --card:#FFFFFF; --ink:#1C1B19; --muted:#6F6A62; --line:#DDD8CF; --accent:#E8590C; --accent-2:#FFF1E8; --ok:#1F9D55; --ok-2:#EAF6EF; --err:#D93025; --err-2:#FDECEA; }
+* { box-sizing:border-box; }
+html, body { margin:0; background:var(--bg); color:var(--ink); font-family:"Space Grotesk", system-ui, sans-serif; }
+button { font-family:inherit; }
+header { position:sticky; top:env(safe-area-inset-top, 0px); z-index:10; background:rgba(243,241,236,.94); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+.hbar { max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:16px; padding:12px 16px; }
+.htitle { font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.badges { display:flex; gap:6px; margin-left:auto; }
+.bdg { width:30px; height:30px; border-radius:50%; border:2px solid var(--line); background:#fff; font-weight:700; font-size:13px; color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:default; }
+.bdg.cur { border-color:var(--accent); color:var(--accent); }
+.bdg.done { background:var(--ok); border-color:var(--ok); color:#fff; cursor:pointer; }
+.xp { font-weight:700; background:var(--ink); color:#fff; border-radius:16px; padding:6px 12px; font-size:14px; white-space:nowrap; }
+.prog { height:4px; background:#E6E1D8; } .prog i { display:block; height:100%; width:0; background:var(--accent); transition:width .4s; }
+main { max-width:1100px; margin:0 auto; padding:24px 16px 120px; }
+.screen { display:none; } .screen.active { display:block; animation:fade .35s ease; }
+@keyframes fade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+.card { background:var(--card); border-radius:20px; box-shadow:0 18px 50px rgba(40,30,20,.08), 0 1px 3px rgba(40,30,20,.06); padding:28px; }
+h1 { font-size:clamp(30px, 5vw, 52px); letter-spacing:-1px; margin:0 0 8px; line-height:1.05; }
+h2 { font-size:clamp(24px, 3.4vw, 34px); margin:0 0 6px; letter-spacing:-.5px; }
+.kicker { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.08em; font-size:13px; margin-bottom:8px; }
+.muted { color:var(--muted); }
+.hero { border-radius:20px; overflow:hidden; aspect-ratio:16/9; background:#eee center/cover; margin-bottom:22px; }
+.btn { appearance:none; border:none; background:var(--accent); color:#fff; font-weight:700; font-size:17px; padding:14px 24px; border-radius:14px; cursor:pointer; }
+.btn:disabled { background:#CFC9BF; cursor:not-allowed; }
+.btn.sec { background:#fff; color:var(--ink); border:1.5px solid var(--line); }
+.btn.pulse { animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { box-shadow:0 0 0 0 rgba(232,89,12,.45); } 50% { box-shadow:0 0 0 12px rgba(232,89,12,0); } }
+.navbar { position:fixed; left:0; right:0; bottom:0; background:rgba(243,241,236,.96); border-top:1px solid var(--line); z-index:10; }
+.navin { max-width:1100px; margin:0 auto; padding:12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display:flex; gap:12px; align-items:center; }
+.navin .sp { flex:1; color:var(--muted); font-size:14px; }
+input[type=text], textarea { width:100%; font:inherit; font-size:17px; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); }
+textarea { min-height:70px; resize:vertical; }
+.vidwrap { border-radius:18px; overflow:hidden; background:#000; aspect-ratio:16/9; }
+.vidwrap video { width:100%; height:100%; display:block; }
+.hint { display:inline-flex; gap:8px; align-items:center; background:var(--accent-2); color:#8A3A06; border-radius:12px; padding:8px 14px; font-weight:500; margin:14px 0 0; }
+.merk { border-left:6px solid var(--accent); background:#fff; border-radius:12px; padding:14px 18px; font-weight:700; font-size:19px; margin-top:16px; }
+.fb { border-radius:14px; padding:14px 16px; margin-top:12px; font-weight:500; }
+.fb.ok { background:var(--ok-2); color:#14532D; } .fb.bad { background:var(--err-2); color:#8A1F17; } .fb.neutral { background:var(--accent-2); color:#6B2E06; }
+.toast { position:fixed; left:50%; top:76px; transform:translateX(-50%) translateY(-20px); opacity:0; background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-weight:700; z-index:30; transition:all .3s; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+/* sliders */
+.sl { margin:22px 0; } .sl label { font-weight:700; font-size:19px; display:block; margin-bottom:12px; }
+.sl input[type=range] { width:100%; accent-color:var(--accent); height:28px; }
+.sl .ends { display:flex; justify-content:space-between; color:var(--muted); font-size:14px; } .sl .val { color:var(--accent); font-weight:700; font-size:22px; }
+/* flip */
+.grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-top:18px; }
+.flip { perspective:1200px; min-height:230px; }
+.flip .in { position:relative; width:100%; height:100%; min-height:230px; transition:transform .6s; transform-style:preserve-3d; }
+.flip.turned .in { transform:rotateY(180deg); }
+.flip .f, .flip .b { position:absolute; inset:0; backface-visibility:hidden; border-radius:18px; padding:22px; display:flex; flex-direction:column; background:#fff; box-shadow:0 10px 30px rgba(40,30,20,.08); }
+.flip .b { transform:rotateY(180deg); }
+.flip .s { font-size:20px; font-weight:700; flex:1; }
+.flip .ch { display:flex; gap:10px; } .flip .ch button { flex:1; }
+.flip .verdict { font-weight:700; font-size:22px; margin-bottom:8px; } .flip .b.ok .verdict { color:var(--ok); } .flip .b.bad .verdict { color:var(--err); }
+/* dnd */
+.pool { display:flex; flex-wrap:wrap; gap:10px; margin:18px 0; min-height:56px; }
+.chip { background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:12px 14px; font-weight:500; cursor:grab; user-select:none; font-size:16px; }
+.chip.sel { border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.25); }
+.chip.placed { cursor:default; background:var(--ok-2); border-color:#BFE3CC; }
+.chip.wrong { animation:shake .4s; border-color:var(--err); }
+@keyframes shake { 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+.cats { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+.cat { border:2px dashed #CFC9BF; border-radius:16px; padding:14px; min-height:140px; background:rgba(255,255,255,.6); }
+.cat.over { border-color:var(--accent); background:var(--accent-2); }
+.cat h4 { margin:0 0 10px; font-size:18px; } .cat .chip { display:block; margin-top:8px; }
+/* binary + quiz */
+.q { font-size:22px; font-weight:700; margin:8px 0 18px; }
+.opts { display:grid; gap:10px; } .opts.two { grid-template-columns:1fr 1fr; }
+.opt { text-align:left; background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:16px 18px; font-size:18px; font-weight:500; cursor:pointer; color:var(--ink); }
+.opt:hover:not(:disabled) { border-color:var(--accent); }
+.opt.right { background:var(--ok-2); border-color:var(--ok); } .opt.wrongc { background:var(--err-2); border-color:var(--err); }
+.opt:disabled { cursor:default; }
+.counter { color:var(--muted); font-weight:500; }
+/* rapid */
+.rcard { text-align:center; padding:34px 22px; font-size:24px; font-weight:700; min-height:150px; display:flex; align-items:center; justify-content:center; }
+.timer { height:8px; background:#E6E1D8; border-radius:4px; overflow:hidden; margin:16px 0; } .timer i { display:block; height:100%; background:var(--accent); width:100%; }
+.yn { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .yn .btn { font-size:20px; padding:18px; }
+.yn .no { background:var(--ink); }
+/* errors */
+.sb { margin-top:16px; }
+.sbl { display:flex; gap:14px; padding:16px; border:1.5px solid var(--line); border-radius:14px; margin-bottom:10px; background:#fff; cursor:pointer; align-items:flex-start; }
+.sbl b { width:110px; flex:none; } .sbl.found { border-color:var(--err); background:var(--err-2); cursor:default; } .sbl.okline { border-color:var(--ok); background:var(--ok-2); }
+.sbl .exp { display:block; margin-top:8px; font-weight:500; font-size:15px; }
+.own label { font-weight:700; display:block; margin:16px 0 6px; } .own small { color:var(--muted); font-weight:500; }
+.row { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+/* summary */
+.ml li { margin:10px 0; font-size:18px; font-weight:500; }
+.score { font-size:46px; font-weight:700; color:var(--accent); }
+{{EXTRA_CSS}}
+@media (max-width:640px) { .badges { display:none; } .opts.two, .yn { grid-template-columns:1fr; } .card { padding:20px; } }
+@media print {
+  header, .navbar, .noprint { display:none !important; }
+  body { background:#fff; } main { padding:0; max-width:none; }
+  .screen { display:none !important; } #s-summary { display:block !important; }
+  .card { box-shadow:none; border:1px solid #ccc; }
+}
+</style>
+<header>
+  <div class="hbar"><div class="htitle">Automationen verstehen und planen</div><div class="badges" id="badges"></div><button class="btn sec dash" id="dashbtn" hidden>Auswertung</button><div class="xp" id="xp">0 XP</div></div>
+  <div class="prog"><i id="prog"></i></div>
+</header>
+<main id="main"></main>
+<main id="dash" hidden></main>
+<div class="navbar"><div class="navin"><button class="btn sec" id="back">Zurück</button><div class="sp" id="navinfo"></div><button class="btn" id="next">Weiter</button></div></div>
+<div class="toast" id="toast"></div>
+<script>
+const CAP = { db: null, user: null, dl: null, uid: null, owner: false };
+const DATA = {{DATA}};
+const MEDIA = {{MEDIA}};
+const LS_KEY = "m11-automationen-v1";
+let S = load() || fresh();
+function fresh() { return { step: 0, xp: 0, done: {}, task: {}, name: "", own: ["", "", "", "", ""], check: null, maxStep: 0 }; }
+function load() { try { const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} if (typeof syncLater === "function") syncLater(); }
+const $ = (s, r) => (r || document).querySelector(s);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1800); }
+function addXP(n, msg) { S.xp += n; $("#xp").textContent = S.xp + " XP"; save(); if (n > 0) toast("+" + n + " XP" + (msg ? " · " + msg : "")); }
+function shuffle(a, seed) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// steps
+const STEPS = [{ k: "start" }];
+DATA.levels.forEach(L => { L.videos.forEach(v => STEPS.push({ k: "video", lv: L.id, v })); STEPS.push({ k: "task", lv: L.id }); });
+STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: 7, v: "VEND" }); STEPS.push({ k: "summary" });
+const LV = id => DATA.levels.find(l => l.id === id);
+const taskDone = lv => !!S.done[lv];
+
+function badges() {
+  const b = $("#badges"); b.innerHTML = "";
+  const cur = STEPS[S.step].lv;
+  DATA.levels.forEach(L => {
+    const d = el("div", "bdg" + (S.done[L.id] ? " done" : "") + (cur === L.id ? " cur" : ""), S.done[L.id] ? "✓" : L.id);
+    d.title = "Level " + L.id + ": " + L.title;
+    if (S.done[L.id]) d.onclick = () => go(STEPS.findIndex(s => s.lv === L.id));
+    b.appendChild(d);
+  });
+  const c = el("div", "bdg" + (S.check && S.check.passed ? " done" : "") + (STEPS[S.step].k === "check" ? " cur" : ""), "✓"); c.title = "Abschluss-Check"; b.appendChild(c);
+}
+
+function go(i) {
+  document.querySelectorAll("video").forEach(v => { try { v.pause(); } catch (e) {} });
+  S.step = Math.max(0, Math.min(STEPS.length - 1, i)); S.maxStep = Math.max(S.maxStep || 0, S.step); save(); render(); window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function setNext(enabled, label, pulse) { const n = $("#next"); n.disabled = !enabled; n.textContent = label || "Weiter"; n.classList.toggle("pulse", !!pulse); }
+
+function render() {
+  const st = STEPS[S.step]; const m = $("#main"); m.innerHTML = "";
+  $("#prog").style.width = (S.step / (STEPS.length - 1) * 100) + "%";
+  $("#xp").textContent = S.xp + " XP"; badges();
+  $("#back").style.visibility = S.step > 0 ? "visible" : "hidden";
+  $("#navinfo").textContent = st.lv && st.lv <= 6 ? "Level " + st.lv + " von 6 · " + LV(st.lv).title : (st.k === "check" ? "Abschluss-Check" : "");
+  const sc = el("section", "screen active"); sc.id = "s-" + st.k; m.appendChild(sc);
+  ({ start: renderStart, video: renderVideo, task: renderTask, check: renderCheck, summary: renderSummary })[st.k](sc, st);
+}
+
+function renderStart(sc) {
+  const hero = el("div", "hero"); hero.style.backgroundImage = "url(" + MEDIA.IMG_DESK + ")"; sc.appendChild(hero);
+  const c = el("div", "card");
+  c.innerHTML = '<div class="kicker">' + esc(DATA.subtitle) + '</div><h1>' + esc(DATA.title) + '</h1>' +
+    '<p class="muted" style="font-size:18px;max-width:720px">Du lernst, was n8n und Claude Code sind, wie eine Automation aufgebaut ist, wie Programme miteinander reden – und am Ende beschreibst du deinen eigenen ersten Prozess.</p>' +
+    '<label style="font-weight:700;display:block;margin:18px 0 8px">Wie dürfen wir dich nennen? <span class="muted" style="font-weight:500">(optional)</span></label>';
+  const inp = el("input"); inp.type = "text"; inp.placeholder = "Vorname"; inp.value = S.name || ""; inp.oninput = () => { S.name = inp.value.trim(); save(); };
+  c.appendChild(inp);
+  c.appendChild(el("p", "muted small", "Dein Fortschritt wird gespeichert. Bist du bei Claude angemeldet, sieht die Kursleitung deinen Lernstand, deine XP, das Check-Ergebnis und deinen Prozess-Steckbrief."));
+  const row = el("div", "row noprint");
+  if (S.maxStep > 0) { const r = el("button", "btn", "Fortsetzen bei Schritt " + (S.maxStep + 1)); r.onclick = () => go(S.maxStep); row.appendChild(r);
+    const z = el("button", "btn sec", "Von vorn beginnen"); confirmBtn(z, () => { S = fresh(); save(); render(); }); row.appendChild(z); }
+  c.appendChild(row); sc.appendChild(c);
+  setNext(true, "Los geht’s");
+}
+
+function renderVideo(sc, st) {
+  const isEnd = st.v === "VEND";
+  const c = el("div", "card");
+  const L = st.lv <= 6 ? LV(st.lv) : null;
+  c.innerHTML = '<div class="kicker">' + (L ? "Level " + L.id : "Abschluss") + '</div><h2>' + esc(L ? L.title : "Geschafft!") + '</h2>';
+  const w = el("div", "vidwrap"); const v = el("video"); v.src = MEDIA[st.v]; v.controls = true; v.playsInline = true; v.preload = "auto";
+  w.appendChild(v); c.appendChild(w);
+  c.appendChild(el("div", "hint", "🔊 Ton an! Das Video kannst du jederzeit überspringen."));
+  if (L && st.v !== "TRAILER") c.appendChild(el("div", "merk", "Merksatz: " + esc(L.merksatz)));
+  sc.appendChild(c);
+  v.addEventListener("ended", () => setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter", true));
+  setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter");
+}
+
+function renderTask(sc, st) {
+  const L = LV(st.lv); const T = S.task[L.id] = S.task[L.id] || {};
+  const c = el("div", "card"); c.innerHTML = '<div class="kicker">Level ' + L.id + ' · Aufgabe</div><h2>' + esc(L.title) + '</h2><p class="muted" style="font-size:17px">' + esc(L.intro) + '</p>';
+  sc.appendChild(c);
+  const finish = (extra) => { if (!S.done[L.id]) { S.done[L.id] = true; addXP(25, "Level " + L.id + " geschafft"); badges(); } setNext(true, "Weiter", true); save(); if (extra) extra(); };
+  setNext(taskDone(L.id), "Weiter");
+  ({ sliders: tSliders, flip: tFlip, dnd: tDnd, binary: tBinary, rapid: tRapid, errors: tErrors })[L.type](c, L, T, finish);
+}
+
+function tSliders(c, L, T, finish) {
+  const vals = T.vals || {};
+  L.sliders.forEach(s => {
+    const d = el("div", "sl"); const v = vals[s.id] !== undefined ? vals[s.id] : s.val;
+    d.innerHTML = '<label>' + esc(s.q) + '</label><div class="val" id="v-' + s.id + '">' + v + s.unit + '</div>';
+    const r = el("input"); r.type = "range"; r.min = s.min; r.max = s.max; r.step = s.step; r.value = v;
+    r.oninput = () => { vals[s.id] = +r.value; $("#v-" + s.id).textContent = r.value + (+r.value === s.max && s.maxlabel ? "+" : "") + s.unit; };
+    d.appendChild(r); d.appendChild(el("div", "ends", '<span>' + (s.minlabel || s.min) + '</span><span>' + (s.maxlabel || s.max) + '</span>')); c.appendChild(d);
+  });
+  const out = el("div"); c.appendChild(out);
+  const b = el("button", "btn", "Auswerten"); c.appendChild(b);
+  const show = () => {
+    const h = vals.hours !== undefined ? vals.hours : 4, tech = vals.tech !== undefined ? vals.tech : 3;
+    const year = h * 46, days = Math.round(year / 2 / 8);
+    let msg = "Das sind rund <b>" + year + " Stunden im Jahr</b>. Wenn du davon nur die Hälfte automatisierst, gewinnst du etwa <b>" + days + " Arbeitstage</b>. Für ein Team mit fünf Leuten sind es fünfmal so viele.";
+    if (tech < 3) msg += "<br><br>Perfekt – dieses Modul ist genau für dich gemacht. Wir gehen jeden Schritt gemeinsam.";
+    out.innerHTML = '<div class="fb neutral">' + (S.name ? esc(S.name) + ", " : "") + msg + '</div>';
+  };
+  b.onclick = () => { T.vals = vals; if (!T.xp) { T.xp = true; addXP(L.xp, "danke!"); } show(); finish(); };
+  if (T.xp) show();
+}
+
+function tFlip(c, L, T, finish) {
+  T.res = T.res || {}; const g = el("div", "grid2"); c.appendChild(g);
+  const check = () => { if (Object.keys(T.res).length === L.cards.length) finish(); };
+  L.cards.forEach((cd, i) => {
+    const f = el("div", "flip"); const inn = el("div", "in");
+    const front = el("div", "f", '<div class="counter">Karte ' + (i + 1) + '</div><div class="s">' + esc(cd.s) + '</div>');
+    const ch = el("div", "ch");
+    ["irrtum", "fakt"].forEach(a => { const bt = el("button", "btn sec", a === "irrtum" ? "Irrtum" : "Fakt"); bt.onclick = () => pick(a); ch.appendChild(bt); });
+    front.appendChild(ch);
+    const back = el("div", "b"); inn.appendChild(front); inn.appendChild(back); f.appendChild(inn); g.appendChild(f);
+    function showBack(ok) { back.className = "b " + (ok ? "ok" : "bad"); back.innerHTML = '<div class="verdict">' + (cd.a === "fakt" ? "Fakt." : "Irrtum.") + (ok ? " Richtig!" : "") + '</div><div style="font-size:17px">' + esc(cd.r) + '</div>'; f.classList.add("turned"); }
+    function pick(a) {
+      if (T.res[i]) return; const ok = a === cd.a;
+      T.res[i] = ok ? 1 : 2; addXP(ok ? L.xp_each : Math.round(L.xp_each / 2), ok ? "richtig" : "halbe Punkte"); showBack(ok); save(); check();
+    }
+    if (T.res[i]) showBack(T.res[i] === 1);
+  });
+  check();
+}
+
+function tDnd(c, L, T, finish) {
+  T.placed = T.placed || {}; T.tries = T.tries || {};
+  const pool = el("div", "pool"); const cats = el("div", "cats"); c.appendChild(pool); c.appendChild(cats);
+  const fb = el("div"); c.appendChild(fb);
+  let sel = null; const zones = {};
+  L.cats.forEach(name => { const z = el("div", "cat", "<h4>" + esc(name) + "</h4>"); z.dataset.cat = name; zones[name] = z; cats.appendChild(z);
+    z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
+    z.addEventListener("dragleave", () => z.classList.remove("over"));
+    z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); drop(+e.dataTransfer.getData("text"), name); });
+    z.addEventListener("click", () => { if (sel !== null) drop(sel, name); }); });
+  const chips = L.items.map((it, i) => { const ch = el("div", "chip", esc(it.t)); ch.draggable = true;
+    ch.addEventListener("dragstart", e => e.dataTransfer.setData("text", String(i)));
+    ch.addEventListener("click", e => { if (T.placed[i]) return; e.stopPropagation(); chips.forEach(x => x.classList.remove("sel")); sel = i; ch.classList.add("sel"); });
+    return ch; });
+  function layout() { chips.forEach((ch, i) => { if (T.placed[i]) { ch.classList.add("placed"); ch.classList.remove("sel", "wrong"); ch.draggable = false; zones[L.items[i].c].appendChild(ch); } else pool.appendChild(ch); });
+    if (Object.keys(T.placed).length === L.items.length) { fb.innerHTML = '<div class="fb ok">Alle Karten richtig zugeordnet. Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.</div>'; finish(); } }
+  function drop(i, cat) {
+    if (T.placed[i]) return; const it = L.items[i]; sel = null; chips[i].classList.remove("sel");
+    if (it.c === cat) { T.placed[i] = true; addXP(T.tries[i] ? Math.round(L.xp_each / 2) : L.xp_each); fb.innerHTML = '<div class="fb ok">Richtig: ' + esc(it.f) + '</div>'; }
+    else { T.tries[i] = (T.tries[i] || 0) + 1; chips[i].classList.remove("wrong"); void chips[i].offsetWidth; chips[i].classList.add("wrong"); fb.innerHTML = '<div class="fb bad">Noch nicht. ' + esc(it.f) + '</div>'; }
+    save(); layout(); }
+  layout();
+}
+
+function tBinary(c, L, T, finish) {
+  T.i = T.i || 0; T.tries = T.tries || 0; const box = el("div"); c.appendChild(box);
+  function show() {
+    if (T.i >= L.items.length) { box.innerHTML = '<div class="fb ok">Alle Szenarien gelöst. API = du fragst nach, Webhook = du wirst benachrichtigt, MCP = die KI bedient die Werkzeuge.</div>'; finish(); return; }
+    const it = L.items[T.i]; box.innerHTML = '<div class="counter">Szenario ' + (T.i + 1) + ' von ' + L.items.length + '</div><div class="q">' + esc(it.q) + '</div>';
+    const o = el("div", "opts two"); box.appendChild(o); const fb = el("div"); box.appendChild(fb);
+    it.o.forEach((label, k) => { const b = el("button", "opt", esc(label)); o.appendChild(b);
+      b.onclick = () => {
+        if (k === it.a) { b.classList.add("right"); o.querySelectorAll("button").forEach(x => x.disabled = true);
+          addXP(T.tries ? Math.round(L.xp_each / 2) : L.xp_each); fb.innerHTML = '<div class="fb ok">Richtig. ' + esc(it.r) + '</div>';
+          const nx = el("button", "btn", T.i + 1 < L.items.length ? "Nächstes Szenario" : "Fertig"); nx.style.marginTop = "12px"; nx.onclick = () => { T.i++; T.tries = 0; save(); show(); }; fb.appendChild(nx); }
+        else { b.classList.add("wrongc"); b.disabled = true; T.tries++; fb.innerHTML = '<div class="fb bad">Nicht ganz – versuch es noch einmal.</div>'; }
+        save(); }; });
+  }
+  show();
+}
+
+function tRapid(c, L, T, finish) {
+  const img = el("div", "hero"); img.style.backgroundImage = "url(" + MEDIA[L.image] + ")"; img.style.aspectRatio = "21/7"; c.insertBefore(img, c.firstChild);
+  const box = el("div"); c.appendChild(box); let timer = null;
+  function intro() {
+    if (T.finished) return result();
+    box.innerHTML = ""; const b = el("button", "btn", "Start – 10 Karten, je " + L.seconds + " Sekunden"); b.onclick = () => { T.i = 0; T.score = 0; T.log = []; run(); }; box.appendChild(b);
+  }
+  function run() {
+    if (T.i >= L.items.length) { T.finished = true; save(); return result(); }
+    const it = L.items[T.i]; box.innerHTML = '<div class="counter">Karte ' + (T.i + 1) + ' / ' + L.items.length + '</div>';
+    const card = el("div", "card rcard", esc(it.t)); card.style.boxShadow = "none"; card.style.border = "1.5px solid var(--line)"; box.appendChild(card);
+    const tm = el("div", "timer", "<i></i>"); box.appendChild(tm);
+    const yn = el("div", "yn"); const yes = el("button", "btn", "Ja, automatisieren"); const no = el("button", "btn no", "Nein, bleibt beim Menschen");
+    yn.appendChild(yes); yn.appendChild(no); box.appendChild(yn); const fb = el("div"); box.appendChild(fb);
+    const bar = tm.firstChild; const t0 = performance.now(); let doneCard = false;
+    function tick() { const p = 1 - (performance.now() - t0) / (L.seconds * 1000); bar.style.width = Math.max(0, p * 100) + "%"; if (p <= 0) answer(null); else timer = requestAnimationFrame(tick); }
+    function answer(v) { if (doneCard) return; doneCard = true; cancelAnimationFrame(timer); yes.disabled = no.disabled = true;
+      const ok = v === it.a; if (ok) { T.score++; if (!T.replay) addXP(L.xp_each); }
+      T.log.push({ t: it.t, ok, to: v === null });
+      fb.innerHTML = '<div class="fb ' + (ok ? "ok" : "bad") + '">' + (v === null ? "Zeit abgelaufen. " : ok ? "Richtig! " : "Nicht ganz. ") + (it.a ? "Ja" : "Nein") + " – " + esc(it.r) + '</div>';
+      save(); setTimeout(() => { T.i++; run(); }, 1700); }
+    yes.onclick = () => answer(true); no.onclick = () => answer(false); timer = requestAnimationFrame(tick);
+  }
+  function result() {
+    box.innerHTML = '<div class="fb ' + (T.score >= 7 ? "ok" : "neutral") + '"><b>' + T.score + ' von ' + L.items.length + ' richtig.</b> Merke: Wiederkehrend, regelbasiert, mehrere Tools – dann lohnt es sich.</div>';
+    const again = el("button", "btn sec", "Nochmal spielen (ohne XP)"); again.style.marginTop = "12px";
+    again.onclick = () => { T.replay = true; T.finished = false; T.i = 0; T.score = 0; T.log = []; run(); };
+    box.appendChild(again); finish();
+  }
+  intro();
+}
+
+function tErrors(c, L, T, finish) {
+  T.found = T.found || {}; T.miss = T.miss || 0; const sb = el("div", "sb"); c.appendChild(sb);
+  const nErr = L.lines.filter(x => x.err).length; const fb = el("div"); c.appendChild(fb);
+  const own = el("div", "own"); c.appendChild(own);
+  L.lines.forEach((ln, i) => { const d = el("div", "sbl", '<b>' + esc(ln.l) + '</b><span>' + esc(ln.t) + '<span class="exp"></span></span>'); sb.appendChild(d);
+    const mark = () => { d.classList.add(ln.err ? "found" : "okline"); $(".exp", d).textContent = ln.f; };
+    if (T.found[i]) mark();
+    d.onclick = () => { if (T.found[i]) return;
+      if (ln.err) { T.found[i] = true; mark(); addXP(T.miss ? Math.round(L.xp_each / 2) : L.xp_each, "Fehler gefunden"); }
+      else { T.miss++; d.classList.add("okline"); $(".exp", d).textContent = ln.f; setTimeout(() => { d.classList.remove("okline"); $(".exp", d).textContent = ""; }, 2200); }
+      save(); state(); }; });
+  function state() {
+    const n = Object.keys(T.found).length;
+    fb.innerHTML = '<div class="fb ' + (n === nErr ? "ok" : "neutral") + '">' + (n === nErr ? "Alle drei Fehler gefunden!" : n + " von " + nErr + " Fehlern gefunden.") + '</div>';
+    if (n === nErr && !own.childElementCount) ownForm();
+  }
+  function ownForm() {
+    own.innerHTML = '<h2 style="margin-top:26px">Dein eigener Steckbrief</h2><p class="muted">Nimm einen Prozess aus deinem Alltag. Diesen Steckbrief brauchst du in Teil 2 – dort baut Claude Code daraus deine Automation.</p>';
+    L.own.forEach((name, k) => { const lb = el("label", "", esc(name) + ' <small>' + esc(L.own_hints[k]) + '</small>'); const ta = el("textarea"); ta.value = S.own[k] || "";
+      ta.oninput = () => { S.own[k] = ta.value; save(); chk(); }; own.appendChild(lb); own.appendChild(ta); });
+    const row = el("div", "row noprint");
+    const cp = el("button", "btn sec", "Als Text kopieren"); cp.onclick = () => { const txt = L.own.map((n, k) => n + ": " + (S.own[k] || "")).join("\n"); copyText(txt); };
+    row.appendChild(cp); own.appendChild(row);
+    const done = el("div"); own.appendChild(done);
+    function chk() { const filled = S.own.filter(x => x && x.trim().length > 2).length;
+      if (filled >= 3 && !T.ownxp) { T.ownxp = true; addXP(L.xp_own, "Steckbrief"); save(); }
+      done.innerHTML = filled >= 3 ? '<div class="fb ok">Stark – dein Steckbrief ist bereit für Teil 2.</div>' : '<div class="fb neutral">Fülle mindestens drei Felder aus, um das Level abzuschließen.</div>';
+      if (filled >= 3) finish(); }
+    chk();
+  }
+  state();
+}
+
+function renderCheck(sc) {
+  const c = el("div", "card"); sc.appendChild(c);
+  c.innerHTML = '<div class="kicker">Abschluss-Check</div><h2>10 Fragen zum Modul</h2><p class="muted">Bestanden ab ' + DATA.pass + ' von 10. Du kannst den Check so oft wiederholen, wie du willst.</p>';
+  const box = el("div"); c.appendChild(box);
+  let Q, i, score, wrong;
+  function start() { Q = shuffle(DATA.check).map(q => ({ ...q, opts: shuffle([q.a, ...q.d]) })); i = 0; score = 0; wrong = []; ask(); }
+  function ask() {
+    if (i >= Q.length) return done();
+    const q = Q[i]; box.innerHTML = '<div class="counter">Frage ' + (i + 1) + ' von ' + Q.length + '</div><div class="q">' + esc(q.q) + '</div>';
+    const o = el("div", "opts"); box.appendChild(o); const fb = el("div"); box.appendChild(fb);
+    q.opts.forEach(t => { const b = el("button", "opt", esc(t)); o.appendChild(b);
+      b.onclick = () => { o.querySelectorAll("button").forEach(x => { x.disabled = true; if (x.textContent === q.a) x.classList.add("right"); });
+        const ok = t === q.a; if (ok) score++; else { b.classList.add("wrongc"); wrong.push(q); }
+        fb.innerHTML = '<div class="fb ' + (ok ? "ok" : "bad") + '">' + (ok ? "Richtig." : "Richtig wäre: " + esc(q.a) + " – schau dir noch einmal Level " + q.lv + " an.") + '</div>';
+        const nx = el("button", "btn", i + 1 < Q.length ? "Nächste Frage" : "Auswertung"); nx.style.marginTop = "12px"; nx.onclick = () => { i++; ask(); }; fb.appendChild(nx); }; });
+  }
+  function done() {
+    const passed = score >= DATA.pass; const first = !S.check;
+    if (!S.check || score > S.check.best) { const gain = (score - (S.check ? S.check.best : 0)) * 10; if (gain > 0) addXP(gain, "Check"); }
+    S.check = { best: Math.max(score, S.check ? S.check.best : 0), passed: passed || (S.check && S.check.passed) }; save(); badges();
+    const lv = [...new Set(wrong.map(q => q.lv))].sort();
+    box.innerHTML = '<div class="score">' + score + ' / ' + Q.length + '</div><div class="fb ' + (passed ? "ok" : "bad") + '">' + (passed ? "Bestanden! " + (S.name ? esc(S.name) + ", d" : "D") + "u hast die Grundlagen sicher drauf." : "Noch nicht bestanden – du brauchst " + DATA.pass + " richtige Antworten.") +
+      (lv.length ? "<br>Wiederholen lohnt sich bei: " + lv.map(l => "Level " + l + " (" + esc(LV(l).title) + ")").join(", ") : "") + '</div>';
+    const r = el("button", "btn sec", "Check wiederholen"); r.style.marginTop = "12px"; r.onclick = start; box.appendChild(r);
+    setNext(!!S.check.passed, "Weiter", !!S.check.passed);
+  }
+  if (S.check && S.check.passed) { box.innerHTML = '<div class="fb ok">Du hast den Check bereits bestanden (beste Wertung: ' + S.check.best + ' / 10).</div>'; const r = el("button", "btn sec", "Nochmal machen"); r.style.marginTop = "12px"; r.onclick = start; box.appendChild(r); setNext(true, "Weiter"); }
+  else { setNext(false, "Weiter"); const b = el("button", "btn", "Check starten"); b.onclick = start; box.appendChild(b); }
+}
+
+function renderSummary(sc) {
+  const hero = el("div", "hero noprint"); hero.style.backgroundImage = "url(" + MEDIA.IMG_DONE + ")"; sc.appendChild(hero);
+  const c = el("div", "card"); sc.appendChild(c);
+  c.innerHTML = '<div class="kicker">Merkblatt</div><h1>' + (S.name ? esc(S.name) + ", du" : "Du") + ' hast Teil 1 geschafft</h1>' +
+    '<p class="muted">' + esc(DATA.title) + ' · ' + S.xp + ' XP' + (S.check ? ' · Abschluss-Check: ' + S.check.best + ' / 10' : '') + '</p>' +
+    '<h2 style="margin-top:20px">Die 6 Merksätze</h2><ol class="ml">' + DATA.levels.map(L => '<li>' + esc(L.merksatz) + '</li>').join("") + '</ol>' +
+    '<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +
+    '<div>' + DATA.levels[5].own.map((n, k) => '<p><b>' + esc(n) + ':</b> ' + (esc(S.own[k] || "") || '<span class="muted">– noch leer –</span>') + '</p>').join("") + '</div>' +
+    '<p class="muted">Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.</p>';
+  const row = el("div", "row noprint"); const p = el("button", "btn", "Merkblatt kopieren"); p.onclick = () => copyText(merkText()); const dl = el("button", "btn sec", "Merkblatt speichern"); dl.hidden = !CAP.dl; dl.onclick = () => saveFile("Merkblatt_Automationen.txt", merkText());
+  const rs = el("button", "btn sec", "Fortschritt zurücksetzen"); confirmBtn(rs, () => { S = fresh(); save(); go(0); });
+  row.appendChild(p); row.appendChild(dl); row.appendChild(rs); c.appendChild(row);
+  newsletterBox(sc);
+  setNext(false, "Ende");
+}
+
+{{EXTRA_JS}}
+$("#next").onclick = () => go(S.step + 1);
+$("#back").onclick = () => go(S.step - 1);
+render();
+</script>
