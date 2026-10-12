@@ -1,0 +1,7 @@
+.outlook { display:grid; gap:12px; margin-top:12px; }
+.outlook div { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border:1.5px solid var(--line); border-radius:14px; background:#fff; }
+.outlook span { color:var(--muted); }
+.outlook .soon { border-style:dashed; border-color:var(--accent); background:var(--accent-2); }
+:root { --chat--color-primary:#E8590C; --chat--color-primary-shade-50:#C94B08; --chat--color-secondary:#1C1B19; --chat--toggle--background:#E8590C; --chat--toggle--hover--background:#C94B08; --chat--header--background:#1C1B19; --chat--font-family:"Space Grotesk", system-ui, sans-serif; }
+.n8n-chat, .chat-window-wrapper { z-index:50; }
+.chat-window-wrapper { bottom:90px !important; }
