@@ -11,3 +11,6 @@
 .novid { border:2px dashed #CFC9BF; border-radius:16px; padding:18px; color:var(--muted); font-weight:500; margin-top:8px; }
 .kp { margin-top:18px; } .kp h3 { margin:0 0 8px; font-size:20px; }
 .kp ol { margin:0; padding-left:22px; } .kp li { margin:10px 0; font-size:17px; line-height:1.5; max-width:72ch; }
+
+.askai { display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top:18px; padding:16px 18px; border-radius:16px; border:1.5px solid var(--accent); background:#fff; }
+.askai div { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1 1 260px; } .askai span { color:var(--muted); font-size:15px; line-height:1.45; }

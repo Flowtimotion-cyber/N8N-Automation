@@ -13,7 +13,7 @@ PROMISE = [
 ]
 
 LEVELS = [
- {"id": 1, "title": "Der Kollege, der nie müde wird", "videos": ["INTRO", "V1"],
+ {"id": 1, "title": "Der Kollege, der nie müde wird", "videos": ["INTRO", "V1"], "assist": "Frag deinen KI-Assistenten: Welche Aufgabe aus meinem Job eignet sich zum Automatisieren?",
   "merksatz": "Was du zweimal pro Woche gleich von Hand machst, ist ein Kandidat für eine Automation.",
   "kernpunkte": [
     "Viele verbringen jede Woche Stunden mit Arbeit, die immer gleich abläuft: Daten übertragen, Standardmails, Infos zusammensuchen.",
@@ -31,15 +31,16 @@ LEVELS = [
  {"id": 2, "title": "Was ist n8n?", "videos": ["V2"],
   "merksatz": "n8n ist der Motor: Er führt deine Automationen aus, rund um die Uhr.",
   "kernpunkte": [
-    "Aussprache: „N-Eight-N“. Der Name kommt von „nodemation“: Node (Baustein) plus Automation. Zwischen dem ersten und letzten N stehen acht Buchstaben.",
     "n8n ist eine Plattform für Automationen aus Berlin (gegründet 2019). Du verbindest damit Programme wie Outlook, Gmail, CRM, Excel oder Teams über Hunderte fertige Bausteine.",
     "Ein Workflow sieht aus wie Kästchen mit Linien: links startet er, rechts kommt das Ergebnis heraus. Jeden Schritt kannst du anklicken und die Daten sehen.",
     "n8n läuft in der Cloud von n8n oder auf eurem eigenen Server. Auf dem eigenen Server bleiben die Daten im Unternehmen.",
+    "Warum n8n statt Make, Zapier oder Pabbly: Die Anbindung an KI-Agenten wie Claude Code klappt hier am besten. Ziel ist keine Insellösung, sondern alle Systeme zentral zusammenzubringen, damit KI-Agenten sie gemeinsam steuern können.",
+    "Im Kurs bekommst du einen Schulungszugang (wir sind n8n-Partner). Nach dem Kurs kopierst du deine Automationen einfach in deine eigene n8n-Umgebung, auf eigenem Server oder mit n8n-Abo.",
     "n8n kann KI-Modelle einbauen, z. B. um Mails zusammenzufassen oder Anfragen einzuordnen."],
   "type": "flip",
   "intro": "Irrtum oder Fakt? Tippe deine Einschätzung, dann dreht sich die Karte um.",
   "cards": [
-    {"s": "n8n spricht man „Nenn“ aus.", "a": "irrtum", "r": "Richtig ist „N-Eight-N“. Die 8 steht für die acht Buchstaben zwischen den beiden N in „nodemation“."},
+    {"s": "Was ich im Schulungszugang baue, ist nach dem Kurs weg.", "a": "irrtum", "r": "Du kannst deine Automationen duplizieren und in deine eigene n8n-Umgebung kopieren, auf eigenem Server oder mit n8n-Abo."},
     {"s": "Für n8n muss ich programmieren können.", "a": "irrtum", "r": "n8n arbeitet mit fertigen Bausteinen. Und in diesem Kurs baut eine KI den Workflow nach deiner Beschreibung."},
     {"s": "n8n kann auf dem eigenen Server der Firma laufen.", "a": "fakt", "r": "Dann bleiben die Daten im Haus. Wie das geht, lernst du in Teil 3."},
     {"s": "In einen n8n-Workflow kann ich auch ein KI-Modell einbauen.", "a": "fakt", "r": "Zum Beispiel, um eine Mail zusammenzufassen oder eine Anfrage nach Dringlichkeit einzuordnen."}],
@@ -99,14 +100,17 @@ LEVELS = [
     {"t": "Speichert jede Ausführung mit Status grün oder rot", "c": "n8n (Motor)", "f": "Die Executions-Liste ist Teil von n8n."},
     {"t": "Offener Standard, den auch OpenAI und Google nutzen", "c": "MCP (Steckdose)", "f": "MCP ist nicht an einen Anbieter gebunden."}],
   "xp_each": 10},
- {"id": 6, "title": "Welche KI-Modelle?", "videos": ["V6"],
+ {"id": 6, "title": "Welche KI-Modelle?", "videos": ["V6"], "assist": "Bereite mit deinem KI-Assistenten das Gespräch mit deiner Führungskraft vor: Nutzen, Datenschutz, Kosten, Einwände.",
   "merksatz": "Der Baumeister baut, der Baustein arbeitet mit. Für beides gibt es mehrere Anbieter, und du kannst sie austauschen.",
   "kernpunkte": [
     "KI kommt an zwei Stellen vor: als Baumeister, der den Workflow baut, und als Baustein im Workflow, der bei jedem Durchlauf mitarbeitet.",
     "Baumeister: Claude Code (im Claude-Pro-Abo), Codex von OpenAI (mit ChatGPT-Abo) oder Gemini CLI von Google (mit Google-Konto kostenlos zum Ausprobieren). Prinzip immer: beschreiben, bauen lassen, prüfen.",
     "Baustein im Workflow: In n8n lassen sich GPT, Claude, Gemini, Mistral oder ein lokales Modell auf dem eigenen Server einbauen. Abgerechnet wird per API-Schlüssel nach Nutzung.",
     "Abo = für dich als Mensch, fester Monatspreis. API = für Programme wie n8n, Bezahlung nach Nutzung.",
-    "Datenschutz: Erlaubt unsere Firma den Anbieter? Wo werden die Daten verarbeitet? Werden sie zum Training genutzt? Am Anfang mit Testdaten arbeiten."],
+    "Lokal mit Ollama: Ein kostenloses Programm, mit dem ihr offene KI-Modelle (z. B. Llama, Qwen, Gemma, Mistral) auf dem eigenen Server betreibt. Laufen n8n und Ollama beide bei euch, verlässt kein Datensatz das Haus.",
+    "Mit der IT klären: Grafikkarte mit genug Speicher (Faustregel: kleine Modelle ab etwa 8–16 GB), genug Arbeitsspeicher und Festplatte, wer Updates und Backups macht, und welche Aufgaben das Modell übernehmen soll.",
+    "Bei Cloud-Modellen: Erlaubt unsere Firma den Anbieter? Wo werden die Daten verarbeitet? Werden sie zum Training genutzt? Datenschutzbeauftragten früh einbinden, am Anfang mit Testdaten arbeiten.",
+    "Jede Automation spart nicht einmal Zeit, sondern jede Woche, für immer. Fass den Mut, geh mit einem kleinen ersten Schritt zu den Entscheidern und bereite das Gespräch mit dem KI-Assistenten vor."],
   "type": "binary",
   "intro": "Baumeister oder Baustein, Abo oder API? Entscheide dich.",
   "items": [
@@ -114,6 +118,7 @@ LEVELS = [
     {"q": "Bei jeder neuen Mail soll eine KI eine Zusammenfassung schreiben.", "o": ["Baumeister", "Baustein im Workflow"], "a": 1, "r": "Das passiert bei jedem Durchlauf, also ist es ein Baustein im Workflow."},
     {"q": "Wie bezahlt n8n für ein KI-Modell im Workflow?", "o": ["Per API-Schlüssel nach Nutzung", "Über dein Chat-Abo"], "a": 0, "r": "Programme nutzen die API und zahlen pro Nutzung."},
     {"q": "Deine Firma erlaubt nur ChatGPT. Kannst du den Kurs mitmachen?", "o": ["Ja, mit Codex und ChatGPT-Abo", "Nein, nur mit Claude"], "a": 0, "r": "Codex kann sich wie Claude Code mit n8n verbinden."},
+    {"q": "Kundendaten dürfen das Haus nicht verlassen. Welche Lösung passt?", "o": ["n8n und Ollama auf dem eigenen Server", "Ein beliebiger KI-Chat im Browser"], "a": 0, "r": "Laufen n8n und das Modell bei euch, bleiben die Daten im Haus."},
     {"q": "Du testest deinen ersten Workflow. Welche Daten nimmst du?", "o": ["Testdaten", "Echte Kundendaten"], "a": 0, "r": "Erst testen, dann mit echten Daten arbeiten, wenn alles freigegeben ist."}],
   "xp_each": 15},
  {"id": 7, "title": "Lohnt sich das?", "videos": ["V7"],
@@ -161,7 +166,7 @@ LEVELS = [
 
 CHECK = [
  {"q": "Was ist eine Automation?", "a": "Ein Ablauf nach festen Regeln: Wenn das passiert, dann mach das.", "d": ["Eine KI, die alle Entscheidungen trifft", "Ein Programm, das Mitarbeiter ersetzt", "Eine Excel-Formel"], "lv": 1},
- {"q": "Wie spricht man n8n aus?", "a": "N-Eight-N", "d": ["Nenn", "N-Acht-N-Punkt", "Nodemation"], "lv": 2},
+ {"q": "Warum nutzen wir im Kurs n8n?", "a": "Weil es sich am besten mit KI-Agenten wie Claude Code verbinden lässt und alle Systeme zentral zusammenbringt", "d": ["Weil es das einzige Automationstool ist", "Weil man dafür programmieren muss", "Weil es keine Daten verarbeitet"], "lv": 2},
  {"q": "Was macht n8n?", "a": "Es verbindet Programme und führt Abläufe automatisch aus.", "d": ["Es schreibt Texte für deine Website.", "Es ist ein CRM.", "Es ersetzt dein E-Mail-Programm."], "lv": 2},
  {"q": "Warum betreiben viele Unternehmen n8n auf dem eigenen Server?", "a": "Damit die Daten im Unternehmen bleiben", "d": ["Weil es nur so funktioniert", "Weil die Cloud-Version keine KI kann", "Damit es schneller aussieht"], "lv": 2},
  {"q": "Was ist ein Trigger?", "a": "Der Auslöser, der einen Workflow startet", "d": ["Eine einzelne Aufgabe im Workflow", "Ein Durchlauf", "Ein Zugangsschlüssel"], "lv": 3},
@@ -171,7 +176,8 @@ CHECK = [
  {"q": "Wofür steht MCP in diesem Kurs?", "a": "Ein offener Standard, über den eine KI Werkzeuge wie n8n bedienen kann", "d": ["Ein Server-Anbieter", "Eine Art Trigger", "Ein Programm von n8n für Mails"], "lv": 5},
  {"q": "Was macht Claude Code im Kurs?", "a": "Es baut, testet und repariert Workflows nach deiner Beschreibung.", "d": ["Es führt die Workflows rund um die Uhr aus.", "Es speichert deine Passwörter.", "Es ersetzt n8n."], "lv": 5},
  {"q": "Deine Firma erlaubt nur ChatGPT. Was nimmst du als Baumeister?", "a": "Codex von OpenAI mit dem ChatGPT-Abo", "d": ["Gar nichts, dann geht es nicht", "Einen Webhook", "n8n allein"], "lv": 6},
+ {"q": "Womit betreibt ihr ein KI-Modell auf dem eigenen Server?", "a": "Mit Ollama", "d": ["Mit einem Webhook", "Mit einem Credential", "Mit Zapier"], "lv": 6},
  {"q": "Welche drei Fragen prüfen, ob sich eine Automation lohnt?", "a": "Regelmäßig? Feste Regeln? Mehrere Programme?", "d": ["Teuer? Neu? Kompliziert?", "Dringend? Wichtig? Spaß?", "Online? Mobil? Schnell?"], "lv": 7},
  {"q": "Was gehört in einen Prozess-Steckbrief?", "a": "Auslöser, Schritte, Tools, Ergebnis, Fehlerfall", "d": ["Budget, Logo, Farben", "Nur die Tools", "Nur das Ergebnis"], "lv": 8},
 ]
-PASS = 10
+PASS = 11

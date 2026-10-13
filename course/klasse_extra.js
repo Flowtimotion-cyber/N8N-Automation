@@ -64,6 +64,8 @@ renderStart = function (sc) {
   const code = el("input"); code.type = "text"; code.id = "tn-code"; code.autocomplete = "off"; code.placeholder = "z. B. ABC123"; code.value = S.kurscode || "";
   nameInp.after(lb, code);
   const note = $("p.small", card); if (note) note.textContent = "Mit deinem Namen und dem Kurscode speichert die Kursleitung deinen Lernstand: erledigte Level, XP, Check-Ergebnis und deinen Prozess-Steckbrief. Andere Teilnehmer sehen davon nichts.";
+  const ai = el("div", "askai", '<div><b>Dein persönlicher KI-Assistent</b><span>Unten rechts wartet ein Assistent, der den ganzen Kurs kennt. Er beantwortet Fragen zum Einrichten, nimmt Screenshots an und hilft dir, das Gespräch mit deiner Führungskraft vorzubereiten.</span></div>');
+  const aib = el("button", "btn sec", "Kurz ausprobieren"); aib.onclick = () => window.openAssistant(); ai.appendChild(aib); card.appendChild(ai);
   const gate = () => { const ok = (S.name || "").length >= 2 && (S.kurscode || "").length >= 3; setNext(ok, "Los geht’s"); };
   nameInp.addEventListener("input", gate);
   code.addEventListener("input", () => { S.kurscode = code.value.trim().toUpperCase(); save(); gate(); });
@@ -110,14 +112,21 @@ function newsletterBox(sc) {
 
 // ---------- Video lädt nicht: Hinweis mit direktem Link ----------
 document.addEventListener("error", (ev) => {
-  const v = ev.target;
+  let v = ev.target;
+  if (v && v.tagName === "SOURCE") { if (v.nextElementSibling) return; v = v.parentElement; }
   if (!v || v.tagName !== "VIDEO" || v.dataset.errShown) return;
   v.dataset.errShown = "1";
-  const box = el("div", "fb bad", "Das Video lädt hier gerade nicht. <a href=\"" + v.getAttribute("src") + "\" target=\"_blank\" rel=\"noopener\">Video direkt öffnen</a> oder die Seite mit Chrome, Edge oder Safari neu laden.");
+  const box = el("div", "fb bad", "Das Video lädt hier gerade nicht. <a href=\"" + (v.querySelector("source") || v).getAttribute("src") + "\" target=\"_blank\" rel=\"noopener\">Video direkt öffnen</a> oder die Seite mit Chrome, Edge oder Safari neu laden.");
   v.closest(".vidwrap").after(box);
 }, true);
 
 // ---------- Setup-Assistent (n8n Chat) ----------
+window.openAssistant = function () {
+  const t = document.querySelector(".chat-window-toggle");
+  const win = document.querySelector(".chat-window");
+  if (t && !(win && win.offsetParent)) t.click();
+  if (!t) toast("Der Assistent lädt noch, versuch es gleich noch einmal.");
+};
 (function loadChat() {
   const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/@n8n/chat@1.40.1/dist/style.css"; document.head.appendChild(css);
   const s = document.createElement("script"); s.type = "module";

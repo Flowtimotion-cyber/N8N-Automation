@@ -11,6 +11,8 @@ media = {}
 for k in ["INTRO","V1","V2","V3","V4","V5","V6","V7","V8","VEND"]:
     src = VID / f"{k}.mp4"
     if src.exists(): shutil.copy2(src, OUT / "media" / src.name); media[k] = f"media/{k}.mp4"
+    w = VID / f"{k}.webm"
+    if w.exists(): shutil.copy2(w, OUT / "media" / w.name); media[k + "_webm"] = f"media/{k}.webm"
 for f in ["img_desk.jpg","img_sort.jpg","img_done.jpg"]: shutil.copy2(C / "artifact/media" / f, OUT / "media" / f)
 media.update({"IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"})
 fd = ST / "projects/level2/assets/fonts"; fonts = ""

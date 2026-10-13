@@ -185,7 +185,7 @@ function renderVideo(sc, st) {
   const lastOfLevel = !!(L && L.videos[L.videos.length - 1] === st.v);
   let v = null;
   if (MEDIA[st.v]) {
-    const w = el("div", "vidwrap"); v = el("video"); v.src = MEDIA[st.v]; v.controls = true; v.playsInline = true; v.preload = "metadata";
+    const w = el("div", "vidwrap"); v = el("video"); [[MEDIA[st.v], "video/mp4"], [MEDIA[st.v + "_webm"], "video/webm"]].forEach(([u, t]) => { if (u) { const so = document.createElement("source"); so.src = u; so.type = t; v.appendChild(so); } }); v.controls = true; v.playsInline = true; v.preload = "metadata";
     w.appendChild(v); c.appendChild(w);
     c.appendChild(el("div", "hint", "🔊 Ton an! Das Video kannst du jederzeit überspringen."));
   } else {
@@ -195,6 +195,7 @@ function renderVideo(sc, st) {
   if (lastOfLevel && L.kernpunkte) c.appendChild(el("div", "kp", '<h3>Das Wichtigste aus diesem Level</h3><ol>' + L.kernpunkte.map(k => '<li>' + esc(k) + '</li>').join("") + '</ol>'));
   if (isEnd && !MEDIA[st.v]) c.appendChild(el("div", "kp", '<h3>Das hast du jetzt drauf</h3><p>n8n ist der Motor. Claude Code ist der Baumeister. MCP ist die Steckdose dazwischen. API und Webhook sind die Leitungen zu deinen Programmen. Und dein Steckbrief ist der Bauplan. In Teil 2 wird gebaut.</p>'));
   if (lastOfLevel) c.appendChild(el("div", "merk", "Merksatz: " + esc(L.merksatz)));
+  if (L && L.assist && st.v === L.videos[0]) { const ab = el("div", "askai", '<div><b>Dein KI-Assistent</b><span>' + esc(L.assist) + '</span></div>'); const bt = el("button", "btn", "Assistent öffnen"); bt.onclick = () => window.openAssistant && window.openAssistant(); ab.appendChild(bt); c.appendChild(ab); }
   sc.appendChild(c);
   if (v) v.addEventListener("ended", () => setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter", true));
   setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter");
