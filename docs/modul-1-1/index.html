@@ -145,6 +145,12 @@ textarea { min-height:70px; resize:vertical; }
 .askai { display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top:18px; padding:16px 18px; border-radius:16px; border:1.5px solid var(--accent); background:#fff; }
 .askai div { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1 1 260px; } .askai span { color:var(--muted); font-size:15px; line-height:1.45; }
 
+.dzbox { margin:16px 0 4px; border:1px solid var(--line); border-radius:14px; padding:10px 16px; background:#fff; font-size:15px; }
+.dzbox summary { cursor:pointer; font-weight:700; color:var(--ink); }
+.dzbox ul { margin:10px 0 6px; padding-left:20px; color:var(--muted); line-height:1.5; }
+.dzbox li { margin:4px 0; }
+.dzbox a { color:var(--accent); }
+
 @media (max-width:640px) { .badges { display:none; } .opts.two, .yn { grid-template-columns:1fr; } .card { padding:20px; } }
 @media print {
   header, .navbar, .noprint { display:none !important; }
@@ -527,6 +533,15 @@ renderStart = function (sc) {
   const code = el("input"); code.type = "text"; code.id = "tn-code"; code.autocomplete = "off"; code.placeholder = "z. B. ABC123"; code.value = S.kurscode || "";
   nameInp.after(lb, code);
   const note = $("p.small", card); if (note) note.textContent = "Mit deinem Namen und dem Kurscode speichert die Kursleitung deinen Lernstand: erledigte Level, XP, Check-Ergebnis und deinen Prozess-Steckbrief. Andere Teilnehmer sehen davon nichts.";
+  const dz = el("details", "dzbox");
+  dz.innerHTML = '<summary>Datenschutz im Kurs: was wo gespeichert wird</summary><ul>' +
+    '<li><b>In deinem Browser:</b> dein Fortschritt (Level, XP, Eingaben). Löschbar über die Browserdaten.</li>' +
+    '<li><b>Bei der Kursleitung:</b> Name, Kurscode, Lernstand und dein Prozess-Steckbrief. Die E-Mail-Adresse nur, wenn du die Zusammenfassung oder einen Zugang anforderst. Wir nutzen die Daten nur für diesen Kurs.</li>' +
+    '<li><b>Setup-Assistent:</b> Nachrichten und Bilder verarbeitet ein KI-Dienst (OpenAI). Bitte keine Kundendaten, Passwörter oder Firmeninterna eingeben.</li>' +
+    '<li><b>Webseite und Videos:</b> werden über GitHub Pages ausgeliefert. Dabei fällt deine IP-Adresse an.</li>' +
+    '<li><b>In den Übungen:</b> nur Testdaten verwenden, nie echte Kunden- oder Mitarbeiterdaten.</li></ul>' +
+    '<p class="small muted">Verantwortlich und weitere Infos: <a href="https://momentum-ki-akademie.de/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a> · <a href="https://momentum-ki-akademie.de/impressum" target="_blank" rel="noopener">Impressum</a></p>';
+  card.appendChild(dz);
   const ai = el("div", "askai", '<div><b>Dein persönlicher KI-Assistent</b><span>Unten rechts wartet ein Assistent, der den ganzen Kurs kennt. Er beantwortet Fragen zum Einrichten, nimmt Screenshots an und hilft dir, das Gespräch mit deiner Führungskraft vorzubereiten.</span></div>');
   const aib = el("button", "btn sec", "Kurz ausprobieren"); aib.onclick = () => window.openAssistant(); ai.appendChild(aib); card.appendChild(ai);
   const gate = () => { const ok = (S.name || "").length >= 2 && (S.kurscode || "").length >= 3; setNext(ok, "Los geht’s"); };
@@ -591,12 +606,12 @@ window.openAssistant = function () {
   if (!t) toast("Der Assistent lädt noch, versuch es gleich noch einmal.");
 };
 (function loadChat() {
-  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://cdn.jsdelivr.net/npm/@n8n/chat@1.40.1/dist/style.css"; document.head.appendChild(css);
+  const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "media/n8n-chat.css"; document.head.appendChild(css);
   const s = document.createElement("script"); s.type = "module";
-  s.textContent = "import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat@1.40.1/dist/chat.bundle.es.js';" +
+  s.textContent = "import { createChat } from './media/n8n-chat.js';" +
     "createChat({ webhookUrl: 'https://n8n.hm-storage.de/webhook/55498f00-289d-43ca-899e-f23fbf4c0d69/chat', mode: 'window', showWelcomeScreen: false, loadPreviousSession: false," +
     " allowFileUploads: true, allowedFilesMimeTypes: 'image/*', defaultLanguage: 'en'," +
-    " initialMessages: ['Hallo! Ich bin dein Setup-Assistent.', 'Frag mich alles zum Einrichten: Claude Code, ChatGPT, die Verbindung zu n8n oder deinen eigenen Server. Du kannst mir auch Screenshots schicken (Passwörter und Schlüssel vorher schwärzen).']," +
+    " initialMessages: ['Hallo! Ich bin dein Setup-Assistent.', 'Frag mich alles zum Einrichten: Claude Code, ChatGPT, die Verbindung zu n8n oder deinen eigenen Server. Du kannst mir auch Screenshots schicken.', 'Datenschutz: Deine Nachrichten und Bilder verarbeitet ein KI-Dienst (OpenAI). Schick bitte keine Kundendaten, keine Passwörter und keine vertraulichen Firmeninfos. Schwärze so etwas auf Screenshots vorher.']," +
     " i18n: { en: { title: 'Setup-Assistent', subtitle: 'Hilfe beim Einrichten, Schritt für Schritt', footer: '', getStarted: 'Neues Gespräch', inputPlaceholder: 'Deine Frage …', closeButtonTooltip: 'Schließen' } } });";
   document.body.appendChild(s);
 })();
