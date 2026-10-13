@@ -151,6 +151,13 @@ textarea { min-height:70px; resize:vertical; }
 .dzbox li { margin:4px 0; }
 .dzbox a { color:var(--accent); }
 
+.dztab { width:100%; border-collapse:collapse; margin:10px 0; font-size:14px; }
+.dztab th { text-align:left; color:var(--muted); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line); }
+.dztab td { padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--ink); }
+.dztab td:last-child { color:var(--muted); }
+.dzbtns { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 4px; }
+.dzbox .small { font-size:14px; line-height:1.5; color:var(--muted); }
+
 @media (max-width:640px) { .badges { display:none; } .opts.two, .yn { grid-template-columns:1fr; } .card { padding:20px; } }
 @media print {
   header, .navbar, .noprint { display:none !important; }
@@ -440,7 +447,7 @@ function renderCheck(sc) {
   function done() {
     const passed = score >= DATA.pass; const first = !S.check;
     if (!S.check || score > S.check.best) { const gain = (score - (S.check ? S.check.best : 0)) * 10; if (gain > 0) addXP(gain, "Check"); }
-    S.check = { best: Math.max(score, S.check ? S.check.best : 0), passed: passed || (S.check && S.check.passed) }; save(); badges();
+    S.check = { best: Math.max(score, S.check ? S.check.best : 0), passed: passed || (S.check && S.check.passed) }; S.checkTries = (S.checkTries || 0) + 1; S.checkWrong = wrong.map(q => q.q); save(); badges();
     const lv = [...new Set(wrong.map(q => q.lv))].sort();
     box.innerHTML = '<div class="score">' + score + ' / ' + Q.length + '</div><div class="fb ' + (passed ? "ok" : "bad") + '">' + (passed ? "Bestanden! " + (S.name ? esc(S.name) + ", d" : "D") + "u hast die Grundlagen sicher drauf." : "Noch nicht bestanden – du brauchst " + DATA.pass + " richtige Antworten.") +
       (lv.length ? "<br>Wiederholen lohnt sich bei: " + lv.map(l => "Level " + l + " (" + esc(LV(l).title) + ")").join(", ") : "") + '</div>';
@@ -504,11 +511,21 @@ function merkText() {
 }
 
 // ---------- Lernstand senden ----------
+function schrittName(i) {
+  const st = STEPS[i] || {}; if (st.k === "start") return "Start"; if (st.k === "check") return "Abschluss-Check"; if (st.k === "summary") return "Abschluss";
+  if (st.k === "video") return st.lv > NLV ? "Abschlussvideo" : "Level " + st.lv + " · Video"; if (st.k === "task") return "Level " + st.lv + " · Aufgabe"; return String(i);
+}
+if (!S.started) { S.started = new Date().toISOString(); try { save(); } catch (e) {} }
+window.__chatMeta = window.__chatMeta || {};
+setTimeout(() => { try { updMeta(); } catch (e) {} }, 0);
+function updMeta() { const m = window.__chatMeta; m.teilnehmer_id = teilnehmerId(); m.name = S.name || ""; m.kurs = KURS; m.schritt = schrittName(S.step || 0); }
 function payload(extra) {
   return Object.assign({
     kurscode: S.kurscode || "", teilnehmer_id: teilnehmerId(), name: S.name || "", kurs: KURS,
     level_fertig: Object.keys(S.done).length, level_gesamt: NLV, check_gesamt: DATA.check.length, fortschritt_prozent: Math.round((S.maxStep || 0) / (STEPS.length - 1) * 100),
-    xp: S.xp, check_best: S.check ? S.check.best : null, check_bestanden: !!(S.check && S.check.passed), steckbrief: S.own
+    xp: S.xp, check_best: S.check ? S.check.best : null, check_bestanden: !!(S.check && S.check.passed), steckbrief: S.own,
+    email: S.email || "", gestartet: S.started || "", aktueller_schritt: schrittName(S.maxStep || 0),
+    levels_liste: Object.keys(S.done).sort((x, y) => x - y).join(","), check_versuche: S.checkTries || 0, check_fehler: (S.checkWrong || []).join(" | ")
   }, extra || {});
 }
 function post(body) {
@@ -516,6 +533,7 @@ function post(body) {
 }
 let syncTimer = null, lastSent = "";
 function syncLater() {
+  try { updMeta(); } catch (e) {}
   if (!S.name || !S.kurscode) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => { const b = payload(); const k = JSON.stringify(b); if (k === lastSent) return; lastSent = k; post(b).catch(() => { lastSent = ""; }); }, 1500);
@@ -531,20 +549,15 @@ renderStart = function (sc) {
   const nameLabel = nameInp.previousElementSibling; if (nameLabel) { nameLabel.innerHTML = "Dein Name"; nameLabel.htmlFor = "tn-name"; }
   const lb = el("label", "", "Kurscode <span class=\"muted\" style=\"font-weight:500\">(bekommst du von deiner Kursleitung)</span>"); lb.htmlFor = "tn-code"; lb.style.cssText = "font-weight:700;display:block;margin:14px 0 8px";
   const code = el("input"); code.type = "text"; code.id = "tn-code"; code.autocomplete = "off"; code.placeholder = "z. B. ABC123"; code.value = S.kurscode || "";
-  nameInp.after(lb, code);
-  const note = $("p.small", card); if (note) note.textContent = "Mit deinem Namen und dem Kurscode speichert die Kursleitung deinen Lernstand: erledigte Level, XP, Check-Ergebnis und deinen Prozess-Steckbrief. Andere Teilnehmer sehen davon nichts.";
-  const dz = el("details", "dzbox");
-  dz.innerHTML = '<summary>Datenschutz im Kurs: was wo gespeichert wird</summary><ul>' +
-    '<li><b>In deinem Browser:</b> dein Fortschritt (Level, XP, Eingaben). Löschbar über die Browserdaten.</li>' +
-    '<li><b>Bei der Kursleitung:</b> Name, Kurscode, Lernstand und dein Prozess-Steckbrief. Die E-Mail-Adresse nur, wenn du die Zusammenfassung oder einen Zugang anforderst. Wir nutzen die Daten nur für diesen Kurs.</li>' +
-    '<li><b>Setup-Assistent:</b> Nachrichten und Bilder verarbeitet ein KI-Dienst (OpenAI). Bitte keine Kundendaten, Passwörter oder Firmeninterna eingeben.</li>' +
-    '<li><b>Webseite und Videos:</b> werden über GitHub Pages ausgeliefert. Dabei fällt deine IP-Adresse an.</li>' +
-    '<li><b>In den Übungen:</b> nur Testdaten verwenden, nie echte Kunden- oder Mitarbeiterdaten.</li></ul>' +
-    '<p class="small muted">Verantwortlich und weitere Infos: <a href="https://momentum-ki-akademie.de/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a> · <a href="https://momentum-ki-akademie.de/impressum" target="_blank" rel="noopener">Impressum</a></p>';
-  card.appendChild(dz);
+  const lbm = el("label", "", "Deine E-Mail-Adresse"); lbm.htmlFor = "tn-mail"; lbm.style.cssText = "font-weight:700;display:block;margin:14px 0 8px";
+  const mailInp = el("input"); mailInp.type = "email"; mailInp.id = "tn-mail"; mailInp.autocomplete = "email"; mailInp.placeholder = "name@firma.de"; mailInp.value = S.email || "";
+  nameInp.after(lb, code, lbm, mailInp);
+  const note = $("p.small", card); if (note) note.textContent = "Die Kursleitung speichert deinen Lernstand, damit sie dich betreuen und den Kurs verbessern kann. Was genau gespeichert wird und wie du es jederzeit löschst, steht unten unter „Datenschutz im Kurs“.";
+  card.appendChild(dzBox());
   const ai = el("div", "askai", '<div><b>Dein persönlicher KI-Assistent</b><span>Unten rechts wartet ein Assistent, der den ganzen Kurs kennt. Er beantwortet Fragen zum Einrichten, nimmt Screenshots an und hilft dir, das Gespräch mit deiner Führungskraft vorzubereiten.</span></div>');
   const aib = el("button", "btn sec", "Kurz ausprobieren"); aib.onclick = () => window.openAssistant(); ai.appendChild(aib); card.appendChild(ai);
-  const gate = () => { const ok = (S.name || "").length >= 2 && (S.kurscode || "").length >= 3; setNext(ok, "Los geht’s"); };
+  const gate = () => { const ok = (S.name || "").length >= 2 && (S.kurscode || "").length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email || ""); setNext(ok, "Los geht’s"); updMeta(); };
+  mailInp.addEventListener("input", () => { S.email = mailInp.value.trim(); save(); gate(); });
   nameInp.addEventListener("input", gate);
   code.addEventListener("input", () => { S.kurscode = code.value.trim().toUpperCase(); save(); gate(); });
   gate();
@@ -609,12 +622,57 @@ window.openAssistant = function () {
   const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "media/n8n-chat.css"; document.head.appendChild(css);
   const s = document.createElement("script"); s.type = "module";
   s.textContent = "import { createChat } from './media/n8n-chat.js';" +
-    "createChat({ webhookUrl: 'https://n8n.hm-storage.de/webhook/55498f00-289d-43ca-899e-f23fbf4c0d69/chat', mode: 'window', showWelcomeScreen: false, loadPreviousSession: false," +
+    "createChat({ webhookUrl: 'https://n8n.hm-storage.de/webhook/55498f00-289d-43ca-899e-f23fbf4c0d69/chat', mode: 'window', showWelcomeScreen: false, loadPreviousSession: false, metadata: window.__chatMeta," +
     " allowFileUploads: true, allowedFilesMimeTypes: 'image/*', defaultLanguage: 'en'," +
-    " initialMessages: ['Hallo! Ich bin dein Setup-Assistent.', 'Frag mich alles zum Einrichten: Claude Code, ChatGPT, die Verbindung zu n8n oder deinen eigenen Server. Du kannst mir auch Screenshots schicken.', 'Datenschutz: Deine Nachrichten und Bilder verarbeitet ein KI-Dienst (OpenAI). Schick bitte keine Kundendaten, keine Passwörter und keine vertraulichen Firmeninfos. Schwärze so etwas auf Screenshots vorher.']," +
+    " initialMessages: ['Hallo! Ich bin dein Setup-Assistent.', 'Frag mich alles zum Einrichten: Claude Code, ChatGPT, die Verbindung zu n8n oder deinen eigenen Server. Du kannst mir auch Screenshots schicken.', 'Gut zu wissen: Deine Fragen und meine Antworten speichert die Kursleitung mit deinem Namen, um dich zu betreuen und den Kurs zu verbessern. Verarbeitet werden sie von einem KI-Dienst (OpenAI). Schick bitte keine Kundendaten, Passwörter oder Firmeninterna. Löschen kannst du alles jederzeit unter „Datenschutz im Kurs“ auf der Startseite.']," +
     " i18n: { en: { title: 'Setup-Assistent', subtitle: 'Hilfe beim Einrichten, Schritt für Schritt', footer: '', getStarted: 'Neues Gespräch', inputPlaceholder: 'Deine Frage …', closeButtonTooltip: 'Schließen' } } });";
   document.body.appendChild(s);
 })();
+
+
+// ---------- Datenschutz im Kurs: Übersicht, Daten ansehen, Daten löschen ----------
+const DELETE_HOOK = "https://n8n.hm-storage.de/webhook/kurs-daten-loeschen";
+function dzBox() {
+  const dz = el("details", "dzbox");
+  dz.innerHTML = '<summary>Datenschutz im Kurs: was gespeichert wird und wie du es löschst</summary>' +
+    '<p class="small">Die Kursleitung speichert Daten zu deinem Kursfortschritt. Sie nutzt sie, um dich zu betreuen und den Kurs zu verbessern, zum Beispiel um zu sehen, an welchen Stellen viele hängen bleiben. Andere Teilnehmer sehen nichts davon.</p>' +
+    '<table class="dztab"><tr><th>Was</th><th>Wo</th></tr>' +
+    '<tr><td><b>Name, E-Mail-Adresse, Kurscode</b></td><td>Server der Kursleitung</td></tr>' +
+    '<tr><td><b>Lernstand:</b> erledigte Level, aktueller Schritt, XP, Check-Ergebnis und falsch beantwortete Check-Fragen</td><td>Server der Kursleitung</td></tr>' +
+    '<tr><td><b>Dein Prozess-Steckbrief</b></td><td>Server der Kursleitung</td></tr>' +
+    '<tr><td><b>Deine Fragen an den Assistenten und seine Antworten</b>, mit deinem Namen</td><td>Server der Kursleitung. Verarbeitet werden sie von einem KI-Dienst (OpenAI).</td></tr>' +
+    '<tr><td><b>Anfragen</b> für Zugang oder Angebot</td><td>Server der Kursleitung</td></tr>' +
+    '<tr><td><b>Fortschritt und Eingaben</b> zum Weitermachen</td><td>nur in deinem Browser</td></tr>' +
+    '<tr><td><b>Seitenaufruf</b> (IP-Adresse)</td><td>GitHub Pages, liefert Seite und Videos aus</td></tr></table>' +
+    '<p class="small"><b>Bitte beachte:</b> In den Übungen und im Chat nur Testdaten verwenden. Keine Kunden- oder Mitarbeiterdaten, keine Passwörter.</p>' +
+    '<div class="dzbtns"></div><div class="dzmsg"></div>' +
+    '<p class="small muted">Verantwortlich und weitere Infos: <a href="https://momentum-ki-akademie.de/datenschutz" target="_blank" rel="noopener">Datenschutzerklärung</a> · <a href="https://momentum-ki-akademie.de/impressum" target="_blank" rel="noopener">Impressum</a></p>';
+  const btns = $(".dzbtns", dz), msg = $(".dzmsg", dz);
+  const show = el("button", "btn sec", "Meine gespeicherten Daten anzeigen");
+  show.onclick = () => {
+    const b = payload();
+    const rows = [["Teilnehmer-ID", b.teilnehmer_id], ["Name", b.name], ["E-Mail", b.email], ["Kurs", b.kurs], ["Gestartet", b.gestartet ? new Date(b.gestartet).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"],
+      ["Aktueller Schritt", b.aktueller_schritt], ["Erledigte Level", b.levels_liste || "–"], ["XP", b.xp], ["Check: beste Wertung", b.check_best == null ? "–" : b.check_best],
+      ["Check: Versuche", b.check_versuche], ["Check: falsch beantwortet", b.check_fehler || "–"], ["Steckbrief", (b.steckbrief || []).filter(x => x).join(" / ") || "–"]];
+    msg.innerHTML = '<table class="dztab">' + rows.map(r => '<tr><td>' + esc(r[0]) + '</td><td>' + esc(String(r[1] ?? "")) + '</td></tr>').join("") + '</table>' +
+      '<p class="small muted">Dazu kommen deine Fragen an den Assistenten, falls du ihm etwas geschrieben hast.</p>';
+  };
+  const del = el("button", "btn sec", "Meine Kursdaten löschen");
+  confirmBtn(del, async () => {
+    del.disabled = true; del.textContent = "Wird gelöscht …";
+    try {
+      const r = await fetch(DELETE_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kurscode: S.kurscode || "", teilnehmer_id: teilnehmerId() }) });
+      if (!r.ok) throw new Error(r.status);
+      try { Object.keys(localStorage).filter(k => /^m1[12]-/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      msg.innerHTML = '<div class="fb ok">Erledigt. Deine Kursdaten auf dem Server der Kursleitung und in diesem Browser sind gelöscht. Die Seite startet gleich neu.</div>';
+      setTimeout(() => location.reload(), 3500);
+    } catch (e) { del.disabled = false; del.textContent = "Meine Kursdaten löschen"; msg.innerHTML = '<div class="fb bad">Das hat nicht geklappt. Versuch es noch einmal oder schreib der Kursleitung.</div>'; }
+  });
+  btns.append(show, del);
+  return dz;
+}
+const _renderSummaryDz = renderSummary;
+renderSummary = function (sc) { _renderSummaryDz(sc); const c = el("div", "card"); c.appendChild(dzBox()); sc.appendChild(c); };
 
 $("#next").onclick = () => go(S.step + 1);
 $("#back").onclick = () => go(S.step - 1);
