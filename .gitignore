@@ -9,3 +9,4 @@ course/shots/
 media/*.mp4
 .env
 .DS_Store
+notes/
