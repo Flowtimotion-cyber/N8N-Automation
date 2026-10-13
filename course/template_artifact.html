@@ -185,7 +185,7 @@ function renderVideo(sc, st) {
   const lastOfLevel = !!(L && L.videos[L.videos.length - 1] === st.v);
   let v = null;
   if (MEDIA[st.v]) {
-    const w = el("div", "vidwrap"); v = el("video"); [[MEDIA[st.v], "video/mp4"], [MEDIA[st.v + "_webm"], "video/webm"]].forEach(([u, t]) => { if (u) { const so = document.createElement("source"); so.src = u; so.type = t; v.appendChild(so); } }); v.controls = true; v.playsInline = true; v.preload = "metadata";
+    const w = el("div", "vidwrap"); v = el("video"); [[MEDIA[st.v], "video/mp4"], [MEDIA[st.v + "_webm"], "video/webm"]].forEach(([u, t]) => { if (u) { const so = document.createElement("source"); so.src = u; so.type = t; v.appendChild(so); } }); v.controls = true; v.playsInline = true; v.preload = "metadata"; if (MEDIA[st.v + "_poster"]) v.poster = MEDIA[st.v + "_poster"];
     w.appendChild(v); c.appendChild(w);
     c.appendChild(el("div", "hint", "🔊 Ton an! Das Video kannst du jederzeit überspringen."));
   } else {

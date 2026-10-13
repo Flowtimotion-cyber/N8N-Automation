@@ -130,7 +130,8 @@ em { font-style:normal; color:var(--accent); }
 .tile { width:92px; height:92px; border-radius:22px; background:#fff; display:flex; align-items:center; justify-content:center; box-shadow:0 14px 34px rgba(40,30,20,.10), 0 1px 3px rgba(40,30,20,.06); }
 .txtic { display:inline-flex; align-items:center; justify-content:center; border-radius:10px; background:var(--ink); color:#fff; font-weight:700; }
 .card { background:var(--card); border-radius:20px; box-shadow:0 22px 60px rgba(40,30,20,.10), 0 1px 4px rgba(40,30,20,.06); }
-.cards { position:absolute; left:90px; right:90px; top:190px; display:flex; gap:22px; justify-content:center; align-items:stretch; }
+.zone { position:absolute; left:0; right:0; display:flex; flex-direction:column; justify-content:center; }
+.cards { position:relative; margin:0 90px; display:flex; gap:22px; justify-content:center; align-items:stretch; }
 .cards .card { flex:1; max-width:340px; padding:26px 24px; display:flex; flex-direction:column; gap:12px; }
 .cards .card .ic { width:64px; height:64px; border-radius:16px; background:var(--soft); display:flex; align-items:center; justify-content:center; }
 .cards .card .ic.white { background:#F6F4F0; }
@@ -183,7 +184,7 @@ em { font-style:normal; color:var(--accent); }
 .hl b { position:absolute; left:-3px; top:-38px; background:var(--accent); color:#fff; font-size:17px; font-weight:700; padding:5px 12px; border-radius:8px; white-space:nowrap; }
 .chips { position:absolute; right:60px; bottom:34px; display:flex; flex-direction:column; align-items:flex-end; gap:12px; }
 /* compare */
-.cmp { position:absolute; left:90px; right:90px; top:170px; display:flex; gap:30px; align-items:stretch; }
+.cmp { position:relative; margin:0 90px; display:flex; gap:30px; align-items:stretch; }
 .cmp .col { flex:1; padding:28px 30px; display:flex; flex-direction:column; gap:14px; }
 .cmp .ch { display:flex; align-items:center; gap:16px; font-size:30px; font-weight:700; }
 .cmp .ch .ic { width:64px; height:64px; border-radius:16px; background:var(--soft); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
@@ -191,7 +192,7 @@ em { font-style:normal; color:var(--accent); }
 .cmp .row svg { flex:0 0 auto; margin-top:3px; }
 .cmp .vs { align-self:center; font-size:26px; font-weight:700; color:var(--muted); }
 /* checklist */
-.cl { position:absolute; left:200px; right:200px; top:180px; display:flex; flex-direction:column; gap:16px; }
+.cl { position:relative; margin:0 200px; display:flex; flex-direction:column; gap:16px; }
 .cl .ci { display:flex; align-items:center; gap:20px; padding:18px 26px; font-size:27px; font-weight:500; }
 .cl .num { width:46px; height:46px; border-radius:50%; background:var(--accent); color:#fff; font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .cl .ck { width:46px; height:46px; border-radius:12px; background:var(--soft); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
@@ -205,7 +206,7 @@ em { font-style:normal; color:var(--accent); }
 .tl .p { color:var(--accent); font-weight:600; }
 .tl.g { color:#7FD49B; } .tl.r { color:#FF8A80; } .tl.m { color:#A9A398; } .tl.y { color:#F2C46D; }
 /* chat */
-.chat { position:absolute; left:250px; right:250px; top:150px; display:flex; flex-direction:column; gap:18px; }
+.chat { position:relative; margin:0 250px; display:flex; flex-direction:column; gap:18px; }
 .msg { max-width:640px; padding:18px 22px; border-radius:20px; font-size:23px; line-height:1.4; }
 .msg.u { align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:6px; }
 .msg.a { align-self:flex-start; background:#fff; border-bottom-left-radius:6px; box-shadow:0 12px 30px rgba(40,30,20,.10); display:flex; gap:14px; }
@@ -219,7 +220,7 @@ em { font-style:normal; color:var(--accent); }
 .sf .val { font-size:21px; color:var(--ink); min-height:28px; white-space:nowrap; overflow:hidden; }
 .house { position:absolute; left:250px; top:150px; width:780px; height:400px; border:3px dashed var(--accent); border-radius:28px; background:rgba(252,233,221,.35); }
 .house .lbl { position:absolute; left:28px; top:-20px; background:var(--bg); padding:0 12px; font-size:20px; font-weight:700; color:var(--accent); display:flex; gap:10px; align-items:center; }
-.bars { position:absolute; left:200px; right:200px; top:170px; height:360px; display:flex; align-items:flex-end; gap:34px; border-bottom:3px solid var(--ink); }
+.bars { position:absolute; left:200px; right:200px; top:125px; height:345px; display:flex; align-items:flex-end; gap:34px; border-bottom:3px solid var(--ink); }
 .bars .b { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
 .bars .bv { width:100%; border-radius:12px 12px 0 0; background:var(--accent); transform-origin:50% 100%; }
 .bars .bl { position:absolute; bottom:-44px; font-size:20px; font-weight:500; }
@@ -296,6 +297,11 @@ class Builder:
         fn = getattr(self, "k_" + sc.kind)
         return fn(s, e, **sc.kw)
 
+    def zone(self, title, foot=False):
+        zt = 135 if title else 95
+        zb = 105 if foot else 25
+        return f'<div class="zone" style="top:{zt}px;bottom:{zb}px">'
+
     def head(self, s, kick=None, title=None):
         h = ""
         if kick or title:
@@ -371,7 +377,7 @@ class Builder:
         a = self.uid("a")
         h = self.head(s, kick, title)
         ts = self.items(cards, s, e, gap=.5)
-        h += f'<div class="cards" style="top:{top}px">'
+        h += self.zone(title, bool(foot)) + '<div class="cards">'
         for k, (c, tt) in enumerate(zip(cards, ts)):
             i = f"{a}c{k}"
             if arrows and k:
@@ -383,7 +389,7 @@ class Builder:
             h += (f'<div class="card it{cls}" id="{i}"><div class="ic{white}">{icon(ic, 38)}</div>'
                   f'<div class="t">{esc(c["t"])}</div>' + (f'<div class="d">{esc(c["d"])}</div>' if c.get("d") else "") + "</div>")
             self.IN(i, tt, "pop")
-        h += "</div>"
+        h += "</div></div>"
         if foot:
             i = f"{a}f"
             h += f'<div class="foot it" id="{i}"><span>{foot}</span></div>'
@@ -513,7 +519,7 @@ class Builder:
     def k_compare(self, s, e, kick=None, title=None, cols=(), vs="vs", top=170):
         a = self.uid("a")
         h = self.head(s, kick, title)
-        h += f'<div class="cmp" style="top:{top}px">'
+        h += self.zone(title) + '<div class="cmp">'
         cur = s + .3
         for c, col in enumerate(cols):
             i = f"{a}c{c}"
@@ -533,19 +539,19 @@ class Builder:
                 self.IN(j, rt, "left")
             h += "</div>"
             cur = (rts[-1] if rts else tcol) + .6
-        return h + "</div>"
+        return h + "</div></div>"
 
     def k_check(self, s, e, kick=None, title=None, items=(), mode="num", top=180):
         a = self.uid("a")
         h = self.head(s, kick, title)
         ts = self.items(items, s, e, gap=.55)
-        h += f'<div class="cl" style="top:{top}px">'
+        h += self.zone(title) + '<div class="cl">'
         for k, (it, tt) in enumerate(zip(items, ts)):
             i = f"{a}i{k}"
             m = f'<div class="num">{k+1}</div>' if mode == "num" else f'<div class="ck">{icon(it.get("icon","check"), 28)}</div>'
             h += f'<div class="card ci it" id="{i}">{m}<div>{esc(it["t"])}</div></div>'
             self.IN(i, tt, "left")
-        return h + "</div>"
+        return h + "</div></div>"
 
     def k_term(self, s, e, kick=None, title=None, ttl="claude", lines=(), top=150, height=420):
         a = self.uid("a")
@@ -568,7 +574,7 @@ class Builder:
         a = self.uid("a")
         h = self.head(s, kick, title)
         ts = self.items(msgs, s, e, gap=1.4)
-        h += f'<div class="chat" style="top:{top}px">'
+        h += self.zone(title) + '<div class="chat">'
         for k, (m, tt) in enumerate(zip(msgs, ts)):
             i = f"{a}m{k}"
             if m.get("r", "u") == "u":
@@ -576,7 +582,7 @@ class Builder:
             else:
                 h += f'<div class="msg a it" id="{i}"><div class="av">{icon("robot", 24)}</div><div>{esc(m["t"])}</div></div>'
             self.IN(i, tt, "up")
-        return h + "</div>"
+        return h + "</div></div>"
 
     def k_cred(self, s, e, kick=None, title=None, name="CRM-Zugang", field="API-Schlüssel", rows=()):
         a = self.uid("a")

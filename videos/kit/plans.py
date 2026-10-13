@@ -262,7 +262,7 @@ P["V6"] = dict(av_end="In drei Minuten", scenes=[
     foot="Du kannst die Person sein, <b>die das anstößt</b>", foot_at="Du kannst die Person"),
   S("cards", "Also fass dir ein Herz", kick="Fass dir ein Herz", title="Geh damit zu den Entscheidern", arrows=True, cards=[
     {"icon": "chart", "t": "Nutzen ausrechnen", "at": "Rechne aus"}, {"icon": "target", "t": "Kleiner erster Schritt", "at": "kleinen ersten"},
-    {"icon": "users", "t": "Mit Entscheidern klären"}]),
+    {"icon": "users", "t": "Mit Entscheidern klären", "at": "Schritt vor"}]),
   S("chat", "Du musst das nicht allein", kick="Dein KI-Assistent hilft", msgs=[
     {"r": "u", "t": "Hilf mir, das meiner Führungskraft vorzuschlagen.", "at": "Besprich es"},
     {"r": "a", "t": "Gern! Wir skizzieren die Strategie und gehen alle Einwände durch: Datenschutz, Kosten, Sicherheit.", "at": "Er hilft dir"}]),
@@ -287,8 +287,8 @@ P["V7"] = dict(av_end="In diesem Video bekommst", scenes=[
     {"icon": "calendar", "t": "Personal", "d": "Urlaubsanträge in den Teamkalender", "at": "Personal"},
     {"icon": "table", "t": "Marketing", "d": "Freitags Zahlen aus 3 Tools sammeln", "at": "Marketing"}]),
   S("compare", "Und was bleibt bei dir", kick="Was bleibt bei dir?", cols=[
-    {"icon": "robot", "t": "Automation bereitet vor", "at": "Die Automation bereitet", "rows": []},
-    {"icon": "user", "t": "Du entscheidest", "mk": "spark", "at": "Alles, was Urteilsvermögen", "rows": [{"t": "Schwieriges Kundengespräch"}, {"t": "Preisverhandlung"}, {"t": "Feedbackgespräch"}]}]),
+    {"icon": "user", "t": "Bleibt bei dir", "mk": "spark", "at": "Alles, was Urteilsvermögen", "rows": [{"t": "Schwieriges Kundengespräch", "at": "Das schwierige"}, {"t": "Preisverhandlung", "at": "Preisverhandlung"}, {"t": "Feedbackgespräch", "at": "Feedbackgespräch"}]},
+    {"icon": "robot", "t": "Automation bereitet vor", "at": "Die Automation bereitet", "rows": [{"t": "Du entscheidest.", "mk": "check", "at": "Du entscheidest"}]}]),
   S("compare", "Für deinen ersten Prozess", kick="Dein erster Prozess: klein · häufig · wenig Risiko", cols=[
     {"icon": "check", "t": "Lieber so", "rows": [{"t": "Bestätigungsmail nach Terminbuchung", "at": "Bestätigungsmail"}]},
     {"icon": "x", "t": "Nicht so", "mk": "x", "at": "als komplette", "rows": [{"t": "Komplette Auftragsabwicklung"}]}]),
