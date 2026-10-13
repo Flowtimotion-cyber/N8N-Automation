@@ -5,3 +5,9 @@
 :root { --chat--color-primary:#E8590C; --chat--color-primary-shade-50:#C94B08; --chat--color-secondary:#1C1B19; --chat--toggle--background:#E8590C; --chat--toggle--hover--background:#C94B08; --chat--header--background:#1C1B19; --chat--font-family:"Space Grotesk", system-ui, sans-serif; }
 .n8n-chat, .chat-window-wrapper { z-index:50; }
 .chat-window-wrapper { bottom:90px !important; }
+.promise { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin:18px 0 4px; }
+.promise div { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border-radius:14px; background:var(--accent-2); }
+.promise b { font-size:17px; } .promise span { color:var(--ink); font-size:15px; line-height:1.45; }
+.novid { border:2px dashed #CFC9BF; border-radius:16px; padding:18px; color:var(--muted); font-weight:500; margin-top:8px; }
+.kp { margin-top:18px; } .kp h3 { margin:0 0 8px; font-size:20px; }
+.kp ol { margin:0; padding-left:22px; } .kp li { margin:10px 0; font-size:17px; line-height:1.5; max-width:72ch; }

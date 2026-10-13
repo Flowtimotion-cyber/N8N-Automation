@@ -111,7 +111,9 @@ textarea { min-height:70px; resize:vertical; }
 const CAP = { db: null, user: null, dl: null, uid: null, owner: false };
 const DATA = {{DATA}};
 const MEDIA = {{MEDIA}};
-const LS_KEY = "m11-automationen-v1";
+const LS_KEY = "m11-automationen-v2";
+const NLV = DATA.levels.length;
+const STECK = DATA.levels.find(l => l.own);
 let S = load() || fresh();
 function fresh() { return { step: 0, xp: 0, done: {}, task: {}, name: "", own: ["", "", "", "", ""], check: null, maxStep: 0 }; }
 function load() { try { const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
@@ -126,7 +128,7 @@ function shuffle(a, seed) { a = a.slice(); for (let i = a.length - 1; i > 0; i--
 // steps
 const STEPS = [{ k: "start" }];
 DATA.levels.forEach(L => { L.videos.forEach(v => STEPS.push({ k: "video", lv: L.id, v })); STEPS.push({ k: "task", lv: L.id }); });
-STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: 7, v: "VEND" }); STEPS.push({ k: "summary" });
+STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" }); STEPS.push({ k: "summary" });
 const LV = id => DATA.levels.find(l => l.id === id);
 const taskDone = lv => !!S.done[lv];
 
@@ -153,7 +155,7 @@ function render() {
   $("#prog").style.width = (S.step / (STEPS.length - 1) * 100) + "%";
   $("#xp").textContent = S.xp + " XP"; badges();
   $("#back").style.visibility = S.step > 0 ? "visible" : "hidden";
-  $("#navinfo").textContent = st.lv && st.lv <= 6 ? "Level " + st.lv + " von 6 · " + LV(st.lv).title : (st.k === "check" ? "Abschluss-Check" : "");
+  $("#navinfo").textContent = st.lv && st.lv <= NLV ? "Level " + st.lv + " von " + NLV + " · " + LV(st.lv).title : (st.k === "check" ? "Abschluss-Check" : "");
   const sc = el("section", "screen active"); sc.id = "s-" + st.k; m.appendChild(sc);
   ({ start: renderStart, video: renderVideo, task: renderTask, check: renderCheck, summary: renderSummary })[st.k](sc, st);
 }
@@ -162,7 +164,8 @@ function renderStart(sc) {
   const hero = el("div", "hero"); hero.style.backgroundImage = "url(" + MEDIA.IMG_DESK + ")"; sc.appendChild(hero);
   const c = el("div", "card");
   c.innerHTML = '<div class="kicker">' + esc(DATA.subtitle) + '</div><h1>' + esc(DATA.title) + '</h1>' +
-    '<p class="muted" style="font-size:18px;max-width:720px">Du lernst, was n8n und Claude Code sind, wie eine Automation aufgebaut ist, wie Programme miteinander reden – und am Ende beschreibst du deinen eigenen ersten Prozess.</p>' +
+    '<p style="font-size:19px;max-width:720px;line-height:1.5">' + esc(DATA.intro) + '</p>' +
+    '<div class="promise">' + DATA.promise.map(p => '<div><b>' + esc(p[0]) + '</b><span>' + esc(p[1]) + '</span></div>').join("") + '</div>' +
     '<label style="font-weight:700;display:block;margin:18px 0 8px">Wie dürfen wir dich nennen? <span class="muted" style="font-weight:500">(optional)</span></label>';
   const inp = el("input"); inp.type = "text"; inp.placeholder = "Vorname"; inp.value = S.name || ""; inp.oninput = () => { S.name = inp.value.trim(); save(); };
   c.appendChild(inp);
@@ -177,14 +180,23 @@ function renderStart(sc) {
 function renderVideo(sc, st) {
   const isEnd = st.v === "VEND";
   const c = el("div", "card");
-  const L = st.lv <= 6 ? LV(st.lv) : null;
+  const L = st.lv <= NLV ? LV(st.lv) : null;
   c.innerHTML = '<div class="kicker">' + (L ? "Level " + L.id : "Abschluss") + '</div><h2>' + esc(L ? L.title : "Geschafft!") + '</h2>';
-  const w = el("div", "vidwrap"); const v = el("video"); v.src = MEDIA[st.v]; v.controls = true; v.playsInline = true; v.preload = "auto";
-  w.appendChild(v); c.appendChild(w);
-  c.appendChild(el("div", "hint", "🔊 Ton an! Das Video kannst du jederzeit überspringen."));
-  if (L && st.v !== "TRAILER") c.appendChild(el("div", "merk", "Merksatz: " + esc(L.merksatz)));
+  const lastOfLevel = !!(L && L.videos[L.videos.length - 1] === st.v);
+  let v = null;
+  if (MEDIA[st.v]) {
+    const w = el("div", "vidwrap"); v = el("video"); v.src = MEDIA[st.v]; v.controls = true; v.playsInline = true; v.preload = "metadata";
+    w.appendChild(v); c.appendChild(w);
+    c.appendChild(el("div", "hint", "🔊 Ton an! Das Video kannst du jederzeit überspringen."));
+  } else {
+    c.appendChild(el("div", "novid", "Das Video zu diesem Abschnitt wird gerade neu aufgenommen. Bis dahin findest du hier die wichtigsten Punkte."));
+  }
+  if (L && !lastOfLevel) c.appendChild(el("div", "kp", '<h3>Darum lohnt sich das für dich</h3><div class="promise">' + DATA.promise.map(p => '<div><b>' + esc(p[0]) + '</b><span>' + esc(p[1]) + '</span></div>').join("") + '</div>'));
+  if (lastOfLevel && L.kernpunkte) c.appendChild(el("div", "kp", '<h3>Das Wichtigste aus diesem Level</h3><ol>' + L.kernpunkte.map(k => '<li>' + esc(k) + '</li>').join("") + '</ol>'));
+  if (isEnd && !MEDIA[st.v]) c.appendChild(el("div", "kp", '<h3>Das hast du jetzt drauf</h3><p>n8n ist der Motor. Claude Code ist der Baumeister. MCP ist die Steckdose dazwischen. API und Webhook sind die Leitungen zu deinen Programmen. Und dein Steckbrief ist der Bauplan. In Teil 2 wird gebaut.</p>'));
+  if (lastOfLevel) c.appendChild(el("div", "merk", "Merksatz: " + esc(L.merksatz)));
   sc.appendChild(c);
-  v.addEventListener("ended", () => setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter", true));
+  if (v) v.addEventListener("ended", () => setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter", true));
   setNext(true, isEnd ? "Zur Zusammenfassung" : "Weiter");
 }
 
@@ -347,7 +359,7 @@ function tErrors(c, L, T, finish) {
 
 function renderCheck(sc) {
   const c = el("div", "card"); sc.appendChild(c);
-  c.innerHTML = '<div class="kicker">Abschluss-Check</div><h2>10 Fragen zum Modul</h2><p class="muted">Bestanden ab ' + DATA.pass + ' von 10. Du kannst den Check so oft wiederholen, wie du willst.</p>';
+  c.innerHTML = '<div class="kicker">Abschluss-Check</div><h2>' + DATA.check.length + ' Fragen zum Modul</h2><p class="muted">Bestanden ab ' + DATA.pass + ' von ' + DATA.check.length + '. Du kannst den Check so oft wiederholen, wie du willst.</p>';
   const box = el("div"); c.appendChild(box);
   let Q, i, score, wrong;
   function start() { Q = shuffle(DATA.check).map(q => ({ ...q, opts: shuffle([q.a, ...q.d]) })); i = 0; score = 0; wrong = []; ask(); }
@@ -371,7 +383,7 @@ function renderCheck(sc) {
     const r = el("button", "btn sec", "Check wiederholen"); r.style.marginTop = "12px"; r.onclick = start; box.appendChild(r);
     setNext(!!S.check.passed, "Weiter", !!S.check.passed);
   }
-  if (S.check && S.check.passed) { box.innerHTML = '<div class="fb ok">Du hast den Check bereits bestanden (beste Wertung: ' + S.check.best + ' / 10).</div>'; const r = el("button", "btn sec", "Nochmal machen"); r.style.marginTop = "12px"; r.onclick = start; box.appendChild(r); setNext(true, "Weiter"); }
+  if (S.check && S.check.passed) { box.innerHTML = '<div class="fb ok">Du hast den Check bereits bestanden (beste Wertung: ' + S.check.best + ' / ' + DATA.check.length + ').</div>'; const r = el("button", "btn sec", "Nochmal machen"); r.style.marginTop = "12px"; r.onclick = start; box.appendChild(r); setNext(true, "Weiter"); }
   else { setNext(false, "Weiter"); const b = el("button", "btn", "Check starten"); b.onclick = start; box.appendChild(b); }
 }
 
@@ -379,10 +391,10 @@ function renderSummary(sc) {
   const hero = el("div", "hero noprint"); hero.style.backgroundImage = "url(" + MEDIA.IMG_DONE + ")"; sc.appendChild(hero);
   const c = el("div", "card"); sc.appendChild(c);
   c.innerHTML = '<div class="kicker">Merkblatt</div><h1>' + (S.name ? esc(S.name) + ", du" : "Du") + ' hast Teil 1 geschafft</h1>' +
-    '<p class="muted">' + esc(DATA.title) + ' · ' + S.xp + ' XP' + (S.check ? ' · Abschluss-Check: ' + S.check.best + ' / 10' : '') + '</p>' +
-    '<h2 style="margin-top:20px">Die 6 Merksätze</h2><ol class="ml">' + DATA.levels.map(L => '<li>' + esc(L.merksatz) + '</li>').join("") + '</ol>' +
+    '<p class="muted">' + esc(DATA.title) + ' · ' + S.xp + ' XP' + (S.check ? ' · Abschluss-Check: ' + S.check.best + ' / ' + DATA.check.length : '') + '</p>' +
+    '<h2 style="margin-top:20px">Die ' + NLV + ' Merksätze</h2><ol class="ml">' + DATA.levels.map(L => '<li>' + esc(L.merksatz) + '</li>').join("") + '</ol>' +
     '<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +
-    '<div>' + DATA.levels[5].own.map((n, k) => '<p><b>' + esc(n) + ':</b> ' + (esc(S.own[k] || "") || '<span class="muted">– noch leer –</span>') + '</p>').join("") + '</div>' +
+    '<div>' + STECK.own.map((n, k) => '<p><b>' + esc(n) + ':</b> ' + (esc(S.own[k] || "") || '<span class="muted">– noch leer –</span>') + '</p>').join("") + '</div>' +
     '<p class="muted">Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.</p>';
   const row = el("div", "row noprint"); const p = el("button", "btn", "Merkblatt kopieren"); p.onclick = () => copyText(merkText()); const dl = el("button", "btn sec", "Merkblatt speichern"); dl.hidden = !CAP.dl; dl.onclick = () => saveFile("Merkblatt_Automationen.txt", merkText());
   const rs = el("button", "btn sec", "Fortschritt zurücksetzen"); confirmBtn(rs, () => { S = fresh(); save(); go(0); });

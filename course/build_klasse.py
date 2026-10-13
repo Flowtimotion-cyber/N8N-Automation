@@ -5,13 +5,18 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import data
 C = pathlib.Path(__file__).resolve().parent; ST = C.parent
 OUT = pathlib.Path("/home/claude/n8n-automation/docs/modul-1-1"); (OUT / "media").mkdir(parents=True, exist_ok=True)
-for f in (C / "artifact/media").iterdir(): shutil.copy2(f, OUT / "media" / f.name)
-media = {k: f"media/{k}.mp4" for k in ["TRAILER","V1","V2","V3","V4","V5","V6","VEND"]}
+for f in (OUT / "media").iterdir(): f.unlink()
+VID = C / "videos_v2"; VID.mkdir(exist_ok=True)
+media = {}
+for k in ["INTRO","V1","V2","V3","V4","V5","V6","V7","V8","VEND"]:
+    src = VID / f"{k}.mp4"
+    if src.exists(): shutil.copy2(src, OUT / "media" / src.name); media[k] = f"media/{k}.mp4"
+for f in ["img_desk.jpg","img_sort.jpg","img_done.jpg"]: shutil.copy2(C / "artifact/media" / f, OUT / "media" / f)
 media.update({"IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"})
 fd = ST / "projects/level2/assets/fonts"; fonts = ""
 for f, w in [("space-grotesk-latin-500-normal.woff2", 500), ("space-grotesk-latin-700-normal.woff2", 700)]:
     fonts += f'@font-face {{ font-family:"Space Grotesk"; font-weight:{w}; src:url(data:font/woff2;base64,{base64.b64encode((fd/f).read_bytes()).decode()}) format("woff2"); }}\n'
-D = {"title": data.TITLE, "subtitle": data.SUBTITLE, "levels": data.LEVELS, "check": data.CHECK, "pass": data.PASS}
+D = {"title": data.TITLE, "subtitle": data.SUBTITLE, "intro": data.INTRO, "promise": data.PROMISE, "levels": data.LEVELS, "check": data.CHECK, "pass": data.PASS}
 h = (C/"template_artifact.html").read_text()
 h = h.replace('<meta charset="utf-8">\n', '')
 h = h.replace("{{FONTS}}", fonts).replace("{{DATA}}", json.dumps(D, ensure_ascii=False)).replace("{{MEDIA}}", json.dumps(media))

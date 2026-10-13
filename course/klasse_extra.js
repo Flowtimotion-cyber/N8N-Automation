@@ -30,7 +30,7 @@ function confirmBtn(b, action) {
 async function saveFile(name, data) { try { await CAP.dl.save({ filename: name, data }); } catch (e) { copyText(data); } }
 function merkText() {
   return [DATA.title, "", "Die 6 Merksätze:", ...DATA.levels.map((L, i) => (i + 1) + ". " + L.merksatz), "",
-    "Mein Prozess-Steckbrief:", ...DATA.levels[5].own.map((n, k) => n + ": " + (S.own[k] || "–")), "",
+    "Mein Prozess-Steckbrief:", ...STECK.own.map((n, k) => n + ": " + (S.own[k] || "–")), "",
     "XP: " + S.xp + (S.check ? " · Abschluss-Check: " + S.check.best + " / 10" : "")].join("\n");
 }
 
@@ -38,7 +38,7 @@ function merkText() {
 function payload(extra) {
   return Object.assign({
     kurscode: S.kurscode || "", teilnehmer_id: teilnehmerId(), name: S.name || "", kurs: KURS,
-    level_fertig: Object.keys(S.done).length, fortschritt_prozent: Math.round((S.maxStep || 0) / (STEPS.length - 1) * 100),
+    level_fertig: Object.keys(S.done).length, level_gesamt: NLV, check_gesamt: DATA.check.length, fortschritt_prozent: Math.round((S.maxStep || 0) / (STEPS.length - 1) * 100),
     xp: S.xp, check_best: S.check ? S.check.best : null, check_bestanden: !!(S.check && S.check.passed), steckbrief: S.own
   }, extra || {});
 }
@@ -107,6 +107,15 @@ function newsletterBox(sc) {
     '</div><p class="muted" style="margin-top:14px">Fragen zum Einrichten? Unten rechts hilft dir der Setup-Assistent, auch mit Screenshots.</p>';
   sc.appendChild(next);
 }
+
+// ---------- Video lädt nicht: Hinweis mit direktem Link ----------
+document.addEventListener("error", (ev) => {
+  const v = ev.target;
+  if (!v || v.tagName !== "VIDEO" || v.dataset.errShown) return;
+  v.dataset.errShown = "1";
+  const box = el("div", "fb bad", "Das Video lädt hier gerade nicht. <a href=\"" + v.getAttribute("src") + "\" target=\"_blank\" rel=\"noopener\">Video direkt öffnen</a> oder die Seite mit Chrome, Edge oder Safari neu laden.");
+  v.closest(".vidwrap").after(box);
+}, true);
 
 // ---------- Setup-Assistent (n8n Chat) ----------
 (function loadChat() {

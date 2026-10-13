@@ -16,7 +16,7 @@ async function saveFile(name, data) {
 }
 function merkText() {
   return [DATA.title, "", "Die 6 Merksätze:", ...DATA.levels.map((L, i) => (i + 1) + ". " + L.merksatz), "",
-    "Mein Prozess-Steckbrief:", ...DATA.levels[5].own.map((n, k) => n + ": " + (S.own[k] || "–")), "",
+    "Mein Prozess-Steckbrief:", ...STECK.own.map((n, k) => n + ": " + (S.own[k] || "–")), "",
     "XP: " + S.xp + (S.check ? " · Abschluss-Check: " + S.check.best + " / 10" : "")].join("\n");
 }
 
@@ -89,11 +89,11 @@ async function openDash() {
   const who = p => (ps[p.id] && ps[p.id].name) || p.name || "Teilnehmer ohne Namen";
   prog.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   const passed = prog.filter(p => p.check && p.check.passed).length;
-  const finished = prog.filter(p => p.levelsDone >= 6).length;
+  const finished = prog.filter(p => p.levelsDone >= NLV).length;
   d.innerHTML = "";
   const head = el("div", "card");
   head.innerHTML = '<div class="kicker">Auswertung · nur für dich sichtbar</div><h2>Teilnehmer und Newsletter</h2>' +
-    '<div class="stats"><div><b>' + prog.length + '</b><span>gestartet</span></div><div><b>' + finished + '</b><span>alle 6 Level</span></div><div><b>' + passed + '</b><span>Check bestanden</span></div><div><b>' + nl.length + '</b><span>Newsletter</span></div></div>';
+    '<div class="stats"><div><b>' + prog.length + '</b><span>gestartet</span></div><div><b>' + finished + '</b><span>alle Level</span></div><div><b>' + passed + '</b><span>Check bestanden</span></div><div><b>' + nl.length + '</b><span>Newsletter</span></div></div>';
   d.appendChild(head);
 
   const t1 = el("div", "card"); d.appendChild(t1);
@@ -106,19 +106,19 @@ async function openDash() {
     prog.forEach(p => {
       const pct = Math.round((p.maxStep || 0) / (p.totalSteps || 1) * 100);
       const ck = p.check ? '<span class="pill ' + (p.check.passed ? "ok" : "bad") + '">' + p.check.best + ' / 10' + (p.check.passed ? " bestanden" : "") + '</span>' : '<span class="pill">offen</span>';
-      const tr = el("tr"); tr.innerHTML = '<td class="who"></td><td class="num">' + (p.levelsDone || 0) + ' / 6</td><td><div class="bar"><i style="width:' + pct + '%"></i></div><small class="muted">' + pct + ' %</small></td><td class="num">' + (p.xp || 0) + '</td><td>' + ck + '</td><td class="muted">' + esc(fmtDate(p.updatedAt)) + '</td>';
+      const tr = el("tr"); tr.innerHTML = '<td class="who"></td><td class="num">' + (p.levelsDone || 0) + ' / ' + NLV + '</td><td><div class="bar"><i style="width:' + pct + '%"></i></div><small class="muted">' + pct + ' %</small></td><td class="num">' + (p.xp || 0) + '</td><td>' + ck + '</td><td class="muted">' + esc(fmtDate(p.updatedAt)) + '</td>';
       $(".who", tr).textContent = who(p);
       const filled = (p.own || []).filter(x => x && x.trim()).length;
       if (filled) { const b = el("button", "linkbtn", "Steckbrief"); $(".who", tr).appendChild(document.createElement("br")); $(".who", tr).appendChild(b);
         const tr2 = el("tr", "sub"); tr2.hidden = true; const td = el("td"); td.colSpan = 6; tr2.appendChild(td);
-        DATA.levels[5].own.forEach((n, k) => { const pp = el("p"); const bb = el("b"); bb.textContent = n + ": "; pp.appendChild(bb); pp.appendChild(document.createTextNode((p.own || [])[k] || "–")); td.appendChild(pp); });
+        STECK.own.forEach((n, k) => { const pp = el("p"); const bb = el("b"); bb.textContent = n + ": "; pp.appendChild(bb); pp.appendChild(document.createTextNode((p.own || [])[k] || "–")); td.appendChild(pp); });
         b.onclick = () => { tr2.hidden = !tr2.hidden; }; body.appendChild(tr); body.appendChild(tr2); }
       else body.appendChild(tr);
     });
     wrap.appendChild(tb); t1.appendChild(wrap);
     const r = el("div", "row"); const ex = el("button", "btn sec", "Lernstand als CSV"); r.appendChild(ex); t1.appendChild(r);
-    ex.onclick = () => saveFile("Lernstand_Modul-1-1.csv", toCsv([["Teilnehmer", "Level", "Fortschritt %", "XP", "Check beste Wertung", "Check bestanden", "Zuletzt aktiv", ...DATA.levels[5].own.map(n => "Steckbrief " + n)],
-      ...prog.map(p => [who(p), p.levelsDone || 0, Math.round((p.maxStep || 0) / (p.totalSteps || 1) * 100), p.xp || 0, p.check ? p.check.best : "", p.check && p.check.passed ? "ja" : "nein", fmtDate(p.updatedAt), ...DATA.levels[5].own.map((n, k) => (p.own || [])[k] || "")])]));
+    ex.onclick = () => saveFile("Lernstand_Modul-1-1.csv", toCsv([["Teilnehmer", "Level", "Fortschritt %", "XP", "Check beste Wertung", "Check bestanden", "Zuletzt aktiv", ...STECK.own.map(n => "Steckbrief " + n)],
+      ...prog.map(p => [who(p), p.levelsDone || 0, Math.round((p.maxStep || 0) / (p.totalSteps || 1) * 100), p.xp || 0, p.check ? p.check.best : "", p.check && p.check.passed ? "ja" : "nein", fmtDate(p.updatedAt), ...STECK.own.map((n, k) => (p.own || [])[k] || "")])]));
   }
 
   const t2 = el("div", "card"); d.appendChild(t2);
