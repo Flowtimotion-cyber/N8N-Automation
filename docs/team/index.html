@@ -637,7 +637,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
       $('#neum').onclick = () => mitgliedDialog(null);
       document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));
       document.querySelectorAll('[data-link]').forEach(b => b.onclick = async () => {
-        const p = mitglied(b.dataset.link); const url = PORTAL + '#z=' + p.token;
+        const p = mitglied(b.dataset.link); const url = PORTAL + '?z=' + p.token;
         try { await navigator.clipboard.writeText(url); toast('Link für ' + p.name + ' kopiert'); }
         catch (e) { $('#dlgInner').innerHTML = '<h2>Link für ' + esc(p.name) + '</h2><div class="f"><input readonly value="' + esc(url) + '" onclick="this.select()"></div><div class="dlgbtns"><button class="btn" onclick="this.closest(\'dialog\').close()">Fertig</button></div>'; $('#dlg').showModal(); }
       });
