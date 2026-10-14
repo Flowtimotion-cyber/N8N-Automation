@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Team-Portal · Momentum KI Akademie</title>
+<style>
+:root{--ink:#14123A;--mut:#62607E;--line:#DFDDEC;--bg:#F6F6FB;--card:#fff;--acc:#7B3FE4;--acc2:#5B6EE6;--teal:#1FA9B0;--red:#D9452F;--orange:#E98A15;--green:#1F9D6B;--soft:#EEEDF6}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--acc)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0}
+.logo{height:34px;display:block}
+.htitle{font-weight:700;font-size:15px;color:var(--mut);border-left:1px solid var(--line);padding-left:14px}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--mut)}
+.who b{color:var(--ink)}
+.bar{height:3px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6 55%,#22B3B0)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 0 0;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{border:0;background:none;padding:9px 14px 11px;font-weight:600;color:var(--mut);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--acc);border-bottom-color:var(--acc)}
+main{padding:30px 0 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.4px}
+h2{font-size:18px;margin:0 0 12px}
+h3{font-size:15px;margin:0 0 8px}
+.sub{color:var(--mut);margin:0 0 18px}
+.muted{color:var(--mut)}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:0 10px 30px rgba(20,18,58,.05);margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi b{display:block;font-size:28px;line-height:1.1}
+.kpi span{color:var(--mut);font-size:13px}
+.kpi.warn b{color:var(--red)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:9px 15px;font-weight:600;cursor:pointer;background:var(--acc);color:#fff;text-decoration:none}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost{background:none;color:var(--acc);padding:6px 8px}
+.btn.wa{background:#1FA855}
+.btn.danger{background:#fff;color:var(--red);border:1px solid #F1C7C0}
+.btn:disabled{opacity:.5;cursor:default}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.tools select,.tools input{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-width:0}
+.tools .grow{flex:1 1 180px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.seg button{border:0;background:none;padding:8px 12px;cursor:pointer;font-weight:600;color:var(--mut)}
+.seg button.on{background:var(--soft);color:var(--ink)}
+.task{display:grid;grid-template-columns:auto 1fr auto;gap:10px 12px;align-items:start;padding:12px 4px;border-top:1px solid var(--line);cursor:pointer}
+.task:first-child{border-top:0}
+.task:hover{background:#FAFAFE}
+.task .t{font-weight:600}
+.task.done .t{text-decoration:line-through;color:var(--mut)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:var(--soft);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap}
+.p1{background:#FCE3DE;color:#B0321F}.p2{background:#FDEBD3;color:#A35D06}.p3{background:var(--soft);color:var(--mut)}
+.st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
+.late{color:var(--red);font-weight:700}
+.av{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.av.c1{background:#7B3FE4}.av.c2{background:#1FA9B0}.av.c3{background:#E98A15}.av.c4{background:#5B6EE6}.av.c5{background:#D9452F}.av.c6{background:#1F9D6B}
+.board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
+.col{background:#EFEEF7;border-radius:14px;padding:10px;min-height:120px}
+.col h3{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);display:flex;justify-content:space-between;margin:2px 4px 10px}
+.bcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.bcard .t{font-weight:600;font-size:14px}
+.empty{color:var(--mut);padding:18px 4px;text-align:center}
+.bars .row{display:grid;grid-template-columns:minmax(110px,42%) 1fr auto;gap:10px;align-items:center;margin:6px 0;font-size:14px}
+.bars .bt{height:10px;background:var(--soft);border-radius:6px;overflow:hidden}
+.bars .bt i{display:block;height:100%;background:var(--acc);border-radius:6px}
+.bars .bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tablewrap{overflow-x:auto}
+.prog{width:80px;height:7px;background:var(--soft);border-radius:5px;overflow:hidden;margin-bottom:3px}
+.prog i{display:block;height:100%;background:var(--acc)}
+.post{display:grid;grid-template-columns:64px 1fr auto;gap:12px;padding:12px 4px;border-top:1px solid var(--line);cursor:pointer;align-items:start}
+.post:first-child{border-top:0}
+.date{background:var(--soft);border-radius:12px;text-align:center;padding:6px 4px;line-height:1.15}
+.date b{display:block;font-size:20px}
+.date span{font-size:12px;color:var(--mut);text-transform:uppercase}
+.sys{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:#fff;cursor:default}
+.sys.edit{cursor:pointer}
+.sys .top{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.d-läuft{background:var(--green)}.d-im-Bau{background:var(--orange)}.d-geplant{background:#A9A6C9}.d-pausiert{background:var(--red)}
+.member{display:flex;gap:12px;align-items:start;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff}
+.member .act{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.note{background:#F3EEFD;border:1px solid #E1D5FA;border-radius:12px;padding:12px 14px;font-size:14px}
+.note.warn{background:#FFF6E5;border-color:#F6DDAA}
+dialog{border:0;border-radius:18px;padding:0;max-height:calc(100vh - 24px);overflow:auto;width:min(620px,calc(100vw - 24px));box-shadow:0 30px 80px rgba(20,18,58,.3)}
+dialog::backdrop{background:rgba(20,18,58,.45)}
+.dlg{padding:20px 22px}
+.dlg h2{margin-bottom:14px}
+.f{display:grid;gap:4px;margin-bottom:12px}
+.f label{font-size:13px;font-weight:600;color:var(--mut)}
+.f input,.f select,.f textarea{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;width:100%}
+.f textarea{min-height:90px;resize:vertical}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.dlgbtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:6px}
+.dlgbtns .left{margin-right:auto}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.check input{margin-top:4px}
+.zt{display:grid;grid-template-columns:96px 1fr auto;gap:10px;padding:10px 4px;border-top:1px solid var(--line);align-items:start}
+.zt:first-child{border-top:0}
+.zt.click{cursor:pointer}.zt.click:hover{background:#FAFAFE}
+.zs-offen{background:#E9E7F7}.zs-eingereicht{background:#FFF1C7}.zs-freigegeben{background:#E2F3E8;color:var(--green)}.zs-abgelehnt{background:#FCE3DE;color:#B0321F}
+.weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.weeknav b{min-width:190px;text-align:center}
+.sum{font-size:22px;font-weight:700}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
+#toast.show{opacity:1}
+.center{max-width:520px;margin:8vh auto;padding:0 16px}
+.loading{padding:60px 0;text-align:center;color:var(--mut)}
+@media(max-width:640px){
+  .htitle{display:none}.who span.r{display:none}
+  .f2{grid-template-columns:1fr}
+  .task{grid-template-columns:auto 1fr}.task .right{grid-column:2}
+  h1{font-size:22px}
+}
+</style></head>
+<body>
+<div id="app"><div class="loading">Lade Team-Portal …</div></div>
+<dialog id="dlg"><div class="dlg" id="dlgInner"></div></dialog>
+<div id="toast"></div>
+<script>
+(function () {
+  'use strict';
+  const API = 'https://n8n.hm-storage.de/webhook/team-api';
+  const PORTAL = 'https://flowtimotion-cyber.github.io/N8N-Automation/team/';
+  const PROJEKTE = ['Kurs Modul 1', 'Webseite', 'Social Media', 'Vertrieb', 'AZAV & GmbH', 'Systeme', 'Sonstiges'];
+  const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
+  const BOARD = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet'];
+  const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
+  const KANAELE = ['LinkedIn', 'Instagram', 'Facebook', 'YouTube', 'TikTok', 'Newsletter', 'Webseite / Blog', 'Sonstiges'];
+  const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
+  const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
+  const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['zeit', 'Arbeitszeit'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['team', 'Team']];
+
+  // ---------- Speicher (nur Komfort, darf fehlen) ----------
+  const ls = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+  let TOKEN = null;
+  const m = /[#&]z=([a-f0-9]{20,64})/.exec(location.hash);
+  if (m) { TOKEN = m[1]; ls.set('mt-token', TOKEN); history.replaceState(null, '', location.pathname); }
+  else TOKEN = ls.get('mt-token');
+
+  let D = null;            // Daten vom Server
+  let tab = ls.get('mt-tab') || 'start';
+  const F = Object.assign({ person: 'ich', projekt: '', status: 'offen', q: '', ansicht: 'liste', kanal: '' }, JSON.parse(ls.get('mt-filter') || '{}'));
+
+  // ---------- Helfer ----------
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); };
+  const heute = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  const dDate = s => s ? new Date(s + 'T00:00:00') : null;
+  const fmtD = s => { if (!s) return ''; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? dDate(s) : new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+  const fmtDT = s => { if (!s) return '–'; const d = new Date(s); return isNaN(d) ? '–' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+  const ueberfaellig = a => a.deadline && a.status !== 'Erledigt' && dDate(a.deadline) < heute();
+  const mitglied = id => (D.mitglieder || []).find(x => x.mitglied_id === id) || { name: '–', mitglied_id: id };
+  const farbe = id => 'c' + (1 + (Math.abs([...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0)) % 6));
+  const av = id => { const p = mitglied(id); return '<span class="av ' + farbe(id) + '" title="' + esc(p.name) + '">' + esc((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'; };
+  const istAdmin = () => D && D.ich && D.ich.rolle === 'admin';
+  const istDozent = () => D && D.ich && (D.ich.rolle === 'admin' || D.ich.rolle === 'dozent');
+  const opt = (arr, sel, lab) => arr.map(v => '<option value="' + esc(v) + '"' + (String(v) === String(sel) ? ' selected' : '') + '>' + esc(lab ? lab(v) : (v || '–')) + '</option>').join('');
+  const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
+  const saveF = () => ls.set('mt-filter', JSON.stringify(F));
+  const waNummer = t => String(t || '').replace(/[^\d]/g, '');
+
+  async function api(aktion, daten) {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; throw err; }
+    return j;
+  }
+
+  async function laden(still) {
+    if (!TOKEN) return ohneZugang();
+    try {
+      D = await api('laden');
+      if (D.setup) return einrichten();
+      render();
+    } catch (e) {
+      if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
+      if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
+      else toast(e.message);
+    }
+  }
+
+  function ohneZugang(msg) {
+    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card"><h2>Team-Portal</h2>' +
+      '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p></div></div>';
+  }
+
+  function einrichten() {
+    const i = D.ich;
+    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card">' +
+      '<h2>Willkommen, ' + esc(i.name) + '!</h2><p class="muted">Bevor es losgeht: Trag einmal deine Kontaktdaten ein. Sie sind nur für das Momentum-Team sichtbar.</p>' +
+      '<form id="setup"><div class="f"><label for="s_mail">E-Mail-Adresse</label><input id="s_mail" type="email" required autocomplete="email" value="' + esc(i.email) + '"></div>' +
+      '<div class="f"><label for="s_tel">Handynummer (für WhatsApp)</label><input id="s_tel" type="tel" autocomplete="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
+      '<label class="check"><input type="checkbox" id="s_wa"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Ich möchte per WhatsApp benachrichtigt werden, wenn mir jemand eine Aufgabe zuweist. Abbestellen geht jederzeit hier im Portal unter „Team“.</span></label>' +
+      '<p class="small muted">Gespeichert werden Name, E-Mail, Telefonnummer und deine Aufgaben, damit das Team zusammenarbeiten kann. Teilnehmer-Daten aus dem Kurs siehst du je nach Rolle nur zusammengefasst.</p>' +
+      '<button class="btn" type="submit">Speichern und loslegen</button></form></div></div>';
+    $('#setup').onsubmit = async ev => {
+      ev.preventDefault();
+      const b = ev.submitter || ev.target.querySelector('button'); b.disabled = true;
+      try { await api('profil', { email: $('#s_mail').value, telefon: $('#s_tel').value, whatsapp_ok: $('#s_wa').checked }); await laden(); }
+      catch (e) { toast(e.message); b.disabled = false; }
+    };
+  }
+
+  // ---------- Gerüst ----------
+  function render() {
+    const i = D.ich;
+    $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' +
+      '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
+      '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<main class="wrap" id="main"></main>';
+    document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; ls.set('mt-tab', tab); render(); window.scrollTo(0, 0); });
+    const V = { start: vStart, aufgaben: vAufgaben, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
+    (V[tab] || vStart)();
+  }
+
+  // ---------- Übersicht ----------
+  function vStart() {
+    const ich = D.ich.mitglied_id;
+    const offen = D.aufgaben.filter(a => a.status !== 'Erledigt');
+    const meine = offen.filter(a => a.verantwortlich === ich).sort(sortAufgaben);
+    const late = offen.filter(ueberfaellig);
+    const p1 = offen.filter(a => Number(a.prio) === 1);
+    const posts = D.social.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= heute()).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 4);
+    const anfr = (D.anfragen || []).filter(a => a.typ === 'angebot').slice(0, 4);
+    const k = D.kurs || {};
+    const h = new Date().getHours();
+    $('#main').innerHTML = '<h1>' + (h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend') + ', ' + esc(D.ich.name) + '</h1><p class="sub">Das läuft gerade bei Momentum. Stand: ' + fmtDT(D.stand) + '</p>' +
+      '<div class="kpis">' +
+      kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
+      kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
+      (meine.length ? meine.slice(0, 7).map(taskRow).join('') : '<p class="empty">Nichts offen. Stark!</p>') +
+      (meine.length > 7 ? '<button class="btn ghost" data-goto="aufgaben">Alle ' + meine.length + ' ansehen →</button>' : '') + '</div>' +
+      '<div><div class="card"><h2>Nächste Beiträge</h2>' + (posts.length ? posts.map(postRow).join('') : '<p class="empty">Noch nichts geplant.</p>') + '<button class="btn ghost" data-goto="social">Zum Social-Media-Plan →</button></div>' +
+      '<div class="card"><h2>Neue Anfragen</h2>' + (anfr.length ? anfr.map(a => '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + esc(a.firma || a.name) + '</b> <span class="chip">' + esc(a.status || 'neu') + '</span><div class="small muted">' + esc(a.name) + ' · ' + fmtDT(a.eingegangen) + '</div></div>').join('') : '<p class="empty">Keine Anfragen.</p>') +
+      '<button class="btn ghost" data-goto="kurs">Details →</button></div></div></div>' +
+      (late.length ? '<div class="card"><h2>Überfällig</h2>' + late.sort(sortAufgaben).map(taskRow).join('') + '</div>' : '');
+    bindTasks(); bindPosts();
+    document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
+    const n = $('[data-neu]'); if (n) n.onclick = () => aufgabeDialog(null);
+  }
+  const kpi = (n, l, warn) => '<div class="kpi' + (warn ? ' warn' : '') + '"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
+
+  // ---------- Aufgaben ----------
+  function sortAufgaben(a, b) {
+    const pa = Number(a.prio) || 2, pb = Number(b.prio) || 2;
+    if ((a.status === 'Erledigt') !== (b.status === 'Erledigt')) return a.status === 'Erledigt' ? 1 : -1;
+    if (pa !== pb) return pa - pb;
+    if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
+    if (a.deadline) return -1; if (b.deadline) return 1;
+    return String(b.geaendert).localeCompare(String(a.geaendert));
+  }
+  function taskRow(a) {
+    const late = ueberfaellig(a);
+    return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + av(a.verantwortlich) +
+      '<div><div class="t">' + esc(a.titel) + '</div><div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
+      '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
+      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span>' + esc(a.projekt) + '</span>' +
+      (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
+      '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
+  }
+  function bindTasks() { document.querySelectorAll('[data-a]').forEach(e => e.onclick = () => aufgabeDialog(D.aufgaben.find(a => a.aufgabe_id === e.dataset.a))); }
+
+  function vAufgaben() {
+    const ich = D.ich.mitglied_id;
+    let L = D.aufgaben.slice();
+    if (F.person === 'ich') L = L.filter(a => a.verantwortlich === ich);
+    else if (F.person === 'von_mir') L = L.filter(a => a.erstellt_von === ich);
+    else if (F.person) L = L.filter(a => a.verantwortlich === F.person);
+    if (F.projekt) L = L.filter(a => a.projekt === F.projekt);
+    if (F.status === 'offen') L = L.filter(a => a.status !== 'Erledigt');
+    else if (F.status === 'late') L = L.filter(ueberfaellig);
+    else if (F.status) L = L.filter(a => a.status === F.status);
+    if (F.q) { const q = F.q.toLowerCase(); L = L.filter(a => (a.titel + ' ' + a.beschreibung).toLowerCase().includes(q)); }
+    L.sort(sortAufgaben);
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><button class="btn" id="neu">+ Neue Aufgabe</button></div>' +
+      '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
+      (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
+      '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(PROJEKTE, F.projekt) + '</select>' +
+      '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
+      '<input class="grow" id="fq" type="search" placeholder="Suchen …" value="' + esc(F.q) + '">' +
+      '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
+      (F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
+    bindTasks();
+    $('#neu').onclick = () => aufgabeDialog(null);
+    $('#fp').onchange = e => { F.person = e.target.value; saveF(); vAufgaben(); };
+    $('#fj').onchange = e => { F.projekt = e.target.value; saveF(); vAufgaben(); };
+    $('#fs').onchange = e => { F.status = e.target.value; saveF(); vAufgaben(); };
+    $('#fq').oninput = e => { F.q = e.target.value; clearTimeout(vAufgaben.t); vAufgaben.t = setTimeout(() => { vAufgaben(); const x = $('#fq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
+    document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { F.ansicht = b.dataset.v; saveF(); vAufgaben(); });
+  }
+  function board(L) {
+    return '<div class="board">' + BOARD.map(s => { const c = L.filter(a => a.status === s); return '<div class="col"><h3>' + esc(s) + '<span>' + c.length + '</span></h3>' +
+      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '"><div class="t">' + esc(a.titel) + '</div><div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
+  }
+
+  function aufgabeDialog(a) {
+    const neu = !a;
+    a = a || { titel: '', beschreibung: '', status: 'Offen', prio: 2, label: '', projekt: tab === 'web' ? 'Webseite' : (F.projekt || 'Kurs Modul 1'), verantwortlich: D.ich.mitglied_id, deadline: '' };
+    const darfLoeschen = !neu && (istAdmin() || a.erstellt_von === D.ich.mitglied_id);
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Aufgabe' : 'Aufgabe bearbeiten') + '</h2><form id="af">' +
+      '<div class="f"><label for="a_t">Titel</label><input id="a_t" required maxlength="160" value="' + esc(a.titel) + '"></div>' +
+      '<div class="f"><label for="a_b">Beschreibung (Ziel, was ist zu tun, was wird gebraucht?)</label><textarea id="a_b" maxlength="4000">' + esc(a.beschreibung) + '</textarea></div>' +
+      '<div class="f2"><div class="f"><label for="a_v">Zuständig</label><select id="a_v">' + personOpts(a.verantwortlich) + '</select></div>' +
+      '<div class="f"><label for="a_d">Deadline</label><input id="a_d" type="date" value="' + esc(a.deadline) + '"></div>' +
+      '<div class="f"><label for="a_p">Priorität</label><select id="a_p">' + opt([1, 2, 3], a.prio, v => 'Prio ' + v + (v === 1 ? ' (dringend)' : v === 3 ? ' (wenn Zeit ist)' : '')) + '</select></div>' +
+      '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
+      '<div class="f"><label for="a_j">Projekt</label><select id="a_j">' + opt(PROJEKTE, a.projekt) + '</select></div>' +
+      '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
+      (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
+      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">Löschen</button>' : '') +
+      '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#a_x').onclick = () => dlg.close();
+    if (darfLoeschen) $('#a_del').onclick = async () => {
+      if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('aufgabe_loeschen', { aufgabe_id: a.aufgabe_id }); dlg.close(); toast('Aufgabe gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#af').onsubmit = async ev => {
+      ev.preventDefault();
+      const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
+        prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value };
+      try {
+        await api('aufgabe_speichern', daten);
+        const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
+        if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
+        await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  function zugewiesen(d) {
+    const p = mitglied(d.verantwortlich);
+    const text = 'Hallo ' + p.name + ', ich habe dir im Momentum Team-Portal eine Aufgabe zugewiesen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
+    const nr = waNummer(p.telefon);
+    $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
+      '<p>Gespeichert. ' + (p.whatsapp_ok ? 'Sobald die automatische WhatsApp eingeschaltet ist, bekommt ' + esc(p.name) + ' automatisch Bescheid.' : '') + '</p>' +
+      (nr ? '<p class="muted">Gib ' + esc(p.name) + ' jetzt kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div>'
+        : '<div class="note warn" style="margin-bottom:14px">' + esc(p.name) + ' hat noch keine Handynummer eingetragen. Sag am besten kurz persönlich Bescheid.</div>') +
+      '<div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button>' + (nr ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a>' : '') + '</div>';
+    $('#z_x').onclick = () => $('#dlg').close();
+  }
+
+
+  // ---------- Arbeitszeit ----------
+  let wkOff = 0;
+  const isoWoche = ds => { const t = new Date(ds + 'T12:00:00Z'); const wd = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - wd + 3); const j = t.getUTCFullYear(); const e = new Date(Date.UTC(j, 0, 4)); const w = 1 + Math.round(((t - e) / 864e5 - 3 + ((e.getUTCDay() + 6) % 7)) / 7); return j + '-W' + String(w).padStart(2, '0'); };
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const montag = off => { const d = heute(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + off * 7); return d; };
+  const std = min => (Math.round((Number(min) || 0) / 6) / 10).toLocaleString('de-DE') + ' Std';
+  const ZST = { offen: 'nicht eingereicht', eingereicht: 'wartet auf Freigabe', freigegeben: 'freigegeben', abgelehnt: 'zurückgegeben' };
+  const zChip = st => '<span class="chip zs-' + esc(st) + '">' + esc(ZST[st] || st) + '</span>';
+  function zeitRow(z, mitName) {
+    const a = z.aufgabe_id ? D.aufgaben.find(x => x.aufgabe_id === z.aufgabe_id) : null;
+    const darf = istAdmin() || (z.mitglied_id === D.ich.mitglied_id && z.status !== 'freigegeben');
+    const d = dDate(z.datum);
+    return '<div class="zt' + (darf ? ' click' : '') + '"' + (darf ? ' data-z="' + esc(z.zeit_id) + '"' : '') + '><div><b>' + (d ? d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '') + '</b><div class="small muted">' + esc(z.von) + '–' + esc(z.bis) + (z.pause_min ? ' · ' + esc(z.pause_min) + ' min Pause' : '') + '</div></div>' +
+      '<div>' + (mitName ? '<b>' + esc(mitglied(z.mitglied_id).name) + ':</b> ' : '') + esc(z.taetigkeit) + '<div class="meta">' + (a ? '<span class="chip">✓ ' + esc(a.titel) + '</span>' : '') + '<span>' + esc(z.projekt) + '</span>' + zChip(z.status) + (z.kommentar ? '<span>„' + esc(z.kommentar) + '“</span>' : '') + '</div></div>' +
+      '<div style="font-weight:700;white-space:nowrap">' + std(z.minuten) + '</div></div>';
+  }
+  function vZeit() {
+    const Z = D.zeiten || [];
+    const mo = montag(wkOff), so = new Date(mo); so.setDate(so.getDate() + 6);
+    const kw = isoWoche(ymd(mo));
+    const meine = Z.filter(z => z.mitglied_id === D.ich.mitglied_id && z.kw === kw).sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von));
+    const summe = meine.reduce((s, z) => s + (Number(z.minuten) || 0), 0);
+    const einreichbar = meine.filter(z => z.status === 'offen' || z.status === 'abgelehnt');
+    const zurueck = meine.filter(z => z.status === 'abgelehnt');
+    let html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Arbeitszeit</h1><p class="sub">Zeiten eintragen, erledigte Aufgaben abhaken und die Woche zur Freigabe an Timo schicken.</p></div><button class="btn" id="neuz">+ Zeit eintragen</button></div>' +
+      '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><div class="weeknav"><button class="btn sec" id="wkp" aria-label="Vorige Woche">‹</button><b>KW ' + kw.slice(-2) + ' · ' + fmtD(ymd(mo)).slice(0, 6) + ' – ' + fmtD(ymd(so)) + '</b><button class="btn sec" id="wkn" aria-label="Nächste Woche"' + (wkOff >= 0 ? ' disabled' : '') + '>›</button>' + (wkOff ? '<button class="btn ghost" id="wkh">Diese Woche</button>' : '') + '</div>' +
+      '<div style="text-align:right"><div class="sum">' + std(summe) + '</div><div class="small muted">in dieser Woche</div></div></div>' +
+      (zurueck.length ? '<div class="note warn" style="margin-bottom:10px">Timo hat ' + zurueck.length + ' Eintrag/Einträge zurückgegeben. Bitte prüfen, korrigieren und die Woche erneut einreichen.</div>' : '') +
+      (meine.length ? meine.map(z => zeitRow(z)).join('') : '<p class="empty">Noch keine Zeiten in dieser Woche.</p>') +
+      (einreichbar.length ? '<div class="dlgbtns" style="margin-top:12px"><button class="btn" id="einreichen">Woche zur Freigabe einreichen (' + std(einreichbar.reduce((s, z) => s + (Number(z.minuten) || 0), 0)) + ')</button></div>' :
+        meine.length ? '<p class="small muted" style="margin-top:10px">' + (meine.every(z => z.status === 'freigegeben') ? 'Diese Woche ist freigegeben.' : 'Eingereicht. Timo bekommt freitags eine Erinnerung zur Freigabe.') + '</p>' : '') + '</div>';
+    if (istAdmin()) {
+      const offen = Z.filter(z => z.status === 'eingereicht');
+      const g = {}; offen.forEach(z => { const k = z.mitglied_id + '|' + z.kw; (g[k] = g[k] || []).push(z); });
+      html += '<div class="card"><h2>Zur Freigabe</h2>' + (Object.keys(g).length ? Object.entries(g).sort().map(([k, arr]) => {
+        const [mid, w] = k.split('|');
+        return '<div style="border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div>' + av(mid) + ' <b>' + esc(mitglied(mid).name) + '</b> · KW ' + esc(w.slice(-2)) + ' · <b>' + std(arr.reduce((s, z) => s + (Number(z.minuten) || 0), 0)) + '</b></div>' +
+          '<div style="display:flex;gap:6px"><button class="btn danger" data-zp="' + esc(k) + '" data-e="abgelehnt">Zurückgeben</button><button class="btn" data-zp="' + esc(k) + '" data-e="freigegeben">Freigeben</button></div></div>' +
+          arr.sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von)).map(z => zeitRow(z)).join('') + '</div>';
+      }).join('') : '<p class="empty">Nichts offen. Alles freigegeben.</p>') + '</div>';
+      const alleWoche = Z.filter(z => z.kw === kw && z.mitglied_id !== D.ich.mitglied_id);
+      const proPerson = {}; alleWoche.forEach(z => { proPerson[z.mitglied_id] = (proPerson[z.mitglied_id] || 0) + (Number(z.minuten) || 0); });
+      html += '<div class="card"><h2>Team in KW ' + kw.slice(-2) + '</h2>' + (Object.keys(proPerson).length ? '<div class="bars">' + Object.entries(proPerson).sort((a, b) => b[1] - a[1]).map(([id, min]) => '<div class="row"><span class="bl">' + esc(mitglied(id).name) + '</span><span class="bt"><i style="width:' + Math.min(100, Math.round(min / 2400 * 100)) + '%"></i></span><b style="width:auto;white-space:nowrap">' + std(min) + '</b></div>').join('') + '</div>' +
+        '<details style="margin-top:10px"><summary>Alle Einträge ansehen</summary>' + alleWoche.sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von)).map(z => zeitRow(z, true)).join('') + '</details>' : '<p class="empty">Keine Einträge vom Team in dieser Woche.</p>') + '</div>';
+    }
+    $('#main').innerHTML = html;
+    $('#neuz').onclick = () => zeitDialog(null);
+    $('#wkp').onclick = () => { wkOff--; vZeit(); };
+    $('#wkn').onclick = () => { if (wkOff < 0) { wkOff++; vZeit(); } };
+    const h = $('#wkh'); if (h) h.onclick = () => { wkOff = 0; vZeit(); };
+    document.querySelectorAll('[data-z]').forEach(e => e.onclick = () => zeitDialog(Z.find(z => z.zeit_id === e.dataset.z)));
+    const ein = $('#einreichen'); if (ein) ein.onclick = async () => {
+      ein.disabled = true;
+      try { await api('woche_einreichen', { kw }); toast('Eingereicht. Timo wird freitags erinnert.'); await laden(true); } catch (e) { toast(e.message); ein.disabled = false; }
+    };
+    document.querySelectorAll('[data-zp]').forEach(b => b.onclick = () => freigabeDialog(b.dataset.zp, b.dataset.e));
+  }
+  function freigabeDialog(k, ent) {
+    const [mid, w] = k.split('|'); const p = mitglied(mid);
+    $('#dlgInner').innerHTML = '<h2>' + (ent === 'freigegeben' ? 'Freigeben' : 'Zurückgeben') + ': ' + esc(p.name) + ', KW ' + esc(w.slice(-2)) + '</h2><form id="zf">' +
+      '<div class="f"><label for="z_k">' + (ent === 'freigegeben' ? 'Kommentar (optional)' : 'Was soll korrigiert werden?') + '</label><textarea id="z_k" maxlength="500"' + (ent === 'abgelehnt' ? ' required' : '') + '></textarea></div>' +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="z_c">Abbrechen</button><button class="btn' + (ent === 'abgelehnt' ? ' danger' : '') + '" type="submit">' + (ent === 'freigegeben' ? 'Freigeben' : 'Zurückgeben') + '</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#z_c').onclick = () => dlg.close();
+    $('#zf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const kommentar = $('#z_k').value;
+      try {
+        await api('zeiten_pruefen', { mitglied_id: mid, kw: w, entscheidung: ent, kommentar });
+        await laden(true);
+        if (ent === 'abgelehnt' && waNummer(p.telefon)) {
+          const text = 'Hallo ' + p.name + ', ich habe deine Arbeitszeiten für KW ' + w.slice(-2) + ' zurückgegeben: ' + kommentar + ' Bitte im Team-Portal korrigieren und neu einreichen: ' + PORTAL;
+          $('#dlgInner').innerHTML = '<h2>Zurückgegeben</h2><p>Gib ' + esc(p.name) + ' kurz Bescheid:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div><div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a></div>';
+          $('#z_x').onclick = () => dlg.close();
+        } else { dlg.close(); toast(ent === 'freigegeben' ? 'Freigegeben' : 'Zurückgegeben'); }
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+  function zeitDialog(z) {
+    const neu = !z;
+    const jetztH = new Date();
+    z = z || { datum: ymd(wkOff ? montag(wkOff) : heute()), von: '09:00', bis: String(Math.max(10, jetztH.getHours())).padStart(2, '0') + ':00', pause_min: 0, taetigkeit: '', aufgabe_id: '', projekt: '' };
+    const offeneA = D.aufgaben.filter(a => a.status !== 'Erledigt' || a.aufgabe_id === z.aufgabe_id);
+    const meineA = offeneA.filter(a => a.verantwortlich === D.ich.mitglied_id), andereA = offeneA.filter(a => a.verantwortlich !== D.ich.mitglied_id);
+    const aOpt = arr => arr.sort(sortAufgaben).map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === z.aufgabe_id ? ' selected' : '') + '>' + esc(a.titel) + '</option>').join('');
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Zeit eintragen' : 'Eintrag bearbeiten') + '</h2><form id="zeitf">' +
+      '<div class="f2"><div class="f"><label for="t_d">Datum</label><input id="t_d" type="date" required max="' + ymd(heute()) + '" value="' + esc(z.datum) + '"></div>' +
+            '<div class="f"><label for="t_v">Beginn</label><input id="t_v" type="time" required value="' + esc(z.von) + '"></div>' +
+      '<div class="f"><label for="t_b">Ende</label><input id="t_b" type="time" required value="' + esc(z.bis) + '"></div>' +
+      '<div class="f"><label for="t_p">Pause (Minuten)</label><input id="t_p" type="number" min="0" max="480" step="5" value="' + esc(z.pause_min || 0) + '"></div>' + '</div>' +
+      '<p class="small muted" id="t_sum" style="margin-top:-4px"></p>' +
+      '<div class="f"><label for="t_a">An welcher Aufgabe hast du gearbeitet? (optional)</label><select id="t_a"><option value="">– keine bestimmte Aufgabe –</option>' +
+      (meineA.length ? '<optgroup label="Meine Aufgaben">' + aOpt(meineA) + '</optgroup>' : '') + (andereA.length ? '<optgroup label="Andere Aufgaben">' + aOpt(andereA) + '</optgroup>' : '') + '</select></div>' +
+      '<label class="check" id="t_erl_w" style="margin-bottom:12px;display:none"><input type="checkbox" id="t_erl"><span>Diese Aufgabe ist damit <b>erledigt</b></span></label>' +
+      '<div class="f"><label for="t_t">Was hast du gemacht?</label><textarea id="t_t" required maxlength="500" placeholder="z. B. Kundentermin vorbereitet, Lernstand-Workflow getestet">' + esc(z.taetigkeit) + '</textarea></div>' +
+      '<div class="f" id="t_j_w"><label for="t_j">Projekt</label><select id="t_j">' + opt(PROJEKTE, z.projekt || 'Sonstiges') + '</select></div>' +
+      (z.status === 'abgelehnt' && z.kommentar ? '<div class="note warn" style="margin-bottom:10px">Timo: „' + esc(z.kommentar) + '“</div>' : '') +
+      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="t_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    const upd = () => {
+      const m = t => /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null;
+      const v = m($('#t_v').value), b = m($('#t_b').value), p = Number($('#t_p').value) || 0;
+      $('#t_sum').textContent = v !== null && b !== null && b - v - p > 0 ? 'Arbeitszeit: ' + std(b - v - p) : '';
+      const aid = $('#t_a').value; const a = D.aufgaben.find(x => x.aufgabe_id === aid);
+      $('#t_erl_w').style.display = a && a.status !== 'Erledigt' ? 'flex' : 'none';
+      $('#t_j_w').style.display = a ? 'none' : '';
+    };
+    ['#t_v', '#t_b', '#t_p', '#t_a'].forEach(s => $(s).addEventListener('input', upd)); upd();
+    $('#t_c').onclick = () => dlg.close();
+    if (!neu) $('#t_del').onclick = async () => {
+      if (!$('#t_del').dataset.sicher) { $('#t_del').dataset.sicher = '1'; $('#t_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('zeit_loeschen', { zeit_id: z.zeit_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#zeitf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const aid = $('#t_a').value; const a = D.aufgaben.find(x => x.aufgabe_id === aid);
+      try {
+        await api('zeit_speichern', { zeit_id: z.zeit_id, datum: $('#t_d').value, von: $('#t_v').value, bis: $('#t_b').value, pause_min: Number($('#t_p').value) || 0,
+          taetigkeit: $('#t_t').value, aufgabe_id: aid, projekt: a ? a.projekt : $('#t_j').value });
+        if (a && $('#t_erl').checked) await api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt' }));
+        dlg.close(); toast(a && $('#t_erl').checked ? 'Gespeichert und Aufgabe erledigt' : 'Gespeichert'); await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Social Media ----------
+  function postRow(p) {
+    const d = dDate(p.datum);
+    return '<div class="post" data-p="' + esc(p.post_id) + '"><div class="date">' + (d ? '<b>' + d.getDate() + '</b><span>' + d.toLocaleDateString('de-DE', { month: 'short' }) + '</span>' : '<span>ohne<br>Datum</span>') + '</div>' +
+      '<div><div style="font-weight:600">' + esc(p.thema) + '</div><div class="meta"><span class="chip">' + esc(p.kanal) + '</span><span class="chip">' + esc(p.status) + '</span>' + (p.text ? '<span>' + esc(p.text.slice(0, 90)) + (p.text.length > 90 ? ' …' : '') + '</span>' : '') + '</div></div>' +
+      '<div>' + av(p.verantwortlich) + '</div></div>';
+  }
+  function bindPosts() { document.querySelectorAll('[data-p]').forEach(e => e.onclick = () => postDialog(D.social.find(p => p.post_id === e.dataset.p))); }
+  function vSocial() {
+    let L = D.social.slice();
+    if (F.kanal) L = L.filter(p => p.kanal === F.kanal);
+    const ohne = L.filter(p => !p.datum);
+    const mit = L.filter(p => p.datum).sort((a, b) => a.datum.localeCompare(b.datum));
+    const kommend = mit.filter(p => dDate(p.datum) >= heute());
+    const vorbei = mit.filter(p => dDate(p.datum) < heute()).reverse();
+    const gruppe = arr => { const g = {}; arr.forEach(p => { const d = dDate(p.datum); const k = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }); (g[k] = g[k] || []).push(p); }); return g; };
+    const G = gruppe(kommend);
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Social-Media-Plan</h1><p class="sub">Ideen sammeln, Termine festlegen, Status verfolgen.</p></div><button class="btn" id="neup">+ Beitrag</button></div>' +
+      '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt(KANAELE, F.kanal) + '</select><span class="small muted">' +
+      SSTATUS.map(s => esc(s) + ': ' + L.filter(p => p.status === s).length).join(' · ') + '</span></div>' +
+      (Object.keys(G).length ? Object.entries(G).map(([k, arr]) => '<div class="card"><h2>' + esc(k) + '</h2>' + arr.map(postRow).join('') + '</div>').join('') : '<div class="card"><p class="empty">Keine kommenden Beiträge.</p></div>') +
+      (ohne.length ? '<div class="card"><h2>Ideen ohne Termin</h2>' + ohne.map(postRow).join('') + '</div>' : '') +
+      (vorbei.length ? '<div class="card"><details><summary><b>Vergangene Beiträge (' + vorbei.length + ')</b></summary>' + vorbei.map(postRow).join('') + '</details></div>' : '');
+    bindPosts();
+    $('#neup').onclick = () => postDialog(null);
+    $('#fk').onchange = e => { F.kanal = e.target.value; saveF(); vSocial(); };
+  }
+  function postDialog(p) {
+    const neu = !p;
+    p = p || { thema: '', text: '', datum: '', kanal: 'LinkedIn', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '' };
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Beitrag' : 'Beitrag bearbeiten') + '</h2><form id="pf">' +
+      '<div class="f"><label for="p_t">Thema</label><input id="p_t" required maxlength="160" value="' + esc(p.thema) + '"></div>' +
+      '<div class="f"><label for="p_x">Text / Notizen</label><textarea id="p_x" maxlength="4000">' + esc(p.text) + '</textarea></div>' +
+      '<div class="f2"><div class="f"><label for="p_d">Datum</label><input id="p_d" type="date" value="' + esc(p.datum) + '"></div>' +
+      '<div class="f"><label for="p_k">Kanal</label><select id="p_k">' + opt(KANAELE, p.kanal) + '</select></div>' +
+      '<div class="f"><label for="p_s">Status</label><select id="p_s">' + opt(SSTATUS, p.status) + '</select></div>' +
+      '<div class="f"><label for="p_v">Zuständig</label><select id="p_v">' + personOpts(p.verantwortlich) + '</select></div></div>' +
+      '<div class="f"><label for="p_l">Link (Entwurf, Canva, fertiger Beitrag)</label><input id="p_l" type="url" placeholder="https://…" value="' + esc(p.link) + '"></div>' +
+      (p.link ? '<p><a href="' + esc(p.link) + '" target="_blank" rel="noopener">Link öffnen ↗</a></p>' : '') +
+      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="p_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="p_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#p_c').onclick = () => dlg.close();
+    if (!neu) $('#p_del').onclick = async () => {
+      if (!$('#p_del').dataset.sicher) { $('#p_del').dataset.sicher = '1'; $('#p_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('social_loeschen', { post_id: p.post_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#pf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        await api('social_speichern', { post_id: p.post_id, thema: $('#p_t').value, text: $('#p_x').value, datum: $('#p_d').value, kanal: $('#p_k').value, status: $('#p_s').value, verantwortlich: $('#p_v').value, link: $('#p_l').value });
+        dlg.close(); toast('Gespeichert'); await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Kurs ----------
+  function bars(list, color) {
+    if (!list || !list.length) return '<p class="empty small">Noch keine Daten.</p>';
+    const max = Math.max(1, ...list.map(x => x[1]));
+    return '<div class="bars">' + list.map(([k, v]) => '<div class="row"><span class="bl" title="' + esc(k) + '">' + esc(k) + '</span><span class="bt"><i style="width:' + Math.round(v / max * 100) + '%' + (color ? ';background:' + color : '') + '"></i></span><b>' + v + '</b></div>').join('') + '</div>';
+  }
+  function vKurs() {
+    const k = D.kurs || {};
+    const an = D.anfragen || [];
+    $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">Modul 1 (n8n und Claude Code). ' + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
+      '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
+      '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + '<h3 style="margin-top:14px">Nach Kursteil</h3>' + bars(k.je_teil, 'var(--acc2)') + '</div>' +
+      '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
+      (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Teil</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
+        ((k.liste || []).map(t => '<tr><td><b>' + esc(t.name) + '</b><br><span class="small muted">' + esc(t.email || '') + '</span></td><td>' + esc(t.kurs) + '</td><td><div class="prog"><i style="width:' + (Number(t.fortschritt) || 0) + '%"></i></div>' + esc(t.fortschritt) + ' %</td><td>' + esc(t.schritt || '–') + '</td><td>' + esc(t.check) + '</td><td>' + fmtDT(t.zuletzt) + '</td></tr>').join('') || '<tr><td colspan="6" class="muted">Noch keine Teilnehmenden.</td></tr>') + '</table></div></div>' +
+        '<div class="card"><h2>Letzte Fragen an den Assistenten</h2>' + ((k.fragen || []).map(f => '<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="small muted">' + fmtDT(f.zeit) + ' · ' + esc(f.name || 'ohne Namen') + (f.schritt ? ' · ' + esc(f.schritt) : '') + '</div><div>' + esc(f.frage) + '</div></div>').join('') || '<p class="empty">Noch keine Fragen.</p>') + '</div>' : '') +
+      '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
+      (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
+  }
+
+  // ---------- Systeme ----------
+  function vSysteme() {
+    const L = D.systeme.slice().sort((a, b) => SYSSTATUS.indexOf(a.status) - SYSSTATUS.indexOf(b.status) || a.name.localeCompare(b.name));
+    const bereiche = [...new Set(L.map(s => s.bereich))];
+    const edit = istDozent();
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Systeme & Automationen</h1><p class="sub">Was bei Momentum läuft, was gerade gebaut wird und was geplant ist.</p></div>' + (edit ? '<button class="btn" id="neus">+ System</button>' : '') + '</div>' +
+      '<div class="kpis">' + SYSSTATUS.map(s => kpi(L.filter(x => x.status === s).length, s)).join('') + '</div>' +
+      bereiche.map(b => '<div class="card"><h2>' + esc(b) + '</h2><div class="grid">' + L.filter(s => s.bereich === b).map(s =>
+        '<div class="sys' + (edit ? ' edit' : '') + '" data-s="' + esc(s.system_id) + '"><div class="top"><b>' + esc(s.name) + '</b>' + av(s.verantwortlich) + '</div>' +
+        '<div class="small" style="margin:4px 0 8px"><span class="dot d-' + esc(s.status.replace(/\s/g, '-')) + '"></span>' + esc(s.status) + ' · <span class="muted">' + esc(s.werkzeug) + '</span></div>' +
+        '<div class="small muted">' + esc(s.beschreibung) + '</div>' + (s.link ? '<div class="small" style="margin-top:6px"><a href="' + esc(s.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Öffnen ↗</a></div>' : '') + '</div>').join('') + '</div></div>').join('');
+    if (edit) {
+      $('#neus').onclick = () => systemDialog(null);
+      document.querySelectorAll('[data-s]').forEach(e => e.onclick = () => systemDialog(D.systeme.find(s => s.system_id === e.dataset.s)));
+    }
+  }
+  function systemDialog(s) {
+    const neu = !s;
+    s = s || { name: '', beschreibung: '', bereich: 'Intern', status: 'geplant', werkzeug: '', link: '', verantwortlich: D.ich.mitglied_id };
+    const bereiche = [...new Set(['Kurs', 'Vertrieb', 'Webseite', 'Intern', 'Produkt'].concat(D.systeme.map(x => x.bereich)))];
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues System' : 'System bearbeiten') + '</h2><form id="sf">' +
+      '<div class="f"><label for="s_n">Name</label><input id="s_n" required maxlength="120" value="' + esc(s.name) + '"></div>' +
+      '<div class="f"><label for="s_b">Was macht es?</label><textarea id="s_b" maxlength="1500">' + esc(s.beschreibung) + '</textarea></div>' +
+      '<div class="f2"><div class="f"><label for="s_r">Bereich</label><select id="s_r">' + opt(bereiche, s.bereich) + '</select></div>' +
+      '<div class="f"><label for="s_s">Status</label><select id="s_s">' + opt(SYSSTATUS, s.status) + '</select></div>' +
+      '<div class="f"><label for="s_w">Werkzeuge</label><input id="s_w" maxlength="120" value="' + esc(s.werkzeug) + '" placeholder="z. B. n8n, Supabase"></div>' +
+      '<div class="f"><label for="s_v">Zuständig</label><select id="s_v">' + personOpts(s.verantwortlich) + '</select></div></div>' +
+      '<div class="f"><label for="s_l">Link (optional, nichts Geheimes)</label><input id="s_l" type="url" value="' + esc(s.link) + '"></div>' +
+      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="s_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="s_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#s_c').onclick = () => dlg.close();
+    if (!neu) $('#s_del').onclick = async () => {
+      if (!$('#s_del').dataset.sicher) { $('#s_del').dataset.sicher = '1'; $('#s_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('system_loeschen', { system_id: s.system_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#sf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        await api('system_speichern', { system_id: s.system_id, name: $('#s_n').value, beschreibung: $('#s_b').value, bereich: $('#s_r').value, status: $('#s_s').value, werkzeug: $('#s_w').value, link: $('#s_l').value, verantwortlich: $('#s_v').value });
+        dlg.close(); toast('Gespeichert'); await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Webseite ----------
+  function vWeb() {
+    const L = D.aufgaben.filter(a => a.projekt === 'Webseite').sort(sortAufgaben);
+    const offen = L.filter(a => a.status !== 'Erledigt');
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Webseite</h1><p class="sub"><a href="https://momentum-ki-akademie.de/" target="_blank" rel="noopener">momentum-ki-akademie.de ↗</a> · gebaut mit Lovable</p></div><button class="btn" id="neuw">+ Aufgabe für die Webseite</button></div>' +
+      '<div class="kpis">' + kpi(offen.length, 'offene Punkte') + kpi(offen.filter(a => Number(a.prio) === 1).length, 'davon Prio 1', offen.some(a => Number(a.prio) === 1)) + kpi(L.length - offen.length, 'erledigt') + '</div>' +
+      '<div class="grid"><div class="card"><h2>Offene Punkte</h2>' + (offen.length ? offen.map(taskRow).join('') : '<p class="empty">Alles erledigt.</p>') + '</div>' +
+      '<div class="card"><h2>Aufbau der Seite</h2><p class="small muted">Zur Orientierung, Stand der letzten Prüfung (14.10.2026).</p><ol class="small" style="padding-left:18px;margin:0">' +
+      ['Start: „Dein KI-Führerschein für die neue Arbeitswelt“ mit Fördercheck-Button', 'Rechner: Was Routinearbeit kostet', 'Warum Schulung allein nicht reicht', 'Stufenmodell „Von der Fahrschule …“', 'Der Kipppunkt', 'Montagmorgen-Szenario', 'Drei Agenten, die bleiben', 'Curriculum: 8 Module', 'Förderung (QCG, Maßnahme-ID M-26-25682-5)', 'Die drei Wege', 'Wer dahintersteht (Team)', 'Einwände', 'Fördercheck (Quiz)', 'Footer mit Kontakt, Impressum, Datenschutz'].map(x => '<li>' + esc(x) + '</li>').join('') +
+      '</ol><div class="note warn" style="margin-top:12px">Impressum, Datenschutz und Träger stehen noch auf der Immo-Job GmbH. Umstellen, sobald die neue GmbH eingetragen ist.</div></div></div>' +
+      (L.length - offen.length ? '<div class="card"><details><summary><b>Erledigt (' + (L.length - offen.length) + ')</b></summary>' + L.filter(a => a.status === 'Erledigt').map(taskRow).join('') + '</details></div>' : '');
+    bindTasks();
+    $('#neuw').onclick = () => aufgabeDialog(null);
+  }
+
+  // ---------- Team ----------
+  function vTeam() {
+    const admin = istAdmin();
+    const L = (D.mitglieder || []).slice().sort((a, b) => (a.status === 'gesperrt') - (b.status === 'gesperrt') || a.name.localeCompare(b.name));
+    const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div>' + (admin ? '<button class="btn" id="neum">+ Mitglied</button>' : '') + '</div>' +
+      '<div class="grid">' + L.map(p => '<div class="member">' + av(p.mitglied_id) + '<div style="min-width:0;flex:1"><b>' + esc(p.name) + '</b>' + (p.mitglied_id === D.ich.mitglied_id ? ' <span class="chip">Du</span>' : '') +
+        '<div class="small muted">' + esc(p.funktion || ROLLEN[p.rolle] || '') + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
+        '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
+        '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben</div>' +
+        '<div class="act">' + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
+        (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
+        (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">Link kopieren</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
+      (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink. Schick ihn nur an die Person selbst. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
+      '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
+    const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
+    $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
+    if (admin) {
+      $('#neum').onclick = () => mitgliedDialog(null);
+      document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));
+      document.querySelectorAll('[data-link]').forEach(b => b.onclick = async () => {
+        const p = mitglied(b.dataset.link); const url = PORTAL + '#z=' + p.token;
+        try { await navigator.clipboard.writeText(url); toast('Link für ' + p.name + ' kopiert'); }
+        catch (e) { $('#dlgInner').innerHTML = '<h2>Link für ' + esc(p.name) + '</h2><div class="f"><input readonly value="' + esc(url) + '" onclick="this.select()"></div><div class="dlgbtns"><button class="btn" onclick="this.closest(\'dialog\').close()">Fertig</button></div>'; $('#dlg').showModal(); }
+      });
+    }
+  }
+  function profilDialog() {
+    const i = D.mitglieder.find(p => p.mitglied_id === D.ich.mitglied_id) || D.ich;
+    $('#dlgInner').innerHTML = '<h2>Meine Daten</h2><form id="mf"><div class="f"><label for="m_e">E-Mail-Adresse</label><input id="m_e" type="email" required value="' + esc(i.email) + '"></div>' +
+      '<div class="f"><label for="m_t">Handynummer</label><input id="m_t" type="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
+      '<label class="check"><input type="checkbox" id="m_w"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Per WhatsApp benachrichtigen, wenn mir jemand eine Aufgabe zuweist.</span></label>' +
+      '<div class="dlgbtns" style="margin-top:14px"><button type="button" class="btn sec" id="m_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#m_c').onclick = () => dlg.close();
+    $('#mf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try { await api('profil', { email: $('#m_e').value, telefon: $('#m_t').value, whatsapp_ok: $('#m_w').checked }); dlg.close(); toast('Gespeichert'); await laden(true); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+  function mitgliedDialog(p) {
+    const neu = !p;
+    p = p || { name: '', funktion: '', rolle: 'team', status: 'eingeladen' };
+    const selbst = p.mitglied_id === D.ich.mitglied_id;
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues Teammitglied' : esc(p.name) + ' verwalten') + '</h2><form id="tf">' +
+      '<div class="f2"><div class="f"><label for="t_n">Name</label><input id="t_n" required maxlength="60" value="' + esc(p.name) + '"></div>' +
+      '<div class="f"><label for="t_f">Aufgabe im Team</label><input id="t_f" maxlength="60" value="' + esc(p.funktion) + '" placeholder="z. B. Vertrieb"></div>' +
+      '<div class="f"><label for="t_r">Rolle</label><select id="t_r"' + (selbst ? ' disabled' : '') + '>' + opt(Object.keys(ROLLEN), p.rolle, v => ROLLEN[v]) + '</select></div>' +
+      (!neu && !selbst ? '<div class="f"><label for="t_s">Zugang</label><select id="t_s">' + opt(['aktiv', 'eingeladen', 'gesperrt'], p.status, v => ({ aktiv: 'aktiv', eingeladen: 'eingeladen (noch nicht angemeldet)', gesperrt: 'gesperrt' }[v])) + '</select></div>' : '') + '</div>' +
+      '<p class="small muted">Rollen: Admin verwaltet das Team. Dozent / Technik sieht Teilnehmer mit Namen und pflegt Systeme. Vertrieb und Team sehen Kursdaten nur zusammengefasst. Alle können Aufgaben und Social-Beiträge anlegen.</p>' +
+      (!neu ? '<label class="check" style="margin-bottom:10px"><input type="checkbox" id="t_l"><span>Neuen Zugangslink erzeugen (der alte Link funktioniert dann nicht mehr)</span></label>' : '<p class="small muted">Nach dem Speichern kopierst du unter „Team“ den persönlichen Link und schickst ihn der Person.</p>') +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = $('#dlg'); dlg.showModal();
+    $('#t_c').onclick = () => dlg.close();
+    $('#tf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        await api('mitglied_speichern', { mitglied_id: p.mitglied_id, name: $('#t_n').value, funktion: $('#t_f').value, rolle: selbst ? 'admin' : $('#t_r').value,
+          status: $('#t_s') ? $('#t_s').value : undefined, neuer_link: !!($('#t_l') && $('#t_l').checked) });
+        dlg.close(); toast('Gespeichert'); await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // Daten alle 2 Minuten im Hintergrund auffrischen, wenn kein Dialog offen ist
+  setInterval(() => {
+    const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+    if (D && !D.setup && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
+  }, 120000);
+  laden();
+})();
+</script>
+</body></html>
