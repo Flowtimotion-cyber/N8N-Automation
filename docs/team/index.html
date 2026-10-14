@@ -109,6 +109,27 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .weeknav b{min-width:190px;text-align:center}
 .sum{font-size:22px;font-weight:700}
+.md{line-height:1.55;overflow-wrap:anywhere}.md h2{font-size:20px;margin:14px 0 6px}.md h3{font-size:17px;margin:12px 0 6px}.md h4{font-size:15px;margin:10px 0 4px}
+.md p{margin:0 0 8px}.md ul,.md ol{margin:0 0 8px;padding-left:22px}.md ul.tasklist{list-style:none;padding-left:4px}.md blockquote{margin:0 0 8px;padding:6px 12px;border-left:3px solid var(--acc);background:#F6F3FE;border-radius:0 8px 8px 0}
+.md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md a.wl{text-decoration:underline dotted}
+.ed .edhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.edmode button{padding:5px 10px;font-size:13px}
+.toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#FAFAFE}
+.toolbar .tb{border:1px solid transparent;background:none;border-radius:7px;padding:4px 9px;cursor:pointer;font-size:14px;min-width:32px}.toolbar .tb:hover{background:#fff;border-color:var(--line)}
+.toolbar select.tb{border-color:var(--line);background:#fff;width:auto!important;padding:4px 6px}
+.edbody{display:grid;gap:10px}.edbody textarea{border-radius:0 0 10px 10px!important;min-height:260px;resize:vertical;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.edbody .vorschau{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;min-height:200px;max-height:70vh;overflow:auto}
+.edbody.m-schreiben .vorschau{display:none}.edbody.m-vorschau textarea{display:none}.edbody.m-vorschau .vorschau{border-radius:0 0 10px 10px}
+@media(min-width:900px){.edbody.m-beides{grid-template-columns:1fr 1fr}.edbody.m-beides .vorschau{max-height:none}}
+.hilfebox{border:1px solid var(--line);border-top:0;background:#FFFDF5;padding:10px 12px;font-size:13.5px}.hilfe table{width:auto}.hilfe td{padding:3px 10px 3px 0;border:0}
+dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(520px,96vw);resize:horizontal}
+dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
+.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
+.pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.pstats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px;text-align:center}.pstats b{display:block;font-size:20px}.pstats span{font-size:12px;color:var(--mut)}
+.notes{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}.nlist{padding:12px;max-height:75vh;overflow:auto}
+.nitem{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:10px;cursor:pointer}.nitem:hover{background:#FAFAFE}.nitem.on{background:#F1ECFD}.nitem b{display:block}
+.nview{min-height:300px}
+@media(max-width:800px){.notes{grid-template-columns:1fr}.pstats{grid-template-columns:repeat(3,1fr)}}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
 .center{max-width:520px;margin:8vh auto;padding:0 16px}
@@ -129,7 +150,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
   'use strict';
   const API = 'https://n8n.hm-storage.de/webhook/team-api';
   const PORTAL = 'https://flowtimotion-cyber.github.io/N8N-Automation/team/';
-  const PROJEKTE = ['Kurs Modul 1', 'Webseite', 'Social Media', 'Vertrieb', 'AZAV & GmbH', 'Systeme', 'Sonstiges'];
+  const projOpts = cur => { const l = projektNamen(); return cur && !l.includes(cur) ? l.concat([cur]) : l; };
   const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
   const BOARD = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet'];
   const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
@@ -137,7 +158,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
   const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['zeit', 'Arbeitszeit'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -194,7 +215,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
   }
 
   function ohneZugang(msg) {
-    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card"><h2>Team-Portal</h2>' +
+    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card"><h2>Team-Portal</h2>' +
       '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p>' +
       '<form id="codef" style="margin-top:14px"><div class="f"><label for="code">Oder den Zugangscode hier einfügen</label><input id="code" autocomplete="off" placeholder="32 Zeichen aus deinem Link"></div><button class="btn" type="submit">Anmelden</button></form></div></div>';
     $('#codef').onsubmit = ev => {
@@ -207,7 +228,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 
   function einrichten() {
     const i = D.ich;
-    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card">' +
+    $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card">' +
       '<h2>Willkommen, ' + esc(i.name) + '!</h2><p class="muted">Bevor es losgeht: Trag einmal deine Kontaktdaten ein. Sie sind nur für das Momentum-Team sichtbar.</p>' +
       '<form id="setup"><div class="f"><label for="s_mail">E-Mail-Adresse</label><input id="s_mail" type="email" required autocomplete="email" value="' + esc(i.email) + '"></div>' +
       '<div class="f"><label for="s_tel">Handynummer (für WhatsApp)</label><input id="s_tel" type="tel" autocomplete="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
@@ -225,12 +246,12 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
   // ---------- Gerüst ----------
   function render() {
     const i = D.ich;
-    $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' +
+    $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
       '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; ls.set('mt-tab', tab); render(); window.scrollTo(0, 0); });
-    const V = { start: vStart, aufgaben: vAufgaben, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
+    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
     (V[tab] || vStart)();
   }
 
@@ -276,7 +297,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + av(a.verantwortlich) +
       '<div><div class="t">' + esc(a.titel) + '</div><div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
-      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span>' + esc(a.projekt) + '</span>' +
+      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' + (a.beschreibung ? '<span title="hat Beschreibung">📝</span>' : '') +
       (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
       '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
   }
@@ -297,7 +318,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><button class="btn" id="neu">+ Neue Aufgabe</button></div>' +
       '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
       (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
-      '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(PROJEKTE, F.projekt) + '</select>' +
+      '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
       '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
       '<input class="grow" id="fq" type="search" placeholder="Suchen …" value="' + esc(F.q) + '">' +
       '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
@@ -321,17 +342,17 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     const darfLoeschen = !neu && (istAdmin() || a.erstellt_von === D.ich.mitglied_id);
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Aufgabe' : 'Aufgabe bearbeiten') + '</h2><form id="af">' +
       '<div class="f"><label for="a_t">Titel</label><input id="a_t" required maxlength="160" value="' + esc(a.titel) + '"></div>' +
-      '<div class="f"><label for="a_b">Beschreibung (Ziel, was ist zu tun, was wird gebraucht?)</label><textarea id="a_b" maxlength="4000">' + esc(a.beschreibung) + '</textarea></div>' +
+      editorHtml('a_b', a.beschreibung, 'Beschreibung (Ziel, was ist zu tun, was wird gebraucht?)', { rows: 12, max: 20000 }) +
       '<div class="f2"><div class="f"><label for="a_v">Zuständig</label><select id="a_v">' + personOpts(a.verantwortlich) + '</select></div>' +
       '<div class="f"><label for="a_d">Deadline</label><input id="a_d" type="date" value="' + esc(a.deadline) + '"></div>' +
       '<div class="f"><label for="a_p">Priorität</label><select id="a_p">' + opt([1, 2, 3], a.prio, v => 'Prio ' + v + (v === 1 ? ' (dringend)' : v === 3 ? ' (wenn Zeit ist)' : '')) + '</select></div>' +
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
-      '<div class="f"><label for="a_j">Projekt</label><select id="a_j">' + opt(PROJEKTE, a.projekt) + '</select></div>' +
+      '<div class="f"><label for="a_j">Projekt</label><select id="a_j">' + opt(projOpts(a.projekt), a.projekt) + '</select></div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
       (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">Löschen</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(true); bindEditor('a_b');
     $('#a_x').onclick = () => dlg.close();
     if (darfLoeschen) $('#a_del').onclick = async () => {
       if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich löschen?'; return; }
@@ -363,6 +384,266 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     $('#z_x').onclick = () => $('#dlg').close();
   }
 
+
+  // ---------- Formatierung (Momentum-Markdown) ----------
+  const FARBEN = { rot: '#D9452F', rosa: '#E0569B', orange: '#E98A15', gelb: '#B98900', gruen: '#1F9D6B', blau: '#2F6FDB', lila: '#7B3FE4', grau: '#8E8BAA' };
+  function mdInline(s) {
+    const ph = [];
+    const keep = h => { ph.push(h); return '\u0001' + (ph.length - 1) + '\u0002'; };
+    s = s.replace(/`([^`\n]+)`/g, (m, c) => keep('<code>' + c + '</code>'));
+    s = s.replace(/\[\[([^\]\n]{1,160})\]\]/g, (m, t) => keep('<a href="#" class="wl" data-wl="' + t + '">' + t + '</a>'));
+    s = s.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (m, t, u) => keep('<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>'));
+    s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+[^\s<.,;:!?)])/g, (m, a, u) => a + keep('<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'));
+    s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__([^_\n]+?)__/g, '<u>$1</u>');
+    s = s.replace(/~~([^~\n]+?)~~/g, '<s>$1</s>');
+    s = s.replace(/==([^=\n]+?)==/g, '<mark>$1</mark>');
+    s = s.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?!\w)/g, '$1<em>$2</em>');
+    s = s.replace(/\{(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span style="color:' + (FARBEN[f === 'grün' ? 'gruen' : f] || f) + '">' + t + '</span>');
+    return s.replace(/\u0001(\d+)\u0002/g, (m, i) => ph[Number(i)]);
+  }
+  function md(text) {
+    const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
+    let out = '', liste = null, para = [];
+    const flushP = () => { if (para.length) { out += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
+    const flushL = () => { if (liste) { out += '</' + liste + '>'; liste = null; } };
+    for (const raw of L) {
+      const l = raw.replace(/\s+$/, '');
+      let m;
+      if (!l.trim()) { flushP(); flushL(); continue; }
+      if ((m = /^(#{1,3})\s+(.*)$/.exec(l))) { flushP(); flushL(); const n = m[1].length + 1; out += '<h' + n + '>' + mdInline(m[2]) + '</h' + n + '>'; continue; }
+      if (/^(-{3,}|\*{3,})$/.test(l.trim())) { flushP(); flushL(); out += '<hr>'; continue; }
+      if ((m = /^&gt;\s?(.*)$/.exec(l))) { flushP(); flushL(); out += '<blockquote>' + mdInline(m[1]) + '</blockquote>'; continue; }
+      if ((m = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul class="tasklist">'; liste = 'ul'; } out += '<li>' + (m[1].trim() ? '☑ ' : '☐ ') + mdInline(m[2]) + '</li>'; continue; }
+      if ((m = /^\s*[-*]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul>'; liste = 'ul'; } out += '<li>' + mdInline(m[1]) + '</li>'; continue; }
+      if ((m = /^\s*\d+[.)]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ol') { flushL(); out += '<ol>'; liste = 'ol'; } out += '<li>' + mdInline(m[1]) + '</li>'; continue; }
+      flushL(); para.push(l);
+    }
+    flushP(); flushL();
+    return out || '<p class="muted">Noch kein Text.</p>';
+  }
+  // Formatierten Text aus Word, LibreOffice, Webseiten in Momentum-Markdown umwandeln
+  function htmlZuMd(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const hex = c => { if (!c) return ''; c = c.trim().toLowerCase(); if (/^#[0-9a-f]{6}$/.test(c)) return c; if (/^#[0-9a-f]{3}$/.test(c)) return '#' + c.slice(1).split('').map(x => x + x).join('');
+      const r = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c); if (r) return '#' + [r[1], r[2], r[3]].map(n => Number(n).toString(16).padStart(2, '0')).join(''); return ''; };
+    const naheFarbe = h => { if (!h || h === '#000000') return ''; const v = [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16)); if (Math.max(...v) - Math.min(...v) < 30 && v[0] < 90) return ''; return h; };
+    const walk = (n, ctx) => {
+      if (n.nodeType === 3) return n.nodeValue.replace(/\s+/g, ' ');
+      if (n.nodeType !== 1) return '';
+      const tag = n.tagName.toLowerCase(), st = n.style || {};
+      if (['style', 'script', 'head', 'title', 'meta'].includes(tag)) return '';
+      let inner = Array.from(n.childNodes).map(c => walk(c, { ...ctx, ol: tag === 'ol' ? true : tag === 'ul' ? false : ctx.ol })).join('');
+      const fw = String(st.fontWeight || ''), bold = ['b', 'strong'].includes(tag) || fw === 'bold' || Number(fw) >= 600;
+      const ital = ['i', 'em'].includes(tag) || st.fontStyle === 'italic';
+      const und = tag === 'u' || /underline/.test(st.textDecoration || st.textDecorationLine || '');
+      const strike = ['s', 'strike', 'del'].includes(tag) || /line-through/.test(st.textDecoration || st.textDecorationLine || '');
+      const farbe = naheFarbe(hex(n.getAttribute('color') || st.color));
+      const mark = tag === 'mark' || (st.backgroundColor && !/transparent|rgba\(0, 0, 0, 0\)|#?fff(fff)?|white/i.test(st.backgroundColor));
+      const t = inner.trim();
+      if (t && !['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'table', 'tr', 'td', 'body', 'html'].includes(tag)) {
+        if (strike) inner = '~~' + t + '~~';
+        if (und && tag !== 'a') inner = '__' + inner.trim() + '__';
+        if (ital) inner = '*' + inner.trim() + '*';
+        if (bold) inner = '**' + inner.trim() + '**';
+        if (farbe) inner = '{' + (Object.keys(FARBEN).find(k => FARBEN[k].toLowerCase() === farbe) || farbe) + '}' + inner.trim() + '{/}';
+        if (mark && !farbe) inner = '==' + inner.trim() + '==';
+      }
+      switch (tag) {
+        case 'br': return '\n';
+        case 'a': { const h = n.getAttribute('href') || ''; return /^(https?:|mailto:)/.test(h) && t ? '[' + t + '](' + h + ')' : inner; }
+        case 'h1': return '\n# ' + t + '\n';
+        case 'h2': return '\n## ' + t + '\n';
+        case 'h3': case 'h4': return '\n### ' + t + '\n';
+        case 'li': return '\n' + (ctx.ol ? '1. ' : '- ') + inner.trim();
+        case 'ul': case 'ol': return inner + '\n';
+        case 'p': case 'div': case 'tr': return '\n' + inner.trim() + '\n';
+        case 'td': case 'th': return inner.trim() + ' | ';
+        default: return inner;
+      }
+    };
+    return walk(doc.body, {}).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  const HILFE = '<div class="hilfe"><b>So formatierst du:</b><table>' +
+    [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
+     ['==markiert==', '<mark>markiert</mark>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
+     ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
+      .map(([a, b]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + b + '</td></tr>').join('') +
+    '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link.</p></div>';
+  function editorHtml(id, wert, label, opts) {
+    opts = opts || {};
+    const modus = ls.get('mt-edmodus') || 'schreiben';
+    const btn = (a, t, title) => '<button type="button" class="tb" data-ed="' + id + '" data-a="' + a + '" title="' + title + '">' + t + '</button>';
+    return '<div class="f ed" id="' + id + '_w"><div class="edhead"><label for="' + id + '">' + esc(label) + '</label>' +
+      '<div class="seg small edmode">' + ['schreiben', 'vorschau', 'beides'].map(mo => '<button type="button" data-edm="' + id + '" data-m="' + mo + '" class="' + (mo === modus ? 'on' : '') + '">' + ({ schreiben: 'Schreiben', vorschau: 'Vorschau', beides: 'Beides' }[mo]) + '</button>').join('') + '</div></div>' +
+      '<div class="toolbar">' + btn('b', '<b>B</b>', 'Fett (Strg+B)') + btn('i', '<i>I</i>', 'Kursiv (Strg+I)') + btn('u', '<u>U</u>', 'Unterstrichen') + btn('s', '<s>S</s>', 'Durchgestrichen') + btn('m', '<mark>M</mark>', 'Markieren') +
+      '<select class="tb" data-ed="' + id + '" data-a="farbe" title="Textfarbe"><option value="">Farbe</option>' + Object.keys(FARBEN).map(f => '<option value="' + f + '" style="color:' + FARBEN[f] + '">' + f + '</option>').join('') + '</select>' +
+      btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
+      btn('hilfe', '?', 'Alle Formatierungen anzeigen') + '</div><div class="hilfebox" id="' + id + '_h" hidden>' + HILFE + '</div>' +
+      '<div class="edbody m-' + modus + '" id="' + id + '_b"><textarea id="' + id + '" rows="' + (opts.rows || 12) + '" maxlength="' + (opts.max || 20000) + '" spellcheck="true">' + esc(wert) + '</textarea>' +
+      '<div class="md vorschau" id="' + id + '_v"></div></div></div>';
+  }
+  function bindEditor(id) {
+    const ta = $('#' + id), vor = $('#' + id + '_v'), body = $('#' + id + '_b');
+    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.7) + 'px'; };
+    const zeig = () => { vor.innerHTML = md(ta.value); };
+    const setze = (vorne, hinten, platzhalter) => {
+      const a = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(a, e) || platzhalter;
+      ta.setRangeText(vorne + sel + hinten, a, e, 'end');
+      ta.selectionStart = a + vorne.length; ta.selectionEnd = a + vorne.length + sel.length; ta.focus(); ta.dispatchEvent(new Event('input'));
+    };
+    const zeilen = p => {
+      const a = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1; let e = ta.value.indexOf('\n', ta.selectionEnd); if (e < 0) e = ta.value.length;
+      const block = ta.value.slice(a, e).split('\n').map((z, i) => (typeof p === 'function' ? p(i) : p) + z.replace(/^(#{1,3}\s|[-*]\s(\[[ xX]\]\s)?|\d+[.)]\s)/, '')).join('\n');
+      ta.setRangeText(block, a, e, 'end'); ta.focus(); ta.dispatchEvent(new Event('input'));
+    };
+    const aktion = a => {
+      if (a === 'b') setze('**', '**', 'fett'); else if (a === 'i') setze('*', '*', 'kursiv'); else if (a === 'u') setze('__', '__', 'unterstrichen');
+      else if (a === 's') setze('~~', '~~', 'durchgestrichen'); else if (a === 'm') setze('==', '==', 'markiert');
+      else if (a === 'h') zeilen('## '); else if (a === 'ul') zeilen('- '); else if (a === 'ol') zeilen(i => (i + 1) + '. '); else if (a === 'cb') zeilen('- [ ] ');
+      else if (a === 'link') { const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd); if (/^https?:\/\//.test(sel)) setze('[Linktext](', ')', ''); else setze('[', '](https://)', 'Linktext'); }
+      else if (a === 'wl') setze('[[', ']]', 'Titel der Notiz');
+      else if (a === 'hilfe') { const h = $('#' + id + '_h'); h.hidden = !h.hidden; }
+    };
+    document.querySelectorAll('[data-ed="' + id + '"]').forEach(b => {
+      if (b.tagName === 'SELECT') b.onchange = () => { if (b.value) setze('{' + b.value + '}', '{/}', 'Text'); b.value = ''; };
+      else b.onclick = () => aktion(b.dataset.a);
+    });
+    document.querySelectorAll('[data-edm="' + id + '"]').forEach(b => b.onclick = () => {
+      document.querySelectorAll('[data-edm="' + id + '"]').forEach(x => x.classList.toggle('on', x === b));
+      body.className = 'edbody m-' + b.dataset.m; ls.set('mt-edmodus', b.dataset.m); zeig(); grow();
+    });
+    ta.addEventListener('input', () => { grow(); clearTimeout(ta._t); ta._t = setTimeout(zeig, 150); });
+    ta.addEventListener('keydown', ev => {
+      if (!(ev.ctrlKey || ev.metaKey)) return;
+      const k = ev.key.toLowerCase();
+      if (k === 'b') { ev.preventDefault(); aktion('b'); } else if (k === 'i') { ev.preventDefault(); aktion('i'); } else if (k === 'k') { ev.preventDefault(); aktion('link'); }
+    });
+    ta.addEventListener('paste', ev => {
+      const html = ev.clipboardData && ev.clipboardData.getData('text/html');
+      if (!html) return;
+      const t = htmlZuMd(html);
+      if (!t) return;
+      ev.preventDefault(); const vor = ta.value.slice(0, ta.selectionStart); const block = /\n/.test(t) && vor && !vor.endsWith('\n'); ta.setRangeText((block ? '\n' : '') + t, ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input'));
+      toast('Formatierung übernommen');
+    });
+    zeig(); setTimeout(grow, 0);
+  }
+  function bindWikiLinks(root) {
+    (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (!n) neueNotizTitel = a.dataset.wl; render(); });
+  }
+  function openDlg(breit) {
+    const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.style.width = ''; d.style.height = '';
+    if (!d.open) d.showModal();
+    if (breit && !$('#dlgInner .vollbild')) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost vollbild'; b.title = 'Fenster vergrößern'; b.textContent = '⤢';
+      b.onclick = () => d.classList.toggle('voll'); $('#dlgInner').prepend(b);
+    }
+    return d;
+  }
+
+  // ---------- Projekte ----------
+  const projektNamen = (alle) => (D.projekte || []).filter(p => alle || p.status !== 'abgeschlossen').map(p => p.name);
+  const projektFarbe = name => ((D.projekte || []).find(p => p.name === name) || {}).farbe || '#8E8BAA';
+  const PSTATUS = ['aktiv', 'geplant', 'pausiert', 'abgeschlossen'];
+  function vProjekte() {
+    const P = (D.projekte || []).slice();
+    const Z = D.zeiten || [];
+    const zeigAlle = F.projAlle === true;
+    const L = P.filter(p => zeigAlle || p.status !== 'abgeschlossen');
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Projekte</h1><p class="sub">Alle Projekte mit Aufgaben, Zeiten und Notizen. Klick auf ein Projekt zum Bearbeiten.</p></div><button class="btn" id="neuj">+ Projekt</button></div>' +
+      '<div class="tools"><label class="check"><input type="checkbox" id="pa"' + (zeigAlle ? ' checked' : '') + '><span>Abgeschlossene zeigen</span></label></div>' +
+      '<div class="grid">' + L.map(p => {
+        const A = D.aufgaben.filter(a => a.projekt === p.name), offen = A.filter(a => a.status !== 'Erledigt');
+        const min = Z.filter(z => z.projekt === p.name).reduce((s, z) => s + (Number(z.minuten) || 0), 0);
+        const nz = (D.notizen || []).filter(n => n.projekt === p.name).length;
+        return '<div class="card proj" data-j="' + esc(p.projekt_id) + '" style="border-top:5px solid ' + esc(p.farbe) + ';cursor:pointer;margin:0">' +
+          '<div style="display:flex;justify-content:space-between;gap:8px"><h2 style="margin:0 0 4px">' + esc(p.name) + '</h2>' + av(p.verantwortlich) + '</div>' +
+          '<div class="meta" style="margin-bottom:8px"><span class="chip">' + esc(p.status) + '</span></div>' +
+          (p.beschreibung ? '<div class="md small">' + md(p.beschreibung) + '</div>' : '') +
+          '<div class="pstats"><div><b>' + offen.length + '</b><span>offen</span></div><div><b>' + (A.length - offen.length) + '</b><span>erledigt</span></div><div><b>' + offen.filter(ueberfaellig).length + '</b><span>überfällig</span></div>' +
+          '<div><b>' + std(min).replace(' Std', '') + '</b><span>' + (istAdmin() ? 'Std (Team)' : 'Std (du)') + '</span></div><div><b>' + nz + '</b><span>Notizen</span></div></div>' +
+          '<div class="dlgbtns" style="justify-content:flex-start;margin-top:10px"><button class="btn ghost" data-jg="' + esc(p.name) + '" data-ziel="aufgaben">Aufgaben →</button><button class="btn ghost" data-jg="' + esc(p.name) + '" data-ziel="notizen">Notizen →</button></div></div>';
+      }).join('') + '</div>';
+    $('#neuj').onclick = () => projektDialog(null);
+    $('#pa').onchange = e => { F.projAlle = e.target.checked; saveF(); vProjekte(); };
+    document.querySelectorAll('[data-j]').forEach(e => e.onclick = ev => { if (ev.target.closest('[data-jg]') || ev.target.closest('a')) return; projektDialog(P.find(p => p.projekt_id === e.dataset.j)); });
+    document.querySelectorAll('[data-jg]').forEach(b => b.onclick = () => {
+      if (b.dataset.ziel === 'aufgaben') { F.projekt = b.dataset.jg; F.person = ''; } else { F.notizProjekt = b.dataset.jg; }
+      saveF(); tab = b.dataset.ziel; ls.set('mt-tab', tab); render();
+    });
+  }
+  function projektDialog(p) {
+    const neu = !p;
+    p = p || { name: '', beschreibung: '', status: 'aktiv', farbe: '#7B3FE4', verantwortlich: D.ich.mitglied_id };
+    const darfLoeschen = !neu && istAdmin();
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues Projekt' : 'Projekt bearbeiten') + '</h2><form id="jf">' +
+      '<div class="f2"><div class="f"><label for="j_n">Name</label><input id="j_n" required maxlength="60" value="' + esc(p.name) + '"></div>' +
+      '<div class="f"><label for="j_v">Zuständig</label><select id="j_v">' + personOpts(p.verantwortlich) + '</select></div>' +
+      '<div class="f"><label for="j_s">Status</label><select id="j_s">' + opt(PSTATUS, p.status) + '</select></div>' +
+      '<div class="f"><label for="j_f">Farbe</label><input id="j_f" type="color" value="' + esc(p.farbe || '#7B3FE4') + '" style="height:42px;padding:4px"></div></div>' +
+      editorHtml('j_b', p.beschreibung, 'Beschreibung', { rows: 6, max: 2000 }) +
+      (!neu ? '<p class="small muted">Den Namen kannst du ändern, solange noch keine Aufgaben, Zeiten oder Notizen daran hängen.</p>' : '') +
+      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="j_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="j_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(true); bindEditor('j_b');
+    $('#j_c').onclick = () => dlg.close();
+    if (darfLoeschen) $('#j_del').onclick = async () => {
+      if (!$('#j_del').dataset.sicher) { $('#j_del').dataset.sicher = '1'; $('#j_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('projekt_loeschen', { projekt_id: p.projekt_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#jf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try { await api('projekt_speichern', { projekt_id: p.projekt_id, name: $('#j_n').value, beschreibung: $('#j_b').value, status: $('#j_s').value, farbe: $('#j_f').value, verantwortlich: $('#j_v').value }); dlg.close(); toast('Gespeichert'); await laden(true); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Notizen & Dokumente ----------
+  let offeneNotiz = null, neueNotizTitel = null;
+  function vNotizen() {
+    const N = (D.notizen || []).slice().sort((a, b) => String(b.geaendert).localeCompare(String(a.geaendert)));
+    if (neueNotizTitel) { const t = neueNotizTitel; neueNotizTitel = null; setTimeout(() => notizDialog(null, t), 0); }
+    let L = N;
+    if (F.notizProjekt) L = L.filter(n => n.projekt === F.notizProjekt);
+    if (F.nq) { const q = F.nq.toLowerCase(); L = L.filter(n => (n.titel + ' ' + n.inhalt).toLowerCase().includes(q)); }
+    const akt = N.find(n => n.notiz_id === offeneNotiz) || L[0];
+    const rueck = akt ? N.filter(n => n.notiz_id !== akt.notiz_id && n.inhalt.toLowerCase().includes('[[' + akt.titel.toLowerCase() + ']]')) : [];
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Notizen & Dokumente</h1><p class="sub">Gemeinsames Wissen fürs Team: Abläufe, Protokolle, Vorlagen. Mit [[Titel]] verlinkst du Notizen untereinander.</p></div><button class="btn" id="neun">+ Notiz</button></div>' +
+      '<div class="notes"><div class="nlist card"><div class="tools" style="margin-bottom:8px"><input class="grow" id="nq" type="search" placeholder="Suchen …" value="' + esc(F.nq || '') + '">' +
+      '<select id="nj"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.notizProjekt) + '</select></div>' +
+      (L.length ? L.map(n => '<button class="nitem' + (akt && n.notiz_id === akt.notiz_id ? ' on' : '') + '" data-n="' + esc(n.notiz_id) + '"><b>' + esc(n.titel) + '</b><span class="small muted">' + (n.projekt ? '<i class="pdot" style="background:' + esc(projektFarbe(n.projekt)) + '"></i>' + esc(n.projekt) + ' · ' : '') + fmtD(n.geaendert) + '</span></button>').join('') : '<p class="empty">Keine Notizen gefunden.</p>') + '</div>' +
+      '<div class="card nview">' + (akt ? '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:22px">' + esc(akt.titel) + '</h1><div class="small muted">' + (akt.projekt ? esc(akt.projekt) + ' · ' : '') + 'zuletzt geändert von ' + esc(mitglied(akt.geaendert_von || akt.autor).name) + ', ' + fmtDT(akt.geaendert) + '</div></div><button class="btn sec" id="nedit">Bearbeiten</button></div>' +
+        '<div class="md" style="margin-top:14px">' + md(akt.inhalt) + '</div>' + (rueck.length ? '<div class="small muted" style="margin-top:18px;border-top:1px solid var(--line);padding-top:10px">Verlinkt von: ' + rueck.map(n => '<a href="#" class="wl" data-wl="' + esc(n.titel) + '">' + esc(n.titel) + '</a>').join(', ') + '</div>' : '')
+        : '<p class="empty">Noch keine Notizen. Leg die erste an.</p>') + '</div></div>';
+    $('#neun').onclick = () => notizDialog(null);
+    const ne = $('#nedit'); if (ne) ne.onclick = () => notizDialog(akt);
+    document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { offeneNotiz = b.dataset.n; vNotizen(); if (window.innerWidth < 800) $('.nview').scrollIntoView({ behavior: 'smooth' }); });
+    $('#nq').oninput = e => { F.nq = e.target.value; clearTimeout(vNotizen.t); vNotizen.t = setTimeout(() => { vNotizen(); const x = $('#nq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
+    $('#nj').onchange = e => { F.notizProjekt = e.target.value; saveF(); vNotizen(); };
+    bindWikiLinks($('#main'));
+  }
+  function notizDialog(n, titelVorschlag) {
+    const neu = !n;
+    n = n || { titel: titelVorschlag || '', inhalt: '', projekt: F.notizProjekt || '' };
+    const darfLoeschen = !neu && (istAdmin() || n.autor === D.ich.mitglied_id);
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Notiz' : 'Notiz bearbeiten') + '</h2><form id="nf">' +
+      '<div class="f2"><div class="f"><label for="n_t">Titel</label><input id="n_t" required maxlength="160" value="' + esc(n.titel) + '"></div>' +
+      '<div class="f"><label for="n_j">Projekt (optional)</label><select id="n_j"><option value="">– kein Projekt –</option>' + opt(projektNamen(), n.projekt) + '</select></div></div>' +
+      editorHtml('n_i', n.inhalt, 'Inhalt', { rows: 18, max: 50000 }) +
+      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="n_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="n_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(true); bindEditor('n_i');
+    $('#n_c').onclick = () => dlg.close();
+    if (darfLoeschen) $('#n_del').onclick = async () => {
+      if (!$('#n_del').dataset.sicher) { $('#n_del').dataset.sicher = '1'; $('#n_del').textContent = 'Wirklich löschen?'; return; }
+      try { await api('notiz_loeschen', { notiz_id: n.notiz_id }); dlg.close(); offeneNotiz = null; toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+    };
+    $('#nf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try { const r = await api('notiz_speichern', { notiz_id: n.notiz_id, titel: $('#n_t').value, inhalt: $('#n_i').value, projekt: $('#n_j').value }); offeneNotiz = r.id; dlg.close(); toast('Gespeichert'); await laden(true); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
 
   // ---------- Arbeitszeit ----------
   let wkOff = 0;
@@ -426,7 +707,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     $('#dlgInner').innerHTML = '<h2>' + (ent === 'freigegeben' ? 'Freigeben' : 'Zurückgeben') + ': ' + esc(p.name) + ', KW ' + esc(w.slice(-2)) + '</h2><form id="zf">' +
       '<div class="f"><label for="z_k">' + (ent === 'freigegeben' ? 'Kommentar (optional)' : 'Was soll korrigiert werden?') + '</label><textarea id="z_k" maxlength="500"' + (ent === 'abgelehnt' ? ' required' : '') + '></textarea></div>' +
       '<div class="dlgbtns"><button type="button" class="btn sec" id="z_c">Abbrechen</button><button class="btn' + (ent === 'abgelehnt' ? ' danger' : '') + '" type="submit">' + (ent === 'freigegeben' ? 'Freigeben' : 'Zurückgeben') + '</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(false);
     $('#z_c').onclick = () => dlg.close();
     $('#zf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
@@ -451,18 +732,18 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     const aOpt = arr => arr.sort(sortAufgaben).map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === z.aufgabe_id ? ' selected' : '') + '>' + esc(a.titel) + '</option>').join('');
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Zeit eintragen' : 'Eintrag bearbeiten') + '</h2><form id="zeitf">' +
       '<div class="f2"><div class="f"><label for="t_d">Datum</label><input id="t_d" type="date" required max="' + ymd(heute()) + '" value="' + esc(z.datum) + '"></div>' +
-            '<div class="f"><label for="t_v">Beginn</label><input id="t_v" type="time" required value="' + esc(z.von) + '"></div>' +
-      '<div class="f"><label for="t_b">Ende</label><input id="t_b" type="time" required value="' + esc(z.bis) + '"></div>' +
-      '<div class="f"><label for="t_p">Pause (Minuten)</label><input id="t_p" type="number" min="0" max="480" step="5" value="' + esc(z.pause_min || 0) + '"></div>' + '</div>' +
+            '<div class="f"><label for="t_p">Pause (Minuten)</label><input id="t_p" type="number" min="0" max="480" step="5" value="' + esc(z.pause_min || 0) + '"></div>' +
+      '<div class="f"><label for="t_v">Beginn</label><input id="t_v" type="time" required value="' + esc(z.von) + '"></div>' +
+      '<div class="f"><label for="t_b">Ende</label><input id="t_b" type="time" required value="' + esc(z.bis) + '"></div>' + '</div>' +
       '<p class="small muted" id="t_sum" style="margin-top:-4px"></p>' +
       '<div class="f"><label for="t_a">An welcher Aufgabe hast du gearbeitet? (optional)</label><select id="t_a"><option value="">– keine bestimmte Aufgabe –</option>' +
       (meineA.length ? '<optgroup label="Meine Aufgaben">' + aOpt(meineA) + '</optgroup>' : '') + (andereA.length ? '<optgroup label="Andere Aufgaben">' + aOpt(andereA) + '</optgroup>' : '') + '</select></div>' +
       '<label class="check" id="t_erl_w" style="margin-bottom:12px;display:none"><input type="checkbox" id="t_erl"><span>Diese Aufgabe ist damit <b>erledigt</b></span></label>' +
       '<div class="f"><label for="t_t">Was hast du gemacht?</label><textarea id="t_t" required maxlength="500" placeholder="z. B. Kundentermin vorbereitet, Lernstand-Workflow getestet">' + esc(z.taetigkeit) + '</textarea></div>' +
-      '<div class="f" id="t_j_w"><label for="t_j">Projekt</label><select id="t_j">' + opt(PROJEKTE, z.projekt || 'Sonstiges') + '</select></div>' +
+      '<div class="f" id="t_j_w"><label for="t_j">Projekt</label><select id="t_j">' + opt(projOpts(z.projekt || 'Sonstiges'), z.projekt || 'Sonstiges') + '</select></div>' +
       (z.status === 'abgelehnt' && z.kommentar ? '<div class="note warn" style="margin-bottom:10px">Timo: „' + esc(z.kommentar) + '“</div>' : '') +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="t_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(false);
     const upd = () => {
       const m = t => /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null;
       const v = m($('#t_v').value), b = m($('#t_b').value), p = Number($('#t_p').value) || 0;
@@ -521,7 +802,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     p = p || { thema: '', text: '', datum: '', kanal: 'LinkedIn', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '' };
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Beitrag' : 'Beitrag bearbeiten') + '</h2><form id="pf">' +
       '<div class="f"><label for="p_t">Thema</label><input id="p_t" required maxlength="160" value="' + esc(p.thema) + '"></div>' +
-      '<div class="f"><label for="p_x">Text / Notizen</label><textarea id="p_x" maxlength="4000">' + esc(p.text) + '</textarea></div>' +
+      editorHtml('p_x', p.text, 'Text / Notizen', { rows: 8, max: 4000 }) +
       '<div class="f2"><div class="f"><label for="p_d">Datum</label><input id="p_d" type="date" value="' + esc(p.datum) + '"></div>' +
       '<div class="f"><label for="p_k">Kanal</label><select id="p_k">' + opt(KANAELE, p.kanal) + '</select></div>' +
       '<div class="f"><label for="p_s">Status</label><select id="p_s">' + opt(SSTATUS, p.status) + '</select></div>' +
@@ -529,7 +810,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
       '<div class="f"><label for="p_l">Link (Entwurf, Canva, fertiger Beitrag)</label><input id="p_l" type="url" placeholder="https://…" value="' + esc(p.link) + '"></div>' +
       (p.link ? '<p><a href="' + esc(p.link) + '" target="_blank" rel="noopener">Link öffnen ↗</a></p>' : '') +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="p_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="p_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(true); bindEditor('p_x');
     $('#p_c').onclick = () => dlg.close();
     if (!neu) $('#p_del').onclick = async () => {
       if (!$('#p_del').dataset.sicher) { $('#p_del').dataset.sicher = '1'; $('#p_del').textContent = 'Wirklich löschen?'; return; }
@@ -574,7 +855,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
       bereiche.map(b => '<div class="card"><h2>' + esc(b) + '</h2><div class="grid">' + L.filter(s => s.bereich === b).map(s =>
         '<div class="sys' + (edit ? ' edit' : '') + '" data-s="' + esc(s.system_id) + '"><div class="top"><b>' + esc(s.name) + '</b>' + av(s.verantwortlich) + '</div>' +
         '<div class="small" style="margin:4px 0 8px"><span class="dot d-' + esc(s.status.replace(/\s/g, '-')) + '"></span>' + esc(s.status) + ' · <span class="muted">' + esc(s.werkzeug) + '</span></div>' +
-        '<div class="small muted">' + esc(s.beschreibung) + '</div>' + (s.link ? '<div class="small" style="margin-top:6px"><a href="' + esc(s.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Öffnen ↗</a></div>' : '') + '</div>').join('') + '</div></div>').join('');
+        '<div class="small muted md">' + md(s.beschreibung) + '</div>' + (s.link ? '<div class="small" style="margin-top:6px"><a href="' + esc(s.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">Öffnen ↗</a></div>' : '') + '</div>').join('') + '</div></div>').join('');
     if (edit) {
       $('#neus').onclick = () => systemDialog(null);
       document.querySelectorAll('[data-s]').forEach(e => e.onclick = () => systemDialog(D.systeme.find(s => s.system_id === e.dataset.s)));
@@ -586,14 +867,14 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     const bereiche = [...new Set(['Kurs', 'Vertrieb', 'Webseite', 'Intern', 'Produkt'].concat(D.systeme.map(x => x.bereich)))];
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues System' : 'System bearbeiten') + '</h2><form id="sf">' +
       '<div class="f"><label for="s_n">Name</label><input id="s_n" required maxlength="120" value="' + esc(s.name) + '"></div>' +
-      '<div class="f"><label for="s_b">Was macht es?</label><textarea id="s_b" maxlength="1500">' + esc(s.beschreibung) + '</textarea></div>' +
+      editorHtml('s_b', s.beschreibung, 'Was macht es?', { rows: 5, max: 1500 }) +
       '<div class="f2"><div class="f"><label for="s_r">Bereich</label><select id="s_r">' + opt(bereiche, s.bereich) + '</select></div>' +
       '<div class="f"><label for="s_s">Status</label><select id="s_s">' + opt(SYSSTATUS, s.status) + '</select></div>' +
       '<div class="f"><label for="s_w">Werkzeuge</label><input id="s_w" maxlength="120" value="' + esc(s.werkzeug) + '" placeholder="z. B. n8n, Supabase"></div>' +
       '<div class="f"><label for="s_v">Zuständig</label><select id="s_v">' + personOpts(s.verantwortlich) + '</select></div></div>' +
       '<div class="f"><label for="s_l">Link (optional, nichts Geheimes)</label><input id="s_l" type="url" value="' + esc(s.link) + '"></div>' +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="s_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="s_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(true); bindEditor('s_b');
     $('#s_c').onclick = () => dlg.close();
     if (!neu) $('#s_del').onclick = async () => {
       if (!$('#s_del').dataset.sicher) { $('#s_del').dataset.sicher = '1'; $('#s_del').textContent = 'Wirklich löschen?'; return; }
@@ -656,7 +937,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
       '<div class="f"><label for="m_t">Handynummer</label><input id="m_t" type="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
       '<label class="check"><input type="checkbox" id="m_w"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Per WhatsApp benachrichtigen, wenn mir jemand eine Aufgabe zuweist.</span></label>' +
       '<div class="dlgbtns" style="margin-top:14px"><button type="button" class="btn sec" id="m_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(false);
     $('#m_c').onclick = () => dlg.close();
     $('#mf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
@@ -676,7 +957,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
       '<p class="small muted">Rollen: Admin verwaltet das Team. Dozent / Technik sieht Teilnehmer mit Namen und pflegt Systeme. Vertrieb und Team sehen Kursdaten nur zusammengefasst. Alle können Aufgaben und Social-Beiträge anlegen.</p>' +
       (!neu ? '<label class="check" style="margin-bottom:10px"><input type="checkbox" id="t_l"><span>Neuen Zugangslink erzeugen (der alte Link funktioniert dann nicht mehr)</span></label>' : '<p class="small muted">Nach dem Speichern kopierst du unter „Team“ den persönlichen Link und schickst ihn der Person.</p>') +
       '<div class="dlgbtns"><button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = $('#dlg'); dlg.showModal();
+    const dlg = openDlg(false);
     $('#t_c').onclick = () => dlg.close();
     $('#tf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
