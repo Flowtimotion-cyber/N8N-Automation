@@ -146,8 +146,8 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
   let TOKEN = null;
-  const m = /[#&]z=([a-f0-9]{20,64})/.exec(location.hash);
-  if (m) { TOKEN = m[1]; ls.set('mt-token', TOKEN); history.replaceState(null, '', location.pathname); }
+  const m = /[#&?]z=([a-f0-9]{20,64})/i.exec(location.hash + '&' + location.search);
+  if (m) { TOKEN = m[1].toLowerCase(); ls.set('mt-token', TOKEN); history.replaceState(null, '', location.pathname); }
   else TOKEN = ls.get('mt-token');
 
   let D = null;            // Daten vom Server
@@ -195,7 +195,14 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 
   function ohneZugang(msg) {
     $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card"><h2>Team-Portal</h2>' +
-      '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p></div></div>';
+      '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p>' +
+      '<form id="codef" style="margin-top:14px"><div class="f"><label for="code">Oder den Zugangscode hier einfügen</label><input id="code" autocomplete="off" placeholder="32 Zeichen aus deinem Link"></div><button class="btn" type="submit">Anmelden</button></form></div></div>';
+    $('#codef').onsubmit = ev => {
+      ev.preventDefault();
+      const c = /([a-f0-9]{20,64})/i.exec($('#code').value || '');
+      if (!c) return toast('Das sieht nicht nach einem gültigen Code aus.');
+      TOKEN = c[1].toLowerCase(); ls.set('mt-token', TOKEN); laden();
+    };
   }
 
   function einrichten() {
