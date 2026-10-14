@@ -125,13 +125,14 @@ dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(480px,96vw)}
 .zieh{position:absolute;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:5}.zieh-l{left:-7px}.zieh-r{right:-7px}.zieh::after{content:'';position:absolute;top:50%;width:5px;height:56px;margin-top:-28px;border-radius:3px;background:#B9B5D6;left:4px;box-shadow:0 0 0 2px #fff}.zieh:hover::after{background:var(--acc)}
 dialog.breit{overflow:visible}dialog.breit .dlg{max-height:calc(100vh - 24px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
-.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
+.linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
 .pstats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px;text-align:center}.pstats b{display:block;font-size:20px}.pstats span{font-size:12px;color:var(--mut)}
 .notes{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}.nlist{padding:12px;max-height:75vh;overflow:auto}
 .nitem{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:10px;cursor:pointer}.nitem:hover{background:#FAFAFE}.nitem.on{background:#F1ECFD}.nitem b{display:block}
 .nview{min-height:300px}
 @media(max-width:800px){.notes{grid-template-columns:1fr}.pstats{grid-template-columns:repeat(3,1fr)}}
+.vorsch{color:var(--mut);font-size:13.5px;line-height:1.4;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
 .center{max-width:520px;margin:8vh auto;padding:0 16px}
@@ -170,7 +171,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   };
   let TOKEN = null;
   const m = /[#&?]z=([a-f0-9]{20,64})/i.exec(location.hash + '&' + location.search);
-  if (m) { TOKEN = m[1].toLowerCase(); ls.set('mt-token', TOKEN); history.replaceState(null, '', location.pathname); }
+  if (m) { TOKEN = m[1].toLowerCase(); ls.set('mt-token', TOKEN); history.replaceState(null, '', location.pathname + (/^#\//.test(location.hash) ? location.hash : '')); }
   else TOKEN = ls.get('mt-token');
 
   let D = null;            // Daten vom Server
@@ -202,6 +203,32 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; throw err; }
     return j;
   }
+
+  // ---------- Adressen (jede Seite, Notiz, Aufgabe, jedes Projekt hat eine eigene URL) ----------
+  let ziel = null;
+  function leseHash() {
+    const m = /^#\/(tab|notiz|aufgabe|projekt)\/([\w-]+)$/.exec(location.hash || '');
+    if (!m) return;
+    if (m[1] === 'tab') tab = m[2];
+    else if (m[1] === 'notiz') { tab = 'notizen'; offeneNotiz = m[2]; }
+    else if (m[1] === 'aufgabe') { tab = 'aufgaben'; ziel = { art: 'aufgabe', id: m[2] }; }
+    else if (m[1] === 'projekt') { tab = 'projekte'; ziel = { art: 'projekt', id: m[2] }; }
+  }
+  let letzterHash = location.hash;
+  function setzeHash(h, ersetzen) {
+    letzterHash = h;
+    if (location.hash === h) return;
+    try { history[ersetzen ? 'replaceState' : 'pushState'](null, '', location.pathname + h); } catch (e) {}
+  }
+  const linkVon = h => PORTAL + h;
+  async function kopiereLink(h, was) {
+    const url = linkVon(h);
+    try { await navigator.clipboard.writeText(url); toast('Link ' + (was ? 'zu „' + was + '“ ' : '') + 'kopiert'); }
+    catch (e) { window.prompt('Link kopieren:', url); }
+  }
+  const nachHash = () => { if (!D || D.setup || location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); };
+  window.addEventListener('hashchange', nachHash);
+  window.addEventListener('popstate', nachHash);
 
   async function laden(still) {
     if (!TOKEN) return ohneZugang();
@@ -252,9 +279,16 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
       '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
-    document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; ls.set('mt-tab', tab); render(); window.scrollTo(0, 0); });
+    document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
     const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
-    (V[tab] || vStart)();
+    if (!V[tab]) tab = 'start';
+    if (tab !== 'notizen' && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
+    V[tab]();
+    if (ziel) {
+      const z = ziel; ziel = null;
+      if (z.art === 'aufgabe') { const a = D.aufgaben.find(x => x.aufgabe_id === z.id); if (a) aufgabeDialog(a); else toast('Diese Aufgabe gibt es nicht mehr.'); }
+      if (z.art === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === z.id); if (p) projektDialog(p); else toast('Dieses Projekt gibt es nicht mehr.'); }
+    }
   }
 
   // ---------- Übersicht ----------
@@ -294,12 +328,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (a.deadline) return -1; if (b.deadline) return 1;
     return String(b.geaendert).localeCompare(String(a.geaendert));
   }
+  const hl = h => { const q = tab === 'aufgaben' && F.q ? F.q.trim() : ''; if (q.length < 2) return h; const e = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return h.replace(new RegExp('(' + e + ')', 'gi'), '<mark>$1</mark>'); };
+  const vorschauText = b => { const k = klartext(b); const q = tab === 'aufgaben' && F.q ? F.q.trim().toLowerCase() : ''; const i = q ? k.toLowerCase().indexOf(q) : -1; return i > 120 ? '… ' + k.slice(i - 60, i + 160) : k.slice(0, 220); };
   function taskRow(a) {
     const late = ueberfaellig(a);
     return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + av(a.verantwortlich) +
-      '<div><div class="t">' + esc(a.titel) + '</div><div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
+      '<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
-      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' + (a.beschreibung ? '<span title="hat Beschreibung">📝</span>' : '') +
+      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
       (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
       '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
   }
@@ -322,7 +358,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
       '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
       '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
-      '<input class="grow" id="fq" type="search" placeholder="Suchen …" value="' + esc(F.q) + '">' +
+      '<input class="grow" id="fq" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(F.q) + '">' +
       '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
       (F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
     bindTasks();
@@ -335,7 +371,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   function board(L) {
     return '<div class="board">' + BOARD.map(s => { const c = L.filter(a => a.status === s); return '<div class="col"><h3>' + esc(s) + '<span>' + c.length + '</span></h3>' +
-      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '"><div class="t">' + esc(a.titel) + '</div><div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
+      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
   }
 
   function aufgabeDialog(a) {
@@ -355,6 +391,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">Löschen</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('a_b');
+    if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
     $('#a_x').onclick = () => dlg.close();
     if (darfLoeschen) $('#a_del').onclick = async () => {
       if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich löschen?'; return; }
@@ -394,8 +431,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const keep = h => { ph.push(h); return '\u0001' + (ph.length - 1) + '\u0002'; };
     s = s.replace(/`([^`\n]+)`/g, (m, c) => keep('<code>' + c + '</code>'));
     s = s.replace(/\[\[([^\]\n]{1,160})\]\]/g, (m, t) => keep('<a href="#" class="wl" data-wl="' + t + '">' + t + '</a>'));
-    s = s.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (m, t, u) => keep('<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>'));
-    s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+[^\s<.,;:!?)])/g, (m, a, u) => a + keep('<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'));
+    s = s.replace(/\[([^\]\n]+)\]\((#\/[\w\/-]+)\)/g, (m, t, u) => keep('<a href="' + u + '">' + t + '</a>'));
+    s = s.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (m, t, u) => keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + t + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>'));
+    s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+[^\s<.,;:!?)])/g, (m, a, u) => a + keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + portalLinkText(u.slice(PORTAL.length)) + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'));
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/__([^_\n]+?)__/g, '<u>$1</u>');
     s = s.replace(/~~([^~\n]+?)~~/g, '<s>$1</s>');
@@ -405,6 +443,15 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     s = s.replace(/\{(gross|groß|klein)\}([\s\S]*?)\{\/\}/g, (m, g, t) => '<span style="font-size:' + (g === 'klein' ? '.85em' : '1.3em') + '">' + t + '</span>');
     return s.replace(/\u0001(\d+)\u0002/g, (m, i) => ph[Number(i)]);
   }
+  function portalLinkText(h) {
+    const m = /^#\/(notiz|aufgabe|projekt|tab)\/([\w-]+)$/.exec(h); if (!m || !D) return h;
+    if (m[1] === 'notiz') { const n = (D.notizen || []).find(x => x.notiz_id === m[2]); return n ? '📄 ' + esc(n.titel) : h; }
+    if (m[1] === 'aufgabe') { const a = (D.aufgaben || []).find(x => x.aufgabe_id === m[2]); return a ? '☑ ' + esc(a.titel) : h; }
+    if (m[1] === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === m[2]); return p ? '📁 ' + esc(p.name) : h; }
+    const t = TABS.find(x => x[0] === m[2]); return t ? '↪ ' + t[1] : h;
+  }
+  const klartext = t => String(t || '').replace(/\{(?:[a-zäöüß]+|#[0-9a-fA-F]{6})\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
   function md(text) {
     const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
     let out = '', liste = null, para = [];
@@ -485,7 +532,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const HILFE = '<div class="hilfe"><b>So formatierst du:</b><table>' +
     [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
      ['==markiert==', '<mark>markiert</mark>'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
-     ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
+     ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
      ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
       .map(([a, b]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
@@ -549,9 +596,27 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     zeig(); setTimeout(grow, 0);
   }
   function bindWikiLinks(root) {
-    (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (!n) neueNotizTitel = a.dataset.wl; render(); });
+    (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (n) setzeHash('#/notiz/' + n.notiz_id); if (!n) neueNotizTitel = a.dataset.wl; render(); });
   }
+  function dialogAdresse(h, was) {
+    setzeHash(h);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost linkbtn'; b.textContent = '🔗 Link kopieren'; b.title = 'Adresse kopieren, z. B. für eine Notiz oder WhatsApp';
+    b.onclick = () => kopiereLink(h, was); $('#dlgInner').prepend(b);
+    $('#dlg').addEventListener('close', () => { if (location.hash === h) setzeHash('#/tab/' + tab, true); }, { once: true });
+  }
+  let dlgGeaendert = false;
+  document.addEventListener('input', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
+  document.addEventListener('change', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
+  document.addEventListener('submit', ev => { if (ev.target.closest && ev.target.closest('#dlg')) dlgGeaendert = false; }, true);
+  document.addEventListener('keydown', ev => {
+    const d = $('#dlg'); if (!d || !d.open) return;
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { const f = d.querySelector('form'); if (f) { ev.preventDefault(); f.requestSubmit(); } }
+  });
+  document.addEventListener('cancel', ev => {
+    if (ev.target.id === 'dlg' && dlgGeaendert) { ev.preventDefault(); toast('Ungespeicherte Änderungen: bitte „Speichern“ (Strg+S) oder „Abbrechen“ klicken.'); }
+  }, true);
   function openDlg(breit) {
+    dlgGeaendert = false;
     const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.classList.remove('voll'); d.style.height = '';
     const gemerkt = Number(ls.get('mt-dlgbreite')) || 0;
     d.style.width = breit && gemerkt ? Math.min(gemerkt, window.innerWidth * 0.9) + 'px' : '';
@@ -618,6 +683,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (!neu ? '<p class="small muted">Den Namen kannst du ändern, solange noch keine Aufgaben, Zeiten oder Notizen daran hängen.</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="j_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="j_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('j_b');
+    if (!neu) dialogAdresse('#/projekt/' + p.projekt_id, p.name);
     $('#j_c').onclick = () => dlg.close();
     if (darfLoeschen) $('#j_del').onclick = async () => {
       if (!$('#j_del').dataset.sicher) { $('#j_del').dataset.sicher = '1'; $('#j_del').textContent = 'Wirklich löschen?'; return; }
@@ -644,12 +710,13 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="notes"><div class="nlist card"><div class="tools" style="margin-bottom:8px"><input class="grow" id="nq" type="search" placeholder="Suchen …" value="' + esc(F.nq || '') + '">' +
       '<select id="nj"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.notizProjekt) + '</select></div>' +
       (L.length ? L.map(n => '<button class="nitem' + (akt && n.notiz_id === akt.notiz_id ? ' on' : '') + '" data-n="' + esc(n.notiz_id) + '"><b>' + esc(n.titel) + '</b><span class="small muted">' + (n.projekt ? '<i class="pdot" style="background:' + esc(projektFarbe(n.projekt)) + '"></i>' + esc(n.projekt) + ' · ' : '') + fmtD(n.geaendert) + '</span></button>').join('') : '<p class="empty">Keine Notizen gefunden.</p>') + '</div>' +
-      '<div class="card nview">' + (akt ? '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:22px">' + esc(akt.titel) + '</h1><div class="small muted">' + (akt.projekt ? esc(akt.projekt) + ' · ' : '') + 'zuletzt geändert von ' + esc(mitglied(akt.geaendert_von || akt.autor).name) + ', ' + fmtDT(akt.geaendert) + '</div></div><button class="btn sec" id="nedit">Bearbeiten</button></div>' +
+      '<div class="card nview">' + (akt ? '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:22px">' + esc(akt.titel) + '</h1><div class="small muted">' + (akt.projekt ? esc(akt.projekt) + ' · ' : '') + 'zuletzt geändert von ' + esc(mitglied(akt.geaendert_von || akt.autor).name) + ', ' + fmtDT(akt.geaendert) + '</div></div><div style="display:flex;gap:6px"><button class="btn ghost" id="nlink">🔗 Link kopieren</button><button class="btn sec" id="nedit">Bearbeiten</button></div></div>' +
         '<div class="md" style="margin-top:14px">' + md(akt.inhalt) + '</div>' + (rueck.length ? '<div class="small muted" style="margin-top:18px;border-top:1px solid var(--line);padding-top:10px">Verlinkt von: ' + rueck.map(n => '<a href="#" class="wl" data-wl="' + esc(n.titel) + '">' + esc(n.titel) + '</a>').join(', ') + '</div>' : '')
         : '<p class="empty">Noch keine Notizen. Leg die erste an.</p>') + '</div></div>';
     $('#neun').onclick = () => notizDialog(null);
     const ne = $('#nedit'); if (ne) ne.onclick = () => notizDialog(akt);
-    document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { offeneNotiz = b.dataset.n; vNotizen(); if (window.innerWidth < 800) $('.nview').scrollIntoView({ behavior: 'smooth' }); });
+    if (akt) { setzeHash('#/notiz/' + akt.notiz_id, true); $('#nlink').onclick = () => kopiereLink('#/notiz/' + akt.notiz_id, akt.titel); } else setzeHash('#/tab/notizen', true);
+    document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { offeneNotiz = b.dataset.n; setzeHash('#/notiz/' + offeneNotiz); vNotizen(); if (window.innerWidth < 800) $('.nview').scrollIntoView({ behavior: 'smooth' }); });
     $('#nq').oninput = e => { F.nq = e.target.value; clearTimeout(vNotizen.t); vNotizen.t = setTimeout(() => { vNotizen(); const x = $('#nq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
     $('#nj').onchange = e => { F.notizProjekt = e.target.value; saveF(); vNotizen(); };
     bindWikiLinks($('#main'));
@@ -1005,6 +1072,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
     if (D && !D.setup && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
   }, 120000);
+  leseHash();
   laden();
 })();
 </script>
