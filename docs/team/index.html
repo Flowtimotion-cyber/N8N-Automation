@@ -429,7 +429,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // ---------- Formatierung (Momentum-Markdown) ----------
   const FARBEN = { rot: '#D9452F', rosa: '#E0569B', orange: '#E98A15', gelb: '#B98900', gruen: '#1F9D6B', blau: '#2F6FDB', lila: '#7B3FE4', grau: '#8E8BAA' };
   const HINTERGRUND = { gelb: '#FFF3A3', gruen: '#D5F5E3', blau: '#DCEBFF', rosa: '#FDE2EF', orange: '#FFE5CC', lila: '#EDE4FF', rot: '#FDDCD7', grau: '#ECEBF3' };
-  const hgFarbe = f => HINTERGRUND[f === 'grün' ? 'gruen' : f] || (/^#[0-9a-fA-F]{6}$/.test(f) ? f : HINTERGRUND.gelb);
+  const hgFarbe = f => HINTERGRUND[f === 'grün' ? 'gruen' : f] || (/^#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})$/.test(f) ? f : HINTERGRUND.gelb);
   function mdInline(s) {
     const ph = [];
     const keep = h => { ph.push(h); return '\u0001' + (ph.length - 1) + '\u0002'; };
@@ -443,8 +443,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     s = s.replace(/~~([^~\n]+?)~~/g, '<s>$1</s>');
     s = s.replace(/==([^=\n]+?)==/g, '<mark>$1</mark>');
     s = s.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?!\w)/g, '$1<em>$2</em>');
-    s = s.replace(/\{(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span style="color:' + (FARBEN[f === 'grün' ? 'gruen' : f] || f) + '">' + t + '</span>');
-    s = s.replace(/\{hg:(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span class="hg" style="background:' + hgFarbe(f) + '">' + t + '</span>');
+    s = s.replace(/\{(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span style="color:' + (FARBEN[f === 'grün' ? 'gruen' : f] || f) + '">' + t + '</span>');
+    s = s.replace(/\{hg:(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span class="hg" style="background:' + hgFarbe(f) + '">' + t + '</span>');
     s = s.replace(/\{(gross|groß|klein)\}([\s\S]*?)\{\/\}/g, (m, g, t) => '<span style="font-size:' + (g === 'klein' ? '.85em' : '1.3em') + '">' + t + '</span>');
     return s.replace(/\u0001(\d+)\u0002/g, (m, i) => ph[Number(i)]);
   }
@@ -455,7 +455,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (m[1] === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === m[2]); return p ? '📁 ' + esc(p.name) : h; }
     const t = TABS.find(x => x[0] === m[2]); return t ? '↪ ' + t[1] : h;
   }
-  const klartext = t => String(t || '').replace(/\{(?:[a-zäöüß]+|#[0-9a-fA-F]{6})\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  const klartext = t => String(t || '').replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
   function md(text) {
     const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
@@ -465,7 +465,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     for (const raw of L) {
       const l = raw.replace(/\s+$/, '');
       let m;
-      if ((m = /^:::\s*(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})?\s*(.*)$/.exec(l.trim()))) {
+      if ((m = /^:::\s*(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))?\s*(.*)$/.exec(l.trim()))) {
         flushP(); flushL();
         if (kasten && !m[1] && !m[2]) { out += '</div>'; kasten = false; continue; }
         if (kasten) out += '</div>';
@@ -543,8 +543,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   const HILFE = '<div class="hilfe"><b>So formatierst du:</b><table>' +
     [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
-     ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder #ffeeaa)'],
-     ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
+     ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
+     ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
      ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
       .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>') + '</code></td><td>' + b + '</td></tr>').join('') +
