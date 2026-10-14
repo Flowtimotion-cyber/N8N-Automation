@@ -57,6 +57,7 @@ h3{font-size:15px;margin:0 0 8px}
 .p1{background:#FCE3DE;color:#B0321F}.p2{background:#FDEBD3;color:#A35D06}.p3{background:var(--soft);color:var(--mut)}
 .st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
 .late{color:var(--red);font-weight:700}
+.cpost{border-top:1px solid var(--line);padding:12px 0}.cpost.erl{opacity:.7}.cpost.versteckt{opacity:.45}.crow textarea{width:100%;box-sizing:border-box;margin:6px 0;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px}.crow .act{display:flex;gap:6px;flex-wrap:wrap}
 .av.ki{background:#1F2937;font-size:15px}
 .verlauf{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.verlauf h3{font-size:14px;margin:0 0 8px}.vl{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}.vl .vt{flex:1;min-width:0;font-size:13.5px}.vl .vt .md p{margin:2px 0}.vl.status .vt{color:var(--mut);font-size:12.5px}.vl.bericht .vt{background:#F4F1FD;border-radius:10px;padding:6px 10px}.chip.ki{background:#1F2937;color:#fff}
 .av{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
@@ -1011,6 +1012,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const an = D.anfragen || [];
     $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">Modul 1 (n8n und Claude Code). ' + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
       '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
+      (istDozent() ? communityHtml() : '') +
       '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + '<h3 style="margin-top:14px">Nach Kursteil</h3>' + bars(k.je_teil, 'var(--acc2)') + '</div>' +
       '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
       (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Teil</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
@@ -1018,6 +1020,39 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         '<div class="card"><h2>Letzte Fragen an den Assistenten</h2>' + ((k.fragen || []).map(f => '<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="small muted">' + fmtDT(f.zeit) + ' · ' + esc(f.name || 'ohne Namen') + (f.schritt ? ' · ' + esc(f.schritt) : '') + '</div><div>' + esc(f.frage) + '</div></div>').join('') || '<p class="empty">Noch keine Fragen.</p>') + '</div>' : '') +
       '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
       (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
+    bindCommunity();
+  }
+
+  function communityHtml() {
+    const C = D.community || [];
+    const top = C.filter(c => c.art !== 'antwort').sort((a, b) => (a.erledigt - b.erledigt) || String(b.erstellt).localeCompare(String(a.erstellt)));
+    const offen = top.filter(c => !c.erledigt && c.status !== 'versteckt').length;
+    const eintrag = c => {
+      const A = C.filter(x => x.art === 'antwort' && x.frage_id === c.eintrag_id);
+      return '<div class="cpost' + (c.erledigt ? ' erl' : '') + (c.status === 'versteckt' ? ' versteckt' : '') + '" data-c="' + esc(c.eintrag_id) + '">' +
+        '<div class="small muted">' + (c.art === 'nachricht' ? '<span class="chip" style="background:#FFF4E5">✉️ Privat an Dozent</span> ' : '<span class="chip">💬 Frage</span> ') + esc(c.modul || '') + ' · <b>' + esc(c.name) + '</b> · ' + fmtDT(c.erstellt) + (c.erledigt ? ' · ✓ erledigt' : '') + (c.status === 'versteckt' ? ' · versteckt' : '') + '</div>' +
+        '<div style="margin:4px 0 6px;white-space:pre-wrap">' + esc(c.text) + '</div>' +
+        A.map(x => '<div class="vl ' + (x.autor_typ === 'dozent' ? 'bericht' : '') + '"><div class="vt"><span class="small muted">' + esc(x.name) + ' · ' + fmtDT(x.erstellt) + '</span><div style="white-space:pre-wrap">' + esc(x.text) + '</div></div></div>').join('') +
+        '<div class="crow"><textarea rows="2" maxlength="4000" placeholder="' + (c.art === 'nachricht' ? 'Private Antwort (sieht nur diese Person) …' : 'Antwort für alle in der Community …') + '"></textarea>' +
+        '<div class="act"><button class="btn" data-cant>Antworten</button><button class="btn sec" data-cerl>' + (c.erledigt ? 'Wieder offen' : 'Erledigt') + '</button>' + (c.art === 'frage' ? '<button class="btn sec" data-cver>' + (c.status === 'versteckt' ? 'Wieder zeigen' : 'Verstecken') + '</button>' : '') + '</div></div></div>';
+    };
+    return '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><h2 style="margin:0">Community & Nachrichten <span class="chip' + (offen ? '" style="background:#FFF4E5' : '') + '">' + offen + ' offen</span></h2>' +
+      '<p class="small muted" style="margin:4px 0 0">Fragen der Teilnehmenden aus der Kurs-Community und private Nachrichten an die Dozenten. Antworten auf Fragen sehen alle, Antworten auf Nachrichten nur die Person.</p></div>' +
+      '<a class="btn ghost" href="../community/" target="_blank" rel="noopener">Community öffnen ↗</a></div>' +
+      (top.length ? top.slice(0, 40).map(eintrag).join('') : '<p class="empty">Noch keine Fragen oder Nachrichten.</p>') + '</div>';
+  }
+  function bindCommunity() {
+    document.querySelectorAll('.cpost').forEach(el => {
+      const id = el.dataset.c, c = (D.community || []).find(x => x.eintrag_id === id) || {};
+      const ta = el.querySelector('textarea');
+      el.querySelector('[data-cant]').onclick = async ev => {
+        if (ta.value.trim().length < 2) { toast('Bitte erst eine Antwort schreiben.'); ta.focus(); return; }
+        ev.target.disabled = true;
+        try { await api('community_antwort', { eintrag_id: id, text: ta.value }); toast('Antwort gespeichert'); await laden(true); } catch (e) { toast(e.message); ev.target.disabled = false; }
+      };
+      el.querySelector('[data-cerl]').onclick = async () => { try { await api('community_status', { eintrag_id: id, erledigt: !c.erledigt }); await laden(true); } catch (e) { toast(e.message); } };
+      const v = el.querySelector('[data-cver]'); if (v) v.onclick = async () => { try { await api('community_status', { eintrag_id: id, status: c.status === 'versteckt' ? 'sichtbar' : 'versteckt' }); toast(c.status === 'versteckt' ? 'Wieder sichtbar' : 'Versteckt'); await laden(true); } catch (e) { toast(e.message); } };
+    });
   }
 
   // ---------- Systeme ----------

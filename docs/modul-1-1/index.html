@@ -22,6 +22,10 @@ header { position:sticky; top:env(safe-area-inset-top, 0px); z-index:10; backgro
 .bdg.cur { border-color:var(--accent); color:var(--accent); }
 .bdg.done { background:var(--ok); border-color:var(--ok); color:#fff; cursor:pointer; }
 .xp { font-weight:700; background:var(--ink); color:#fff; border-radius:16px; padding:6px 12px; font-size:14px; white-space:nowrap; }
+.hlinks { max-width:1100px; margin:0 auto; display:flex; gap:8px; padding:0 16px 10px; flex-wrap:wrap; }
+.hlinks a { font-size:13.5px; font-weight:700; color:var(--ink); text-decoration:none; border:1.5px solid var(--line); background:#fff; border-radius:999px; padding:5px 12px; white-space:nowrap; }
+.hlinks a:hover { border-color:var(--accent); color:var(--accent); }
+.hlinks a.n8n { background:#EA4B71; border-color:#EA4B71; color:#fff; }
 .prog { height:4px; background:#E4E2EE; } .prog i { display:block; height:100%; width:0; background:var(--grad); transition:width .4s; }
 main { max-width:1100px; margin:0 auto; padding:24px 16px 120px; }
 .screen { display:none; } .screen.active { display:block; animation:fade .35s ease; }
@@ -171,6 +175,7 @@ textarea { min-height:70px; resize:vertical; }
 
 <header>
   <div class="hbar"><img class="hlogo" src="media/logo_mark.png" alt="Momentum KI Akademie"><div class="htitle">Automationen verstehen und planen</div><div class="badges" id="badges"></div><button class="btn sec dash" id="dashbtn" hidden>Auswertung</button><div class="xp" id="xp">0 XP</div></div>
+  <nav class="hlinks" aria-label="Kurs-Links"><a href="../">← Meine Kurse</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a><a href="../community/?modul=Modul%201.1">💬 Community</a><a href="../community/?tab=dozent&amp;modul=Modul%201.1">✉️ Dozent fragen</a></nav>
   <div class="prog"><i id="prog"></i></div>
 </header>
 <main id="main"></main>
@@ -187,7 +192,7 @@ const STECK = DATA.levels.find(l => l.own);
 let S = load() || fresh();
 function fresh() { return { step: 0, xp: 0, done: {}, task: {}, name: "", own: ["", "", "", "", ""], check: null, maxStep: 0 }; }
 function load() { try { const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
-function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} if (typeof syncLater === "function") syncLater(); }
+function save() { try { S.prozent = Math.round((S.maxStep || 0) / (STEPS.length - 1) * 100); S.titel = DATA.title; } catch (e) {} try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} if (typeof syncLater === "function") syncLater(); }
 const $ = (s, r) => (r || document).querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
@@ -642,6 +647,7 @@ function dzBox() {
     '<tr><td><b>Dein Prozess-Steckbrief</b></td><td>Server der Kursleitung</td></tr>' +
     '<tr><td><b>Deine Fragen an den Assistenten und seine Antworten</b>, mit deinem Namen</td><td>Server der Kursleitung. Verarbeitet werden sie von einem KI-Dienst (OpenAI).</td></tr>' +
     '<tr><td><b>Anfragen</b> für Zugang oder Angebot</td><td>Server der Kursleitung</td></tr>' +
+    '<tr><td><b>Community</b>: Fragen, Antworten und Nachrichten an Dozenten (mit Vorname)</td><td>Server der Kursleitung</td></tr>' +
     '<tr><td><b>Fortschritt und Eingaben</b> zum Weitermachen</td><td>nur in deinem Browser</td></tr>' +
     '<tr><td><b>Seitenaufruf</b> (IP-Adresse)</td><td>GitHub Pages, liefert Seite und Videos aus</td></tr></table>' +
     '<p class="small"><b>Bitte beachte:</b> In den Übungen und im Chat nur Testdaten verwenden. Keine Kunden- oder Mitarbeiterdaten, keine Passwörter.</p>' +

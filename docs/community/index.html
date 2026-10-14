@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Community · Momentum KI Akademie</title>
+<style>
+:root{--ink:#14123A;--mut:#62607E;--line:#DFDDEC;--bg:#F6F6FB;--acc:#7B3FE4;--acc2:#F1EAFD;--teal:#1FA9B0;--ok:#1F9D6B;--warn:#E98A15}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+header{background:#fff;border-bottom:1px solid var(--line)}
+.hin{max-width:900px;margin:0 auto;padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.logo{height:34px}
+.links{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.links a{font-size:14px;font-weight:700;color:var(--ink);text-decoration:none;border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;white-space:nowrap}
+.links a.n8n{background:#EA4B71;border-color:#EA4B71;color:#fff}
+.bar{height:4px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6 55%,#22B3B0)}
+main{max-width:900px;margin:0 auto;padding:26px 16px 60px}
+h1{font-size:clamp(28px,5vw,40px);margin:0 0 6px;letter-spacing:-.5px}
+.sub{color:var(--mut);margin:0 0 18px}
+.tabs{display:flex;gap:6px;margin:0 0 16px;flex-wrap:wrap}
+.tabs button{font:inherit;font-weight:700;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:9px 16px;cursor:pointer;color:var(--ink)}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin:0 0 14px;box-shadow:0 10px 30px rgba(20,18,58,.05)}
+textarea,select{font:inherit;width:100%;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink)}
+select{width:auto}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.btn{font:inherit;font-weight:700;border:none;background:var(--acc);color:#fff;border-radius:12px;padding:10px 18px;cursor:pointer}
+.btn.sec{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font-size:13.5px;color:var(--mut)}
+.q{border-top:1px solid var(--line);padding:14px 0}
+.q:first-child{border-top:none}
+.meta{font-size:13.5px;color:var(--mut)}
+.meta b{color:var(--ink)}
+.chip{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;background:var(--acc2);color:var(--acc);margin-right:4px}
+.chip.doz{background:#E6F6F0;color:var(--ok)}
+.chip.ok{background:#E6F6F0;color:var(--ok)}
+.txt{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}
+.ans{margin:8px 0 0 18px;padding:8px 12px;border-left:3px solid var(--line);background:#FAFAFD;border-radius:0 10px 10px 0}
+.ans.doz{border-left-color:var(--ok);background:#F2FBF7}
+.empty{color:var(--mut);text-align:center;padding:18px 0}
+.note{background:#FFF8EC;border:1px solid #F5DDB4;border-radius:14px;padding:14px 16px;margin:0 0 14px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;transition:.3s;pointer-events:none;max-width:92vw}
+.toast.on{opacity:1}
+.antw{display:none;margin-top:8px}
+.antw.on{display:block}
+a.lnk{color:var(--acc);font-weight:700;cursor:pointer;font-size:14px;text-decoration:none}
+</style></head><body>
+<header><div class="hin"><img class="logo" src="../logo_full.png" alt="Momentum KI Akademie">
+<nav class="links"><a href="../">← Meine Kurse</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a></nav></div><div class="bar"></div></header>
+<main>
+<h1>Community</h1>
+<p class="sub">Stell deine Frage an die ganze Klasse, hilf anderen weiter oder schreib den Dozenten privat.</p>
+<div id="ident"></div>
+<div class="tabs"><button data-t="fragen">💬 Fragen &amp; Antworten</button><button data-t="dozent">✉️ Dozent fragen (privat)</button></div>
+<div id="inhalt"></div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const API = "https://n8n.hm-storage.de/webhook/kurs-community";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ls = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsj = k => { try { return JSON.parse(ls(k) || "null"); } catch (e) { return null; } };
+const toast = t => { const x = $("#toast"); x.textContent = t; x.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => x.classList.remove("on"), 3200); };
+const fmt = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+const params = new URLSearchParams(location.search);
+let tab = params.get("tab") === "dozent" ? "dozent" : "fragen";
+let filter = params.get("modul") || "";
+let DATA = null;
+
+// Wer bin ich? Daten kommen aus dem Kurs in diesem Browser
+const kursStand = [lsj("m12-automationen-v1"), lsj("m11-automationen-v2")].filter(Boolean);
+const ICH = { name: (kursStand.find(s => s.name) || {}).name || "", kurscode: (kursStand.find(s => s.kurscode) || {}).kurscode || "", tid: ls("m11-teilnehmer-id") || "" };
+const angemeldet = ICH.name.length >= 2 && ICH.kurscode.length >= 3 && /^t_[0-9a-f]{24}$/.test(ICH.tid);
+
+async function api(aktion, extra) {
+  const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(Object.assign({ aktion, teilnehmer_id: ICH.tid, name: ICH.name, kurscode: ICH.kurscode }, extra || {})) });
+  const j = await r.json().catch(() => ({ ok: false, fehler: "Keine Verbindung. Bitte später noch einmal versuchen." }));
+  if (!j.ok) throw new Error(j.fehler || "Das hat nicht geklappt.");
+  return j;
+}
+async function laden() {
+  if (!angemeldet) return render();
+  try { DATA = await api("liste"); } catch (e) { DATA = { fehler: e.message, fragen: [], nachrichten: [], module: [] }; }
+  render();
+}
+const MODULE = () => (DATA && DATA.module && DATA.module.length ? DATA.module : ["Allgemein", "Modul 1.1", "Modul 1.2", "Modul 1.3"]);
+const modulOpts = (sel, mitAlle) => (mitAlle ? '<option value="">Alle Module</option>' : "") + MODULE().map(m => '<option' + (m === sel ? " selected" : "") + ">" + esc(m) + "</option>").join("");
+const antwortHtml = a => '<div class="ans' + (a.dozent ? " doz" : "") + '"><div class="meta">' + (a.dozent ? '<span class="chip doz">Dozent</span>' : "") + "<b>" + esc(a.name) + "</b>" + (a.meins ? " (du)" : "") + " · " + fmt(a.erstellt) + '</div><div class="txt">' + esc(a.text) + "</div></div>";
+
+function render() {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
+  $("#ident").innerHTML = angemeldet ? "" : '<div class="note"><b>Bitte zuerst im Kurs anmelden.</b> Die Community gehört zum Kurs. Öffne <a href="../modul-1-1/">Teil 1</a> und trag auf der Startseite deinen Namen, deine E-Mail-Adresse und den Kurscode ein. Danach kannst du hier mitlesen und schreiben (im selben Browser).</div>';
+  if (!angemeldet) { $("#inhalt").innerHTML = ""; return; }
+  if (DATA && DATA.fehler) { $("#inhalt").innerHTML = '<div class="note">' + esc(DATA.fehler) + "</div>"; return; }
+  if (!DATA) { $("#inhalt").innerHTML = '<p class="empty">Lädt …</p>'; return; }
+  const hinweis = '<p class="hint">Dein Vorname <b>' + esc(ICH.name.split(/\s+/)[0]) + '</b> ist für die anderen sichtbar. Bitte keine Passwörter, Schlüssel, Kunden- oder Firmendaten posten.</p>';
+  if (tab === "fragen") {
+    const L = DATA.fragen.filter(f => !filter || f.modul === filter);
+    $("#inhalt").innerHTML = '<div class="card"><b>Neue Frage an alle</b>' + hinweis +
+      '<textarea id="nq" maxlength="4000" placeholder="Was möchtest du wissen? Je genauer, desto besser: Wo bist du gerade, was hast du versucht, was passiert?"></textarea>' +
+      '<div class="row"><select id="nm" aria-label="Modul">' + modulOpts(filter || "Allgemein") + '</select><button class="btn" id="sq">Frage stellen</button></div></div>' +
+      '<div class="row" style="margin:0 0 10px"><select id="fm" aria-label="Filter">' + modulOpts(filter, true) + '</select><span class="hint">' + L.length + " Fragen</span></div>" +
+      '<div class="card">' + (L.length ? L.map(f => '<div class="q" data-f="' + esc(f.id) + '"><div class="meta"><span class="chip">' + esc(f.modul) + "</span>" + (f.erledigt ? '<span class="chip ok">✓ beantwortet</span>' : "") + "<b>" + esc(f.name) + "</b>" + (f.meins ? " (du)" : "") + " · " + fmt(f.erstellt) + "</div>" +
+        '<div class="txt">' + esc(f.text) + "</div>" + f.antworten.map(antwortHtml).join("") +
+        '<div style="margin-top:6px"><a class="lnk" data-auf>Antworten</a></div><div class="antw"><textarea maxlength="4000" placeholder="Deine Antwort …"></textarea><div class="row"><button class="btn" data-sa>Antwort senden</button></div></div></div>').join("")
+        : '<p class="empty">Noch keine Fragen' + (filter ? " zu " + esc(filter) : "") + ". Trau dich, du bist bestimmt nicht allein damit.</p>") + "</div>";
+    $("#fm").onchange = e => { filter = e.target.value; render(); };
+    $("#sq").onclick = async ev => {
+      const t = $("#nq").value.trim(); if (t.length < 5) { toast("Bitte schreib etwas mehr."); return; }
+      ev.target.disabled = true;
+      try { await api("frage", { text: t, modul: $("#nm").value }); toast("Frage veröffentlicht"); await laden(); } catch (e) { toast(e.message); ev.target.disabled = false; }
+    };
+    document.querySelectorAll("[data-f]").forEach(q => {
+      q.querySelector("[data-auf]").onclick = () => { q.querySelector(".antw").classList.toggle("on"); q.querySelector(".antw textarea").focus(); };
+      q.querySelector("[data-sa]").onclick = async ev => {
+        const t = q.querySelector(".antw textarea").value.trim(); if (t.length < 5) { toast("Bitte schreib etwas mehr."); return; }
+        ev.target.disabled = true;
+        try { await api("antwort", { frage_id: q.dataset.f, text: t }); toast("Antwort gesendet"); await laden(); } catch (e) { toast(e.message); ev.target.disabled = false; }
+      };
+    });
+  } else {
+    const N = DATA.nachrichten;
+    $("#inhalt").innerHTML = '<div class="card"><b>Private Nachricht an die Dozenten</b><p class="hint">Nur die Kursleitung sieht diese Nachricht. Die Antwort erscheint hier auf dieser Seite. Bitte keine Passwörter oder Schlüssel schicken.</p>' +
+      '<textarea id="nn" maxlength="4000" placeholder="Worum geht es? Zum Beispiel Zugang, Termine, Teilnahmebescheinigung oder eine Frage, die du nicht öffentlich stellen möchtest."></textarea>' +
+      '<div class="row"><select id="nmd" aria-label="Modul">' + modulOpts(filter || "Allgemein") + '</select><button class="btn" id="sn">Nachricht senden</button></div></div>' +
+      '<div class="card"><b>Meine Nachrichten</b>' + (N.length ? N.map(n => '<div class="q"><div class="meta"><span class="chip">' + esc(n.modul) + "</span>" + (n.antworten.length ? '<span class="chip ok">✓ beantwortet</span>' : '<span class="chip">wartet auf Antwort</span>') + fmt(n.erstellt) + '</div><div class="txt">' + esc(n.text) + "</div>" + n.antworten.map(antwortHtml).join("") + "</div>").join("")
+        : '<p class="empty">Du hast noch keine Nachricht geschrieben.</p>') + "</div>";
+    $("#sn").onclick = async ev => {
+      const t = $("#nn").value.trim(); if (t.length < 5) { toast("Bitte schreib etwas mehr."); return; }
+      ev.target.disabled = true;
+      try { await api("nachricht", { text: t, modul: $("#nmd").value }); toast("Nachricht gesendet. Die Antwort erscheint hier."); await laden(); } catch (e) { toast(e.message); ev.target.disabled = false; }
+    };
+  }
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; const p = new URLSearchParams(location.search); p.set("tab", tab); history.replaceState(null, "", "?" + p.toString()); render(); });
+setInterval(() => { const a = document.activeElement; if (document.visibilityState === "visible" && !(a && a.tagName === "TEXTAREA" && a.value)) laden(); }, 60000);
+render(); laden();
+</script>
+</body></html>
