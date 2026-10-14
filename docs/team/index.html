@@ -121,7 +121,9 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .edbody.m-schreiben .vorschau{display:none}.edbody.m-vorschau textarea{display:none}.edbody.m-vorschau .vorschau{border-radius:0 0 10px 10px}
 @media(min-width:900px){.edbody.m-beides{grid-template-columns:1fr 1fr}.edbody.m-beides .vorschau{max-height:none}}
 .hilfebox{border:1px solid var(--line);border-top:0;background:#FFFDF5;padding:10px 12px;font-size:13.5px}.hilfe table{width:auto}.hilfe td{padding:3px 10px 3px 0;border:0}
-dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(520px,96vw);resize:horizontal}
+dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(480px,96vw)}
+.zieh{position:absolute;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:5}.zieh-l{left:-7px}.zieh-r{right:-7px}.zieh::after{content:'';position:absolute;top:50%;width:5px;height:56px;margin-top:-28px;border-radius:3px;background:#B9B5D6;left:4px;box-shadow:0 0 0 2px #fff}.zieh:hover::after{background:var(--acc)}
+dialog.breit{overflow:visible}dialog.breit .dlg{max-height:calc(100vh - 24px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
@@ -400,6 +402,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     s = s.replace(/==([^=\n]+?)==/g, '<mark>$1</mark>');
     s = s.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?!\w)/g, '$1<em>$2</em>');
     s = s.replace(/\{(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span style="color:' + (FARBEN[f === 'grün' ? 'gruen' : f] || f) + '">' + t + '</span>');
+    s = s.replace(/\{(gross|groß|klein)\}([\s\S]*?)\{\/\}/g, (m, g, t) => '<span style="font-size:' + (g === 'klein' ? '.85em' : '1.3em') + '">' + t + '</span>');
     return s.replace(/\u0001(\d+)\u0002/g, (m, i) => ph[Number(i)]);
   }
   function md(text) {
@@ -440,24 +443,39 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const strike = ['s', 'strike', 'del'].includes(tag) || /line-through/.test(st.textDecoration || st.textDecorationLine || '');
       const farbe = naheFarbe(hex(n.getAttribute('color') || st.color));
       const mark = tag === 'mark' || (st.backgroundColor && !/transparent|rgba\(0, 0, 0, 0\)|#?fff(fff)?|white/i.test(st.backgroundColor));
+      const fs = String(st.fontSize || ''), fsz = n.getAttribute('size');
+      const pt = /pt$/.test(fs) ? parseFloat(fs) : /px$/.test(fs) ? parseFloat(fs) * 0.75 : fsz ? ({ 1: 8, 2: 10, 3: 12, 4: 14, 5: 18, 6: 24, 7: 36 }[fsz] || 12) : 0;
+      const groesse = pt >= 14 ? 'gross' : pt && pt <= 9 ? 'klein' : '';
+      const face = (n.getAttribute('face') || st.fontFamily || '').toLowerCase();
+      const mono = /mono|courier|consolas/.test(face) || tag === 'code' || tag === 'tt';
       const t = inner.trim();
-      if (t && !['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'table', 'tr', 'td', 'body', 'html'].includes(tag)) {
+      const blockTags = ['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'td', 'th'];
+      if (t && blockTags.includes(tag) && (farbe || groesse || bold || ital)) {
+        if (ital) inner = '*' + inner.trim() + '*';
+        if (bold && !/^h\d$/.test(tag)) inner = '**' + inner.trim() + '**';
+        if (farbe) inner = '{' + farbe + '}' + inner.trim() + '{/}';
+        if (groesse && !/^h\d$/.test(tag)) inner = '{' + groesse + '}' + inner.trim() + '{/}';
+      }
+      if (t && !['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'table', 'tr', 'td', 'th', 'body', 'html'].includes(tag)) {
+        if (mono && !/`/.test(t)) inner = '`' + t + '`';
         if (strike) inner = '~~' + t + '~~';
         if (und && tag !== 'a') inner = '__' + inner.trim() + '__';
         if (ital) inner = '*' + inner.trim() + '*';
         if (bold) inner = '**' + inner.trim() + '**';
         if (farbe) inner = '{' + (Object.keys(FARBEN).find(k => FARBEN[k].toLowerCase() === farbe) || farbe) + '}' + inner.trim() + '{/}';
         if (mark && !farbe) inner = '==' + inner.trim() + '==';
+        if (groesse) inner = '{' + groesse + '}' + inner.trim() + '{/}';
       }
       switch (tag) {
         case 'br': return '\n';
         case 'a': { const h = n.getAttribute('href') || ''; return /^(https?:|mailto:)/.test(h) && t ? '[' + t + '](' + h + ')' : inner; }
-        case 'h1': return '\n# ' + t + '\n';
-        case 'h2': return '\n## ' + t + '\n';
-        case 'h3': case 'h4': return '\n### ' + t + '\n';
+        case 'h1': return '\n# ' + inner.trim() + '\n';
+        case 'h2': return '\n## ' + inner.trim() + '\n';
+        case 'h3': case 'h4': return '\n### ' + inner.trim() + '\n';
         case 'li': return '\n' + (ctx.ol ? '1. ' : '- ') + inner.trim();
         case 'ul': case 'ol': return inner + '\n';
         case 'p': case 'div': case 'tr': return '\n' + inner.trim() + '\n';
+        case 'pre': return '\n' + inner.split('\n').map(z => '    ' + z).join('\n') + '\n';
         case 'td': case 'th': return inner.trim() + ' | ';
         default: return inner;
       }
@@ -466,11 +484,11 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   const HILFE = '<div class="hilfe"><b>So formatierst du:</b><table>' +
     [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
-     ['==markiert==', '<mark>markiert</mark>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
+     ['==markiert==', '<mark>markiert</mark>'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
      ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
       .map(([a, b]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + b + '</td></tr>').join('') +
-    '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link.</p></div>';
+    '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
     opts = opts || {};
     const modus = ls.get('mt-edmodus') || 'schreiben';
@@ -479,7 +497,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="seg small edmode">' + ['schreiben', 'vorschau', 'beides'].map(mo => '<button type="button" data-edm="' + id + '" data-m="' + mo + '" class="' + (mo === modus ? 'on' : '') + '">' + ({ schreiben: 'Schreiben', vorschau: 'Vorschau', beides: 'Beides' }[mo]) + '</button>').join('') + '</div></div>' +
       '<div class="toolbar">' + btn('b', '<b>B</b>', 'Fett (Strg+B)') + btn('i', '<i>I</i>', 'Kursiv (Strg+I)') + btn('u', '<u>U</u>', 'Unterstrichen') + btn('s', '<s>S</s>', 'Durchgestrichen') + btn('m', '<mark>M</mark>', 'Markieren') +
       '<select class="tb" data-ed="' + id + '" data-a="farbe" title="Textfarbe"><option value="">Farbe</option>' + Object.keys(FARBEN).map(f => '<option value="' + f + '" style="color:' + FARBEN[f] + '">' + f + '</option>').join('') + '</select>' +
-      btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
+      '<select class="tb" data-ed="' + id + '" data-a="groesse" title="Schriftgröße"><option value="">Größe</option><option value="gross">groß</option><option value="klein">klein</option></select>' + btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
       btn('hilfe', '?', 'Alle Formatierungen anzeigen') + '</div><div class="hilfebox" id="' + id + '_h" hidden>' + HILFE + '</div>' +
       '<div class="edbody m-' + modus + '" id="' + id + '_b"><textarea id="' + id + '" rows="' + (opts.rows || 12) + '" maxlength="' + (opts.max || 20000) + '" spellcheck="true">' + esc(wert) + '</textarea>' +
       '<div class="md vorschau" id="' + id + '_v"></div></div></div>';
@@ -522,7 +540,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     });
     ta.addEventListener('paste', ev => {
       const html = ev.clipboardData && ev.clipboardData.getData('text/html');
-      if (!html) return;
+      if (!html) { const p = ev.clipboardData && ev.clipboardData.getData('text/plain'); if (p && p.length > 40 && /\n/.test(p)) toast('Als reiner Text eingefügt: Das Programm hat keine Formatierung mitgeschickt.'); return; }
       const t = htmlZuMd(html);
       if (!t) return;
       ev.preventDefault(); const vor = ta.value.slice(0, ta.selectionStart); const block = /\n/.test(t) && vor && !vor.endsWith('\n'); ta.setRangeText((block ? '\n' : '') + t, ta.selectionStart, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input'));
@@ -534,11 +552,24 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (!n) neueNotizTitel = a.dataset.wl; render(); });
   }
   function openDlg(breit) {
-    const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.style.width = ''; d.style.height = '';
+    const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.classList.remove('voll'); d.style.height = '';
+    const gemerkt = Number(ls.get('mt-dlgbreite')) || 0;
+    d.style.width = breit && gemerkt ? Math.min(gemerkt, window.innerWidth * 0.9) + 'px' : '';
     if (!d.open) d.showModal();
+    d.querySelectorAll('.zieh').forEach(x => x.remove());
+    if (breit && window.innerWidth > 700) ['l', 'r'].forEach(seite => {
+      const h = document.createElement('div'); h.className = 'zieh zieh-' + seite; h.title = 'Ziehen, um das Fenster breiter oder schmaler zu machen'; d.appendChild(h);
+      h.addEventListener('pointerdown', ev => {
+        ev.preventDefault(); h.setPointerCapture(ev.pointerId); d.classList.remove('voll');
+        const mitte = window.innerWidth / 2;
+        const move = e => { const w = Math.max(480, Math.min(window.innerWidth * 0.9, Math.abs(e.clientX - mitte) * 2)); d.style.width = w + 'px'; };
+        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); ls.set('mt-dlgbreite', String(parseInt(d.style.width))); };
+        h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
+      });
+    });
     if (breit && !$('#dlgInner .vollbild')) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost vollbild'; b.title = 'Fenster vergrößern'; b.textContent = '⤢';
-      b.onclick = () => d.classList.toggle('voll'); $('#dlgInner').prepend(b);
+      b.onclick = () => { d.style.width = ''; d.classList.toggle('voll'); }; $('#dlgInner').prepend(b);
     }
     return d;
   }
