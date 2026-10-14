@@ -161,6 +161,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
   const BOARD = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet'];
   const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
+  const PROFILE = [['Instagram', 'https://www.instagram.com/momentumkiakademie/', '@momentumkiakademie']];
   const KANAELE = ['LinkedIn', 'Instagram', 'Facebook', 'YouTube', 'TikTok', 'Newsletter', 'Webseite / Blog', 'Sonstiges'];
   const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
@@ -961,6 +962,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const gruppe = arr => { const g = {}; arr.forEach(p => { const d = dDate(p.datum); const k = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }); (g[k] = g[k] || []).push(p); }); return g; };
     const G = gruppe(kommend);
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Social-Media-Plan</h1><p class="sub">Ideen sammeln, Termine festlegen, Status verfolgen.</p></div><button class="btn" id="neup">+ Beitrag</button></div>' +
+      '<div class="card" style="padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Unsere Profile:</b>' + PROFILE.map(([n, u, h]) => '<a class="btn sec" style="padding:6px 12px" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(n) + ' · ' + esc(h) + ' ↗</a>').join('') + '</div>' +
       '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt(KANAELE, F.kanal) + '</select><span class="small muted">' +
       SSTATUS.map(s => esc(s) + ': ' + L.filter(p => p.status === s).length).join(' · ') + '</span></div>' +
       (Object.keys(G).length ? Object.entries(G).map(([k, arr]) => '<div class="card"><h2>' + esc(k) + '</h2>' + arr.map(postRow).join('') + '</div>').join('') : '<div class="card"><p class="empty">Keine kommenden Beiträge.</p></div>') +
