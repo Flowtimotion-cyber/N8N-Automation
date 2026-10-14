@@ -58,7 +58,7 @@ h3{font-size:15px;margin:0 0 8px}
 .st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
 .late{color:var(--red);font-weight:700}
 .av.ki{background:#1F2937;font-size:15px}
-.verlauf{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.verlauf h3{font-size:14px;margin:0 0 8px}.vl{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}.vl .vt{flex:1;min-width:0;font-size:13.5px}.vl .vt .md p{margin:2px 0}.vl.status .vt{color:var(--muted);font-size:12.5px}.vl.bericht .vt{background:#F4F1FD;border-radius:10px;padding:6px 10px}.chip.ki{background:#1F2937;color:#fff}
+.verlauf{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.verlauf h3{font-size:14px;margin:0 0 8px}.vl{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}.vl .vt{flex:1;min-width:0;font-size:13.5px}.vl .vt .md p{margin:2px 0}.vl.status .vt{color:var(--mut);font-size:12.5px}.vl.bericht .vt{background:#F4F1FD;border-radius:10px;padding:6px 10px}.chip.ki{background:#1F2937;color:#fff}
 .av{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
 .av.c1{background:#7B3FE4}.av.c2{background:#1FA9B0}.av.c3{background:#E98A15}.av.c4{background:#5B6EE6}.av.c5{background:#D9452F}.av.c6{background:#1F9D6B}
 .board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
@@ -213,13 +213,16 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // ---------- Adressen (jede Seite, Notiz, Aufgabe, jedes Projekt hat eine eigene URL) ----------
   let ziel = null;
   function leseHash() {
-    const m = /^#\/(tab|notiz|aufgabe|projekt)\/([\w-]+)$/.exec(location.hash || '');
+    const m = /^#\/(tab|notiz|aufgabe|projekt|agent)\/([\w-]+)$/.exec(location.hash || '');
     if (!m) return;
+    agentAkte = null;
     if (m[1] === 'tab') tab = m[2];
+    else if (m[1] === 'agent') { tab = 'team'; agentAkte = m[2]; }
     else if (m[1] === 'notiz') { tab = 'notizen'; offeneNotiz = m[2]; }
     else if (m[1] === 'aufgabe') { tab = 'aufgaben'; ziel = { art: 'aufgabe', id: m[2] }; }
     else if (m[1] === 'projekt') { tab = 'projekte'; ziel = { art: 'projekt', id: m[2] }; }
   }
+  let agentAkte = null;
   let letzterHash = location.hash;
   function setzeHash(h, ersetzen) {
     letzterHash = h;
@@ -285,10 +288,10 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
       '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
-    document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
+    document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
     const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
     if (!V[tab]) tab = 'start';
-    if (tab !== 'notizen' && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
+    if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
     if (ziel) {
       const z = ziel; ziel = null;
@@ -1076,6 +1079,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // ---------- Team ----------
   function vTeam() {
+    if (agentAkte && istKI(agentAkte)) return vAgentAkte(agentAkte);
     const admin = istAdmin();
     const L = (D.mitglieder || []).slice().sort((a, b) => (a.status === 'gesperrt') - (b.status === 'gesperrt') || a.name.localeCompare(b.name));
     const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
@@ -1085,12 +1089,13 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         '<div class="small muted">' + esc(p.funktion || ROLLE_TXT(p.rolle)) + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
         '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben</div>' +
-        '<div class="act">' + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
+        '<div class="act">' + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
         (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
       (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink. Schick ihn nur an die Person selbst. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
       '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
     const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
+    document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
     $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
     if (admin) {
       $('#neum').onclick = () => mitgliedDialog(null);
@@ -1101,6 +1106,37 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         catch (e) { $('#dlgInner').innerHTML = '<h2>Link für ' + esc(p.name) + '</h2><div class="f"><input readonly value="' + esc(url) + '" onclick="this.select()"></div><div class="dlgbtns"><button class="btn" onclick="this.closest(\'dialog\').close()">Fertig</button></div>'; $('#dlg').showModal(); }
       });
     }
+  }
+  // ---------- Agenten-Akte ----------
+  const akteTitel = p => 'Agenten-Akte: ' + p.name;
+  function vAgentAkte(id) {
+    const p = mitglied(id);
+    const akte = (D.notizen || []).find(n => n.titel.toLowerCase() === akteTitel(p).toLowerCase());
+    const A = D.aufgaben.filter(a => a.verantwortlich === id);
+    const offen = A.filter(a => !['Erledigt', 'Wird getestet'].includes(a.status)).sort(sortAufgaben);
+    const pruefen = A.filter(a => a.status === 'Wird getestet');
+    const fertig = A.filter(a => a.status === 'Erledigt');
+    const geeignet = D.aufgaben.filter(a => a.agent_geeignet === true && a.status !== 'Erledigt' && !a.verantwortlich.startsWith('agent-'));
+    const V = (D.verlauf || []).filter(v => v.autor === id).sort((a, b) => String(b.erstellt).localeCompare(String(a.erstellt)));
+    const zuletzt = V[0] ? fmtDT(V[0].erstellt) : 'noch nie';
+    const titelVon = aid => (D.aufgaben.find(a => a.aufgabe_id === aid) || {}).titel || 'gelöschte Aufgabe';
+    const kpi = (z, l, c) => '<div class="card" style="padding:14px 16px;flex:1;min-width:140px"><div style="font-size:26px;font-weight:800' + (c ? ';color:' + c : '') + '">' + z + '</div><div class="small muted">' + l + '</div></div>';
+    $('#main').innerHTML = '<p class="small"><a href="#/tab/team" id="zurueck">← Zurück zum Team</a></p>' +
+      '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:6px">' + av(id).replace('class="av ki"', 'class="av ki" style="width:56px;height:56px;font-size:28px"') +
+      '<div style="flex:1;min-width:200px"><h1 style="margin:0">' + esc(p.name) + ' <span class="chip ki" style="vertical-align:middle">KI-Agent</span></h1><p class="sub" style="margin:2px 0 0">' + esc(p.funktion || '') + ' · zuletzt aktiv: ' + esc(zuletzt) + '</p></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost" id="aklink">🔗 Link kopieren</button><button class="btn" id="akneu">+ Aufgabe für ' + esc(p.name) + '</button></div></div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">' + kpi(offen.length, 'offen / in Arbeit') + kpi(pruefen.length, 'wartet auf Prüfung', pruefen.length ? 'var(--orange)' : '') + kpi(fertig.length, 'erledigt') + kpi(V.filter(v => v.art === 'bericht').length, 'Berichte geschrieben') + '</div>' +
+      (pruefen.length ? '<div class="card" style="border-color:var(--orange)"><h2>Zur Prüfung</h2><p class="small muted">' + esc(p.name) + ' meldet diese Aufgaben als fertig. Bitte ansehen und auf „Erledigt“ setzen oder mit Kommentar zurückgeben.</p>' + pruefen.map(taskRow).join('') + '</div>' : '') +
+      '<div class="card" style="margin-top:14px"><h2>Offene Aufgaben</h2>' + (offen.length ? offen.map(taskRow).join('') : '<p class="empty">Keine offenen Aufgaben.</p>') + '</div>' +
+      '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><h2 style="margin:0">Akte</h2><button class="btn sec" id="akedit">' + (akte ? 'Akte bearbeiten' : 'Akte anlegen') + '</button></div>' +
+        (akte ? '<div class="md" style="margin-top:10px">' + md(akte.inhalt) + '</div><p class="small muted">Zuletzt geändert von ' + esc(mitglied(akte.geaendert_von || akte.autor).name) + ', ' + fmtDT(akte.geaendert) + '</p>' : '<p class="empty">Noch keine Akte. Hier stehen Rolle, Stärken, Einrichtung und Regeln für ' + esc(p.name) + '.</p>') + '</div>' +
+      '<div class="card" style="margin-top:14px"><h2>Letzte Berichte und Aktivitäten</h2>' + (V.length ? V.slice(0, 15).map(v => '<div class="vl ' + esc(v.art) + '">' + av(id) + '<div class="vt"><span class="small muted">' + fmtDT(v.erstellt) + ' · <a href="#/aufgabe/' + esc(v.aufgabe_id) + '">' + esc(titelVon(v.aufgabe_id)) + '</a></span>' + (v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') : '<p class="empty">Noch keine Aktivität.</p>') + '</div>' +
+      (geeignet.length ? '<div class="card" style="margin-top:14px"><h2>Für Agenten geeignet, noch bei Menschen</h2><p class="small muted">Diese Aufgaben könnten Agenten übernehmen. Zum Übergeben öffnen und „Zuständig“ ändern.</p>' + geeignet.sort(sortAufgaben).map(taskRow).join('') + '</div>' : '');
+    bindTasks(); bindWikiLinks($('#main'));
+    $('#zurueck').onclick = ev => { ev.preventDefault(); agentAkte = null; setzeHash('#/tab/team'); vTeam(); };
+    $('#aklink').onclick = () => kopiereLink('#/agent/' + id, 'Akte ' + p.name);
+    $('#akedit').onclick = () => akte ? notizDialog(akte) : notizDialog(null, akteTitel(p));
+    $('#akneu').onclick = () => { aufgabeDialog(null); $('#a_v').value = id; $('#a_ki').checked = true; };
   }
   function profilDialog() {
     const i = D.mitglieder.find(p => p.mitglied_id === D.ich.mitglied_id) || D.ich;
