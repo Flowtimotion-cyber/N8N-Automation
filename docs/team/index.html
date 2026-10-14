@@ -116,14 +116,14 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#FAFAFE}
 .toolbar .tb{border:1px solid transparent;background:none;border-radius:7px;padding:4px 9px;cursor:pointer;font-size:14px;min-width:32px}.toolbar .tb:hover{background:#fff;border-color:var(--line)}
 .toolbar select.tb{border-color:var(--line);background:#fff;width:auto!important;padding:4px 6px}
-.edbody{display:grid;gap:10px}.edbody textarea{border-radius:0 0 10px 10px!important;min-height:260px;resize:vertical;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.edbody{display:grid;gap:10px}.edbody textarea{border-radius:0 0 10px 10px!important;min-height:160px;resize:none;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .edbody .vorschau{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;min-height:200px;max-height:70vh;overflow:auto}
 .edbody.m-schreiben .vorschau{display:none}.edbody.m-vorschau textarea{display:none}.edbody.m-vorschau .vorschau{border-radius:0 0 10px 10px}
 @media(min-width:900px){.edbody.m-beides{grid-template-columns:1fr 1fr}.edbody.m-beides .vorschau{max-height:none}}
 .hilfebox{border:1px solid var(--line);border-top:0;background:#FFFDF5;padding:10px 12px;font-size:13.5px}.hilfe table{width:auto}.hilfe td{padding:3px 10px 3px 0;border:0}
 dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(480px,96vw)}
-.zieh{position:absolute;top:0;bottom:0;width:14px;cursor:ew-resize;z-index:5}.zieh-l{left:-7px}.zieh-r{right:-7px}.zieh::after{content:'';position:absolute;top:50%;width:5px;height:56px;margin-top:-28px;border-radius:3px;background:#B9B5D6;left:4px;box-shadow:0 0 0 2px #fff}.zieh:hover::after{background:var(--acc)}
-dialog.breit{overflow:visible}dialog.breit .dlg{max-height:calc(100vh - 24px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
+.zieh{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:5;border-radius:0 0 18px 0;background:linear-gradient(135deg,transparent 0 45%,#B9B5D6 45% 52%,transparent 52% 62%,#B9B5D6 62% 69%,transparent 69% 79%,#B9B5D6 79% 86%,transparent 86%)}.zieh:hover{background-color:#F1ECFD}
+dialog.breit{overflow:visible;margin-top:3vh;margin-bottom:auto}dialog.breit .dlg{max-height:calc(100vh - 24px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
@@ -566,7 +566,16 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   function bindEditor(id) {
     const ta = $('#' + id), vor = $('#' + id + '_v'), body = $('#' + id + '_b');
-    const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.7) + 'px'; };
+    const gespeichert = Number(ls.get('mt-edhoehe')) || 0;
+    if (gespeichert && window.innerWidth > 700) { ta.style.height = gespeichert + 'px'; ta.dataset.fix = '1'; }
+    const grow = () => {
+      if (ta.dataset.fix) return;
+      const dlg = ta.closest('dialog'), st = dlg ? dlg.scrollTop : 0, alt = ta.offsetHeight, tst = ta.scrollTop;
+      ta.style.height = 'auto';
+      const soll = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.7);
+      ta.style.height = Math.max(soll, alt) + 'px';
+      ta.scrollTop = tst; if (dlg) dlg.scrollTop = st;
+    };
     const zeig = () => { vor.innerHTML = md(ta.value); };
     const setze = (vorne, hinten, platzhalter) => {
       const a = ta.selectionStart, e = ta.selectionEnd, sel = ta.value.slice(a, e) || platzhalter;
@@ -647,16 +656,19 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     d.style.width = breit && gemerkt ? Math.min(gemerkt, window.innerWidth * 0.9) + 'px' : '';
     if (!d.open) d.showModal();
     d.querySelectorAll('.zieh').forEach(x => x.remove());
-    if (breit && window.innerWidth > 700) ['l', 'r'].forEach(seite => {
-      const h = document.createElement('div'); h.className = 'zieh zieh-' + seite; h.title = 'Ziehen, um das Fenster breiter oder schmaler zu machen'; d.appendChild(h);
+    if (breit && window.innerWidth > 700) {
+      const h = document.createElement('div'); h.className = 'zieh'; h.title = 'Ziehen: Fenster breiter/schmaler und Textfeld höher/niedriger'; d.appendChild(h);
       h.addEventListener('pointerdown', ev => {
         ev.preventDefault(); h.setPointerCapture(ev.pointerId); d.classList.remove('voll');
-        const mitte = window.innerWidth / 2;
-        const move = e => { const w = Math.max(480, Math.min(window.innerWidth * 0.9, Math.abs(e.clientX - mitte) * 2)); d.style.width = w + 'px'; };
-        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); ls.set('mt-dlgbreite', String(parseInt(d.style.width))); };
+        const x0 = ev.clientX, y0 = ev.clientY, w0 = d.offsetWidth, ta = d.querySelector('.edbody textarea'), h0 = ta ? ta.offsetHeight : 0;
+        const move = e => {
+          d.style.width = Math.max(480, Math.min(window.innerWidth * 0.9, w0 + 2 * (e.clientX - x0))) + 'px';
+          if (ta) { ta.style.height = Math.max(160, h0 + (e.clientY - y0)) + 'px'; ta.dataset.fix = '1'; }
+        };
+        const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); ls.set('mt-dlgbreite', String(parseInt(d.style.width))); if (ta) ls.set('mt-edhoehe', String(parseInt(ta.style.height))); };
         h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
       });
-    });
+    }
     if (breit && !$('#dlgInner .vollbild')) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost vollbild'; b.title = 'Fenster vergrößern'; b.textContent = '⤢';
       b.onclick = () => { d.style.width = ''; d.classList.toggle('voll'); }; $('#dlgInner').prepend(b);
