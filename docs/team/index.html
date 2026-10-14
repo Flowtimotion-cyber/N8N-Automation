@@ -57,6 +57,8 @@ h3{font-size:15px;margin:0 0 8px}
 .p1{background:#FCE3DE;color:#B0321F}.p2{background:#FDEBD3;color:#A35D06}.p3{background:var(--soft);color:var(--mut)}
 .st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
 .late{color:var(--red);font-weight:700}
+.av.ki{background:#1F2937;font-size:15px}
+.verlauf{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.verlauf h3{font-size:14px;margin:0 0 8px}.vl{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}.vl .vt{flex:1;min-width:0;font-size:13.5px}.vl .vt .md p{margin:2px 0}.vl.status .vt{color:var(--muted);font-size:12.5px}.vl.bericht .vt{background:#F4F1FD;border-radius:10px;padding:6px 10px}.chip.ki{background:#1F2937;color:#fff}
 .av{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
 .av.c1{background:#7B3FE4}.av.c2{background:#1FA9B0}.av.c3{background:#E98A15}.av.c4{background:#5B6EE6}.av.c5{background:#D9452F}.av.c6{background:#1F9D6B}
 .board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
@@ -153,7 +155,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 <script>
 (function () {
   'use strict';
-  const API = 'https://n8n.hm-storage.de/webhook/team-api';
+  const API = 'https://n8n.hm-storage.de/webhook/team-api-v2';
   const PORTAL = 'https://flowtimotion-cyber.github.io/N8N-Automation/team/';
   const projOpts = cur => { const l = projektNamen(); return cur && !l.includes(cur) ? l.concat([cur]) : l; };
   const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
@@ -163,6 +165,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
+  const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
   const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
@@ -191,11 +194,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const ueberfaellig = a => a.deadline && a.status !== 'Erledigt' && dDate(a.deadline) < heute();
   const mitglied = id => (D.mitglieder || []).find(x => x.mitglied_id === id) || { name: '–', mitglied_id: id };
   const farbe = id => 'c' + (1 + (Math.abs([...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0)) % 6));
-  const av = id => { const p = mitglied(id); return '<span class="av ' + farbe(id) + '" title="' + esc(p.name) + '">' + esc((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'; };
+  const istKI = id => mitglied(id).typ === 'agent';
+  const av = id => { const p = mitglied(id); return istKI(id) ? '<span class="av ki" title="' + esc(p.name) + ' (KI-Agent)">🤖</span>' : '<span class="av ' + farbe(id) + '" title="' + esc(p.name) + '">' + esc((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'; };
   const istAdmin = () => D && D.ich && D.ich.rolle === 'admin';
   const istDozent = () => D && D.ich && (D.ich.rolle === 'admin' || D.ich.rolle === 'dozent');
   const opt = (arr, sel, lab) => arr.map(v => '<option value="' + esc(v) + '"' + (String(v) === String(sel) ? ' selected' : '') + '>' + esc(lab ? lab(v) : (v || '–')) + '</option>').join('');
-  const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
+  const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + (p.typ === 'agent' ? ' 🤖 (KI-Agent)' : '') + '</option>').join('');
   const saveF = () => ls.set('mt-filter', JSON.stringify(F));
   const waNummer = t => String(t || '').replace(/[^\d]/g, '');
 
@@ -337,7 +341,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + av(a.verantwortlich) +
       '<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
-      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
+      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
       (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
       '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
   }
@@ -389,6 +393,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
       '<div class="f"><label for="a_j">Projekt</label><select id="a_j">' + opt(projOpts(a.projekt), a.projekt) + '</select></div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
+      '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
+      verlaufHtml(a) +
       (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">Löschen</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
@@ -403,14 +409,25 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       ev.preventDefault();
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
-        prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value };
+        prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
+        kommentar: $('#a_k') ? $('#a_k').value : '' };
       try {
         await api('aufgabe_speichern', daten);
         const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
-        if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
+        if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
+        else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
         await laden(true);
       } catch (e) { toast(e.message); btn.disabled = false; }
     };
+  }
+
+  function verlaufHtml(a) {
+    const V = a.aufgabe_id ? (D.verlauf || []).filter(v => v.aufgabe_id === a.aufgabe_id) : [];
+    const zeit = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+    return '<div class="verlauf"><h3>Verlauf & Kommentare</h3>' +
+      (V.length ? V.map(v => '<div class="vl ' + esc(v.art) + '">' + av(v.autor) + '<div class="vt"><span class="small muted">' + esc(mitglied(v.autor).name) + ' · ' + zeit(v.erstellt) + (v.art === 'bericht' ? ' · Bericht' : '') + '</span>' +
+        (v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') : '<p class="small muted">Noch nichts.</p>') +
+      '<div class="f" style="margin-top:8px"><label for="a_k">Kommentar hinzufügen (wird beim Speichern mitgespeichert)</label><textarea id="a_k" rows="2" maxlength="8000" placeholder="z. B. Rückfrage, Zwischenstand, Hinweis für den Agenten …"></textarea></div></div>';
   }
 
   function zugewiesen(d) {
@@ -1064,12 +1081,13 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div>' + (admin ? '<button class="btn" id="neum">+ Mitglied</button>' : '') + '</div>' +
       '<div class="grid">' + L.map(p => '<div class="member">' + av(p.mitglied_id) + '<div style="min-width:0;flex:1"><b>' + esc(p.name) + '</b>' + (p.mitglied_id === D.ich.mitglied_id ? ' <span class="chip">Du</span>' : '') +
-        '<div class="small muted">' + esc(p.funktion || ROLLEN[p.rolle] || '') + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
+        (p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') +
+        '<div class="small muted">' + esc(p.funktion || ROLLE_TXT(p.rolle)) + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
         '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben</div>' +
         '<div class="act">' + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
-        (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">Link kopieren</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
+        (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
       (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink. Schick ihn nur an die Person selbst. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
       '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
     const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
@@ -1078,8 +1096,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       $('#neum').onclick = () => mitgliedDialog(null);
       document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));
       document.querySelectorAll('[data-link]').forEach(b => b.onclick = async () => {
-        const p = mitglied(b.dataset.link); const url = PORTAL + '?z=' + p.token;
-        try { await navigator.clipboard.writeText(url); toast('Link für ' + p.name + ' kopiert'); }
+        const p = mitglied(b.dataset.link); const url = p.typ === 'agent' ? p.token : PORTAL + '?z=' + p.token;
+        try { await navigator.clipboard.writeText(url); toast((p.typ === 'agent' ? 'Agenten-Code für ' : 'Link für ') + p.name + ' kopiert'); }
         catch (e) { $('#dlgInner').innerHTML = '<h2>Link für ' + esc(p.name) + '</h2><div class="f"><input readonly value="' + esc(url) + '" onclick="this.select()"></div><div class="dlgbtns"><button class="btn" onclick="this.closest(\'dialog\').close()">Fertig</button></div>'; $('#dlg').showModal(); }
       });
     }
@@ -1105,7 +1123,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues Teammitglied' : esc(p.name) + ' verwalten') + '</h2><form id="tf">' +
       '<div class="f2"><div class="f"><label for="t_n">Name</label><input id="t_n" required maxlength="60" value="' + esc(p.name) + '"></div>' +
       '<div class="f"><label for="t_f">Aufgabe im Team</label><input id="t_f" maxlength="60" value="' + esc(p.funktion) + '" placeholder="z. B. Vertrieb"></div>' +
-      '<div class="f"><label for="t_r">Rolle</label><select id="t_r"' + (selbst ? ' disabled' : '') + '>' + opt(Object.keys(ROLLEN), p.rolle, v => ROLLEN[v]) + '</select></div>' +
+      (p.typ === 'agent' ? '<div class="f"><label>Rolle</label><input disabled value="KI-Agent"></div>' : '<div class="f"><label for="t_r">Rolle</label><select id="t_r"' + (selbst ? ' disabled' : '') + '>' + opt(Object.keys(ROLLEN), p.rolle, v => ROLLEN[v]) + '</select></div>') +
       (!neu && !selbst ? '<div class="f"><label for="t_s">Zugang</label><select id="t_s">' + opt(['aktiv', 'eingeladen', 'gesperrt'], p.status, v => ({ aktiv: 'aktiv', eingeladen: 'eingeladen (noch nicht angemeldet)', gesperrt: 'gesperrt' }[v])) + '</select></div>' : '') + '</div>' +
       '<p class="small muted">Rollen: Admin verwaltet das Team. Dozent / Technik sieht Teilnehmer mit Namen und pflegt Systeme. Vertrieb und Team sehen Kursdaten nur zusammengefasst. Alle können Aufgaben und Social-Beiträge anlegen.</p>' +
       (!neu ? '<label class="check" style="margin-bottom:10px"><input type="checkbox" id="t_l"><span>Neuen Zugangslink erzeugen (der alte Link funktioniert dann nicht mehr)</span></label>' : '<p class="small muted">Nach dem Speichern kopierst du unter „Team“ den persönlichen Link und schickst ihn der Person.</p>') +
@@ -1115,7 +1133,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#tf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       try {
-        await api('mitglied_speichern', { mitglied_id: p.mitglied_id, name: $('#t_n').value, funktion: $('#t_f').value, rolle: selbst ? 'admin' : $('#t_r').value,
+        await api('mitglied_speichern', { mitglied_id: p.mitglied_id, name: $('#t_n').value, funktion: $('#t_f').value, rolle: selbst ? 'admin' : ($('#t_r') ? $('#t_r').value : p.rolle),
           status: $('#t_s') ? $('#t_s').value : undefined, neuer_link: !!($('#t_l') && $('#t_l').checked) });
         dlg.close(); toast('Gespeichert'); await laden(true);
       } catch (e) { toast(e.message); btn.disabled = false; }
