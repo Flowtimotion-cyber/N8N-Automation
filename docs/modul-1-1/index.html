@@ -219,7 +219,10 @@ function badges() {
   const c = el("div", "bdg" + (S.check && S.check.passed ? " done" : "") + (STEPS[S.step].k === "check" ? " cur" : ""), "✓"); c.title = "Abschluss-Check"; b.appendChild(c);
 }
 
+// Kurscode: für alle gleich, ohne richtigen Code geht es nicht weiter
+function kurscodeOk(v) { const t = String(v || "").toUpperCase().replace(/\s+/g, ""); let x = 5381; for (const c of t) x = (Math.imul(x, 33) ^ c.charCodeAt(0)) >>> 0; return x === 3219844137; }
 function go(i) {
+  if (i > 0 && !kurscodeOk(S.kurscode)) { S.step = 0; toast("Bitte zuerst deinen Namen, den richtigen Kurscode und deine E-Mail eintragen."); if (STEPS[S.step]) render(); return; }
   document.querySelectorAll("video").forEach(v => { try { v.pause(); } catch (e) {} });
   S.step = Math.max(0, Math.min(STEPS.length - 1, i)); S.maxStep = Math.max(S.maxStep || 0, S.step); save(); render(); window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -557,19 +560,17 @@ renderStart = function (sc) {
   const lbm = el("label", "", "Deine E-Mail-Adresse"); lbm.htmlFor = "tn-mail"; lbm.style.cssText = "font-weight:700;display:block;margin:14px 0 8px";
   const mailInp = el("input"); mailInp.type = "email"; mailInp.id = "tn-mail"; mailInp.autocomplete = "email"; mailInp.placeholder = "name@firma.de"; mailInp.value = S.email || "";
   const codeHint = el("div", "small"); codeHint.style.cssText = "margin:6px 0 0;color:#B45309;display:none";
-  codeHint.textContent = "Diesen Kurscode kennen wir nicht. Bitte prüf ihn (steht in der Einladung deiner Kursleitung). Ohne richtigen Code sieht die Kursleitung deinen Fortschritt nur mit Hinweis.";
-  const pruefeCode = async () => { const v = (code.value || "").trim().toUpperCase().replace(/\s+/g, ""); if (v.length < 3) { codeHint.style.display = "none"; return; }
-    try { const h = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v))), b => b.toString(16).padStart(2, "0")).join("");
-      codeHint.style.display = h === "7ccb3c8a900971cfd33d33b815964203a373b4da5056c24879fb8f4a538b264f" ? "none" : "block"; } catch (e) {} };
+  codeHint.textContent = "Dieser Kurscode stimmt nicht. Du findest ihn in der Einladung deiner Kursleitung. Ohne richtigen Code geht es nicht weiter.";
+  const pruefeCode = () => { const v = (code.value || "").trim(); codeHint.style.display = v.length >= 3 && !kurscodeOk(v) ? "block" : "none"; };
   nameInp.after(lb, code, codeHint, lbm, mailInp);
   const note = $("p.small", card); if (note) note.textContent = "Die Kursleitung speichert deinen Lernstand, damit sie dich betreuen und den Kurs verbessern kann. Was genau gespeichert wird und wie du es jederzeit löschst, steht unten unter „Datenschutz im Kurs“.";
   card.appendChild(dzBox());
   const ai = el("div", "askai", '<div><b>Dein persönlicher KI-Assistent</b><span>Unten rechts wartet ein Assistent, der den ganzen Kurs kennt. Er beantwortet Fragen zum Einrichten, nimmt Screenshots an und hilft dir, das Gespräch mit deiner Führungskraft vorzubereiten.</span></div>');
   const aib = el("button", "btn sec", "Kurz ausprobieren"); aib.onclick = () => window.openAssistant(); ai.appendChild(aib); card.appendChild(ai);
-  const gate = () => { const ok = (S.name || "").length >= 2 && (S.kurscode || "").length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email || ""); setNext(ok, "Los geht’s"); updMeta(); };
+  const gate = () => { const ok = (S.name || "").length >= 2 && kurscodeOk(S.kurscode) && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(S.email || ""); setNext(ok, "Los geht’s"); updMeta(); };
   mailInp.addEventListener("input", () => { S.email = mailInp.value.trim(); save(); gate(); });
   nameInp.addEventListener("input", gate);
-  code.addEventListener("input", () => { S.kurscode = code.value.trim().toUpperCase().replace(/\s+/g, ""); save(); gate(); clearTimeout(pruefeCode.t); pruefeCode.t = setTimeout(pruefeCode, 500); });
+  code.addEventListener("input", () => { S.kurscode = code.value.trim().toUpperCase().replace(/\s+/g, ""); save(); gate(); pruefeCode(); });
   pruefeCode();
   gate();
 };
@@ -688,6 +689,7 @@ renderSummary = function (sc) { _renderSummaryDz(sc); const c = el("div", "card"
 
 $("#next").onclick = () => go(S.step + 1);
 $("#back").onclick = () => go(S.step - 1);
+if (S.step > 0 && !kurscodeOk(S.kurscode)) S.step = 0;
 render();
 </script>
 

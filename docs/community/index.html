@@ -72,7 +72,8 @@ let DATA = null;
 // Wer bin ich? Daten kommen aus dem Kurs in diesem Browser
 const kursStand = [lsj("m12-automationen-v1"), lsj("m11-automationen-v2")].filter(Boolean);
 const ICH = { name: (kursStand.find(s => s.name) || {}).name || "", kurscode: (kursStand.find(s => s.kurscode) || {}).kurscode || "", tid: ls("m11-teilnehmer-id") || "" };
-const angemeldet = ICH.name.length >= 2 && ICH.kurscode.length >= 3 && /^t_[0-9a-f]{24}$/.test(ICH.tid);
+function kurscodeOk(v) { const t = String(v || "").toUpperCase().replace(/\s+/g, ""); let x = 5381; for (const c of t) x = (Math.imul(x, 33) ^ c.charCodeAt(0)) >>> 0; return x === 3219844137; }
+const angemeldet = ICH.name.length >= 2 && kurscodeOk(ICH.kurscode) && /^t_[0-9a-f]{24}$/.test(ICH.tid);
 
 async function api(aktion, extra) {
   const r = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain" },
@@ -92,7 +93,7 @@ const antwortHtml = a => '<div class="ans' + (a.dozent ? " doz" : "") + '"><div 
 
 function render() {
   document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === tab));
-  $("#ident").innerHTML = angemeldet ? "" : '<div class="note"><b>Bitte zuerst im Kurs anmelden.</b> Die Community gehört zum Kurs. Öffne <a href="../modul-1-1/">Teil 1</a> und trag auf der Startseite deinen Namen, deine E-Mail-Adresse und den Kurscode ein. Danach kannst du hier mitlesen und schreiben (im selben Browser).</div>';
+  $("#ident").innerHTML = angemeldet ? "" : '<div class="note"><b>Bitte zuerst im Kurs anmelden.</b> Die Community gehört zum Kurs. Öffne <a href="../modul-1-1/">Teil 1</a> und trag auf der Startseite deinen Namen, deine E-Mail-Adresse und den Kurscode ein (steht in der Einladung deiner Kursleitung). Danach kannst du hier mitlesen und schreiben (im selben Browser).</div>';
   if (!angemeldet) { $("#inhalt").innerHTML = ""; return; }
   if (DATA && DATA.fehler) { $("#inhalt").innerHTML = '<div class="note">' + esc(DATA.fehler) + "</div>"; return; }
   if (!DATA) { $("#inhalt").innerHTML = '<p class="empty">Lädt …</p>'; return; }

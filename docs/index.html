@@ -80,8 +80,9 @@ document.querySelectorAll("[data-ls]").forEach(a => {
 if (name) document.getElementById("gruss").textContent = "Hallo " + name.split(/\s+/)[0] + ", deine Kurse";
 let tid = ""; try { tid = localStorage.getItem("m11-teilnehmer-id") || ""; } catch (e) {}
 const fmt = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }); };
-if (name && code && /^t_[0-9a-f]{24}$/.test(tid)) {
-  fetch("https://n8n.hm-storage.de/webhook/kurs-community", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ aktion: "liste", teilnehmer_id: tid }) })
+function kurscodeOk(v) { const t = String(v || "").toUpperCase().replace(/\s+/g, ""); let x = 5381; for (const c of t) x = (Math.imul(x, 33) ^ c.charCodeAt(0)) >>> 0; return x === 3219844137; }
+if (name && kurscodeOk(code) && /^t_[0-9a-f]{24}$/.test(tid)) {
+  fetch("https://n8n.hm-storage.de/webhook/kurs-community", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ aktion: "liste", teilnehmer_id: tid, kurscode: code }) })
     .then(r => r.json()).then(j => {
       if (!j.ok) return;
       const F = (j.fragen || []).slice(0, 3);
