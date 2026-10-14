@@ -133,6 +133,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .nview{min-height:300px}
 @media(max-width:800px){.notes{grid-template-columns:1fr}.pstats{grid-template-columns:repeat(3,1fr)}}
 .vorsch{color:var(--mut);font-size:13.5px;line-height:1.4;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.md mark,.hilfe mark{color:inherit}.md .hg,.hilfe .hg{padding:0 3px;border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.md .kasten{border-radius:10px;padding:10px 14px;margin:0 0 10px;border:1px solid rgba(20,18,58,.08)}.md .kasten .kt{font-weight:700;margin-bottom:4px}.md .kasten p:last-child,.md .kasten ul:last-child{margin-bottom:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
 .center{max-width:520px;margin:8vh auto;padding:0 16px}
@@ -426,6 +428,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // ---------- Formatierung (Momentum-Markdown) ----------
   const FARBEN = { rot: '#D9452F', rosa: '#E0569B', orange: '#E98A15', gelb: '#B98900', gruen: '#1F9D6B', blau: '#2F6FDB', lila: '#7B3FE4', grau: '#8E8BAA' };
+  const HINTERGRUND = { gelb: '#FFF3A3', gruen: '#D5F5E3', blau: '#DCEBFF', rosa: '#FDE2EF', orange: '#FFE5CC', lila: '#EDE4FF', rot: '#FDDCD7', grau: '#ECEBF3' };
+  const hgFarbe = f => HINTERGRUND[f === 'grün' ? 'gruen' : f] || (/^#[0-9a-fA-F]{6}$/.test(f) ? f : HINTERGRUND.gelb);
   function mdInline(s) {
     const ph = [];
     const keep = h => { ph.push(h); return '\u0001' + (ph.length - 1) + '\u0002'; };
@@ -440,6 +444,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     s = s.replace(/==([^=\n]+?)==/g, '<mark>$1</mark>');
     s = s.replace(/(^|[^*\w])\*([^*\s][^*\n]*?)\*(?!\w)/g, '$1<em>$2</em>');
     s = s.replace(/\{(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span style="color:' + (FARBEN[f === 'grün' ? 'gruen' : f] || f) + '">' + t + '</span>');
+    s = s.replace(/\{hg:(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})\}([\s\S]*?)\{\/\}/g, (m, f, t) => '<span class="hg" style="background:' + hgFarbe(f) + '">' + t + '</span>');
     s = s.replace(/\{(gross|groß|klein)\}([\s\S]*?)\{\/\}/g, (m, g, t) => '<span style="font-size:' + (g === 'klein' ? '.85em' : '1.3em') + '">' + t + '</span>');
     return s.replace(/\u0001(\d+)\u0002/g, (m, i) => ph[Number(i)]);
   }
@@ -454,12 +459,19 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     .replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
   function md(text) {
     const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
-    let out = '', liste = null, para = [];
+    let out = '', liste = null, para = [], kasten = false;
     const flushP = () => { if (para.length) { out += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
     const flushL = () => { if (liste) { out += '</' + liste + '>'; liste = null; } };
     for (const raw of L) {
       const l = raw.replace(/\s+$/, '');
       let m;
+      if ((m = /^:::\s*(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#[0-9a-fA-F]{6})?\s*(.*)$/.exec(l.trim()))) {
+        flushP(); flushL();
+        if (kasten && !m[1] && !m[2]) { out += '</div>'; kasten = false; continue; }
+        if (kasten) out += '</div>';
+        const f = hgFarbe(m[1] || 'gelb');
+        out += '<div class="kasten" style="background:' + f + '">' + (m[2] ? '<div class="kt">' + mdInline(m[2]) + '</div>' : ''); kasten = true; continue;
+      }
       if (!l.trim()) { flushP(); flushL(); continue; }
       if ((m = /^(#{1,3})\s+(.*)$/.exec(l))) { flushP(); flushL(); const n = m[1].length + 1; out += '<h' + n + '>' + mdInline(m[2]) + '</h' + n + '>'; continue; }
       if (/^(-{3,}|\*{3,})$/.test(l.trim())) { flushP(); flushL(); out += '<hr>'; continue; }
@@ -469,7 +481,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       if ((m = /^\s*\d+[.)]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ol') { flushL(); out += '<ol>'; liste = 'ol'; } out += '<li>' + mdInline(m[1]) + '</li>'; continue; }
       flushL(); para.push(l);
     }
-    flushP(); flushL();
+    flushP(); flushL(); if (kasten) out += '</div>';
     return out || '<p class="muted">Noch kein Text.</p>';
   }
   // Formatierten Text aus Word, LibreOffice, Webseiten in Momentum-Markdown umwandeln
@@ -510,7 +522,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         if (ital) inner = '*' + inner.trim() + '*';
         if (bold) inner = '**' + inner.trim() + '**';
         if (farbe) inner = '{' + (Object.keys(FARBEN).find(k => FARBEN[k].toLowerCase() === farbe) || farbe) + '}' + inner.trim() + '{/}';
-        if (mark && !farbe) inner = '==' + inner.trim() + '==';
+        if (mark) { const bg = hex(st.backgroundColor); const name = Object.keys(HINTERGRUND).find(k => HINTERGRUND[k].toLowerCase() === bg); inner = (bg && bg !== '#ffff00' ? '{hg:' + (name || bg) + '}' + inner.trim() + '{/}' : '==' + inner.trim() + '=='); }
         if (groesse) inner = '{' + groesse + '}' + inner.trim() + '{/}';
       }
       switch (tag) {
@@ -531,10 +543,11 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   const HILFE = '<div class="hilfe"><b>So formatierst du:</b><table>' +
     [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
-     ['==markiert==', '<mark>markiert</mark>'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
+     ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder #ffeeaa)'],
+     ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder #ff00aa)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
      ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
-      .map(([a, b]) => '<tr><td><code>' + esc(a) + '</code></td><td>' + b + '</td></tr>').join('') +
+      .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
     opts = opts || {};
@@ -544,6 +557,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="seg small edmode">' + ['schreiben', 'vorschau', 'beides'].map(mo => '<button type="button" data-edm="' + id + '" data-m="' + mo + '" class="' + (mo === modus ? 'on' : '') + '">' + ({ schreiben: 'Schreiben', vorschau: 'Vorschau', beides: 'Beides' }[mo]) + '</button>').join('') + '</div></div>' +
       '<div class="toolbar">' + btn('b', '<b>B</b>', 'Fett (Strg+B)') + btn('i', '<i>I</i>', 'Kursiv (Strg+I)') + btn('u', '<u>U</u>', 'Unterstrichen') + btn('s', '<s>S</s>', 'Durchgestrichen') + btn('m', '<mark>M</mark>', 'Markieren') +
       '<select class="tb" data-ed="' + id + '" data-a="farbe" title="Textfarbe"><option value="">Farbe</option>' + Object.keys(FARBEN).map(f => '<option value="' + f + '" style="color:' + FARBEN[f] + '">' + f + '</option>').join('') + '</select>' +
+      '<select class="tb" data-ed="' + id + '" data-a="hg" title="Hintergrundfarbe für markierten Text"><option value="">Hintergrund</option>' + Object.keys(HINTERGRUND).map(f => '<option value="' + f + '" style="background:' + HINTERGRUND[f] + '">' + f + '</option>').join('') + '</select>' +
+      '<select class="tb" data-ed="' + id + '" data-a="kasten" title="Farbigen Kasten um die markierten Zeilen legen, z. B. für ein Unterthema"><option value="">Kasten</option>' + Object.keys(HINTERGRUND).map(f => '<option value="' + f + '" style="background:' + HINTERGRUND[f] + '">' + f + '</option>').join('') + '</select>' +
       '<select class="tb" data-ed="' + id + '" data-a="groesse" title="Schriftgröße"><option value="">Größe</option><option value="gross">groß</option><option value="klein">klein</option></select>' + btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
       btn('hilfe', '?', 'Alle Formatierungen anzeigen') + '</div><div class="hilfebox" id="' + id + '_h" hidden>' + HILFE + '</div>' +
       '<div class="edbody m-' + modus + '" id="' + id + '_b"><textarea id="' + id + '" rows="' + (opts.rows || 12) + '" maxlength="' + (opts.max || 20000) + '" spellcheck="true">' + esc(wert) + '</textarea>' +
@@ -572,7 +587,17 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       else if (a === 'hilfe') { const h = $('#' + id + '_h'); h.hidden = !h.hidden; }
     };
     document.querySelectorAll('[data-ed="' + id + '"]').forEach(b => {
-      if (b.tagName === 'SELECT') b.onchange = () => { if (b.value) setze('{' + b.value + '}', '{/}', 'Text'); b.value = ''; };
+      if (b.tagName === 'SELECT') b.onchange = () => {
+        if (!b.value) return;
+        if (b.dataset.a === 'hg') setze('{hg:' + b.value + '}', '{/}', 'Text');
+        else if (b.dataset.a === 'kasten') {
+          const a = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1; let e = ta.value.indexOf('\n', Math.max(ta.selectionEnd - 1, ta.selectionStart)); if (e < 0) e = ta.value.length;
+          const inhalt = ta.value.slice(a, e) || 'Text im Kasten';
+          ta.setRangeText('::: ' + b.value + ' Überschrift (optional)\n' + inhalt + '\n:::', a, e, 'end'); const p0 = a + 5 + b.value.length; ta.focus(); ta.setSelectionRange(p0, p0 + 22); ta.dispatchEvent(new Event('input'));
+        }
+        else setze('{' + b.value + '}', '{/}', 'Text');
+        b.value = '';
+      };
       else b.onclick = () => aktion(b.dataset.a);
     });
     document.querySelectorAll('[data-edm="' + id + '"]').forEach(b => b.onclick = () => {
