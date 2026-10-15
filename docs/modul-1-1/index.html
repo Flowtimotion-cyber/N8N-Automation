@@ -484,7 +484,10 @@ function renderSummary(sc) {
     '<p class="muted">Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.</p>';
   const row = el("div", "row noprint"); const p = el("button", "btn", "Merkblatt kopieren"); p.onclick = () => copyText(merkText()); const dl = el("button", "btn sec", "Merkblatt speichern"); dl.hidden = !CAP.dl; dl.onclick = () => saveFile("Merkblatt_Automationen.txt", merkText());
   const rs = el("button", "btn sec", "Fortschritt zurücksetzen"); confirmBtn(rs, () => { S = fresh(); save(); go(0); });
-  row.appendChild(p); row.appendChild(dl); row.appendChild(rs); c.appendChild(row);
+  // Tippfehler im eigenen Steckbrief schnell korrigieren
+  const stIdx = STEPS.findIndex(s => s.k === "task" && LV(s.lv) && LV(s.lv).own);
+  const ed = el("button", "btn sec", "Steckbrief bearbeiten"); ed.hidden = stIdx < 0; ed.onclick = () => go(stIdx);
+  row.appendChild(p); row.appendChild(dl); row.appendChild(ed); row.appendChild(rs); c.appendChild(row);
   newsletterBox(sc);
   setNext(false, "Ende");
 }
