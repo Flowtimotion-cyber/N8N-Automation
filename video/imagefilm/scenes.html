@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:M;src:url(/usr/share/fonts/truetype/higgsfield/Montserrat-ExtraBold.ttf)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:transparent;font-family:M,"Montserrat",sans-serif;color:#fff}
+.bg{position:absolute;inset:0;background:radial-gradient(1200px 700px at 30% 20%,#2a1f6b 0%,#14123A 55%,#0b0a22 100%)}
+.bg:after{content:"";position:absolute;inset:0;background:radial-gradient(600px 400px at 85% 90%,rgba(34,179,176,.25),transparent 70%)}
+.s{position:absolute;inset:0;display:none}
+.grad{background:linear-gradient(90deg,#B57CFF,#7C8CFF 55%,#3FD4CF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.k{font-size:20px;letter-spacing:.18em;text-transform:uppercase;color:#B9A8FF}
+.big{font-size:84px;line-height:1;letter-spacing:-2px}
+.mid{font-size:44px;line-height:1.1}
+.sm{font-size:26px;color:#D7D3F5}
+.card{background:rgba(20,18,58,.72);border:1.5px solid rgba(185,168,255,.35);border-radius:22px;backdrop-filter:blur(6px)}
+.bar{height:5px;border-radius:5px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6 55%,#22B3B0)}
+</style></head><body>
+<!-- E1: Rechnung -->
+<div class="s" id="e1"><div class="bg"></div>
+  <div style="position:absolute;left:110px;top:90px;width:1060px">
+    <div class="k" id="e1k">Rechne mal nach</div>
+    <div style="display:flex;gap:26px;margin-top:34px" id="e1row">
+      <div class="card f" style="padding:26px 30px;flex:1"><div class="big" id="n1">24</div><div class="sm" style="margin-top:10px">Mitarbeiter</div></div>
+      <div class="card f" style="padding:26px 30px;flex:1"><div class="big" id="n2">8 Std.</div><div class="sm" style="margin-top:10px">Routine pro Woche</div></div>
+      <div class="card f" style="padding:26px 30px;flex:1"><div class="big" id="n3">45 €</div><div class="sm" style="margin-top:10px">pro Stunde</div></div>
+    </div>
+    <div id="e1a" style="margin-top:44px"><div class="sm">Das sind im Jahr</div><div class="big grad" style="font-size:110px;margin-top:6px" id="sum">449.280 €</div></div>
+    <div id="e1b" style="margin-top:22px;display:flex;align-items:center;gap:18px"><div class="bar" style="width:70px"></div><div class="mid">Schon ein Drittel automatisiert: <span class="grad" id="drittel">149.760 €</span> pro Jahr</div></div>
+  </div>
+</div>
+<!-- E2: Schulung + Umsetzung -->
+<div class="s" id="e2"><div class="bg"></div>
+  <div style="position:absolute;left:110px;top:80px;width:1060px">
+    <div class="k">Momentum KI Akademie</div>
+    <div class="big" style="font-size:66px;margin-top:16px" id="e2t">Schulung <span class="grad">und</span> Umsetzung.<br>Gleichzeitig.</div>
+    <div style="display:flex;gap:22px;margin-top:44px">
+      <div class="card st" style="padding:24px;flex:1"><div class="grad mid">01</div><div class="sm" style="margin-top:10px;color:#fff">Während der Schulung</div><div class="sm" style="font-size:22px;margin-top:6px">Dein Team bringt einen echten Prozess mit</div></div>
+      <div class="card st" style="padding:24px;flex:1"><div class="grad mid">02</div><div class="sm" style="margin-top:10px;color:#fff">Am Ende der Schulung</div><div class="sm" style="font-size:22px;margin-top:6px">Dieser Prozess läuft als KI-Agent</div></div>
+      <div class="card st" style="padding:24px;flex:1"><div class="grad mid">03</div><div class="sm" style="margin-top:10px;color:#fff">Danach</div><div class="sm" style="font-size:22px;margin-top:6px">Der Agent arbeitet weiter</div></div>
+    </div>
+    <div id="e2f" style="margin-top:34px;display:inline-flex;gap:14px;align-items:center;padding:14px 22px;border-radius:40px;background:rgba(34,179,176,.18);border:1.5px solid rgba(63,212,207,.6)"><span style="font-size:26px">✓</span><span class="sm" style="color:#fff">Gefördert über die Agentur für Arbeit · AZAV-zugelassener Träger</span></div>
+  </div>
+</div>
+<!-- E3: Overlay Möglichkeiten (transparent) -->
+<div class="s" id="e3">
+  <div style="position:absolute;left:70px;top:70px"><div class="k" style="text-shadow:0 2px 12px #000">Was du danach kannst</div></div>
+  <div style="position:absolute;left:70px;top:120px;display:flex;flex-direction:column;gap:16px;width:620px">
+    <div class="card o" style="padding:18px 24px"><div class="sm" style="color:#fff;font-size:28px">🤖 KI-Agenten bauen deine n8n-Automationen</div></div>
+    <div class="card o" style="padding:18px 24px"><div class="sm" style="color:#fff;font-size:28px">🧰 Eigene Tools statt fünf Software-Abos</div></div>
+    <div class="card o" style="padding:18px 24px"><div class="sm" style="color:#fff;font-size:28px">🖥️ Auf deinem Server, auch mit lokaler KI</div></div>
+    <div class="card o" style="padding:18px 24px"><div class="sm" style="color:#fff;font-size:28px">🤝 Wir begleiten dich persönlich</div></div>
+  </div>
+</div>
+<!-- E4: Beweis -->
+<div class="s" id="e4"><div class="bg"></div>
+  <div style="position:absolute;left:70px;top:60px"><div class="k">Der Beweis</div><div class="mid" style="margin-top:10px;width:440px">Dieser Kurs wurde von <span class="grad">KI-Agenten</span> gebaut.</div><div class="sm" style="margin-top:18px;width:420px">Mit n8n. Auf unserem eigenen Server. Ohne monatliche Software-Abos.</div></div>
+  <div id="shots" style="position:absolute;left:540px;top:60px;width:680px;height:600px">
+    <div class="win" style="position:absolute;inset:0;border-radius:16px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55);background:#fff">
+      <div style="height:34px;background:#ECEAF6;display:flex;align-items:center;gap:8px;padding:0 14px"><i style="width:12px;height:12px;border-radius:50%;background:#FF6159"></i><i style="width:12px;height:12px;border-radius:50%;background:#FFBD2E"></i><i style="width:12px;height:12px;border-radius:50%;background:#28C941"></i></div>
+      <div style="position:absolute;top:34px;left:0;right:0;bottom:0;overflow:hidden"><img id="shot" style="width:100%;display:block"></div>
+    </div>
+  </div>
+</div>
+<!-- E5: Abschluss -->
+<div class="s" id="e5"><div class="bg"></div>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+    <img src="logo.png" id="logo" style="height:120px;margin-bottom:30px;filter:brightness(1.15)">
+    <div class="big" style="font-size:64px" id="cta1">Starte jetzt <span class="grad">kostenlos</span> mit Modul 1</div>
+    <div class="sm" style="margin-top:18px" id="cta2">In 30 Minuten weißt du, welcher Prozess bei dir als Erstes automatisch läuft.</div>
+    <div id="cta3" style="margin-top:34px;display:flex;gap:16px">
+      <div style="padding:16px 26px;border-radius:40px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6);font-size:26px">Fördercheck in 2 Minuten</div>
+      <div style="padding:16px 26px;border-radius:40px;border:1.5px solid rgba(185,168,255,.6);font-size:26px">momentum-ki-akademie.de</div>
+    </div>
+    <div class="sm" style="margin-top:40px;font-size:22px;color:#B9A8FF" id="slogan">Was wir gemeinsam in Bewegung setzen, bleibt in Bewegung.</div>
+  </div>
+</div>
+<script>
+const P=new URLSearchParams(location.search), S=P.get('s');
+document.getElementById(S).style.display='block';
+const cl=(x)=>Math.max(0,Math.min(1,x)), ease=(x)=>1-Math.pow(1-cl(x),3);
+function fadeUp(el,t,t0,d=0.6){const p=ease((t-t0)/d);el.style.opacity=p;el.style.transform='translateY('+(30*(1-p))+'px)';}
+const de=(n)=>Math.round(n).toLocaleString('de-DE');
+const shots=(P.get('shots')||'').split(',').filter(Boolean);
+window.seek=function(t){
+ if(S==='e1'){
+  fadeUp(e1k,t,0.2);
+  document.querySelectorAll('#e1row .f').forEach((el,i)=>fadeUp(el,t,0.6+i*0.5));
+  fadeUp(e1a,t,2.6); sum.textContent=de(449280*ease((t-2.6)/2.2))+' €';
+  fadeUp(e1b,t,7.0); drittel.textContent=de(149760*ease((t-7.0)/1.8))+' €';
+ }
+ if(S==='e2'){fadeUp(e2t,t,0.2,0.8);document.querySelectorAll('#e2 .st').forEach((el,i)=>fadeUp(el,t,1.4+i*0.9));fadeUp(e2f,t,4.6);}
+ if(S==='e3'){document.querySelectorAll('#e3 .o').forEach((el,i)=>{fadeUp(el,t,0.4+i*1.6);});const k=document.querySelector('#e3 .k');fadeUp(k,t,0.1);}
+ if(S==='e4'){const n=shots.length||1, seg=10/n, i=Math.min(n-1,Math.floor(t/seg)), lt=t-i*seg;const img=document.getElementById('shot');if(img.dataset.i!=i){img.src=shots[i];img.dataset.i=i;}
+  img.style.transform='translateY('+(-Math.max(0,(img.naturalHeight*680/(img.naturalWidth||1))-566)*ease(lt/seg))+'px)';
+  const w=document.getElementById('shots');const p=ease(t/0.8);w.style.opacity=p;w.style.transform='translateX('+(60*(1-p))+'px)';}
+ if(S==='e5'){fadeUp(logo,t,0.2,0.9);fadeUp(cta1,t,1.0);fadeUp(cta2,t,1.8);fadeUp(cta3,t,2.6);fadeUp(slogan,t,3.6,1);}
+};
+window.seek(0);
+</script></body></html>
