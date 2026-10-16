@@ -180,6 +180,34 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .md .kasten{border-radius:10px;padding:10px 14px;margin:0 0 10px;border:1px solid rgba(20,18,58,.08)}.md .kasten .kt{font-weight:700;margin-bottom:4px}.md .kasten p:last-child,.md .kasten ul:last-child{margin-bottom:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
+.vs{display:grid;grid-template-columns:64px 1fr;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
+.vs:first-child{border-top:0}
+.vote{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;padding:8px 4px;font:inherit;color:var(--ink);height:64px}
+.vote b{font-size:18px;line-height:1}.vote span{font-size:11px;color:var(--mut)}
+.vote.on{border-color:var(--acc);background:#F4F1FD;color:var(--acc)}.vote.on span{color:var(--acc)}
+.vs .t{font-weight:700;cursor:pointer}.vs .t:hover{color:var(--acc)}
+.vs .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--mut);margin-top:4px}
+.vs .antw{background:#F4F1FD;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:14px}
+.chip.vs-neu{background:#EEF2FF;color:#4338CA}.chip.vs-geplant{background:#FEF3C7;color:#92400E}.chip.vs-in-Arbeit{background:#E0F2FE;color:#075985}.chip.vs-umgesetzt{background:#DCFCE7;color:#166534}.chip.vs-abgelehnt{background:#F3F4F6;color:#6B7280}
+#kiBtn{position:fixed;right:20px;bottom:20px;z-index:60;border:0;border-radius:999px;background:var(--acc);color:#fff;font:600 15px system-ui,sans-serif;padding:13px 18px;box-shadow:0 10px 30px rgba(123,63,228,.35);cursor:pointer;display:flex;align-items:center;gap:8px}
+#kiBtn[hidden]{display:none}
+#kiBox{position:fixed;right:20px;bottom:20px;z-index:61;width:400px;max-width:calc(100vw - 32px);height:min(600px,calc(100vh - 40px));background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 60px rgba(20,18,58,.25);display:flex;flex-direction:column;overflow:hidden}
+#kiBox[hidden]{display:none}
+#kiBox .kh{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#F4F1FD,#EEF4FF)}
+#kiBox .kh b{flex:1}#kiBox .kh small{display:block;font-weight:400;color:var(--mut);font-size:12px}
+#kiBox .kx{border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:var(--mut);padding:4px 6px}
+#kiLog{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.km{max-width:88%;padding:9px 12px;border-radius:14px;font-size:14.5px;line-height:1.45;word-wrap:break-word}
+.km p{margin:0 0 6px}.km p:last-child{margin:0}.km ul,.km ol{margin:4px 0;padding-left:20px}
+.km.u{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap}
+.km.a{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}
+.km.f{align-self:flex-start;background:#FDECEA;color:#8A2A1C}
+.km.w{color:var(--mut);font-style:italic}
+.kvor{display:flex;flex-wrap:wrap;gap:6px}.kvor button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}.kvor button:hover{border-color:var(--acc);color:var(--acc)}
+#kiForm{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+#kiIn{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:9px 11px;font:inherit;font-size:14.5px;max-height:120px}
+#kiForm .btn{align-self:flex-end}
+@media(max-width:600px){#kiBox{right:8px;bottom:8px;width:calc(100vw - 16px);height:calc(100vh - 16px)}#kiBtn{right:12px;bottom:12px;padding:12px 14px}}
 .center{max-width:520px;margin:8vh auto;padding:0 16px}
 .loading{padding:60px 0;text-align:center;color:var(--mut)}
 @media(max-width:640px){
@@ -208,7 +236,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -334,15 +362,146 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
+    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, team: vTeam };
     if (!V[tab]) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
+    kiAufbauen();
     if (ziel) {
       const z = ziel; ziel = null;
       if (z.art === 'aufgabe') { const a = D.aufgaben.find(x => x.aufgabe_id === z.id); if (a) aufgabeDialog(a); else toast('Diese Aufgabe gibt es nicht mehr.'); }
       if (z.art === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === z.id); if (p) projektDialog(p); else toast('Dieses Projekt gibt es nicht mehr.'); }
     }
+  }
+
+
+  // ---------- Vorschläge (Änderungswünsche am Portal) ----------
+  const VSTATUS = ['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];
+  const VBEREICHE = ['Übersicht', 'Aufgaben', 'Projekte', 'Arbeitszeit', 'Notizen', 'Social Media', 'Kurs & Teilnehmer', 'Systeme', 'Webseite', 'Team', 'Assistent', 'Sonstiges'];
+  let vFilter = ls.get('mt-vfilter') || 'offen';
+  const vChip = st => '<span class="chip vs-' + esc(String(st).replace(/\s/g, '-')) + '">' + esc(st) + '</span>';
+  function vVorschlaege() {
+    const ich = D.ich.mitglied_id, admin = istAdmin();
+    const alleV = (D.vorschlaege || []).slice();
+    const offen = v => ['neu', 'geplant', 'in Arbeit'].includes(v.status);
+    const L = alleV.filter(v => vFilter === 'alle' ? true : vFilter === 'offen' ? offen(v) : v.status === vFilter)
+      .sort((a, b) => (b.stimmen || []).length - (a.stimmen || []).length || String(b.erstellt).localeCompare(String(a.erstellt)));
+    const n = st => alleV.filter(v => v.status === st).length;
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Timo entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
+      '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu'), 'neu') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
+      '<div class="card"><div class="tools"><div class="seg">' + [['offen', 'Offen'], ['alle', 'Alle'], ['umgesetzt', 'Umgesetzt'], ['abgelehnt', 'Abgelehnt']].map(([k, l]) => '<button data-vf="' + k + '" class="' + (vFilter === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div></div>' +
+      (L.length ? L.map(v => {
+        const st = Array.isArray(v.stimmen) ? v.stimmen : [], meine = st.includes(ich);
+        const a = v.aufgabe_id ? (D.aufgaben || []).find(x => x.aufgabe_id === v.aufgabe_id) : null;
+        return '<div class="vs"><button class="vote' + (meine ? ' on' : '') + '" data-vote="' + esc(v.vorschlag_id) + '" title="' + (meine ? 'Stimme zurücknehmen' : 'Finde ich gut') + '"><b>' + st.length + '</b><span>' + (meine ? '✓ dabei' : '👍 gut') + '</span></button>' +
+          '<div style="min-width:0"><div class="t" data-v="' + esc(v.vorschlag_id) + '">' + esc(v.titel) + '</div>' +
+          (v.text ? '<div class="small md" style="margin-top:4px">' + md(String(v.text).slice(0, 600)) + '</div>' : '') +
+          '<div class="meta">' + vChip(v.status) + '<span class="chip">' + esc(v.bereich || 'Sonstiges') + '</span>' + av(v.autor) + '<span>' + esc(mitglied(v.autor).name) + ' · ' + fmtD(String(v.erstellt || '').slice(0, 10)) + '</span>' +
+          (st.length ? '<span title="' + esc(st.map(id => mitglied(id).name).join(', ')) + '">· gut finden: ' + esc(st.map(id => mitglied(id).name).join(', ')) + '</span>' : '') +
+          (a ? '<a href="#/aufgabe/' + esc(a.aufgabe_id) + '" class="chip" style="text-decoration:none">✓ Aufgabe: ' + esc(a.titel) + ' (' + esc(a.status) + ')</a>' : '') + '</div>' +
+          (v.antwort ? '<div class="antw"><b>' + esc(mitglied(v.antwort_von || 'm_timo').name) + ':</b> ' + esc(v.antwort) + '</div>' : '') + '</div></div>';
+      }).join('') : '<p class="empty">' + (vFilter === 'offen' ? 'Keine offenen Vorschläge. Hast du eine Idee? Oben auf „+ Vorschlag“.' : 'Nichts in dieser Ansicht.') + '</p>') + '</div>';
+    $('#neuv').onclick = () => vorschlagDialog(null);
+    document.querySelectorAll('[data-vf]').forEach(b => b.onclick = () => { vFilter = b.dataset.vf; ls.set('mt-vfilter', vFilter); vVorschlaege(); });
+    document.querySelectorAll('[data-v]').forEach(e => e.onclick = () => vorschlagDialog(alleV.find(v => v.vorschlag_id === e.dataset.v)));
+    document.querySelectorAll('[data-vote]').forEach(b => b.onclick = async () => {
+      const v = alleV.find(x => x.vorschlag_id === b.dataset.vote); if (!v) return;
+      b.disabled = true;
+      try {
+        await api('vorschlag_stimme', { vorschlag_id: v.vorschlag_id });
+        const st = Array.isArray(v.stimmen) ? v.stimmen : (v.stimmen = []);
+        const i = st.indexOf(ich); if (i >= 0) st.splice(i, 1); else st.push(ich);
+        vVorschlaege(); laden(true);
+      } catch (e) { toast(e.message); b.disabled = false; }
+    });
+  }
+  function vorschlagDialog(v) {
+    const neu = !v, admin = istAdmin();
+    v = v || { titel: '', text: '', bereich: 'Sonstiges', status: 'neu', autor: D.ich.mitglied_id, antwort: '' };
+    const eigen = v.autor === D.ich.mitglied_id;
+    const darf = neu || admin || (eigen && v.status === 'neu');
+    const ro = darf ? '' : ' disabled';
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Vorschlag' : darf ? 'Vorschlag bearbeiten' : 'Vorschlag') + '</h2><form id="vf">' +
+      '<div class="f"><label for="v_t">Was soll sich ändern? (kurzer Titel)</label><input id="v_t" required maxlength="160" value="' + esc(v.titel) + '" placeholder="z. B. Aufgaben nach Deadline sortieren"' + ro + '></div>' +
+      '<div class="f"><label for="v_x">Beschreibung (warum, wie soll es aussehen?)</label><textarea id="v_x" rows="6" maxlength="8000"' + ro + '>' + esc(v.text) + '</textarea></div>' +
+      '<div class="f2"><div class="f"><label for="v_b">Bereich</label><select id="v_b"' + ro + '>' + opt(VBEREICHE, v.bereich) + '</select></div>' +
+      (admin ? '<div class="f"><label for="v_s">Status</label><select id="v_s">' + opt(VSTATUS, v.status) + '</select></div>' : (!neu ? '<div class="f"><label>Status</label><div style="padding:8px 0">' + vChip(v.status) + '</div></div>' : '')) + '</div>' +
+      (admin && !neu ? '<div class="f"><label for="v_a">Antwort an das Team</label><textarea id="v_a" rows="3" maxlength="4000" placeholder="z. B. Gute Idee, kommt nächste Woche.">' + esc(v.antwort || '') + '</textarea></div>' : (!neu && v.antwort ? '<div class="antw" style="background:#F4F1FD;border-radius:10px;padding:8px 12px;margin-bottom:10px"><b>' + esc(mitglied(v.antwort_von || 'm_timo').name) + ':</b> ' + esc(v.antwort) + '</div>' : '')) +
+      (!neu ? '<p class="small muted">Von ' + esc(mitglied(v.autor).name) + ' am ' + fmtD(String(v.erstellt || '').slice(0, 10)) + (darf || admin ? '' : ' · Ändern kann der Verfasser, solange der Vorschlag neu ist, oder Timo.') + '</p>' : '<p class="small muted">Du unterstützt deinen eigenen Vorschlag automatisch. Die anderen sehen ihn sofort.</p>') +
+      '<div class="dlgbtns">' + (!neu && (admin || (eigen && v.status === 'neu')) ? '<button type="button" class="btn danger left" id="v_del">Löschen</button>' : '') +
+      (admin && !neu && !v.aufgabe_id ? '<button type="button" class="btn sec" id="v_auf">Als Aufgabe anlegen</button>' : '') +
+      '<button type="button" class="btn sec" id="v_c">' + (darf ? 'Abbrechen' : 'Schließen') + '</button>' + (darf ? '<button class="btn" type="submit">Speichern</button>' : '') + '</div></form>';
+    const dlg = openDlg(false);
+    $('#v_c').onclick = () => dlg.close();
+    const del = $('#v_del'); if (del) del.onclick = async () => {
+      if (!del.dataset.sicher) { del.dataset.sicher = '1'; del.textContent = 'Wirklich löschen?'; return; }
+      try { await api('vorschlag_loeschen', { vorschlag_id: v.vorschlag_id }); D.vorschlaege = (D.vorschlaege || []).filter(x => x.vorschlag_id !== v.vorschlag_id); dlg.close(); toast('Gelöscht'); render(); laden(true); } catch (e) { toast(e.message); }
+    };
+    const auf = $('#v_auf'); if (auf) auf.onclick = async () => {
+      auf.disabled = true;
+      try {
+        const titel = 'Portal: ' + $('#v_t').value;
+        const beschreibung = ($('#v_x').value || '') + '\n\nAus dem Vorschlag von ' + mitglied(v.autor).name + ' (Bereich ' + $('#v_b').value + ').';
+        const projekt = projektNamen().includes('Team-Portal') ? 'Team-Portal' : (projektNamen()[0] || '');
+        const r = await api('aufgabe_speichern', { titel, beschreibung, verantwortlich: D.ich.mitglied_id, deadline: '', prio: 2, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
+        await api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value, status: 'geplant', antwort: $('#v_a') ? $('#v_a').value : (v.antwort || ''), aufgabe_id: r.id || '' });
+        dlg.close(); toast('Aufgabe angelegt und Vorschlag auf „geplant“ gesetzt'); await laden(true);
+      } catch (e) { toast(e.message); auf.disabled = false; }
+    };
+    $('#vf').onsubmit = async ev => {
+      ev.preventDefault(); if (!darf) return;
+      const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const daten = { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value };
+      if (admin) { daten.status = $('#v_s').value; if ($('#v_a')) daten.antwort = $('#v_a').value; }
+      try { await api('vorschlag_speichern', daten); dlg.close(); toast(neu ? 'Danke! Vorschlag gespeichert.' : 'Gespeichert'); if (neu) vFilter = 'offen'; await laden(true); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Assistent (Chat unten rechts) ----------
+  const KI_API = API.replace('team-api-v2', 'team-assistent');
+  let kiVerlauf = [];
+  try { kiVerlauf = JSON.parse(sessionStorage.getItem('mt-ki') || '[]'); if (!Array.isArray(kiVerlauf)) kiVerlauf = []; } catch (e) { kiVerlauf = []; }
+  let kiLaeuft = false;
+  const kiMerken = () => { try { sessionStorage.setItem('mt-ki', JSON.stringify(kiVerlauf.slice(-30))); } catch (e) {} };
+  const KI_BEISPIELE = ['Wie reiche ich meine Woche zur Freigabe ein?', 'Wie viele Überstunden habe ich?', 'Was sind meine offenen Aufgaben?', 'Was macht Momentum genau?', 'Wie lege ich ein neues Projekt an?'];
+  function kiAufbauen() {
+    if (!D || D.setup || !D.ich || D.ich.rolle === 'agent' || $('#kiBtn')) return;
+    const btn = document.createElement('button'); btn.id = 'kiBtn'; btn.type = 'button'; btn.innerHTML = '<span aria-hidden="true">💬</span> Fragen?'; btn.setAttribute('aria-label', 'Assistent öffnen');
+    const box = document.createElement('section'); box.id = 'kiBox'; box.hidden = true; box.setAttribute('aria-label', 'Assistent');
+    box.innerHTML = '<div class="kh"><span class="av ki">🤖</span><b>Momentum-Assistent<small>Fragen zur Firma und zum Portal</small></b><button class="kx" type="button" id="kiNeu" title="Neues Gespräch" style="font-size:14px">Neu</button><button class="kx" type="button" id="kiZu" aria-label="Schließen">×</button></div>' +
+      '<div id="kiLog" aria-live="polite"></div><form id="kiForm"><textarea id="kiIn" rows="1" maxlength="2000" placeholder="Frag mich etwas …" aria-label="Deine Frage"></textarea><button class="btn" type="submit">Senden</button></form>';
+    document.body.appendChild(btn); document.body.appendChild(box);
+    btn.onclick = () => { box.hidden = false; btn.hidden = true; kiZeigen(); setTimeout(() => $('#kiIn').focus(), 50); };
+    $('#kiZu').onclick = () => { box.hidden = true; btn.hidden = false; };
+    $('#kiNeu').onclick = () => { kiVerlauf = []; kiMerken(); kiZeigen(); };
+    const inp = $('#kiIn');
+    inp.addEventListener('input', () => { inp.style.height = 'auto'; inp.style.height = Math.min(120, inp.scrollHeight) + 'px'; });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#kiForm').requestSubmit(); } });
+    $('#kiForm').onsubmit = e => { e.preventDefault(); kiFragen(inp.value); };
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !box.hidden && !$('#dlg').open) { box.hidden = true; btn.hidden = false; } });
+  }
+  function kiZeigen() {
+    const log = $('#kiLog'); if (!log) return;
+    let h = '<div class="km a">Hallo ' + esc(D.ich.name) + '! Ich beantworte Fragen zu Momentum und zum Team-Portal, zum Beispiel wie etwas funktioniert oder was gerade ansteht. Ändern kann ich nichts.</div>';
+    if (!kiVerlauf.length) h += '<div class="kvor">' + KI_BEISPIELE.map(q => '<button type="button" data-kq="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>';
+    h += kiVerlauf.map(m => m.rolle === 'user' ? '<div class="km u">' + esc(m.text) + '</div>' : m.rolle === 'fehler' ? '<div class="km f">' + esc(m.text) + '</div>' : '<div class="km a md">' + md(m.text) + '</div>').join('');
+    if (kiLaeuft) h += '<div class="km a w">denkt nach …</div>';
+    log.innerHTML = h; log.scrollTop = log.scrollHeight;
+    log.querySelectorAll('[data-kq]').forEach(b => b.onclick = () => kiFragen(b.dataset.kq));
+  }
+  async function kiFragen(text) {
+    text = String(text || '').trim(); if (text.length < 2 || kiLaeuft) return;
+    const verlauf = kiVerlauf.filter(m => m.rolle !== 'fehler').slice(-10);
+    kiVerlauf.push({ rolle: 'user', text }); kiLaeuft = true; $('#kiIn').value = ''; $('#kiIn').style.height = 'auto'; kiZeigen();
+    const sb = $('#kiForm .btn'); sb.disabled = true;
+    try {
+      const r = await fetch(KI_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, frage: text, verlauf }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || !j.ok) throw new Error((j && j.fehler) || 'Der Assistent ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.');
+      kiVerlauf.push({ rolle: 'assistant', text: String(j.text || '') });
+    } catch (e) { kiVerlauf.push({ rolle: 'fehler', text: e.message === 'Failed to fetch' ? 'Keine Verbindung zum Assistenten. Bitte versuch es gleich noch einmal.' : e.message }); }
+    kiLaeuft = false; kiMerken(); kiZeigen(); sb.disabled = false; $('#kiIn').focus();
   }
 
   // ---------- Übersicht ----------
