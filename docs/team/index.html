@@ -108,6 +108,25 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .zt{display:grid;grid-template-columns:96px 1fr auto;gap:10px;padding:10px 4px;border-top:1px solid var(--line);align-items:start}
 .zt:first-child{border-top:0}
 .zt.click{cursor:pointer}.zt.click:hover{background:#FAFAFE}
+.zk{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.zk + .who{margin-left:0}
+.zk button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:5px 11px;cursor:pointer;font:inherit;line-height:1.2;text-align:left}
+.zk button:hover{border-color:var(--acc)}
+.zk small{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.zk b{font-size:14px;color:var(--ink);white-space:nowrap}
+.zk b.plus{color:var(--green)}
+.zk .zbar{width:100%;min-width:90px;height:4px;background:var(--soft);border-radius:3px;overflow:hidden}
+.zk .zbar i{display:block;height:100%;background:var(--acc)}
+.zk .zbar i.voll{background:var(--green)}
+.mstat{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:4px 0 14px}
+.mstat div{background:var(--soft);border-radius:12px;padding:10px 12px}
+.mstat b{display:block;font-size:20px;line-height:1.2}
+.mstat span{font-size:12.5px;color:var(--mut)}
+.wkhead{display:flex;justify-content:space-between;align-items:center;margin:14px 0 2px;padding:6px 4px;border-bottom:2px solid var(--soft);font-size:13px;font-weight:700;color:var(--mut)}
+.neuproj{display:flex;gap:6px;margin-top:6px}
+.neuproj[hidden]{display:none}
+.neuproj input{flex:1}
+@media (max-width:640px){.hrow{flex-wrap:wrap}.zk{width:100%;order:3;margin-left:0}.zk + .who{margin-left:auto}.zk button{flex:1}}
 .zs-offen{background:#E9E7F7}.zs-eingereicht{background:#FFF1C7}.zs-freigegeben{background:#E2F3E8;color:var(--green)}.zs-abgelehnt{background:#FCE3DE;color:#B0321F}
 .weeknav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .weeknav b{min-width:190px;text-align:center}
@@ -215,6 +234,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // ---------- Adressen (jede Seite, Notiz, Aufgabe, jedes Projekt hat eine eigene URL) ----------
   let ziel = null;
   function leseHash() {
+    const mm = /^#\/monat\/(\d{4})-(\d{2})$/.exec(location.hash || '');
+    if (mm) { const j = heute(); tab = 'zeit'; zAns = 'monat'; zPerson = null; moOff = Math.min(0, (Number(mm[1]) - j.getFullYear()) * 12 + Number(mm[2]) - 1 - j.getMonth()); return; }
     const m = /^#\/(tab|notiz|aufgabe|projekt|agent)\/([\w-]+)$/.exec(location.hash || '');
     if (!m) return;
     agentAkte = null;
@@ -286,10 +307,11 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // ---------- Gerüst ----------
   function render() {
     const i = D.ich;
-    $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' +
+    $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' + zkKopf() +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
       '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
+    document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
     const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, team: vTeam };
     if (!V[tab]) tab = 'start';
@@ -396,7 +418,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f"><label for="a_d">Deadline</label><input id="a_d" type="date" value="' + esc(a.deadline) + '"></div>' +
       '<div class="f"><label for="a_p">Priorität</label><select id="a_p">' + opt([1, 2, 3], a.prio, v => 'Prio ' + v + (v === 1 ? ' (dringend)' : v === 3 ? ' (wenn Zeit ist)' : '')) + '</select></div>' +
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
-      '<div class="f"><label for="a_j">Projekt</label><select id="a_j">' + opt(projOpts(a.projekt), a.projekt) + '</select></div>' +
+      '<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
@@ -406,12 +428,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const dlg = openDlg(true); bindEditor('a_b');
     if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
     $('#a_x').onclick = () => dlg.close();
+    projNeu('a_j');
     if (darfLoeschen) $('#a_del').onclick = async () => {
       if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich löschen?'; return; }
       try { await api('aufgabe_loeschen', { aufgabe_id: a.aufgabe_id }); dlg.close(); toast('Aufgabe gelöscht'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#af').onsubmit = async ev => {
       ev.preventDefault();
+      if (projOffen('a_j')) return;
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
         prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
@@ -804,30 +828,83 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const darfLoeschen = !neu && (istAdmin() || n.autor === D.ich.mitglied_id);
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Notiz' : 'Notiz bearbeiten') + '</h2><form id="nf">' +
       '<div class="f2"><div class="f"><label for="n_t">Titel</label><input id="n_t" required maxlength="160" value="' + esc(n.titel) + '"></div>' +
-      '<div class="f"><label for="n_j">Projekt (optional)</label><select id="n_j"><option value="">– kein Projekt –</option>' + opt(projektNamen(), n.projekt) + '</select></div></div>' +
+      '<div class="f"><label for="n_j">Projekt (optional)</label>' + projSelect('n_j', n.projekt, '– kein Projekt –') + '</div></div>' +
       editorHtml('n_i', n.inhalt, 'Inhalt', { rows: 18, max: 50000 }) +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="n_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="n_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('n_i');
     $('#n_c').onclick = () => dlg.close();
+    projNeu('n_j');
     if (darfLoeschen) $('#n_del').onclick = async () => {
       if (!$('#n_del').dataset.sicher) { $('#n_del').dataset.sicher = '1'; $('#n_del').textContent = 'Wirklich löschen?'; return; }
       try { await api('notiz_loeschen', { notiz_id: n.notiz_id }); dlg.close(); offeneNotiz = null; toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#nf').onsubmit = async ev => {
-      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      ev.preventDefault(); if (projOffen('n_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       try { const r = await api('notiz_speichern', { notiz_id: n.notiz_id, titel: $('#n_t').value, inhalt: $('#n_i').value, projekt: $('#n_j').value }); offeneNotiz = r.id; dlg.close(); toast('Gespeichert'); await laden(true); }
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
 
   // ---------- Arbeitszeit ----------
-  let wkOff = 0;
+  let wkOff = 0, moOff = 0, zPerson = null;
+  let zAns = ls.get('mt-zans') === 'monat' ? 'monat' : 'woche';
   const isoWoche = ds => { const t = new Date(ds + 'T12:00:00Z'); const wd = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - wd + 3); const j = t.getUTCFullYear(); const e = new Date(Date.UTC(j, 0, 4)); const w = 1 + Math.round(((t - e) / 864e5 - 3 + ((e.getUTCDay() + 6) % 7)) / 7); return j + '-W' + String(w).padStart(2, '0'); };
   const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const montag = off => { const d = heute(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + off * 7); return d; };
-  const std = min => (Math.round((Number(min) || 0) / 6) / 10).toLocaleString('de-DE') + ' Std';
+  const stdZ = min => (Math.round((Number(min) || 0) / 6) / 10).toLocaleString('de-DE');
+  const std = min => stdZ(min) + ' Std';
+  const stdPM = min => (min > 0 ? '+' : '') + std(min);
+  const minSumme = arr => arr.reduce((s, z) => s + (Number(z.minuten) || 0), 0);
+  const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const monatName = ym => MONATE[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
+  const ymJetzt = () => ymd(heute()).slice(0, 7);
+  const ymPlus = (ym, n) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
   const ZST = { offen: 'nicht eingereicht', eingereicht: 'wartet auf Freigabe', freigegeben: 'freigegeben', abgelehnt: 'zurückgegeben' };
   const zChip = st => '<span class="chip zs-' + esc(st) + '">' + esc(ZST[st] || st) + '</span>';
+  const hatVertrag = p => Number(p && p.vertrag_std) > 0;
+
+  // Überstundenkonto (gleiche Rechnung wie im Monatsende-Workflow):
+  // Alles vor „abrechnung_ab“ + Startguthaben geht aufs Konto. Danach wird je Monat das Vertragssoll ausgezahlt,
+  // soweit neu gearbeitete Stunden und Guthaben reichen. Mehr gearbeitet = Konto wächst, weniger = Konto sinkt.
+  function zeitkontoRechnen(m, Z, R, bisYm) {
+    const ymNext = ym => { let [y, mm] = ym.split('-').map(Number); mm++; if (mm > 12) { mm = 1; y++; } return y + '-' + String(mm).padStart(2, '0'); };
+    const sum = arr => arr.reduce((s, z) => s + (Number(z.minuten) || 0), 0);
+    const soll = Math.round((Number(m.vertrag_std) || 0) * 60);
+    const ab = /^\d{4}-\d{2}-\d{2}$/.test(String(m.abrechnung_ab || '')) ? m.abrechnung_ab : '2026-10-05';
+    const meine = (Z || []).filter(z => z.mitglied_id === m.mitglied_id && /^\d{4}-\d{2}-\d{2}$/.test(String(z.datum || '')));
+    const vorher = sum(meine.filter(z => z.datum < ab));
+    const start = (Number(m.startguthaben_min) || 0) + vorher;
+    let konto = start;
+    const monate = [];
+    for (let ym = ab.slice(0, 7); ym <= bisYm; ym = ymNext(ym)) {
+      const E = meine.filter(z => z.datum >= ab && z.datum.slice(0, 7) === ym);
+      const W = sum(E);
+      const r = (R || []).find(x => x.mitglied_id === m.mitglied_id && x.monat === ym);
+      const vor = konto;
+      let aus, nach;
+      if (r) { aus = Number(r.ausgezahlt_min) || 0; nach = Number(r.konto_nachher_min) || 0; }
+      else { aus = soll ? Math.min(soll, W + vor) : W; nach = vor + W - aus; }
+      monate.push({ monat: ym, soll: r ? Number(r.soll_min) || soll : soll, gearbeitet: W, ausgezahlt: aus, konto_vorher: vor, konto_nachher: nach,
+        abgeschlossen: !!r, abschluss: r || null, eintraege: E.length, offen: E.filter(z => z.status !== 'freigegeben').length });
+      konto = nach;
+    }
+    return { soll, ab, start, vorher, monate };
+  }
+  // Stand heute: Monatszähler und Konto (Überstunden des laufenden Monats zählen sofort mit, ein Minus erst am Monatsende)
+  function kontoStand(mid) {
+    const p = mitglied(mid), ym = ymJetzt();
+    const r = zeitkontoRechnen(p, D.zeiten, D.abrechnung, ym);
+    const akt = r.monate.find(x => x.monat === ym) || { gearbeitet: 0, konto_vorher: r.start };
+    return { r, akt, konto: akt.konto_vorher + Math.max(0, akt.gearbeitet - r.soll) };
+  }
+  function zkKopf() {
+    if (!D || !D.ich || D.ich.rolle === 'agent') return '';
+    const p = mitglied(D.ich.mitglied_id); if (!hatVertrag(p)) return '';
+    const k = kontoStand(p.mitglied_id), s = k.r.soll, w = k.akt.gearbeitet;
+    return '<div class="zk"><button type="button" data-zk title="Meine Stunden in diesem Monat"><small>' + MONATE[heute().getMonth()] + '</small><b>' + stdZ(w) + ' von ' + stdZ(s) + ' Std</b><span class="zbar"><i class="' + (w >= s ? 'voll' : '') + '" style="width:' + Math.min(100, Math.round(w / s * 100)) + '%"></i></span></button>' +
+      '<button type="button" data-zk title="Noch nicht abgerechnetes Stundenguthaben"><small>Überstundenkonto</small><b class="' + (k.konto > 0 ? 'plus' : '') + '">' + stdPM(k.konto) + '</b></button></div>';
+  }
+
   function zeitRow(z, mitName) {
     const a = z.aufgabe_id ? D.aufgaben.find(x => x.aufgabe_id === z.aufgabe_id) : null;
     const darf = istAdmin() || (z.mitglied_id === D.ich.mitglied_id && z.status !== 'freigegeben');
@@ -836,27 +913,56 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div>' + (mitName ? '<b>' + esc(mitglied(z.mitglied_id).name) + ':</b> ' : '') + esc(z.taetigkeit) + '<div class="meta">' + (a ? '<span class="chip">✓ ' + esc(a.titel) + '</span>' : '') + '<span>' + esc(z.projekt) + '</span>' + zChip(z.status) + (z.kommentar ? '<span>„' + esc(z.kommentar) + '“</span>' : '') + '</div></div>' +
       '<div style="font-weight:700;white-space:nowrap">' + std(z.minuten) + '</div></div>';
   }
+  // Vertrag und Konto als Kopfkarte (eigene Person)
+  function vertragKarte() {
+    if (D.ich.rolle === 'agent') return '';
+    const p = mitglied(D.ich.mitglied_id);
+    if (!hatVertrag(p)) return '<div class="note" style="margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>Trag ein, wie viele Stunden pro Monat in deinem Arbeitsvertrag stehen. Dann siehst du oben deinen Monatsstand und dein Überstundenkonto.</span><button class="btn" data-vertrag="' + esc(p.mitglied_id) + '">Vertrag eintragen</button></div>';
+    const k = kontoStand(p.mitglied_id);
+    return '<div class="mstat"><div><b>' + stdZ(k.akt.gearbeitet) + ' von ' + stdZ(k.r.soll) + ' Std</b><span>' + MONATE[heute().getMonth()] + ' (zählt jeden Monat neu)</span></div>' +
+      '<div><b style="color:' + (k.konto > 0 ? 'var(--green)' : 'var(--ink)') + '">' + stdPM(k.konto) + '</b><span>Überstundenkonto (noch nicht abgerechnet)</span></div>' +
+      '<div><b>' + stdZ(k.r.soll) + ' Std</b><span>pro Monat laut Vertrag · <a href="#" data-vertrag="' + esc(p.mitglied_id) + '">ändern</a></span></div></div>';
+  }
+
   function vZeit() {
+    const kopf = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Arbeitszeit</h1><p class="sub">Zeiten eintragen, nach Wochen oder Monaten ansehen und zur Freigabe an Timo schicken.</p></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="seg"><button data-zans="woche" class="' + (zAns === 'woche' ? 'on' : '') + '">Woche</button><button data-zans="monat" class="' + (zAns === 'monat' ? 'on' : '') + '">Monat</button></div><button class="btn" id="neuz">+ Zeit eintragen</button></div></div>' + (zAns === 'woche' || !hatVertrag(mitglied(D.ich.mitglied_id)) ? vertragKarte() : '');
+    if (zAns === 'monat') vMonat(kopf); else vWoche(kopf);
+    $('#neuz').onclick = () => zeitDialog(null);
+    document.querySelectorAll('[data-zans]').forEach(b => b.onclick = () => { zAns = b.dataset.zans; ls.set('mt-zans', zAns); vZeit(); });
+    document.querySelectorAll('[data-z]').forEach(e => e.onclick = () => zeitDialog((D.zeiten || []).find(z => z.zeit_id === e.dataset.z)));
+    document.querySelectorAll('[data-vertrag]').forEach(e => e.onclick = ev => { ev.preventDefault(); vertragDialog(e.dataset.vertrag); });
+  }
+
+  function vWoche(kopf) {
     const Z = D.zeiten || [];
     const mo = montag(wkOff), so = new Date(mo); so.setDate(so.getDate() + 6);
     const kw = isoWoche(ymd(mo));
     const meine = Z.filter(z => z.mitglied_id === D.ich.mitglied_id && z.kw === kw).sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von));
-    const summe = meine.reduce((s, z) => s + (Number(z.minuten) || 0), 0);
+    const summe = minSumme(meine);
     const einreichbar = meine.filter(z => z.status === 'offen' || z.status === 'abgelehnt');
     const zurueck = meine.filter(z => z.status === 'abgelehnt');
-    let html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Arbeitszeit</h1><p class="sub">Zeiten eintragen, erledigte Aufgaben abhaken und die Woche zur Freigabe an Timo schicken.</p></div><button class="btn" id="neuz">+ Zeit eintragen</button></div>' +
+    let html = kopf +
       '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px"><div class="weeknav"><button class="btn sec" id="wkp" aria-label="Vorige Woche">‹</button><b>KW ' + kw.slice(-2) + ' · ' + fmtD(ymd(mo)).slice(0, 6) + ' – ' + fmtD(ymd(so)) + '</b><button class="btn sec" id="wkn" aria-label="Nächste Woche"' + (wkOff >= 0 ? ' disabled' : '') + '>›</button>' + (wkOff ? '<button class="btn ghost" id="wkh">Diese Woche</button>' : '') + '</div>' +
       '<div style="text-align:right"><div class="sum">' + std(summe) + '</div><div class="small muted">in dieser Woche</div></div></div>' +
       (zurueck.length ? '<div class="note warn" style="margin-bottom:10px">Timo hat ' + zurueck.length + ' Eintrag/Einträge zurückgegeben. Bitte prüfen, korrigieren und die Woche erneut einreichen.</div>' : '') +
       (meine.length ? meine.map(z => zeitRow(z)).join('') : '<p class="empty">Noch keine Zeiten in dieser Woche.</p>') +
-      (einreichbar.length ? '<div class="dlgbtns" style="margin-top:12px"><button class="btn" id="einreichen">Woche zur Freigabe einreichen (' + std(einreichbar.reduce((s, z) => s + (Number(z.minuten) || 0), 0)) + ')</button></div>' :
+      (einreichbar.length ? '<div class="dlgbtns" style="margin-top:12px"><button class="btn" id="einreichen">Woche zur Freigabe einreichen (' + std(minSumme(einreichbar)) + ')</button></div>' :
         meine.length ? '<p class="small muted" style="margin-top:10px">' + (meine.every(z => z.status === 'freigegeben') ? 'Diese Woche ist freigegeben.' : 'Eingereicht. Timo bekommt freitags eine Erinnerung zur Freigabe.') + '</p>' : '') + '</div>';
+    // Meine letzten Wochen als Übersicht, nach Wochen geordnet
+    const wochen = {}; Z.filter(z => z.mitglied_id === D.ich.mitglied_id).forEach(z => { (wochen[z.kw] = wochen[z.kw] || []).push(z); });
+    const wl = Object.keys(wochen).sort().reverse().slice(0, 10);
+    if (wl.length) html += '<div class="card"><h2>Meine Wochen</h2><table><tr><th>Woche</th><th>Stunden</th><th>Status</th></tr>' + wl.map(w => {
+      const arr = wochen[w]; const st = arr.every(z => z.status === 'freigegeben') ? 'freigegeben' : arr.some(z => z.status === 'abgelehnt') ? 'abgelehnt' : arr.some(z => z.status === 'eingereicht') ? 'eingereicht' : 'offen';
+      const off = Math.round((dDate(arr.map(z => z.datum).sort()[0]) - montag(0)) / 6048e5);
+      return '<tr class="click" data-wk="' + off + '" style="cursor:pointer"><td>KW ' + esc(w.slice(-2)) + ' · ' + esc(w.slice(0, 4)) + '</td><td><b>' + std(minSumme(arr)) + '</b></td><td>' + zChip(st) + '</td></tr>';
+    }).join('') + '</table></div>';
     if (istAdmin()) {
       const offen = Z.filter(z => z.status === 'eingereicht');
       const g = {}; offen.forEach(z => { const k = z.mitglied_id + '|' + z.kw; (g[k] = g[k] || []).push(z); });
       html += '<div class="card"><h2>Zur Freigabe</h2>' + (Object.keys(g).length ? Object.entries(g).sort().map(([k, arr]) => {
         const [mid, w] = k.split('|');
-        return '<div style="border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div>' + av(mid) + ' <b>' + esc(mitglied(mid).name) + '</b> · KW ' + esc(w.slice(-2)) + ' · <b>' + std(arr.reduce((s, z) => s + (Number(z.minuten) || 0), 0)) + '</b></div>' +
+        return '<div style="border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div>' + av(mid) + ' <b>' + esc(mitglied(mid).name) + '</b> · KW ' + esc(w.slice(-2)) + ' · <b>' + std(minSumme(arr)) + '</b></div>' +
           '<div style="display:flex;gap:6px"><button class="btn danger" data-zp="' + esc(k) + '" data-e="abgelehnt">Zurückgeben</button><button class="btn" data-zp="' + esc(k) + '" data-e="freigegeben">Freigeben</button></div></div>' +
           arr.sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von)).map(z => zeitRow(z)).join('') + '</div>';
       }).join('') : '<p class="empty">Nichts offen. Alles freigegeben.</p>') + '</div>';
@@ -866,17 +972,194 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         '<details style="margin-top:10px"><summary>Alle Einträge ansehen</summary>' + alleWoche.sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von)).map(z => zeitRow(z, true)).join('') + '</details>' : '<p class="empty">Keine Einträge vom Team in dieser Woche.</p>') + '</div>';
     }
     $('#main').innerHTML = html;
-    $('#neuz').onclick = () => zeitDialog(null);
     $('#wkp').onclick = () => { wkOff--; vZeit(); };
     $('#wkn').onclick = () => { if (wkOff < 0) { wkOff++; vZeit(); } };
     const h = $('#wkh'); if (h) h.onclick = () => { wkOff = 0; vZeit(); };
-    document.querySelectorAll('[data-z]').forEach(e => e.onclick = () => zeitDialog(Z.find(z => z.zeit_id === e.dataset.z)));
+    document.querySelectorAll('[data-wk]').forEach(r => r.onclick = () => { wkOff = Math.min(0, Number(r.dataset.wk) || 0); vZeit(); window.scrollTo(0, 0); });
     const ein = $('#einreichen'); if (ein) ein.onclick = async () => {
       ein.disabled = true;
-      try { await api('woche_einreichen', { kw }); toast('Eingereicht. Timo wird freitags erinnert.'); await laden(true); } catch (e) { toast(e.message); ein.disabled = false; }
+      try {
+        await api('woche_einreichen', { kw });
+        (D.zeiten || []).forEach(z => { if (z.mitglied_id === D.ich.mitglied_id && z.kw === kw && (z.status === 'offen' || z.status === 'abgelehnt')) z.status = 'eingereicht'; });
+        toast('Eingereicht. Timo wird freitags erinnert.'); render(); laden(true);
+      } catch (e) { toast(e.message); ein.disabled = false; }
     };
     document.querySelectorAll('[data-zp]').forEach(b => b.onclick = () => freigabeDialog(b.dataset.zp, b.dataset.e));
   }
+
+  // Monatsübersicht und Monatsnachweis
+  function vMonat(kopf) {
+    const admin = istAdmin();
+    if (!zPerson || !admin) zPerson = D.ich.mitglied_id;
+    const p = mitglied(zPerson);
+    const ym = ymPlus(ymJetzt(), moOff), laufend = moOff === 0;
+    const E = (D.zeiten || []).filter(z => z.mitglied_id === zPerson && String(z.datum).slice(0, 7) === ym).sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von));
+    const W = minSumme(E);
+    const rr = zeitkontoRechnen(p, D.zeiten, D.abrechnung, ym);
+    const mo = rr.monate.find(x => x.monat === ym);
+    const vorAb = E.filter(z => z.datum < rr.ab);
+    const wochen = []; E.forEach(z => { let w = wochen.find(x => x.kw === z.kw); if (!w) wochen.push(w = { kw: z.kw, E: [] }); w.E.push(z); });
+    const menschen = (D.mitglieder || []).filter(m => m.typ !== 'agent' && m.status !== 'gesperrt');
+    let html = kopf + '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px"><div class="weeknav"><button class="btn sec" id="mop" aria-label="Voriger Monat">‹</button><b>' + monatName(ym) + '</b><button class="btn sec" id="mon" aria-label="Nächster Monat"' + (moOff >= 0 ? ' disabled' : '') + '>›</button>' + (moOff ? '<button class="btn ghost" id="moh">Dieser Monat</button>' : '') + '</div>' +
+      (admin ? '<select id="zpers" aria-label="Person" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px">' + menschen.map(m => '<option value="' + esc(m.mitglied_id) + '"' + (m.mitglied_id === zPerson ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</select>' : '') + '</div>';
+    if (hatVertrag(p) && mo) {
+      const diff = mo.gearbeitet - mo.ausgezahlt;
+      html += '<div class="mstat"><div><b>' + stdZ(mo.gearbeitet) + ' von ' + stdZ(mo.soll) + ' Std</b><span>gearbeitet' + (vorAb.length ? ' ab ' + fmtD(rr.ab) + ' · dazu ' + std(minSumme(vorAb)) + ' davor, die schon aufs Konto zählen' : '') + '</span></div>' +
+        '<div><b>' + std(mo.ausgezahlt) + '</b><span>' + (mo.abgeschlossen ? 'ausgezahlt' : laufend ? 'Auszahlung, Stand heute' : 'auszuzahlen') + '</span></div>' +
+        '<div><b>' + stdPM(diff) + '</b><span>' + (diff >= 0 ? 'aufs Überstundenkonto' : 'vom Überstundenkonto') + '</span></div>' +
+        '<div><b>' + stdPM(mo.konto_vorher) + ' → ' + stdPM(mo.konto_nachher) + '</b><span>Überstundenkonto Monatsanfang → Monatsende</span></div></div>' +
+        (mo.gearbeitet + mo.konto_vorher < mo.soll && !laufend ? '<div class="note warn" style="margin-bottom:10px">Gearbeitete Stunden und Guthaben reichen nicht für ' + std(mo.soll) + '. Ausgezahlt werden ' + std(mo.ausgezahlt) + '.</div>' : '');
+    } else if (hatVertrag(p) && !mo) {
+      html += '<div class="mstat"><div><b>' + std(W) + '</b><span>gearbeitet · vor Abrechnungsbeginn (' + fmtD(rr.ab) + '), geht komplett aufs Überstundenkonto</span></div></div>';
+    } else {
+      html += '<div class="mstat"><div><b>' + std(W) + '</b><span>gearbeitet in ' + monatName(ym) + '</span></div></div>' + (p.mitglied_id === D.ich.mitglied_id || admin ? '' : '');
+    }
+    const offen = E.filter(z => z.status !== 'freigegeben').length;
+    html += (mo && mo.abgeschlossen ? '<div class="note" style="margin-bottom:10px">Monat abgeschlossen am ' + fmtD(String(mo.abschluss.erstellt || '').slice(0, 10)) + '. Der Monatsnachweis ist fertig für das Lohnbüro.</div>' :
+      offen && !laufend ? '<div class="note warn" style="margin-bottom:10px">' + offen + ' Eintrag/Einträge noch nicht von Timo freigegeben. Der Monatsnachweis ist bis dahin vorläufig.</div>' : '') +
+      '<div class="dlgbtns" style="justify-content:flex-start;margin:0 0 6px"><button class="btn sec" id="mpdf">Monatsnachweis als PDF</button>' +
+      (admin && hatVertrag(p) && !laufend && mo && !mo.abgeschlossen ? '<button class="btn" id="mabs"' + (offen ? ' disabled title="Erst alle Einträge freigeben"' : '') + '>Monat abschließen</button>' : '') +
+      (admin && mo && mo.abgeschlossen ? '<button class="btn danger" id="mauf">Abschluss aufheben</button>' : '') + '</div>';
+    html += wochen.length ? wochen.map(w => '<div class="wkhead"><span>KW ' + esc(w.kw.slice(-2)) + '</span><span>' + std(minSumme(w.E)) + '</span></div>' + w.E.map(z => zeitRow(z)).join('')).join('') +
+      '<div class="wkhead" style="border-bottom:0;color:var(--ink);font-size:15px"><span>Summe ' + monatName(ym) + '</span><span>' + std(W) + '</span></div>' : '<p class="empty">Keine Einträge in diesem Monat.</p>';
+    html += '</div>';
+    $('#main').innerHTML = html;
+    $('#mop').onclick = () => { moOff--; vZeit(); };
+    $('#mon').onclick = () => { if (moOff < 0) { moOff++; vZeit(); } };
+    const h = $('#moh'); if (h) h.onclick = () => { moOff = 0; vZeit(); };
+    const sp = $('#zpers'); if (sp) sp.onchange = () => { zPerson = sp.value; vZeit(); };
+    $('#mpdf').onclick = async () => { const b = $('#mpdf'); b.disabled = true; try { await monatsPdf(zPerson, ym); } catch (e) { toast(e.message); } b.disabled = false; };
+    const ab = $('#mabs'); if (ab) ab.onclick = async () => {
+      ab.disabled = true;
+      try { await api('monat_abschliessen', { mitglied_id: zPerson, monat: ym }); toast('Monat abgeschlossen'); await laden(true); } catch (e) { toast(e.message); ab.disabled = false; }
+    };
+    const au = $('#mauf'); if (au) au.onclick = async () => {
+      if (!au.dataset.sicher) { au.dataset.sicher = '1'; au.textContent = 'Wirklich aufheben?'; return; }
+      try { await api('monat_aufheben', { mitglied_id: zPerson, monat: ym }); toast('Abschluss aufgehoben'); await laden(true); } catch (e) { toast(e.message); }
+    };
+  }
+
+  // PDF: Arbeitszeitnachweis für das Lohnbüro
+  let jspdfP = null;
+  const ladeJsPdf = () => jspdfP || (jspdfP = new Promise((ok, no) => {
+    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload = () => window.jspdf ? ok(window.jspdf.jsPDF) : no(new Error('PDF-Werkzeug fehlt.'));
+    s.onerror = () => { jspdfP = null; no(new Error('Das PDF-Werkzeug konnte nicht geladen werden. Bitte gleich noch einmal versuchen.')); };
+    document.head.appendChild(s);
+  }));
+  async function monatsPdf(mid, ym) {
+    const JsPDF = await ladeJsPdf();
+    const p = mitglied(mid);
+    const E = (D.zeiten || []).filter(z => z.mitglied_id === mid && String(z.datum).slice(0, 7) === ym).sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von));
+    const W = minSumme(E);
+    const rr = zeitkontoRechnen(p, D.zeiten, D.abrechnung, ym);
+    const mo = rr.monate.find(x => x.monat === ym);
+    const offen = E.filter(z => z.status !== 'freigegeben').length;
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    const L = 15, R = 195;
+    const kopf = () => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(110);
+      [[L, 'Datum'], [37, 'Beginn'], [51, 'Ende'], [64, 'Pause'], [78, 'Stunden'], [96, 'Tätigkeit / Projekt'], [R, 'Status']].forEach(([x, t]) => doc.text(t, x, y, x === R ? { align: 'right' } : undefined));
+      y += 2; doc.setDrawColor(200); doc.line(L, y, R, y); y += 5; doc.setFont('helvetica', 'normal'); doc.setTextColor(20);
+    };
+    let y = 18;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(20, 18, 58);
+    doc.text('Arbeitszeitnachweis ' + monatName(ym), L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(60);
+    doc.text('Momentum KI Akademie', L, y); doc.text('Erstellt am ' + fmtD(ymd(new Date())), R, y, { align: 'right' }); y += 5;
+    doc.text('Mitarbeiter/in: ' + p.name, L, y); if (hatVertrag(p)) doc.text('Vertrag: ' + std(Math.round(Number(p.vertrag_std) * 60)) + ' pro Monat', R, y, { align: 'right' }); y += 9;
+    kopf();
+    doc.setFontSize(9.5);
+    E.forEach(z => {
+      const t = doc.splitTextToSize(String(z.taetigkeit || '') + (z.projekt ? ' (' + z.projekt + ')' : ''), 76).slice(0, 3);
+      const hoehe = Math.max(1, t.length) * 4.3 + 2;
+      if (y + hoehe > 275) { doc.addPage(); y = 18; kopf(); doc.setFontSize(9.5); }
+      const d = dDate(z.datum);
+      doc.text(d ? d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '', L, y);
+      doc.text(String(z.von || ''), 37, y); doc.text(String(z.bis || ''), 51, y); doc.text(z.pause_min ? z.pause_min + ' min' : '–', 64, y);
+      doc.text(stdZ(z.minuten), 90, y, { align: 'right' }); doc.text(t, 96, y);
+      doc.setTextColor(z.status === 'freigegeben' ? 31 : 200, z.status === 'freigegeben' ? 157 : 110, z.status === 'freigegeben' ? 107 : 20);
+      doc.text(z.status === 'freigegeben' ? 'freigegeben' : 'offen', R, y, { align: 'right' }); doc.setTextColor(20);
+      y += hoehe; doc.setDrawColor(235); doc.line(L, y - 3.2, R, y - 3.2);
+    });
+    if (!E.length) { doc.text('Keine Einträge in diesem Monat.', L, y); y += 6; }
+    y += 2; doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+    doc.text('Summe gearbeitet', L, y); doc.text(std(W), R, y, { align: 'right' }); y += 6;
+    const vorAbMin = minSumme(E.filter(z => z.datum < rr.ab));
+    if (vorAbMin && hatVertrag(p)) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.text('davon vor dem ' + fmtD(rr.ab) + ' (direkt auf das Überstundenkonto)', L, y); doc.text(std(vorAbMin), R, y, { align: 'right' }); y += 6; }
+    y += 4;
+    if (y > 225) { doc.addPage(); y = 20; }
+    if (hatVertrag(p) && mo) {
+      const zeilen = [
+        ['Gearbeitet ab ' + fmtD(rr.ab > ym + '-01' ? rr.ab : ym + '-01'), std(mo.gearbeitet)],
+        ['Stunden laut Vertrag', std(mo.soll)],
+        ['Auszuzahlende Stunden', std(mo.ausgezahlt)],
+        ['Überstundenkonto zu Monatsbeginn', stdPM(mo.konto_vorher)],
+        [mo.gearbeitet - mo.ausgezahlt >= 0 ? 'Gutschrift auf das Überstundenkonto' : 'Abbau vom Überstundenkonto', stdPM(mo.gearbeitet - mo.ausgezahlt)],
+        ['Überstundenkonto zu Monatsende', stdPM(mo.konto_nachher)]
+      ];
+      doc.setFillColor(243, 238, 253); doc.roundedRect(L, y - 5, R - L, zeilen.length * 6.5 + 9, 3, 3, 'F');
+      doc.setFontSize(11); doc.text('Abrechnung', L + 4, y + 1); y += 8; doc.setFontSize(10);
+      zeilen.forEach(([a, b], i) => { doc.setFont('helvetica', i === 2 || i === 5 ? 'bold' : 'normal'); doc.text(a, L + 4, y); doc.text(b, R - 4, y, { align: 'right' }); y += 6.5; });
+      y += 6;
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+    doc.setTextColor(offen ? 200 : 31, offen ? 80 : 157, offen ? 20 : 107);
+    doc.text(offen ? 'VORLÄUFIG: ' + offen + ' Eintrag/Einträge noch nicht freigegeben.' : 'Alle Einträge sind von der Geschäftsführung freigegeben.' + (mo && mo.abgeschlossen ? ' Monat abgeschlossen am ' + fmtD(String(mo.abschluss.erstellt || '').slice(0, 10)) + '.' : ''), L, y);
+    doc.setTextColor(20); y += 22;
+    if (y > 270) { doc.addPage(); y = 40; }
+    doc.setDrawColor(120); doc.line(L, y, 95, y); doc.line(115, y, R, y); y += 4.5; doc.setFontSize(8.5); doc.setTextColor(110);
+    doc.text('Datum, Unterschrift Mitarbeiter/in', L, y); doc.text('Datum, Unterschrift Momentum KI Akademie', 115, y);
+    doc.save('Arbeitszeitnachweis_' + String(p.name).replace(/[^\wäöüÄÖÜß-]+/g, '_') + '_' + ym + '.pdf');
+  }
+
+  function vertragDialog(mid) {
+    const p = mitglied(mid);
+    const eigen = mid === D.ich.mitglied_id;
+    $('#dlgInner').innerHTML = '<h2>Vertrag' + (eigen ? '' : ': ' + esc(p.name)) + '</h2><form id="vf">' +
+      '<div class="f"><label for="v_s">Stunden pro Monat laut Arbeitsvertrag</label><input id="v_s" type="number" min="0" max="250" step="0.5" required value="' + esc(p.vertrag_std || '') + '" placeholder="z. B. 30"></div>' +
+      '<div class="f2"><div class="f"><label for="v_g">Guthaben aus der Zeit vor dem Portal (Std)</label><input id="v_g" type="number" min="0" max="2000" step="0.25" value="' + esc((Number(p.startguthaben_min) || 0) / 60 || '') + '" placeholder="0"></div>' +
+      '<div class="f"><label for="v_a">Monatsabrechnung im Portal ab</label><input id="v_a" type="date" value="' + esc(p.abrechnung_ab || '2026-10-05') + '"></div></div>' +
+      '<p class="small muted">So wird gerechnet: Jeden Monat werden die Stunden laut Vertrag ausgezahlt, soweit neu gearbeitete Stunden und Überstundenkonto reichen. Mehr gearbeitet: Der Rest geht aufs Konto. Weniger gearbeitet: Die fehlenden Stunden werden vom Konto genommen. Alle Einträge vor dem Abrechnungsbeginn und das Guthaben hier oben zählen zum Konto.</p>' +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="v_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(false);
+    $('#v_c').onclick = () => dlg.close();
+    $('#vf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        await api('vertrag_speichern', { mitglied_id: mid, vertrag_std: Number($('#v_s').value) || 0, startguthaben_std: Number($('#v_g').value) || 0, abrechnung_ab: $('#v_a').value });
+        dlg.close(); toast('Gespeichert'); await laden(true);
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // Projekt direkt in Auswahlfeldern anlegen (Aufgaben, Notizen, Zeiten)
+  const NEUPROJ = '__neu';
+  const projSelect = (id, sel, leer) => '<select id="' + id + '">' + (leer ? '<option value="">' + esc(leer) + '</option>' : '') + opt(projOpts(sel), sel) + '<option value="' + NEUPROJ + '">+ Neues Projekt anlegen …</option></select>' +
+    '<div class="neuproj" id="' + id + '_neu" hidden><input id="' + id + '_name" maxlength="60" placeholder="Name des neuen Projekts" aria-label="Name des neuen Projekts"><button type="button" class="btn" id="' + id + '_ok">Anlegen</button><button type="button" class="btn sec" id="' + id + '_x" aria-label="Abbrechen">×</button></div>';
+  function projNeu(id) {
+    const s = $('#' + id), box = $('#' + id + '_neu'); if (!s || !box) return;
+    let vorher = s.value === NEUPROJ ? '' : s.value;
+    s.addEventListener('change', () => { if (s.value === NEUPROJ) { box.hidden = false; $('#' + id + '_name').focus(); } else { vorher = s.value; box.hidden = true; } });
+    $('#' + id + '_x').onclick = () => { box.hidden = true; s.value = vorher; };
+    const anlegen = async () => {
+      const name = $('#' + id + '_name').value.trim();
+      if (name.length < 2) return toast('Bitte gib dem Projekt einen Namen.');
+      const b = $('#' + id + '_ok'); b.disabled = true;
+      try {
+        const r = await api('projekt_speichern', { name });
+        D.projekte = (D.projekte || []).concat([{ projekt_id: r.id, name, status: 'aktiv', farbe: '#7B3FE4', verantwortlich: D.ich.mitglied_id, reihenfolge: 50 }]);
+        const o = document.createElement('option'); o.value = name; o.textContent = name;
+        s.insertBefore(o, s.querySelector('option[value="' + NEUPROJ + '"]'));
+        s.value = name; vorher = name; box.hidden = true; $('#' + id + '_name').value = '';
+        toast('Projekt „' + name + '“ angelegt');
+      } catch (e) { toast(e.message); } finally { b.disabled = false; }
+    };
+    $('#' + id + '_ok').onclick = anlegen;
+    $('#' + id + '_name').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); anlegen(); } });
+  }
+  const projOffen = id => { const s = $('#' + id); if (s && s.value === NEUPROJ) { toast('Bitte leg das neue Projekt erst mit „Anlegen“ an.'); return true; } return false; };
+
   function freigabeDialog(k, ent) {
     const [mid, w] = k.split('|'); const p = mitglied(mid);
     $('#dlgInner').innerHTML = '<h2>' + (ent === 'freigegeben' ? 'Freigeben' : 'Zurückgeben') + ': ' + esc(p.name) + ', KW ' + esc(w.slice(-2)) + '</h2><form id="zf">' +
@@ -889,7 +1172,10 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const kommentar = $('#z_k').value;
       try {
         await api('zeiten_pruefen', { mitglied_id: mid, kw: w, entscheidung: ent, kommentar });
-        await laden(true);
+        // sofort anzeigen, danach im Hintergrund vom Server nachladen
+        const jetztIso = new Date().toISOString();
+        (D.zeiten || []).forEach(z => { if (z.mitglied_id === mid && z.kw === w && z.status !== 'freigegeben') Object.assign(z, { status: ent, freigegeben_von: D.ich.mitglied_id, freigegeben_am: jetztIso, kommentar }); });
+        render(); laden(true);
         if (ent === 'abgelehnt' && waNummer(p.telefon)) {
           const text = 'Hallo ' + p.name + ', ich habe deine Arbeitszeiten für KW ' + w.slice(-2) + ' zurückgegeben: ' + kommentar + ' Bitte im Team-Portal korrigieren und neu einreichen: ' + PORTAL;
           $('#dlgInner').innerHTML = '<h2>Zurückgegeben</h2><p>Gib ' + esc(p.name) + ' kurz Bescheid:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div><div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button><a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a></div>';
@@ -915,7 +1201,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (meineA.length ? '<optgroup label="Meine Aufgaben">' + aOpt(meineA) + '</optgroup>' : '') + (andereA.length ? '<optgroup label="Andere Aufgaben">' + aOpt(andereA) + '</optgroup>' : '') + '</select></div>' +
       '<label class="check" id="t_erl_w" style="margin-bottom:12px;display:none"><input type="checkbox" id="t_erl"><span>Diese Aufgabe ist damit <b>erledigt</b></span></label>' +
       '<div class="f"><label for="t_t">Was hast du gemacht?</label><textarea id="t_t" required maxlength="500" placeholder="z. B. Kundentermin vorbereitet, Lernstand-Workflow getestet">' + esc(z.taetigkeit) + '</textarea></div>' +
-      '<div class="f" id="t_j_w"><label for="t_j">Projekt</label><select id="t_j">' + opt(projOpts(z.projekt || 'Sonstiges'), z.projekt || 'Sonstiges') + '</select></div>' +
+      '<div class="f" id="t_j_w"><label for="t_j">Projekt</label>' + projSelect('t_j', z.projekt || 'Sonstiges') + '</div>' +
       (z.status === 'abgelehnt' && z.kommentar ? '<div class="note warn" style="margin-bottom:10px">Timo: „' + esc(z.kommentar) + '“</div>' : '') +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="t_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(false);
@@ -929,12 +1215,13 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     };
     ['#t_v', '#t_b', '#t_p', '#t_a'].forEach(s => $(s).addEventListener('input', upd)); upd();
     $('#t_c').onclick = () => dlg.close();
+    projNeu('t_j');
     if (!neu) $('#t_del').onclick = async () => {
       if (!$('#t_del').dataset.sicher) { $('#t_del').dataset.sicher = '1'; $('#t_del').textContent = 'Wirklich löschen?'; return; }
       try { await api('zeit_loeschen', { zeit_id: z.zeit_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#zeitf').onsubmit = async ev => {
-      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      ev.preventDefault(); if (!$('#t_a').value && projOffen('t_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const aid = $('#t_a').value; const a = D.aufgaben.find(x => x.aufgabe_id === aid);
       try {
         await api('zeit_speichern', { zeit_id: z.zeit_id, datum: $('#t_d').value, von: $('#t_v').value, bis: $('#t_b').value, pause_min: Number($('#t_p').value) || 0,
@@ -1125,13 +1412,15 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         (p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') +
         '<div class="small muted">' + esc(p.funktion || ROLLE_TXT(p.rolle)) + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
-        '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben</div>' +
+        '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben' + (hatVertrag(p) ? ' · Vertrag: ' + std(Math.round(Number(p.vertrag_std) * 60)) + ' pro Monat · Konto: ' + stdPM(kontoStand(p.mitglied_id).konto) : '') + '</div>' +
         '<div class="act">' + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
+        (p.typ !== 'agent' && (admin || p.mitglied_id === D.ich.mitglied_id) ? '<button class="btn sec" style="padding:6px 10px" data-vertrag="' + esc(p.mitglied_id) + '">Vertrag</button>' : '') +
         (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
       (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink. Schick ihn nur an die Person selbst. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
       '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
     const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
+    document.querySelectorAll('[data-vertrag]').forEach(e => e.onclick = () => vertragDialog(e.dataset.vertrag));
     document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
     $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
     if (admin) {
