@@ -121,6 +121,27 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .mstat{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:4px 0 14px}
 .mstat div{background:var(--soft);border-radius:12px;padding:10px 12px}
 .mstat b{display:block;font-size:20px;line-height:1.2}
+.tst{display:grid;grid-template-columns:minmax(120px,170px) 1fr minmax(120px,150px) 150px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.tst:last-child{border-bottom:0}
+.tst.click{cursor:pointer}.tst.click:hover{background:var(--bg)}
+.tst .nm b{display:block}.tst .nm span{font-size:12px;color:var(--mut)}
+.sib{position:relative;height:14px;background:var(--soft);border-radius:7px}
+.sib i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:var(--acc)}
+.sib i.ue{background:var(--green)}
+.sib em{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
+.sil{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-top:5px}
+.kto{font-weight:700;font-size:18px}.kto.plus{color:var(--green)}.kto.minus{color:var(--red)}
+.kbar{position:relative;height:8px;background:var(--soft);border-radius:4px;margin-top:5px}
+.kbar i{position:absolute;top:0;bottom:0;border-radius:4px}
+.kbar em{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--mut)}
+.spark{display:flex;align-items:flex-end;gap:4px;height:44px;position:relative}
+.spark span{flex:1;background:var(--acc);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.spark span.ue{background:var(--green)}.spark span.leer{background:var(--soft)}
+.spark hr{position:absolute;left:0;right:0;margin:0;border:0;border-top:1px dashed var(--ink);opacity:.5}
+.sparkl{display:flex;gap:4px;font-size:10px;color:var(--mut)}.sparkl span{flex:1;text-align:center}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin:0 0 6px}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+@media(max-width:760px){.tst{grid-template-columns:1fr 1fr;gap:10px}.tst .nm{grid-column:1/-1}.tst .sibw{grid-column:1/-1}}
 .mstat span{font-size:12.5px;color:var(--mut)}
 .wkhead{display:flex;justify-content:space-between;align-items:center;margin:14px 0 2px;padding:6px 4px;border-bottom:2px solid var(--soft);font-size:13px;font-weight:700;color:var(--mut)}
 .neuproj{display:flex;gap:6px;margin-top:6px}
@@ -847,7 +868,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // ---------- Arbeitszeit ----------
   let wkOff = 0, moOff = 0, zPerson = null;
-  let zAns = ls.get('mt-zans') === 'monat' ? 'monat' : 'woche';
+  let zAns = ['monat', 'team'].includes(ls.get('mt-zans')) ? ls.get('mt-zans') : 'woche';
+  const darfTeamStunden = () => istAdmin() || !!(D && D.ich && D.ich.stunden_sicht);
   const isoWoche = ds => { const t = new Date(ds + 'T12:00:00Z'); const wd = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - wd + 3); const j = t.getUTCFullYear(); const e = new Date(Date.UTC(j, 0, 4)); const w = 1 + Math.round(((t - e) / 864e5 - 3 + ((e.getUTCDay() + 6) % 7)) / 7); return j + '-W' + String(w).padStart(2, '0'); };
   const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const montag = off => { const d = heute(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + off * 7); return d; };
@@ -925,9 +947,10 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
 
   function vZeit() {
+    if (zAns === 'team' && !darfTeamStunden()) zAns = 'woche';
     const kopf = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Arbeitszeit</h1><p class="sub">Zeiten eintragen, nach Wochen oder Monaten ansehen und zur Freigabe an Timo schicken.</p></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="seg"><button data-zans="woche" class="' + (zAns === 'woche' ? 'on' : '') + '">Woche</button><button data-zans="monat" class="' + (zAns === 'monat' ? 'on' : '') + '">Monat</button></div><button class="btn" id="neuz">+ Zeit eintragen</button></div></div>' + (zAns === 'woche' || !hatVertrag(mitglied(D.ich.mitglied_id)) ? vertragKarte() : '');
-    if (zAns === 'monat') vMonat(kopf); else vWoche(kopf);
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div class="seg"><button data-zans="woche" class="' + (zAns === 'woche' ? 'on' : '') + '">Woche</button><button data-zans="monat" class="' + (zAns === 'monat' ? 'on' : '') + '">Monat</button>' + (darfTeamStunden() ? '<button data-zans="team" class="' + (zAns === 'team' ? 'on' : '') + '">Team</button>' : '') + '</div><button class="btn" id="neuz">+ Zeit eintragen</button></div></div>' + (zAns === 'woche' || (zAns === 'monat' && !hatVertrag(mitglied(D.ich.mitglied_id))) ? vertragKarte() : '');
+    if (zAns === 'team') vTeamStunden(kopf); else if (zAns === 'monat') vMonat(kopf); else vWoche(kopf);
     $('#neuz').onclick = () => zeitDialog(null);
     document.querySelectorAll('[data-zans]').forEach(b => b.onclick = () => { zAns = b.dataset.zans; ls.set('mt-zans', zAns); vZeit(); });
     document.querySelectorAll('[data-z]').forEach(e => e.onclick = () => zeitDialog((D.zeiten || []).find(z => z.zeit_id === e.dataset.z)));
@@ -985,6 +1008,60 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       } catch (e) { toast(e.message); ein.disabled = false; }
     };
     document.querySelectorAll('[data-zp]').forEach(b => b.onclick = () => freigabeDialog(b.dataset.zp, b.dataset.e));
+  }
+
+
+  // Team-Übersicht: Soll und Ist je Person, Überstundenkonto, Verlauf der letzten 6 Monate (Admin und freigeschaltete Personen, nur lesen)
+  function vTeamStunden(kopf) {
+    const admin = istAdmin();
+    const T = admin ? { mitglieder: D.mitglieder || [], zeiten: D.zeiten || [], abrechnung: D.abrechnung || [] } : (D.team_stunden || { mitglieder: [], zeiten: [], abrechnung: [] });
+    const ym = ymPlus(ymJetzt(), moOff), laufend = moOff === 0;
+    const verlauf = []; for (let i = 5; i >= 0; i--) verlauf.push(ymPlus(ym, -i));
+    const L = T.mitglieder.filter(m => m.typ !== 'agent' && m.status !== 'gesperrt').map(m => {
+      const imMonat = T.zeiten.filter(z => z.mitglied_id === m.mitglied_id && String(z.datum).slice(0, 7) === ym);
+      const offen = imMonat.filter(z => z.status !== 'freigegeben').length;
+      if (!hatVertrag(m)) return { m, vertrag: false, ist: minSumme(imMonat), offen, spark: verlauf.map(v => ({ v, ist: minSumme(T.zeiten.filter(z => z.mitglied_id === m.mitglied_id && String(z.datum).slice(0, 7) === v)), soll: 0 })) };
+      const rr = zeitkontoRechnen(m, T.zeiten, T.abrechnung, ym);
+      const mo = rr.monate.find(x => x.monat === ym);
+      const ist = mo ? mo.gearbeitet : minSumme(imMonat);
+      const konto = mo ? (laufend && !mo.abgeschlossen ? mo.konto_vorher + Math.max(0, mo.gearbeitet - rr.soll) : mo.konto_nachher) : rr.start;
+      const spark = verlauf.map(v => { const x = rr.monate.find(y => y.monat === v); return { v, ist: x ? x.gearbeitet : minSumme(T.zeiten.filter(z => z.mitglied_id === m.mitglied_id && String(z.datum).slice(0, 7) === v)), soll: x ? x.soll : 0 }; });
+      return { m, vertrag: true, soll: rr.soll, ist, konto, offen, abgeschlossen: !!(mo && mo.abgeschlossen), vorAb: !mo, spark };
+    }).sort((a, b) => (b.vertrag - a.vertrag) || a.m.name.localeCompare(b.m.name));
+    const mitV = L.filter(x => x.vertrag);
+    const sSoll = mitV.reduce((s, x) => s + x.soll, 0), sIst = L.reduce((s, x) => s + x.ist, 0), sKonto = mitV.reduce((s, x) => s + x.konto, 0), sOffen = L.reduce((s, x) => s + x.offen, 0);
+    const skala = Math.max(1, ...L.map(x => Math.max(x.ist, x.soll || 0))) * 1.08;
+    const kMax = Math.max(60, ...mitV.map(x => Math.abs(x.konto)));
+    const sMax = Math.max(60, ...L.flatMap(x => x.spark.map(y => Math.max(y.ist, y.soll))));
+    const MK = MONATE.map(n => n.slice(0, 3));
+    const zeile = x => {
+      const m = x.m, pct = v => Math.round(v / skala * 1000) / 10;
+      const balken = x.vertrag
+        ? '<div class="sib" title="Ist ' + std(x.ist) + ' von Soll ' + std(x.soll) + '"><i style="width:' + pct(Math.min(x.ist, x.soll)) + '%"></i>' + (x.ist > x.soll ? '<i class="ue" style="left:' + pct(x.soll) + '%;width:' + pct(x.ist - x.soll) + '%;border-radius:0 7px 7px 0"></i>' : '') + '<em style="left:calc(' + pct(x.soll) + '% - 1px)"></em></div>' +
+          '<div class="sil"><span><b style="color:var(--ink)">' + stdZ(x.ist) + '</b> von ' + stdZ(x.soll) + ' Std' + (x.vorAb ? ' · vor Abrechnungsbeginn' : '') + '</span><span>' + (x.ist >= x.soll ? '<b style="color:var(--green)">' + stdPM(x.ist - x.soll) + '</b>' : 'noch ' + std(x.soll - x.ist)) + '</span></div>'
+        : '<div class="sib"><i style="width:' + pct(x.ist) + '%;background:var(--mut);opacity:.45"></i></div><div class="sil"><span><b style="color:var(--ink)">' + std(x.ist) + '</b> gearbeitet</span><span>kein Vertrag eingetragen</span></div>';
+      const kw = x.vertrag ? Math.round(Math.abs(x.konto) / kMax * 50 * 10) / 10 : 0;
+      const kto = x.vertrag
+        ? '<div class="kto ' + (x.konto > 0 ? 'plus' : x.konto < 0 ? 'minus' : '') + '">' + stdPM(x.konto) + '</div><div class="kbar"><em></em><i style="' + (x.konto >= 0 ? 'left:50%;background:var(--green)' : 'right:50%;background:var(--red)') + ';width:' + kw + '%"></i></div><div class="small muted" style="margin-top:4px">Überstundenkonto' + (laufend ? ' heute' : ' Monatsende') + '</div>'
+        : '<div class="kto muted">–</div><div class="small muted">kein Konto</div>';
+      const spark = '<div class="spark" title="Ist je Monat, gestrichelt: Soll">' + x.spark.map(y => '<span class="' + (!y.ist ? 'leer' : y.soll && y.ist > y.soll ? 'ue' : '') + '" style="height:' + Math.max(4, Math.round(y.ist / sMax * 100)) + '%" title="' + monatName(y.v) + ': ' + std(y.ist) + (y.soll ? ' von ' + std(y.soll) : '') + '"></span>').join('') +
+        (x.vertrag ? '<hr style="bottom:' + Math.round(x.soll / sMax * 100) + '%">' : '') + '</div><div class="sparkl">' + x.spark.map(y => '<span>' + MK[Number(y.v.slice(5)) - 1] + '</span>').join('') + '</div>';
+      return '<div class="tst' + (admin ? ' click" data-tp="' + esc(m.mitglied_id) + '"' : '"') + '><div class="nm">' + av(m.mitglied_id) + ' <b style="display:inline">' + esc(m.name) + '</b><span style="display:block">' + (x.vertrag ? stdZ(x.soll) + ' Std/Monat laut Vertrag' : 'ohne Vertragsstunden') +
+        (x.offen ? ' · <span style="color:var(--orange)">' + x.offen + ' nicht freigegeben</span>' : x.abgeschlossen ? ' · abgeschlossen' : '') + '</span></div><div class="sibw">' + balken + '</div><div>' + kto + '</div><div>' + spark + '</div></div>';
+    };
+    let html = kopf + '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px"><div class="weeknav"><button class="btn sec" id="mop" aria-label="Voriger Monat">‹</button><b>Team · ' + monatName(ym) + '</b><button class="btn sec" id="mon" aria-label="Nächster Monat"' + (moOff >= 0 ? ' disabled' : '') + '>›</button>' + (moOff ? '<button class="btn ghost" id="moh">Dieser Monat</button>' : '') + '</div>' +
+      (admin ? '' : '<span class="small muted">Nur Ansicht. Freigaben macht Timo.</span>') + '</div>' +
+      '<div class="mstat"><div><b>' + stdZ(sIst) + ' Std</b><span>Ist im Team' + (sSoll ? ' · Soll ' + stdZ(sSoll) + ' Std' : '') + '</span></div>' +
+      '<div><b style="color:' + (sKonto > 0 ? 'var(--green)' : sKonto < 0 ? 'var(--red)' : 'var(--ink)') + '">' + stdPM(sKonto) + '</b><span>Überstundenkonten zusammen</span></div>' +
+      '<div><b style="color:' + (sOffen ? 'var(--orange)' : 'var(--ink)') + '">' + sOffen + '</b><span>Einträge noch nicht freigegeben</span></div></div>' +
+      '<div class="leg"><span><i style="background:var(--acc)"></i>Ist bis Soll</span><span><i style="background:var(--green)"></i>Über Soll</span><span><i style="background:var(--ink);width:2px"></i>Soll laut Vertrag</span><span>Rechts: Ist der letzten 6 Monate, gestrichelt das Soll</span></div>' +
+      (L.length ? L.map(zeile).join('') : '<p class="empty">Keine Personen gefunden.</p>') +
+      (laufend ? '<p class="small muted" style="margin-top:10px">Im laufenden Monat zählen Überstunden sofort aufs Konto. Fehlende Stunden werden erst am Monatsende abgezogen.</p>' : '') + '</div>';
+    $('#main').innerHTML = html;
+    $('#mop').onclick = () => { moOff--; vZeit(); };
+    $('#mon').onclick = () => { if (moOff < 0) { moOff++; vZeit(); } };
+    const h = $('#moh'); if (h) h.onclick = () => { moOff = 0; vZeit(); };
+    document.querySelectorAll('[data-tp]').forEach(r => r.onclick = () => { zPerson = r.dataset.tp; zAns = 'monat'; ls.set('mt-zans', zAns); vZeit(); window.scrollTo(0, 0); });
   }
 
   // Monatsübersicht und Monatsnachweis
