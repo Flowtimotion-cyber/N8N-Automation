@@ -76,3 +76,4 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 
 | C | Monitorwand: Filter nach Typ (Bild/HTML/PDF/Sonstiges) und Prüfstand; viele Textnotizen verdrängen Grafiken aus den 12 Kacheln (der Monitor selbst bevorzugt Grafik/PDF) | `vMonitorwand` |
 | B | Ergebnisse des KI Office nach Obsidian spiegeln (Timos Wunsch 17.10.2026): je Artefakt eine Notiz oder ein Abschnitt im Vault (Titel, Run, Projekt, Prüfstand, Link), z. B. über office.py oder einen n8n-Knoten; vorher klären, welcher Vault-Ordner und ob Hermes das übernimmt | ARCHITEKTUR.md, `agenten/office.py` |
+| A | Claude-Code-Agenten abarbeiten lassen (18.10.2026 gebaut, Branch `feature/ki-office-claude-code-ausfuehrer`): Timo setzt `TEAM_PORTAL_TOKEN` als Benutzer-Umgebungsvariable und prüft die geplante Aufgabe `office-claude-code-abholen` (SETUP.md Abschnitt 11). Offen: Orchestrierer (eigener n8n-Ausführer), Dauerbetrieb ohne laufenden Rechner (Hermes) | SETUP.md Abschnitt 11 |
