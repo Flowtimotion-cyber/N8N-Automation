@@ -111,3 +111,14 @@ POST …/webhook/office-api
 ```
 
 Antwort: `run_id` des Teilauftrags, `eltern_run_id`, `team_id`, einmalig `rueckmelde_schluessel`. Danach wartet der Orchestrierer (offene Teilaufträge zählen als sein Lebenszeichen) und meldet `run_beenden` erst, wenn alle Teilaufträge beendet sind, sonst antwortet die API mit 409.
+
+## 10. Stand 18.10.2026 (Nacht): Text-Ausführer aktiv, Schreibreihenfolge der Office-API korrigiert
+
+- Workflow **„TEAM: Office-Ausführer Text (KI)“** (ID `UbQ5nph8FIUSrasi`, https://n8n.hm-storage.de/workflow/UbQ5nph8FIUSrasi) ist aktiv. Quelle: `office/n8n/ausfuehrer-text.workflow.js`. Webhook: `https://n8n.hm-storage.de/webhook/office-ausfuehrer-text`.
+- Ein Workflow für alle Textagenten mit Ausführer `n8n`. Er liest die Registry-Zeile des aufgerufenen Agenten zur Laufzeit, baut aus Auftrag und Projektkontext einen Prompt, ruft einmal das Modell auf und legt das Ergebnis als Notiz ins Projekt. Nichts ist pro Agent fest verdrahtet.
+- Credentials: „Supabase account“ an „Agent laden“, „Zugang laden“, „Schlüssel prüfen“, „Notiz speichern“; „OpenAI account“ an „Modell (OpenAI)“. Erfolgreiche Läufe werden nicht gespeichert, Fehlläufe schon.
+- **Modell:** In n8n gibt es kein Anthropic-Credential. Der Ausführer nutzt deshalb `gpt-5-mini` (Knoten „Einstellungen“: `modell`, `max_tokens`, Preise je Million Tokens). Das tatsächlich genutzte Modell und die geschätzten Kosten stehen in jedem Run unter „Verbrauch“. Ein Lauf kostet bisher 0,3 bis 0,6 Cent.
+- **Angebunden** (`ausfuehrer_url` gesetzt): `marketing-texter`, `social-planer`. Die übrigen Textagenten (`akademie-redakteur`, `vertrieb-recherche`, `angebots-pruefer`, `architektur-review`, `rekruiter`, `orchestrierer`) haben in der Live-Registry den Ausführer `claude-code`. Sie bekommen keinen n8n-Webhook, sondern werden von Claude Code über `agenten/office.py` abgearbeitet. Soll einer davon über n8n laufen: in der Registry `ausfuehrer` auf `n8n` und `ausfuehrer_url` auf den Webhook oben setzen.
+- **Grenzen:** Das Modell hat keine Werkzeuge (kein Internet, keine E-Mail, keine Social-Konten). Verlangt ein Auftrag eine externe Aktion, liefert der Agent nur den Entwurf mit der Zeile „Freigabe nötig: …“. Zeilen, die wie Zugangsdaten aussehen, werden aus Prompt und Antwort entfernt. Projektgrenze wird im Ausführer ein zweites Mal geprüft.
+- **Behobener Fehler in der Office-API:** Der Knoten „In Supabase schreiben“ schickte alle Schreibaufträge gleichzeitig. Der Rückmelde-Schlüssel kam dadurch oft vor dem Run an und scheiterte am Fremdschlüssel. Der Ausführer wurde dann nie angestoßen, der Run blieb in der Warteschlange. Seit 17.10.2026 16:06 Uhr betraf das jeden neuen Auftrag. Jetzt läuft der Knoten mit Batching (ein Auftrag je Schritt). Live eingespielt und veröffentlicht.
+- **Hinweis n8n:** Auf dieser Instanz ist `require('crypto')` in Code-Knoten gesperrt. Ausführer müssen das abfangen (der Text-Ausführer lässt dann nur die Prüfsumme weg).
