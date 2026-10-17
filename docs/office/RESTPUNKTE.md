@@ -37,6 +37,8 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | C | Repo-Hygiene: LICENSE-Datei fürs Repo, `playwright` als devDependency, `simple-icons`/`hyperframes` pinnen, jsPDF-Update im Portal | QUELLEN_UND_LIZENZEN.md |
 | C | Office-KPIs in den Wochenstand-Workflow aufnehmen (nur nach Freigabe durch Timo, Workflow wird sonst nicht angefasst) | BETRIEB.md |
 | C | `@n8n/workflow-sdk`-Datei gegen das SDK validieren | `office/n8n/office-api.workflow.js` |
+| B | Werkzeuganbindung der Agenten über n8n ausbauen (ARCHITEKTUR.md Abschnitt 10): n8n-Agentenworkflow als Ausführer mit Werkzeugknoten, MCP-Server-Trigger für Claude Code/Codex/Hermes, MCP-Client für fremde Werkzeuge; Werkzeuge nur aus der Registry-Allowlist | `office/adapter/n8n.js`, `office/agenten.json` |
+| C | Einbettung auf GitHub Pages einmal prüfen (Token-Teilung Portal/Office, iframe-Höhe) | `docs/team/index.html`, `docs/office/js/app.js` |
 | B | Puppeteer-Ersatzpfad der Browsertests vervollständigen oder entfernen (4/7 ohne Playwright); bis dahin Playwright lokal installieren (TESTBERICHT.md Abschnitt 7) | `office/test/browser.mjs` |
 | B | Registry: Executor und Modell passen nicht überall zusammen (`kunden-entwickler` läuft über Codex, `kurs-waechter`/`server-waechter` über Hermes, tragen aber Claude-Modell-IDs). Bei F4 klären, welches Modell dort wirklich läuft, sonst „unbekannt“ eintragen | `office/agenten.json` |
 | B | Startbestand der Registry enthält „Kundenprojekt Müller GmbH“: vor dem SQL-Lauf prüfen, dass nichts Synthetisches in die Produktiv-Supabase gelangt | `supabase/team_office.sql` |

@@ -30,3 +30,14 @@ Tab durch Register, Karten und Knöpfe; Enter öffnet. Im Büro sind Räume und 
 ## Lokal ausprobieren
 
 `node office/dev/server.mjs` und die Adresse aus der Konsole öffnen. Rot gekennzeichnet: TESTADAPTER mit synthetischen Daten, nichts davon ist echt.
+
+## Virtuelles Büro (Stand 17.10.2026)
+
+Das Büro ist eine isometrische Szene: fünf schwebende Räume um die Zentrale. Jede Figur ist ein Agent an seinem Schreibtisch. Der Farbpunkt zeigt seinen Zustand (grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei). Eine Sprechblase „Freigabe?“ oder „Frage“ heißt: Hier wird ein Mensch gebraucht. Die Linien zur Zentrale fließen, wenn in dem Raum gerade gearbeitet wird. Die Raumkarte zeigt Projekte, offene Aufgaben, laufende Aufträge und warnt bei Freigaben oder Fehlern.
+
+- Klick auf einen Raum → Projekte und Aufgaben dieses Raums. Klick auf eine Figur → die echte Arbeitsübersicht des Agenten. Klick auf die Zentrale → alle Projekte.
+- Rechts daneben: offene Freigaben (direkt entscheiden) und die letzten Ereignisse aller Agenten.
+- Tastatur: 1 bis 5 springt zum Raum, Tab läuft durch, Enter öffnet. Mit „Bewegung reduzieren“ im System steht alles still.
+- Auf dem Handy lässt sich die Szene seitlich schieben.
+
+**Im Team-Portal** erscheint das Büro direkt auf der Übersicht (nur Szene und Live-Panel) und das komplette Office im Register „KI Office“. Beides ist dieselbe Office-Seite, nur eingebettet; du bist dort automatisch angemeldet.

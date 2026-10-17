@@ -89,3 +89,13 @@ Unabhängig vom Cloud-Lauf wurde der Branch auf Windows 11 (Node 24.18, Chrome 1
 | Merge-Test gegen `main` | zwei Konflikte in `docs/team/index.html` (Reiterliste und Ansichten-Zuordnung, beide Seiten hatten die Zeile geändert). Aufgelöst: „Vertrieb“ und „KI Office“ stehen nebeneinander, Vertriebs-Rechteprüfung von `main` bleibt |
 
 Weiterhin ungetestet: alles aus Abschnitt 5 (Supabase, n8n, Modelle). Die Browsertests schreiben die Screenshots bei jedem Lauf neu; die eingecheckten Bilder stammen aus dem Cloud-Lauf (Linux-Rendering).
+
+## 8. Nachtrag 17.10.2026: isometrische Büroszene und Einbettung ins Portal
+
+| Lauf | Ergebnis |
+|---|---|
+| `npm run test:office` (Playwright, Windows) nach Umbau der Szene und Einbettung | 55/55 bestanden |
+| Portal mit eingebettetem Office (Übersicht und Register „KI Office“), Desktop 1280 und Mobil 390, Portal-API lokal umgeleitet | Office lädt im iframe mit geteiltem Token, Höhenmeldung kommt an, keine JS-Fehler; Screenshots `docs/office/screenshots/portal-{desktop,mobil}-{start,office}.png` |
+| Sichtprüfung Szene Desktop und Mobil (375 px, seitlich scrollbar) | Räume, Figuren, Sprechblasen, Linien, Live-Panel wie vorgesehen |
+
+Die eingecheckten Screenshots stammen ab jetzt aus dem Windows-Lauf (Playwright-Chromium). Die Einbettung ist nur lokal geprüft; auf GitHub Pages muss einmal kontrolliert werden, dass `…/team/` und `…/office/` denselben Token sehen (gleiche Herkunft, siehe ARCHITEKTUR.md Abschnitt 9).

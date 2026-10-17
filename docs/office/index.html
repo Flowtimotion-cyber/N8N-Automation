@@ -112,19 +112,36 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .hash{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:var(--bg);padding:1px 6px;border-radius:6px}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:13.5px}.kv dt{color:var(--mut)}.kv dd{margin:0;overflow-wrap:anywhere}
 .quelle{font-size:12px;color:var(--mut)}
-/* Virtuelles Büro */
-.buero{width:100%;height:auto;display:block;background:#F1F0F8;border-radius:16px;border:1px solid var(--line)}
+/* Virtuelles Büro: isometrische Szene (eigene Grafik), Live-Panel rechts */
+.szene{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;margin-bottom:14px}
+.livepanel .feed li{padding:3px 0 8px 18px}
+.buero{width:100%;height:auto;display:block;background:#15132B;border-radius:12px;border:1px solid #2E2C58;min-height:220px}
 .buero a{cursor:pointer}
 .buero a:focus{outline:none}
-.buero a:focus .raumboden,.buero a:hover .raumboden{stroke:var(--acc);stroke-width:3}
-.buero a:focus .agentkreis,.buero a:hover .agentkreis{stroke:var(--acc);stroke-width:3}
+.buero a:focus .raumboden,.buero a:hover .raumboden{stroke:#fff;stroke-width:3}
+.buero a.agent:focus .figur rect,.buero a.agent:hover .figur rect{stroke:#fff;stroke-width:2}
+.buero a.zentrale:focus circle:nth-of-type(2),.buero a.zentrale:hover circle:nth-of-type(2){stroke:#fff;stroke-width:3}
 .buero text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;pointer-events:none}
 .puls{transform-origin:center;transform-box:fill-box;animation:puls 1.6s ease-in-out infinite}
+.fluss{animation:fluss 1.2s linear infinite}
+.winkt{transform-origin:center bottom;transform-box:fill-box;animation:winkt 1.4s ease-in-out infinite}
 @keyframes puls{0%,100%{opacity:1}50%{opacity:.35}}
-@media (prefers-reduced-motion: reduce){.puls{animation:none}#toast{transition:none}}
+@keyframes fluss{to{stroke-dashoffset:-22}}
+@keyframes winkt{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion: reduce){.puls,.fluss,.winkt{animation:none}#toast{transition:none}}
+/* Eingebettet im Team-Portal (?einbetten=1): kein eigener Kopf und Fuß, Reiter kompakt */
+body.eingebettet header .hrow,body.eingebettet footer{display:none}
+body.eingebettet header{position:static}
+body.eingebettet .wrap{padding:0;max-width:none}
+body.eingebettet main{padding:14px 0 8px}
+body.eingebettet .note.test{margin-top:10px}
+body.nur-buero nav.tabs{display:none}
+.szene > .card{align-self:start}
+@media(max-width:640px){.szene-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.szene-scroll .buero{min-width:680px}}
 .legende{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:var(--mut);align-items:center}
 .legende i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 .sr{position:absolute;left:-9999px}
+@media(max-width:900px){.szene{grid-template-columns:1fr}}
 @media(max-width:640px){
   .htitle{display:none}.who span.r{display:none}
   .f2{grid-template-columns:1fr}

@@ -82,3 +82,7 @@ Nicht abrufbar am 17.10.2026 (DNS-Fehler), auch keine Suchtreffer. Aufbau und In
 | Anthropic Standard-Retention | nicht abrufbar | im Konto prüfen |
 | OpenAI Modell-/Datenseiten | nicht abrufbar | Deprecation von gpt-5-mini verifizieren |
 | Repo-Hygiene | – | `simple-icons`, `hyperframes` pinnen; Playwright als devDependency; jsPDF-Update; LICENSE-Datei fürs Repo |
+
+## 7. Ergänzung 17.10.2026: Büroszene
+
+Die neue Büroszene (`docs/office/js/buero.js`) ist eine eigene Umsetzung des allgemeinen Bedienkonzepts „Abteilungen als Plattformen um eine Zentrale, Agenten an Schreibtischen, Statusbadges, Live-Panel“, das bei agents-office (PolyForm Noncommercial 1.0.0 plus Zusatzbedingungen von Sahni.ai) und auf sahni.ai/agentsofficev3 (am 17.10.2026 angesehen) zu sehen ist. Übernommen wurde nichts: kein Code, keine Grafik, keine Texte, kein 3D-Modell; alle Formen sind handgeschriebenes SVG in den Momentum-Farben. Die Zuordnung „Zentrale = Projektübersicht“ ist eine eigene Entscheidung (bei der Referenz steht dort der Notiz-Ordner).

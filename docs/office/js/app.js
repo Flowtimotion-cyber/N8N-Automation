@@ -5,8 +5,14 @@ import { vProjekte, vProjekt, vAgenten, vAgent, vRun, vFreigaben, av } from './a
 import { vBuero } from './buero.js';
 
 const TABS = [['projekte', 'Projekte'], ['agenten', 'KI Office'], ['buero', 'Virtuelles Büro'], ['freigaben', 'Freigaben']];
+// Eingebettet im Team-Portal (iframe, gleiche Herkunft): ?einbetten=1 blendet Kopf/Fuß aus, ?nur=buero zeigt nur die Szene.
+const PARAMS = new URLSearchParams(location.search);
+const EINGEBETTET = PARAMS.get('einbetten') === '1';
+const NUR = EINGEBETTET ? (PARAMS.get('nur') || '') : '';
+if (EINGEBETTET) document.body.classList.add('eingebettet');
+if (NUR === 'buero') document.body.classList.add('nur-buero');
 let D = null;
-let route = { tab: ls.get('ko-tab') || 'projekte' };
+let route = { tab: NUR === 'buero' ? 'buero' : (ls.get('ko-tab') || 'projekte') };
 let letzterHash = null;
 
 function leseHash() {
@@ -18,10 +24,10 @@ function leseHash() {
   else if ((m = /^#\/run\/([\w-]+)$/.exec(h))) route = { tab: 'agenten', art: 'run', id: m[1] };
   else if ((m = /^#\/raum\/([^/]+)$/.exec(h))) route = { tab: 'projekte', art: 'raum', id: decodeURIComponent(m[1]) };
   else if (h && h !== '#/' ) return; // unbekannt: letzte Route behalten
-  if (!route.art) ls.set('ko-tab', route.tab);
+  if (!route.art && !EINGEBETTET) ls.set('ko-tab', route.tab);
 }
 
-const ctx = { get D() { return D; }, render, laden, get route() { return route; } };
+const ctx = { get D() { return D; }, render, laden, get route() { return route; }, nur: NUR, eingebettet: EINGEBETTET };
 
 function render() {
   if (!D) return;
@@ -33,7 +39,10 @@ function render() {
     '<main class="wrap" id="main"></main>' +
     '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 60 Sekunden aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
   $('#logout').onclick = ev => { ev.preventDefault(); tokenSetzen(null); D = null; ohneZugang('Du bist abgemeldet.'); };
+  if (EINGEBETTET) requestAnimationFrame(hoeheMelden);
   try {
+    // Nur-Büro-Einbettung (Portal-Übersicht): ohne Reiter, dafür ein Rücksprung, wenn man einen Raum oder Agenten geöffnet hat
+    if (NUR === 'buero' && (route.tab !== 'buero' || route.art)) $('#main').insertAdjacentHTML('afterbegin', '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a></p>');
     if (route.art === 'projekt') vProjekt(ctx, route.id);
     else if (route.art === 'agent') vAgent(ctx, route.id);
     else if (route.art === 'run') vRun(ctx, route.id);
@@ -71,7 +80,13 @@ function ohneZugang(msg) {
   $('#codef').onsubmit = ev => { ev.preventDefault(); const c = /([a-f0-9]{20,64})/i.exec($('#code').value || ''); if (!c) return toast('Das sieht nicht nach einem gültigen Code aus.'); tokenSetzen(c[1]); laden(); };
 }
 
-window.addEventListener('hashchange', () => { if (location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); window.scrollTo(0, 0); });
+/** Eingebettet: Höhe an das Portal melden (gleiche Herkunft, Portal prüft e.origin) und Portal-Links im Elternfenster öffnen. */
+function hoeheMelden() { if (!EINGEBETTET || !window.parent || window.parent === window) return; try { window.parent.postMessage({ typ: 'ko-hoehe', hoehe: document.documentElement.scrollHeight }, location.origin); } catch (e) {} }
+if (EINGEBETTET) {
+  try { new ResizeObserver(hoeheMelden).observe(document.body); } catch (e) { window.addEventListener('load', hoeheMelden); }
+  document.addEventListener('click', ev => { const a = ev.target.closest('a[href]'); if (!a) return; const u = new URL(a.getAttribute('href'), location.href); if (u.pathname !== location.pathname) a.target = '_parent'; });
+}
+window.addEventListener('hashchange', () => { if (location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); if (!EINGEBETTET) window.scrollTo(0, 0); });
 setInterval(() => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); if (D && !$('#dlg').open && !tippt && document.visibilityState === 'visible') laden(true); }, 60000);
 tokenLesen();
 leseHash();

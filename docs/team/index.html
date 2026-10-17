@@ -68,6 +68,7 @@ h3{font-size:15px;margin:0 0 8px}
 .bcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .bcard .t{font-weight:600;font-size:14px}
 .empty{color:var(--mut);padding:18px 4px;text-align:center}
+.offFrame{width:100%;border:0;display:block;height:720px;background:var(--bg)}
 .bars .row{display:grid;grid-template-columns:minmax(110px,42%) 1fr auto;gap:10px;align-items:center;margin:6px 0;font-size:14px}
 .bars .bt{height:10px;background:var(--soft);border-radius:6px;overflow:hidden}
 .bars .bt i{display:block;height:100%;background:var(--acc);border-radius:6px}
@@ -549,6 +550,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
       (meine.length ? meine.slice(0, 7).map(taskRow).join('') : '<p class="empty">Nichts offen. Stark!</p>') +
       (meine.length > 7 ? '<button class="btn ghost" data-goto="aufgaben">Alle ' + meine.length + ' ansehen →</button>' : '') + '</div>' +
@@ -1868,11 +1870,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // ---------- KI Office (eigene Seite unter ../office/, gleicher Token) ----------
   const OFFICE = '../office/';
+  // Das eingebettete Office meldet seine Höhe (gleiche Herkunft; andere Absender werden ignoriert)
+  window.addEventListener('message', e => { if (e.origin !== location.origin || !e.data || e.data.typ !== 'ko-hoehe') return; document.querySelectorAll('iframe.offFrame').forEach(f => { if (f.contentWindow === e.source) f.style.height = Math.min(Math.max(Number(e.data.hoehe) || 0, 320), 4000) + 'px'; }); });
   const OFFICE_API = 'https://n8n.hm-storage.de/webhook/office-api';
   function vOffice() {
     const agenten = (D.mitglieder || []).filter(p => p.typ === 'agent');
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>KI Office</h1><p class="sub">Gemeinsame Übersicht über Projekte, Aufgaben, Agenten und ihre tatsächlich ausgeführte Arbeit. Dieselben Projekte und Aufgaben wie hier im Portal, dazu Agentenläufe, Freigaben und das virtuelle Büro.</p></div><a class="btn" href="' + OFFICE + '#/tab/projekte">KI Office öffnen →</a></div>' +
       '<div class="kpis" id="offKpis"><div class="kpi"><b>…</b><span>laufende Agentenaufträge</span></div><div class="kpi"><b>…</b><span>offene Freigaben</span></div><div class="kpi"><b>…</b><span>fehlgeschlagen / veraltet</span></div><div class="kpi"><b>…</b><span>Ergebnisse ohne Abnahme</span></div></div>' +
+      '<div class="card" style="padding:0;overflow:hidden"><iframe class="offFrame" src="' + OFFICE + '?einbetten=1#/tab/buero" title="KI Office (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid">' +
       '<a class="card" href="' + OFFICE + '#/tab/agenten" style="text-decoration:none;color:inherit;margin:0"><h2>🤖 Agenten-Register</h2><p class="small muted">Rolle, Fähigkeiten, erlaubte Werkzeuge, Modell und jede Ausführung mit lesbarer Zeitleiste: Schritte, Werkzeugaufrufe, Quellen, Ergebnisse, Fehler, Freigaben.</p><div class="meta">' + agenten.map(p => '<span class="chip ki">' + esc(p.name) + '</span>').join('') + '</div></a>' +
       '<a class="card" href="' + OFFICE + '#/tab/buero" style="text-decoration:none;color:inherit;margin:0"><h2>🏢 Virtuelles Büro</h2><p class="small muted">Räume Akademie, Marketing, Vertrieb, Kundenprojekte, Verwaltung. Klick auf einen Raum filtert Projekte, Klick auf einen Agenten zeigt seine echte Arbeit.</p></a>' +

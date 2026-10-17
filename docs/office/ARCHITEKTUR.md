@@ -129,3 +129,29 @@ Im Portal (`docs/team/index.html`) kam nur das Register „KI Office“ dazu (TA
 ## 8. Lokaler Betrieb und Tests
 
 `node office/dev/server.mjs` startet den TESTADAPTER (statische Seiten, Office-API, Portal-`laden`, Testendpunkte für Zeitsprung, Wartung, Neustart, Szenario). `npm run test:office` führt Unit-, Szenario-, Bündel-, Integrations- und Browsertests aus. Details in TESTBERICHT.md.
+
+## 9. Büroszene und Einbettung ins Team-Portal (Ergänzung 17.10.2026)
+
+**Szene.** `docs/office/js/buero.js` zeichnet das Büro als isometrische 2D-Szene in einem eigenen SVG: fünf schwebende Plattformen (Räume) um eine Zentrale, Agenten als Figuren an Schreibtischen, Sprechblasen „Freigabe?“ und „Frage“, wenn ein Mensch gebraucht wird, Verbindungslinien zur Zentrale fließen nur bei laufenden Aufträgen. Rechts ein Live-Panel mit offenen Freigaben (mit Entscheidungsknöpfen) und den letzten zehn Ereignissen aller Runs. Alles aus `ctx.D`, keine zweite Datenquelle. Tastatur: 1–5 springt zum Raum, Tab läuft durch Räume, Zentrale und Agenten, Enter öffnet. `prefers-reduced-motion` schaltet alle Animationen ab. Eigene Grafik, keine fremden Assets, kein 3D.
+
+**Einbettung.** Das Team-Portal zeigt das Office direkt auf seiner Oberfläche, bleibt aber technisch getrennt:
+
+| Ort im Portal | Einbettung | Verhalten |
+|---|---|---|
+| Register „KI Office“ | `<iframe src="../office/?einbetten=1#/tab/buero">` | vollständiges Office ohne eigenen Kopf und Fuß, mit seinen vier Reitern |
+| Register „Übersicht“ | `<iframe src="../office/?einbetten=1&nur=buero#/tab/buero">` | nur die Büroszene und das Live-Panel, ohne Reiter; wer einen Raum oder Agenten öffnet, bekommt einen Rücksprung „← Zurück zum Büro“ |
+
+Gleiche Herkunft (GitHub Pages, derselbe Host und Pfad `/N8N-Automation/`), darum teilen Portal und Office den Token in `localStorage` ohne Weitergabe per URL. Das Office meldet seine Höhe per `postMessage({typ:'ko-hoehe'})` an das Portal; das Portal akzeptiert nur Nachrichten mit `e.origin === location.origin` und nur von seinen eigenen iframes. Links aus dem Office ins Portal (Aufgaben, Notizen) öffnen im Elternfenster (`target=_parent`), damit das Portal nicht im Portal lädt. Die Parameter stehen in `docs/office/js/app.js` (`EINGEBETTET`, `NUR`).
+
+## 10. Anbindung von Werkzeugen (API, MCP) über n8n
+
+Alle Werkzeuge der Agenten laufen über n8n, nie direkt aus dem Browser. Das ist bewusst: Credentials bleiben in n8n, jede Aktion läuft durch dieselbe Rechte- und Freigabeprüfung, und das Office sieht nur das Ergebnis als Ereignis.
+
+| Weg | Wofür | Stand |
+|---|---|---|
+| **n8n-Agentenworkflow als Ausführer** (`ausfuehrer_url` je Agent in der Registry) | Agent bekommt den Auftrag per signiertem Webhook, nutzt in n8n seine Werkzeugknoten (HTTP, Supabase, Twenty CRM, E-Mail, Kalender …) und meldet Schritte, Werkzeugaufrufe und Ergebnisse an die Office-API zurück | Schnittstelle fertig, Executor noch Stub (RESTPUNKTE Prio B) |
+| **n8n MCP-Server-Trigger** | Externe Agenten (Claude Code, Codex, Hermes) rufen n8n-Workflows als Werkzeuge über MCP auf; n8n prüft Token und Rechte, schreibt Ereignisse ins Office | Konzept; n8n bietet den MCP-Server-Trigger und Instance-level MCP (siehe Kursinhalt Anleitung B) |
+| **n8n MCP-Client-Knoten** | n8n-Agenten nutzen fremde MCP-Server (z. B. Obsidian, CRM) als Werkzeuge | Konzept; jedes Werkzeug muss in der Registry unter `werkzeuge` stehen, sonst darf der Agent es nicht nutzen |
+| **Portal-API v2 / Office-API per HTTP** | Agenten lesen Aufgaben und melden Berichte (heute `agenten/team.py`) | läuft (Portal) bzw. wartet auf Import (Office) |
+
+Regeln, die für alle Wege gelten: Werkzeuge nur aus der Allowlist der Registry; externe Aktionen (E-Mail, Posts, Zahlungen, Löschen) nur mit inhaltsgebundener Freigabe; Rückmeldungen signiert (HMAC, Zeitfenster, Nonce); Allowlist für `ausfuehrer_url`-Domains ist offen (SICHERHEIT.md S6).
