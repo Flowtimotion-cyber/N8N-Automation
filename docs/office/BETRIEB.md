@@ -44,3 +44,11 @@ Stand: 17.10.2026. Gilt nach dem Setup (SETUP.md). Nichts hiervon wurde in diese
 
 - n8n: Error-Workflow, der bei Fehlern der Office-API eine WhatsApp/E-Mail an Timo schickt (wie bei anderen Workflows üblich).
 - Office-KPI „fehlgeschlagen oder veraltet“ könnte der Wochenstand-Workflow mitliefern (Restpunkt).
+
+## Datenverkehr und Supabase-Limits (Stand 17.10.2026)
+
+Nach Drittquellen (Stand 2026, bitte auf supabase.com/pricing gegenprüfen): Free bietet 500 MB Datenbank, 5 GB Datenverkehr im Monat, 1 GB Dateispeicher, zwei Projekte; Projekte pausieren nach sieben Tagen ohne Nutzung. Pro kostet 25 US-Dollar im Monat (8 GB Datenbank, 250 GB Datenverkehr, keine Pause, Ausgabenlimit standardmäßig an).
+
+Die Datenmenge des Office ist unkritisch (Textzeilen). Der Hebel ist der **Datenverkehr**: Jeder Aufruf von `laden` holt den vollen `team_laden()`-Stand aus Supabase. Deshalb lädt das Office im Hintergrund nur noch alle 5 Minuten nach (vorher jede Minute), und nur bei sichtbarem Tab. Grobe Rechnung: drei Personen mit offenem Tab, 8 Stunden, Antwort 300 KB → rund 1,4 GB im Monat bei 5 Minuten, rund 7 GB bei einer Minute. Beobachten: Supabase → Settings → Usage (Egress). Die Wartung alle 5 Minuten im Workflow „TEAM: Office-API“ hält das Projekt aktiv (keine Pause).
+
+Nächste Hebel, falls der Verkehr steigt: `team_laden()` für das Office auf einen eigenen RPC mit schlankerer Antwort (ohne Zeiten, Kursdaten) umstellen; Antworten in n8n komprimieren; Pro-Plan erst, wenn Usage über 4 GB/Monat liegt.
