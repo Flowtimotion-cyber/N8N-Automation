@@ -83,3 +83,12 @@ node office/n8n/bauen.mjs                  # n8n-Dateien neu erzeugen
 | server-waechter | Systeme, Momentum Office |
 
 Hinweis zur Schnittstelle: `update_workflow` kann Credentials an HTTP-Knoten setzen (`setNodeCredential`), `create_workflow_from_code` nicht. Für künftige Anlagen per MCP also erst anlegen, dann Credential per Update setzen.
+
+## 8. Stand 17.10.2026 (abends): erster Ausführer „verwaltung-status“ aktiv
+
+- Workflow **„TEAM: Office-Ausführer verwaltung-status“** (ID `KwRsEDr743IGDPJ1`, https://n8n.hm-storage.de/workflow/KwRsEDr743IGDPJ1) ist aktiv. Quelle: `office/n8n/ausfuehrer-verwaltung-status.workflow.js`. Credentials: „Supabase account“ an „Zugang laden“, „Schlüssel prüfen“, „Notiz speichern“; „OpenAI account“ an „Glättung (gpt-5-mini)“ (per MCP `setNodeCredential`). Erfolgreiche Läufe werden nicht gespeichert.
+- `office_agenten.ausfuehrer_url` für `verwaltung-status` = `https://n8n.hm-storage.de/webhook/office-ausfuehrer-verwaltung` (gesetzt per temporärem Hilfs-Workflow, archiviert).
+- Ende-zu-Ende getestet: Auftrag → Warteschlange → in Arbeit → Ereignisse → Artefakt → abgeschlossen, Notiz im Team-Portal (TESTBERICHT.md Abschnitt 9).
+- **Einen Auftrag starten:** im KI Office beim Agenten „Verwaltungs-Status“ einen Auftrag anlegen (beliebiges Projekt aus seiner Liste, z. B. „Momentum Office“). Nach etwa 5 Sekunden steht der Run auf „abgeschlossen“, das Ergebnis liegt als Notiz „Wochenstand KW …/… – KI Office (Verwaltungs-Status)“ im gewählten Projekt.
+- **Glättung einschalten (kostet Geld):** im Workflow im Knoten „Einstellungen“ `glaettung` auf `true` setzen. Modell dort ebenfalls (`gpt-5-mini`). Standard ist AUS; die Antwort wird nur übernommen, wenn keine Zahl verändert wurde.
+- **Weiteren n8n-Ausführer anlegen:** Datei kopieren, Webhook-Pfad (`office-ausfuehrer-<agent>`), `mitglied_id`, Werkzeugknoten und Ereignisse anpassen; `validate_workflow` → `create_workflow_from_code` → `update_workflow` (Credentials, Einstellungen) → `publish_workflow`; dann `ausfuehrer_url` in der Registry setzen (als Admin per `agent_speichern` oder PATCH auf `office_agenten`). Für die SDK-Datei gilt: keine Pfeilfunktionen außerhalb der Code-Knoten-Strings, Verzweigungen als `.add(knoten.output(n).to(ziel))`.

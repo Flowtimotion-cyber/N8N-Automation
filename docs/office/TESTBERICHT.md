@@ -99,3 +99,21 @@ Weiterhin ungetestet: alles aus Abschnitt 5 (Supabase, n8n, Modelle). Die Browse
 | Sichtprüfung Szene Desktop und Mobil (375 px, seitlich scrollbar) | Räume, Figuren, Sprechblasen, Linien, Live-Panel wie vorgesehen |
 
 Die eingecheckten Screenshots stammen ab jetzt aus dem Windows-Lauf (Playwright-Chromium). Die Einbettung ist nur lokal geprüft; auf GitHub Pages muss einmal kontrolliert werden, dass `…/team/` und `…/office/` denselben Token sehen (gleiche Herkunft, siehe ARCHITEKTUR.md Abschnitt 9).
+
+## 9. Nachtrag 17.10.2026 (abends): erster echter Ausführer Ende-zu-Ende gegen Supabase und n8n
+
+Erster Lauf gegen die echten Systeme (nicht Testadapter). Ausführer: n8n-Workflow „TEAM: Office-Ausführer verwaltung-status“ (ID `KwRsEDr743IGDPJ1`, aktiv). Auftrag angelegt mit dem Agenten-Token (Agenten dürfen Aufträge für sich selbst anlegen) über einen temporären Hilfs-Workflow (danach archiviert).
+
+| Schritt | Ergebnis |
+|---|---|
+| `laden` mit Agenten-Token (Kontrolle vor dem Lauf) | HTTP 200, `ich = agent-claude (agent)`, 21 Projekte, 28 Aufgaben sichtbar, Registry zeigt 13 Agenten |
+| `ausfuehrer_url` per PATCH auf `office_agenten` gesetzt | HTTP 200, `konfig_version` 2, `geaendert_von = agent-claude` |
+| `auftrag_starten` (Projekt „Momentum Office“, Idempotenzschlüssel `test-ausfuehrer-verwaltung-2026-10-17-1`) | HTTP 200, `run_mvcl9lam058aa9`, Status Warteschlange, Rückmelde-Schlüssel einmalig in der Antwort |
+| Office-API „Ausführer anstoßen“ → Executor-Webhook | n8n-Execution 20716, Start 16:06:16 UTC, Ende 16:06:20, letzter Knoten „Fertig“ (kein Fehlerpfad) |
+| Zeitleiste des Runs (aus `laden`) | 16:06:16 Auftrag angelegt · 16:06:17 Warteschlange → in Arbeit (Executor hat übernommen) · 16:06:18 `tool aufgaben_lesen` „Aufgaben und Projekte über die Office-API geladen (28 Aufgaben, 21 Projekte)“, `quelle_ref …/office-api#laden` · 16:06:19 `schritt` „Wochenstand erstellt und als Notiz gespeichert“, `tool notiz_speichern`, `quelle_ref team_notizen/n_office_wochenstand_2026w42` · 16:06:20 `artefakt` „Ergebnis: Wochenstand KW 42/2026“ · 16:06:20 in Arbeit → abgeschlossen (technisch) |
+| Run-Felder | `status = abgeschlossen`, `gestartet`/`beendet`/`lebenszeichen` gesetzt, `fehler = null`, `verbrauch = unbekannt` (kein Modellaufruf), Zusammenfassung = Kurzfassung plus Ablageort |
+| Artefakt | `art_mvcl9odsbcc034`, `art = bericht`, Titel „Wochenstand KW 42/2026“, Ablageort = Notiz-Titel im Projekt „Momentum Office“, 2744 Zeichen, `inhalt_hash = null` (siehe RESTPUNKTE) |
+| Notiz im Team-Portal | `n_office_wochenstand_2026w42` „Wochenstand KW 42/2026 – KI Office (Verwaltungs-Status)“, Projekt „Momentum Office“, 2744 Zeichen (Upsert, ein Eintrag je Woche) |
+| Inhalt des Berichts (Stichprobe) | 24 offene Aufgaben in 5 Projekten, 4 überfällig, 2 fällig bis 24.10.2026, 1 Blockade („Träger auf der Webseite anpassen“, Status Wartet). Zahlen stimmen mit den Portaldaten überein |
+
+Nicht getestet: der Fehlerpfad (`run_beenden fehlgeschlagen`), der Abbruchpfad, die Glättung mit gpt-5-mini (Standard AUS) und eine Wiederholung nach Fehler. Hinweis: Die n8n-Executions des Hilfs-Workflows (20708, 20713, 20714, 20723) und die erste Ausführer-Execution 20716 enthalten in Knotenausgaben den Agenten-Token; der Ausführer speichert seit dem Test keine erfolgreichen Läufe mehr. Timo kann die Executions in n8n löschen oder den Token des Mitglieds `agent-claude` neu setzen (RESTPUNKTE).

@@ -1,6 +1,6 @@
 # Restpunkte und Fragen an Timo
 
-Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md Abschnitt 7). Priorität: A = vor Inbetriebnahme, B = in den ersten Wochen, C = später.
+Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschnitt 7, und nach dem ersten echten Ausführer, Abschnitt 9). Priorität: A = vor Inbetriebnahme, B = in den ersten Wochen, C = später.
 
 ## Fragen an Timo (bitte entscheiden)
 
@@ -24,7 +24,12 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | A | Workflow importieren, Credentials setzen, SQL ausführen, erster echter `laden`-Aufruf (alles ungetestet mangels Zugang) | SETUP.md, TESTBERICHT.md Abschnitt 5 |
 | A | Prüfen, dass die Portal-API v2 mit dem größeren `team_laden()`-JSON weiter funktioniert (n8n-Payload-Grenzen). Code-Prüfung 17.10.: Schlüssel unverändert, Office-Schlüssel werden nicht an den Browser weitergegeben (INBETRIEBNAHME.md) – Live-Test nach dem SQL steht aus | TESTBERICHT.md |
 | A | Echte Integrationstests gegen Supabase und n8n (PostgREST-409, Webhook-Pfad, Zeitplan) | TESTBERICHT.md |
-| B | Executoren bauen: n8n-Agentenworkflow (Webhook, Lebenszeichen, signierte Rückmeldung), Hermes-Polling, Claude-Code/Codex-Ablauf; Stubs ersetzen | `office/adapter/*.stub.js` |
+| B | Executoren bauen: ✅ 17.10.2026 **n8n-Ausführer für `verwaltung-status` läuft** (`office/n8n/ausfuehrer-verwaltung-status.workflow.js`, ARCHITEKTUR.md 10a). Offen: weitere n8n-Agenten (marketing-texter, social-planer) nach dem Muster, Hermes-Polling, Claude-Code/Codex-Ablauf; Stubs ersetzen | `office/adapter/*.stub.js` |
+| B | Office-API: Token zusätzlich per Header annehmen (z. B. `X-Office-Token`), damit Ausführer ein Header-Auth-Credential nutzen können statt den Token aus `team_mitglieder` zu lesen. Änderung am bestehenden Workflow, nur mit Timos Ja | `office/n8n/bauen.mjs` (Glue), ARCHITEKTUR.md 10a |
+| B | Office-API: `n8n_execution_id` bei Wiederholung (`run_wiederholen`, Auto-Wiederholung) zurücksetzen; sonst 409 beim zweiten Versuch. Bis dahin senden Ausführer die Execution-ID nur in Ereignis-Details | `office/lib/verarbeitung.js` |
+| B | n8n-Executions 20708, 20713, 20714, 20716, 20723 (Hilfs-Workflow und erster Ausführer-Lauf) enthalten den Agenten-Token in Knotenausgaben: in n8n löschen oder Token des Mitglieds `agent-claude` neu setzen | TESTBERICHT.md Abschnitt 9 |
+| C | Ausführer: `inhalt_hash` des Artefakts ist leer, weil `require('crypto')` im Code-Knoten gesperrt ist → Crypto-Knoten (SHA-256) einbauen | `office/n8n/ausfuehrer-verwaltung-status.workflow.js` |
+| C | Ausführer: Fehlerpfad, Abbruch und Glättung (gpt-5-mini) einmal gezielt testen; Testaufgaben „test“ (Kurs Modul 1) aufräumen, sie erscheinen im Wochenstand als überfällig | TESTBERICHT.md Abschnitt 9 |
 | B | Allowlist für `ausfuehrer_url`-Domains; Rate-Limit am Reverse-Proxy; n8n-Executions-Aufbewahrung | SICHERHEIT.md S6–S8 |
 | B | Lösch-Protokoll (wer, wann, wie viele) und Hilfsabfrage für Betroffenenanfragen | LOESCHKONZEPT.md |
 | B | Zeitplan für den regelmäßigen Löschlauf (erst nach F5) | LOESCHKONZEPT.md |
