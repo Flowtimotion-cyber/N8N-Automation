@@ -212,7 +212,7 @@ textarea { min-height:70px; resize:vertical; }
 
 <header>
   <div class="hbar"><img class="hlogo" src="media/logo_mark.png" alt="Momentum KI Akademie"><div class="htitle">Automationen bauen lassen</div><div class="badges" id="badges"></div><button class="btn sec dash" id="dashbtn" hidden>Auswertung</button><div class="xp" id="xp">0 XP</div></div>
-  <nav class="hlinks" aria-label="Kurs-Links"><a href="../">← Meine Kurse</a><a href="#" id="pause" title="Fortschritt speichern und Pause machen">⏸ Für heute beenden</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a><a href="../community/?modul=Modul%201.2">💬 Community</a><a href="../community/?tab=dozent&amp;modul=Modul%201.2">✉️ Dozent fragen</a></nav>
+  <nav class="hlinks" aria-label="Kurs-Links"><a href="../">← Meine Kurse</a><a href="#" id="pause" title="Fortschritt speichern und Pause machen">⏸ Für heute beenden</a><a href="#" id="verb" title="Fehler gefunden oder Idee? Sag uns Bescheid">💡 Verbesserung vorschlagen</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a><a href="../community/?modul=Modul%201.2">💬 Community</a><a href="../community/?tab=dozent&amp;modul=Modul%201.2">✉️ Dozent fragen</a></nav>
   <div class="prog"><i id="prog"></i></div>
 </header>
 <main id="main"></main>
@@ -902,6 +902,42 @@ function fuerHeuteBeenden(fertig) {
     '<div class="row" style="justify-content:center;margin-top:14px"><a class="btn" href="../" id="pauseKurse" style="text-decoration:none">Zu meinen Kursen</a><button class="btn sec" id="pauseWeiter">' + (fertig ? 'Hier bleiben' : 'Doch weiterlernen') + '</button></div></div>';
   document.getElementById("pauseWeiter").onclick = () => o.remove();
 }
+// Verbesserung vorschlagen: Fehler oder Idee zum Kurs direkt an das Momentum-Team (landet im Team-Portal unter „Vorschläge“)
+const VERB_HOOK = "https://n8n.hm-storage.de/webhook/kurs-community";
+function verbesserungOeffnen() {
+  let o = document.getElementById("verbBox");
+  if (!o) { o = document.createElement("div"); o.id = "verbBox"; document.body.appendChild(o); }
+  o.setAttribute("style", "position:fixed;inset:0;z-index:200;background:rgba(20,18,58,.45);display:flex;align-items:center;justify-content:center;padding:16px");
+  const wo = KURS + " · " + schrittName(S.step || 0);
+  o.innerHTML = '<div class="card" role="dialog" aria-modal="true" aria-labelledby="verbT" style="max-width:520px;width:100%;margin:0;max-height:92vh;overflow:auto">' +
+    '<h2 id="verbT" style="margin:0 0 6px">💡 Verbesserung vorschlagen</h2>' +
+    '<p class="muted" style="margin:0 0 12px">Du hast einen Fehler entdeckt, etwas war unklar oder du hast eine Idee? Schreib es uns, wir verbessern den Kurs laufend. Die Stelle, an der du gerade bist, schicken wir automatisch mit: <b>' + esc(wo) + '</b>.</p>' +
+    '<div class="opts two" id="verbArt" style="margin-bottom:10px"><button type="button" class="opt" data-a="fehler">🐞 Fehler gefunden</button><button type="button" class="opt" data-a="idee">✨ Idee / unklar</button></div>' +
+    '<textarea id="verbText" maxlength="4000" rows="5" style="width:100%;box-sizing:border-box" placeholder="Was ist dir aufgefallen? Zum Beispiel: Der Knopf … reagiert nicht, im Text steht …, ich hätte mir hier ein Beispiel gewünscht …"></textarea>' +
+    '<p class="small muted" style="margin:8px 0 0">Bitte keine Passwörter oder Schlüssel. Du kannst Fehler und Ideen auch einfach dem Kurs-Assistenten (Chat unten rechts) schreiben, er gibt sie an uns weiter.</p>' +
+    '<div class="row" style="justify-content:flex-end;gap:10px;margin-top:14px"><button class="btn sec" id="verbAbbr" type="button">Abbrechen</button><button class="btn" id="verbSend" type="button">Senden</button></div></div>';
+  let art = "idee";
+  const knoepfe = o.querySelectorAll("#verbArt [data-a]");
+  const setArt = a => { art = a; knoepfe.forEach(b => { const on = b.dataset.a === a; b.style.borderColor = on ? "var(--accent)" : ""; b.style.background = on ? "#F4F1FD" : ""; b.setAttribute("aria-pressed", on ? "true" : "false"); }); };
+  knoepfe.forEach(b => b.onclick = () => setArt(b.dataset.a));
+  setArt("idee");
+  o.onclick = e => { if (e.target === o) o.remove(); };
+  document.getElementById("verbAbbr").onclick = () => o.remove();
+  document.getElementById("verbText").focus();
+  document.getElementById("verbSend").onclick = async ev => {
+    const t = document.getElementById("verbText").value.trim();
+    if (t.length < 5) { toast("Bitte schreib kurz, was dir aufgefallen ist."); return; }
+    if (!S.name || !kurscodeOk(S.kurscode)) { toast("Bitte trag zuerst auf der Startseite deinen Namen und den Kurscode ein."); return; }
+    ev.target.disabled = true;
+    try {
+      const r = await fetch(VERB_HOOK, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ aktion: "verbesserung", art, text: t, modul: KURS, schritt: schrittName(S.step || 0), seite: location.pathname, teilnehmer_id: teilnehmerId(), name: S.name || "", kurscode: S.kurscode || "" }) });
+      const j = await r.json().catch(() => ({ ok: false }));
+      if (!j.ok) throw new Error(j.fehler || "Das hat leider nicht geklappt. Bitte versuch es später noch einmal.");
+      o.remove(); toast("Danke! Dein Hinweis ist beim Momentum-Team angekommen.");
+    } catch (e) { toast(e.message); ev.target.disabled = false; }
+  };
+}
+$("#verb").onclick = e => { e.preventDefault(); verbesserungOeffnen(); };
 $("#pause").onclick = e => { e.preventDefault(); fuerHeuteBeenden(false); };
 $("#next").onclick = () => { if (STEPS[S.step] && STEPS[S.step].k === "summary") { fortschrittJetztSenden(); fuerHeuteBeenden(true); return; } go(S.step + 1); };
 $("#back").onclick = () => go(S.step - 1);

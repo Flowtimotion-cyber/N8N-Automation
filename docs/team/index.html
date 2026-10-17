@@ -268,7 +268,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const fmtD = s => { if (!s) return ''; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? dDate(s) : new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
   const fmtDT = s => { if (!s) return '–'; const d = new Date(s); return isNaN(d) ? '–' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
   const ueberfaellig = a => a.deadline && a.status !== 'Erledigt' && dDate(a.deadline) < heute();
-  const mitglied = id => (D.mitglieder || []).find(x => x.mitglied_id === id) || { name: '–', mitglied_id: id };
+  const mitglied = id => (D.mitglieder || []).find(x => x.mitglied_id === id) || (/^kurs:/.test(String(id || '')) ? { name: String(id).slice(5) + ' (Kurs)', mitglied_id: id } : { name: '–', mitglied_id: id });
   const farbe = id => 'c' + (1 + (Math.abs([...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0)) % 6));
   const istKI = id => mitglied(id).typ === 'agent';
   const av = id => { const p = mitglied(id); return istKI(id) ? '<span class="av ki" title="' + esc(p.name) + ' (KI-Agent)">🤖</span>' : '<span class="av ' + farbe(id) + '" title="' + esc(p.name) + '">' + esc((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'; };
