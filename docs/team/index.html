@@ -247,6 +247,27 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .vtreffer button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:#fff;padding:7px 10px;cursor:pointer}
 .vtreffer button:hover{background:var(--soft)}
 .vkontakt{background:var(--soft);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px}
+.dash{margin-bottom:16px}
+.dash .dhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.dash .dtabs{display:flex;gap:6px;flex-wrap:wrap}
+.dash .dtabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-weight:600;color:var(--mut);cursor:pointer}
+.dash .dtabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.dgrid .card{margin-bottom:0}
+.dmini{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.dmini .kpi b{font-size:24px}
+.cchart{width:100%;height:auto;display:block;overflow:visible}
+.cchart .bar{fill:var(--acc)}
+.cchart .bar.alt{fill:var(--teal)}
+.cchart g:hover .bar{opacity:.75}
+.cchart text{font-size:11.5px;fill:var(--mut)}
+.cchart .val{fill:var(--ink);font-weight:600}
+.cchart .grid{stroke:var(--line);stroke-width:1}
+.funnel .row{display:grid;grid-template-columns:minmax(120px,38%) 1fr auto;gap:10px;align-items:center;margin:7px 0;font-size:14px}
+.funnel .bt{height:16px;background:var(--soft);border-radius:6px;overflow:hidden}
+.funnel .bt i{display:block;height:100%;background:linear-gradient(90deg,#9B4DF0,#5B6EE6);border-radius:6px}
+.funnel .q{color:var(--mut);font-size:12px;margin-left:4px}
+.dhint{font-size:12.5px;color:var(--mut);margin:6px 0 0}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
@@ -550,6 +571,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
       (meine.length ? meine.slice(0, 7).map(taskRow).join('') : '<p class="empty">Nichts offen. Stark!</p>') +
@@ -561,6 +583,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     bindTasks(); bindPosts();
     document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
     const n = $('[data-neu]'); if (n) n.onclick = () => aufgabeDialog(null);
+    dashBind();
   }
   const kpi = (n, l, warn) => '<div class="kpi' + (warn ? ' warn' : '') + '"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
 
@@ -1139,6 +1162,122 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       catch (e) { toast(e.message); }
       ev.target.disabled = false;
     };
+  }
+
+  // ---------- Dashboard (Übersicht) ----------
+  const DB = { tab: ls.get('mt-dash') || 'team', vLaedt: false };
+  const wochenStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); const wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); return x; };
+  const kwNr = d => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const j = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - j) / 864e5 + 1) / 7); };
+  // Zählt Einträge je Kalenderwoche (letzte n Wochen, aktuelle zuletzt)
+  function proWoche(liste, datumVon, n) {
+    const start = wochenStart(new Date()); start.setDate(start.getDate() - 7 * (n - 1));
+    const W = []; for (let i = 0; i < n; i++) { const s = new Date(start); s.setDate(s.getDate() + 7 * i); W.push({ s, label: 'KW ' + kwNr(s), wert: 0 }); }
+    for (const x of liste) { const v = datumVon(x); if (!v) continue; const d = new Date(v); if (isNaN(d)) continue; const i = Math.floor((wochenStart(d) - start) / (7 * 864e5)); if (i >= 0 && i < n) W[i].wert++; }
+    return W;
+  }
+  // Säulendiagramm (eine Reihe), Hover-Tooltip über <title>
+  function saeulen(daten, einheit, alt) {
+    if (!daten.length) return '<p class="empty small">Noch keine Daten.</p>';
+    const B = 400, H = 150, unten = 20, oben = 16, max = Math.max(1, ...daten.map(d => d.wert));
+    const bw = B / daten.length, w = Math.max(6, Math.min(36, bw - 8));
+    const y = v => H - unten - (v / max) * (H - unten - oben);
+    let s = '<svg class="cchart" viewBox="0 0 ' + B + ' ' + H + '" role="img"><line class="grid" x1="0" x2="' + B + '" y1="' + (H - unten) + '" y2="' + (H - unten) + '"/>';
+    daten.forEach((d, i) => {
+      const x = i * bw + (bw - w) / 2, yy = y(d.wert), h = Math.max(d.wert ? 3 : 0, H - unten - yy);
+      s += '<g><title>' + esc(d.tip || (d.label + ': ' + d.wert + ' ' + einheit)) + '</title><rect x="' + (i * bw) + '" y="0" width="' + bw + '" height="' + H + '" fill="transparent"/>' +
+        (h ? '<path class="bar' + (alt ? ' alt' : '') + '" d="M' + x + ',' + (H - unten) + 'V' + (H - unten - h + 4) + 'q0,-4 4,-4h' + (w - 8) + 'q4,0 4,4V' + (H - unten) + 'Z"/>' : '') +
+        (d.wert ? '<text class="val" x="' + (x + w / 2) + '" y="' + (H - unten - h - 4) + '" text-anchor="middle">' + d.wert + '</text>' : '') +
+        ((daten.length <= 12 || i % 2 === daten.length % 2) ? '<text x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(d.label) + '</text>' : '') + '</g>';
+    });
+    return s + '</svg>';
+  }
+  function trichter(stufen) {
+    const max = Math.max(1, stufen[0] ? stufen[0][1] : 1);
+    return '<div class="funnel">' + stufen.map(([k, v], i) => '<div class="row"><span>' + esc(k) + '</span><span class="bt"><i style="width:' + Math.max(v ? 2 : 0, Math.round(v / max * 100)) + '%"></i></span><b>' + v + (i ? '<span class="q">' + (stufen[0][1] ? Math.round(v / stufen[0][1] * 1000) / 10 : 0) + ' %</span>' : '') + '</b></div>').join('') + '</div>';
+  }
+  const karte = (titel, inhalt, hinweis) => '<div class="card"><h2>' + titel + '</h2>' + inhalt + (hinweis ? '<p class="dhint">' + hinweis + '</p>' : '') + '</div>';
+
+  function dashHtml() {
+    const tabs = [['team', 'Team & Aufgaben'], ['vertrieb', 'Vertrieb'], ['kurs', 'Kurse & Teilnehmer'], ['marketing', 'Marketing'], ['web', 'Webseiten']].filter(([k]) => k !== 'vertrieb' || darfVertrieb());
+    if (!tabs.some(([k]) => k === DB.tab)) DB.tab = 'team';
+    return '<div class="dash"><div class="dhead"><h2 style="margin:0">📊 Dashboard</h2><div class="dtabs">' + tabs.map(([k, l]) => '<button data-dt="' + k + '"' + (k === DB.tab ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div></div><div id="dbody">' + dashTeil() + '</div></div>';
+  }
+  function dashBind() {
+    document.querySelectorAll('[data-dt]').forEach(b => b.onclick = () => { DB.tab = b.dataset.dt; ls.set('mt-dash', DB.tab); document.querySelectorAll('[data-dt]').forEach(x => x.classList.toggle('on', x === b)); dashSetzen(); dashNachladen(); });
+    dashNachladen();
+  }
+  function dashNachladen() {
+    if (DB.tab === 'vertrieb' && darfVertrieb() && !VT.d && !VT.laedt && !DB.vLaedt) {
+      DB.vLaedt = true;
+      vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DB.vLaedt = false; if (tab === 'start' && DB.tab === 'vertrieb' && $('#dbody')) dashSetzen(); });
+    }
+  }
+  function dashSetzen() {
+    $('#dbody').innerHTML = dashTeil();
+    $('#dbody').querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
+  }
+  function dashTeil() {
+    if (DB.tab === 'vertrieb') return dashVertrieb();
+    if (DB.tab === 'kurs') return dashKurs();
+    if (DB.tab === 'marketing') return dashMarketing();
+    if (DB.tab === 'web') return dashWeb();
+    return dashTeam();
+  }
+  function dashTeam() {
+    const A = D.aufgaben || [], offen = A.filter(a => a.status !== 'Erledigt');
+    const neu = proWoche(A, a => a.erstellt, 8), erl = proWoche(A.filter(a => a.status === 'Erledigt'), a => a.erledigt_am || (a.status === 'Erledigt' ? a.geaendert : null), 8);
+    const jePerson = {}; offen.forEach(a => { const n = mitglied(a.verantwortlich).name || 'ohne'; jePerson[n] = (jePerson[n] || 0) + 1; });
+    const jeProjekt = {}; offen.forEach(a => { const n = a.projekt || 'ohne Projekt'; jeProjekt[n] = (jeProjekt[n] || 0) + 1; });
+    const ym = new Date().toLocaleDateString('sv-SE').slice(0, 7);
+    const Z = (D.zeiten || []).filter(z => String(z.datum).slice(0, 7) === ym);
+    const std = {}; Z.forEach(z => { const n = mitglied(z.mitglied_id).name || z.mitglied_id; std[n] = (std[n] || 0) + (Number(z.minuten) || 0); });
+    const erl30 = A.filter(a => a.status === 'Erledigt' && (a.erledigt_am || a.geaendert) && (Date.now() - new Date(a.erledigt_am || a.geaendert)) < 30 * 864e5).length;
+    return '<div class="dmini">' + kpi(offen.length, 'offene Aufgaben') + kpi(offen.filter(ueberfaellig).length, 'überfällig', offen.some(ueberfaellig)) + kpi(erl30, 'erledigt (30 Tage)') + kpi(offen.filter(a => String(a.verantwortlich).startsWith('agent-')).length, 'bei KI-Agenten') + '</div>' +
+      '<div class="dgrid">' + karte('Neue Aufgaben je Woche', saeulen(neu, 'neue Aufgaben')) + karte('Erledigt je Woche', saeulen(erl, 'erledigt', true)) +
+      karte('Offen je Person', bars(Object.entries(jePerson).sort((a, b) => b[1] - a[1]))) + karte('Offen je Projekt', bars(Object.entries(jeProjekt).sort((a, b) => b[1] - a[1]).slice(0, 10), 'var(--acc2)')) +
+      karte('Stunden ' + new Date().toLocaleDateString('de-DE', { month: 'long' }), bars(Object.entries(std).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v / 6) / 10]), 'var(--teal)'), istAdmin() ? 'Alle eingetragenen Stunden des Monats.' : 'Deine eigenen Stunden; Team-Stunden sieht nur die Leitung.') + '</div>';
+  }
+  const VPOS = ['NEW', 'ERSTKONTAKT', 'PITCH', 'TIMO_CALL', 'SCREENING', 'MEETING', 'ENTSCHEIDUNG', 'MEETING_DONE', 'PROPOSAL', 'BGS_GENEHMIGT', 'CUSTOMER'];
+  function dashVertrieb() {
+    if (!VT.d) return VT.fehler ? '<div class="note warn">' + esc(VT.fehler) + '</div>' : '<p class="muted">Lade Vertriebszahlen aus Twenty …</p>';
+    const C = VT.d.chancen || [], rang = s => VPOS.indexOf(s);
+    const tage = (c, n) => c.eingang && (Date.now() - new Date(c.eingang)) < n * 864e5;
+    const ab = s => C.filter(c => rang(c.stage) >= rang(s)).length;
+    const zu = new Set(['UNGUELTIG', 'NICHT_INTERESSIERT', 'LOST', 'CUSTOMER']);
+    const wert = C.filter(c => !zu.has(c.stage)).reduce((s, c) => s + (Number(c.betrag) || 0), 0);
+    const quelle = {}; C.forEach(c => { const q = c.kiflow ? 'KI Flow (TEMP)' : c.ig ? 'Instagram' : 'Direkt in Twenty'; quelle[q] = (quelle[q] || 0) + 1; });
+    const label = Object.fromEntries(VSTUFEN.map(s => [s[0], s[1]]));
+    const verteilung = VSTUFEN.map(s => [s[1], (VT.d.anzahl || {})[s[0]] || 0]).filter(x => x[1]);
+    return '<div class="dmini">' + kpi(C.length, 'Leads gesamt') + kpi(C.filter(c => tage(c, 7)).length, 'neu (7 Tage)') + kpi(C.filter(c => tage(c, 30)).length, 'neu (30 Tage)') + kpi((VT.d.anzahl || {}).MEETING || 0, 'Termin gebucht') + kpi(ab('MEETING_DONE') - ab('CUSTOMER'), 'in Beratung / Antrag') + kpi((VT.d.anzahl || {}).CUSTOMER || 0, 'Verträge') + (wert ? kpi(euroTxt(wert), 'offener Pipeline-Wert') : '') + '</div>' +
+      '<div class="dgrid">' + karte('Neue Leads je Woche', saeulen(proWoche(C, c => c.eingang, 12), 'neue Leads'), 'Nach Eingangsdatum (bei KI-Flow-Leads das Datum aus KI Flow).') +
+      karte('Weg zum Vertrag', trichter([['Alle Leads', C.length], ['Interessiert', ab('SCREENING')], [label.MEETING.replace('📆 ', ''), ab('MEETING')], ['In der Beratung', ab('MEETING_DONE')], ['Erhebungsbogen', ab('PROPOSAL')], ['Bildungsgutschein', ab('BGS_GENEHMIGT')], ['Vertrag', ab('CUSTOMER')]]), 'Wie viele Leads diese Stufe schon erreicht haben (heutiger Stand, Prozent von allen Leads).') +
+      karte('Verteilung nach Stufe', bars(verteilung)) + karte('Woher die Leads kommen', bars(Object.entries(quelle).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) + '</div>' +
+      '<p class="dhint">Stand: ' + fmtDT(VT.d.stand) + ' · <button class="btn ghost" data-goto="vertrieb">Zur Pipeline →</button></p>';
+  }
+  function dashKurs() {
+    const k = D.kurs || {}, an = D.anfragen || [];
+    return '<div class="dmini">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv (7 Tage)') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Check bestanden') + kpi(k.fragen_7_tage || 0, 'Fragen (7 Tage)') + kpi(an.length, 'Anfragen') + '</div>' +
+      '<div class="dgrid">' + karte('Nach Kursteil', bars(k.je_teil)) + karte('Wo die Teilnehmenden stehen', bars(k.schritte, 'var(--acc2)')) + karte('Fragen an den Assistenten nach Schritt', bars(k.fragen_je_schritt, 'var(--teal)')) +
+      karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + '</div>' +
+      '<p class="dhint">Anwesenheit aus dem Klassenbuch (TEMP-Kurs) kommt als Nächstes dazu. <button class="btn ghost" data-goto="kurs">Details →</button></p>';
+  }
+  function dashMarketing() {
+    const S = D.social || [], jetzt = heute();
+    const kanal = {}; S.forEach(p => { const k = p.kanal || 'ohne Kanal'; kanal[k] = (kanal[k] || 0) + 1; });
+    const status = {}; S.forEach(p => { status[p.status || '–'] = (status[p.status || '–'] || 0) + 1; });
+    const veroeff = S.filter(p => p.status === 'Veröffentlicht');
+    const naechste14 = S.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= jetzt && (dDate(p.datum) - jetzt) < 14 * 864e5).length;
+    return '<div class="dmini">' + kpi(S.length, 'Beiträge im Plan') + kpi(veroeff.length, 'veröffentlicht') + kpi(naechste14, 'geplant (14 Tage)') + kpi(S.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) < jetzt).length, 'Termin verpasst', S.some(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) < jetzt)) + '</div>' +
+      '<div class="dgrid">' + karte('Beiträge je Woche (nach Datum)', saeulen(proWoche(S, p => p.datum, 10), 'Beiträge')) + karte('Je Kanal', bars(Object.entries(kanal).sort((a, b) => b[1] - a[1]))) + karte('Nach Status', bars(Object.entries(status).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) +
+      karte('Newsletter', '<p class="empty small">Kommt mit dem neuen Newsletter über info@momentum-ki-akademie.de: Empfänger, Öffnungen, Klicks, Abmeldungen.</p>') + '</div>';
+  }
+  function dashWeb() {
+    const L = (D.aufgaben || []).filter(a => a.projekt === 'Webseite' || a.projekt === 'Hermetik Marketing');
+    const offen = n => L.filter(a => a.projekt === n && a.status !== 'Erledigt').length;
+    const seite = (name, url, proj) => '<div class="card"><h2>' + name + '</h2><p class="small"><a href="' + url + '" target="_blank" rel="noopener">' + url.replace('https://', '') + ' ↗</a></p>' +
+      '<div class="dmini">' + kpi(offen(proj), 'offene Punkte') + kpi('–', 'Besucher (30 Tage)') + kpi('–', 'Anfragen über die Seite') + '</div>' +
+      '<p class="empty small">Besucherzahlen, Herkunft und Google-Suche erscheinen hier, sobald die Statistik-Quelle angebunden ist.</p></div>';
+    return '<div class="dgrid">' + seite('Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>';
   }
 
   // ---------- Projekte ----------
