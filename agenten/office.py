@@ -5,6 +5,7 @@ Zugang: dieselbe Umgebungsvariable wie für team.py: TEAM_PORTAL_TOKEN (Agenten-
 Nur Python-Standardbibliothek. Produktiv spricht das Skript mit dem n8n-Workflow „TEAM: Office-API“.
 
   office.py meine                               meine Runs (Warteschlange, in Arbeit, wartet …)
+  office.py offen [--ausfuehrer claude-code] [--json]   nur Aufträge in der Warteschlange von Agenten mit diesem Ausführer (für den Abholer)
   office.py zeige <run_id>                      ein Run mit Zeitleiste, Ergebnissen, Freigaben
   office.py start <run_id> [--n8n-execution ID] Lebenszeichen senden; aus Warteschlange → in Arbeit
   office.py schritt <run_id> "Titel" [--tool NAME] [--quelle REF] [--details JSON]   Ereignis melden
@@ -265,7 +266,7 @@ def main():
     p.add_argument('befehl'); p.add_argument('args', nargs='*')
     p.add_argument('--tool'); p.add_argument('--quelle'); p.add_argument('--details'); p.add_argument('--art', default='text')
     p.add_argument('--ablage', default=''); p.add_argument('--zusammenfassung', default=''); p.add_argument('--vorschau', default='')
-    p.add_argument('--aufgabe'); p.add_argument('--n8n-execution', dest='n8n'); p.add_argument('--json', action='store_true')
+    p.add_argument('--aufgabe'); p.add_argument('--n8n-execution', dest='n8n'); p.add_argument('--json', action='store_true'); p.add_argument('--ausfuehrer', default='claude-code')
     p.add_argument('--hash', help='SHA-256 (64 Hex-Zeichen) des Ergebnisinhalts, für „ergebnis“')
     p.add_argument('--vault'); p.add_argument('--ordner'); p.add_argument('--zustand'); p.add_argument('--trocken', action='store_true'); p.add_argument('--alles', action='store_true')
     o = p.parse_args(); b, A = o.befehl, o.args
@@ -279,6 +280,15 @@ def main():
         meine = [a['agent_id'] for a in d['agenten'] if a.get('mitglied_id') == ich]
         L = [r for r in d['runs'] if r.get('agent_id') in meine and r.get('status') not in ('abgeschlossen', 'fehlgeschlagen', 'abgebrochen', 'unbekannt')]
         print(json.dumps(L, ensure_ascii=False, indent=2) if o.json else ('\n'.join(map(kurz, L)) or 'Nichts offen.')); return
+    if b == 'offen':
+        # Alle Claude-Agenten teilen sich eine Token-Identität (agent-claude): 'meine' zeigt deshalb auch Runs der n8n-Agenten.
+        # 'offen' filtert zusätzlich nach Ausführer und Status, damit der Abholer nur Aufträge nimmt, die sonst keiner bearbeitet.
+        d = api('laden'); ich = d['ich']['mitglied_id']
+        reg = {a['agent_id']: a for a in d['agenten'] if a.get('mitglied_id') == ich and a.get('ausfuehrer') == o.ausfuehrer and a.get('aktiv', True)}
+        L = [dict(r, agent={k: reg[r['agent_id']].get(k) for k in ('name', 'rolle', 'erlaubte_tools', 'modell', 'timeout_sek')})
+             for r in d['runs'] if r.get('agent_id') in reg and r.get('status') == 'warteschlange']
+        L.sort(key=lambda r: str(r.get('erstellt') or r.get('run_id')))
+        print(json.dumps(L, ensure_ascii=False, indent=2) if o.json else (chr(10).join(map(kurz, L)) or 'Nichts in der Warteschlange.')); return
     if b == 'zeige':
         d = api('laden'); r = next((x for x in d['runs'] if x['run_id'] == A[0]), None)
         if not r: sys.exit('Run %s nicht sichtbar.' % A[0])

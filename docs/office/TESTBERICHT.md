@@ -227,3 +227,35 @@ Befund Office-API: Seit 17.10.2026 16:06 Uhr fehlte bei jedem neuen Auftrag der 
 Gesamtlauf `npm run test:office` (Windows 11, Node 24, Playwright-Chromium): **83 von 83 bestanden**, 86 s.
 
 Nicht im Office-Browser geprüft: Ich habe keinen eigenen Zugang zum Office im Browser (persönlicher Token-Link). Die Darstellung (Team-Run in der Zentrale, Teilaufträge, Teamlinien) ist mit Testdaten in den Browsertests abgedeckt (Abschnitt 10). Live liefert `laden` dieselben Felder (`eltern_run_id`, `team_id`); bitte einmal im Office den Run `run_mvcyf16j5155dd` öffnen.
+
+## 15. Nachtrag 18.10.2026: Abholer für Claude-Code-Agenten (Branch `feature/ki-office-claude-code-ausfuehrer`, KI-erstellt: Claude Code)
+
+Zwei Tests: ein Lauf gegen den **Testadapter** (synthetische Daten, nächster Absatz) und ein **Live-Test gegen die Produktion** (am Ende dieses Abschnitts). Die geplante Aufgabe selbst ist noch nicht angelegt und damit nicht getestet.
+
+**Aufbau des Tests:** `OFFICE_TEST_OHNE_SIMULATION=claude-code node office/dev/server.mjs --port 8799 --szenario leer` (neue Umgebungsvariable im Testadapter: Aufträge an diese Ausführer werden nicht von der Simulation übernommen und bleiben in der Warteschlange). Drei Aufträge als `m_timo` angelegt: `akademie-redakteur` (claude-code), `rekruiter` (claude-code), `marketing-texter` (n8n). Token des Abholers: synthetischer `agent-claude`-Wert des Testservers (`TEAM_OFFICE_API=http://127.0.0.1:8799/api/office`).
+
+| Prüfung | Ergebnis |
+|---|---|
+| `office.py offen` zeigt nur Claude-Code-Aufträge in der Warteschlange | ✅ 2 von 3 (der n8n-Auftrag fehlt wie gewollt); `office.py meine` zeigt dagegen alle 3, weil alle Claude-Agenten die Identität `agent-claude` teilen |
+| Durchlauf nach `agenten/OFFICE_ABARBEITER.md` durch einen Sonnet-Agenten (start → schritt → ergebnis → fertig) | ✅ beide Runs „abgeschlossen (technisch)“, Zeitleiste mit Übernahme, Schritt, Ergebnis (Art `bericht`), Abschluss; danach `offen` leer |
+| Werkzeug-Allowlist | ✅ `--tool registry_lesen` (erlaubt) ging durch; ohne `--tool` ebenfalls |
+| Unit-Tests `npm run test:office:unit` | ✅ 59/59 (die Änderung am Testadapter ist ohne die neue Variable wirkungslos) |
+
+**Im Testadapter nicht getestet:** (1) die geplante Aufgabe selbst; ein Probelauf über `claude -p` in einem Kindprozess scheiterte an der Anmeldung („OAuth session expired“), das ist eine Eigenschaft des Testrechners, kein Befund zum Ablauf. (2) Der Subagent-Start (`office-texter` usw.) per Agent-Werkzeug: der Testlauf war selbst ein Subagent und konnte keine weiteren starten, er hat deshalb nach den Regeln der Subagent-Datei selbst geschrieben (im Live-Test ging der Start).
+
+**Aus dem Test in die Anleitung übernommen:** Ergebnis-Zusammenfassung wird nach 1000 Zeichen abgeschnitten, längere Texte als Notiz; Steckbrief des Rekruiters als Notiz statt Datei (dem Agenten fehlt `repo_schreiben`, und `office.py` kennt keinen Befehl für `agent_vorschlagen`); „angenommen“ in der Antwort von `fertig` heißt nur „Meldung angekommen“, nicht fachlich abgenommen; Fallback, wenn ein Subagent nicht startbar ist; `--tool` nur bei echtem Werkzeug.
+
+### Live-Test gegen die Produktion (18.10.2026, nach dem Setzen von `TEAM_PORTAL_TOKEN`)
+
+Ablauf nach `agenten/OFFICE_ABARBEITER.md`, durchgeführt von einer Claude-Code-Sitzung (Sonnet) mit dem echten Agenten-Token aus der Umgebungsvariablen (Wert nie ausgegeben). Kleiner Auftrag an den Agenten `rekruiter`, Projekt „Momentum Office“: Steckbrief-Entwurf für einen möglichen „Rechnungs-Vorprüfer“, nichts anlegen.
+
+| Schritt | Ergebnis |
+|---|---|
+| `office.py offen` vor dem Auftrag | ✅ „Nichts in der Warteschlange“ |
+| `office.py auftrag rekruiter …` | ✅ Run `run_mvczhk47edee8f`, Status Warteschlange; `offen` listet ihn |
+| `start`, `schritt --tool registry_lesen`, Subagent `office-rekruiter` (per Agent-Werkzeug), `team.py notiz-speichern`, `schritt --tool notiz_speichern`, `ergebnis --art notiz`, `fertig` | ✅ alle Aufrufe ohne Fehler (kein 403 bei den Werkzeugen) |
+| Ergebnis im Office | ✅ Run „abgeschlossen (technisch)“, sieben Zeitleisteneinträge, Ergebnis `art_mvczit5b12823f`, Notiz `n_mvczirit30d289` im Projekt „Momentum Office“ |
+
+Die Produktions-Registry weicht vom Testadapter ab (Projektnamen, z. B. rekruiter → „Momentum Office“; Werkzeuge `registry_lesen`, `agent_vorschlagen`, `notiz_speichern`). Die Anleitung nennt keine festen Projekte, es war nichts anzupassen.
+
+**Noch offen:** Die **geplante Aufgabe** `office-claude-code-abholen` ist nicht angelegt: Das Anlegen per Werkzeug hat der Berechtigungsprüfer der Sitzung abgelehnt (es wurde kein Umweg gesucht). Prompt und Einstellungen stehen in SETUP.md Abschnitt 12; ein Mensch legt sie in der Claude-App an. Erst danach ist „ohne manuellen Eingriff“ belegt (Aufgabe läuft von selbst, Run springt auf „abgeschlossen“); das Ergebnis bitte hier nachtragen.
