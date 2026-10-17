@@ -155,3 +155,19 @@ Alle Werkzeuge der Agenten laufen über n8n, nie direkt aus dem Browser. Das ist
 | **Portal-API v2 / Office-API per HTTP** | Agenten lesen Aufgaben und melden Berichte (heute `agenten/team.py`) | läuft (Portal) bzw. wartet auf Import (Office) |
 
 Regeln, die für alle Wege gelten: Werkzeuge nur aus der Allowlist der Registry; externe Aktionen (E-Mail, Posts, Zahlungen, Löschen) nur mit inhaltsgebundener Freigabe; Rückmeldungen signiert (HMAC, Zeitfenster, Nonce); Allowlist für `ausfuehrer_url`-Domains ist offen (SICHERHEIT.md S6).
+
+## 11. Rekruiter, Orchestrierer und PA-Assistent (ergänzt 17.10.2026)
+
+Drei weitere Registry-Einträge, auf Timos Wunsch angelegt. Sie sind zunächst nur Rollen in der Registry; ihre Ausführer fehlen noch (siehe RESTPUNKTE.md).
+
+| Agent | Aufgabe | Was er darf | Was er nicht darf |
+|---|---|---|---|
+| `rekruiter` | Neue Agenten „einstellen“: Bedarf klären, Steckbrief (Rolle, Fähigkeiten, Werkzeuge, Modell, Raum, Projekte) als Artefakt vorlegen | `registry_lesen`, `agent_vorschlagen`, `notiz_speichern` | Agenten selbst anlegen. `agent_speichern` bleibt Admin-Aktion; Timo übernimmt den Steckbrief oder lehnt ab. Später: eigene Freigabe-Art „agent_anlegen“ (inhaltsgebunden), dann legt der Workflow nach Freigabe an. |
+| `orchestrierer` | Aufgaben erkennen, zerlegen, an passende Agenten delegieren, bei Bedarf Teams bilden | `aufgaben_lesen`, `registry_lesen`, `auftrag_delegieren`, `notiz_speichern` | Selbst ausführen; über Projektgrenzen delegieren; externe Aktionen auslösen. |
+| `pa-assistent` | Termine im Blick, Postfächer lesen, Entscheidungsbedarf als Rückfrage oder Aufgabe auf Timos Tisch legen | `kalender_lesen`, `email_lesen`, `aufgaben_lesen`, `rueckfrage`, `notiz_speichern` | Mails beantworten, Termine ändern (nur mit Freigabe `email_senden` / `kalender_aendern`). |
+
+**Orchestrierung im Datenmodell (geplant, noch nicht gebaut).** Delegation braucht zwei kleine Erweiterungen, die in einer eigenen Sitzung kommen: `office_runs.eltern_run_id` (Teilaufträge zeigen auf den Auftrag des Orchestrierers) und `office_runs.team_id` (eine Teambildung = ein Team-Run mit mehreren Kind-Runs). Die Aktion `auftrag_delegieren` ist `auftrag_starten` mit `eltern_run_id`, nur erlaubt, wenn der Orchestrierer das Zielprojekt sehen darf und der Zielagent dem Projekt zugeordnet ist. Ein Team-Run ist erst „abgeschlossen“, wenn alle Kind-Runs beendet sind; die fachliche Abnahme bleibt beim Menschen.
+
+**Darstellung (geplant).** Der Orchestrierer sitzt im Büro in der Zentrale statt in einem Raum. Ein Team erscheint als Verbindung von der Zentrale zu den beteiligten Figuren; die Run-Zeitleiste des Team-Runs zeigt die Kind-Runs als eingerückte Zweige mit eigenem Status. Die Projektübersicht zählt Kind-Runs beim Projekt, nicht doppelt beim Orchestrierer.
+
+**PA-Assistent und Datenschutz.** Postfächer lesen ist eine neue Verarbeitung (Mails Dritter, ggf. Beschäftigtendaten). Vor dem ersten echten Lauf: Zweck und Rechtsgrundlage festhalten, betroffene Postfächer benennen, AV-Vertrag mit dem Mailanbieter prüfen, Datensparsamkeit (nur Betreff, Absender, Fristen und ein kurzer Entscheidungssatz landen im Office, nie der Mailinhalt). Siehe DATENSCHUTZ_AI_ACT.md, Anwendungsfall D.

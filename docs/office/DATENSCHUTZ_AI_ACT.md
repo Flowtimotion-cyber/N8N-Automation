@@ -126,3 +126,18 @@ Spalten: Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | O
 5. Anthropic-Retention (7 vs. 30 Tage) widersprüchlich; OpenAI EU-Residenz/ZDR widersprüchlich.
 6. Supabase-Region des Projekts unbekannt (kein Zugang in dieser Sitzung).
 7. Keine neuen DSK-Papiere 2026 zu KI-Agenten gefunden; Fehlanzeige ist kein Beweis.
+
+## Nachtrag 17.10.2026: Anwendungsfall D, PA-Assistent (Termine und Postfächer)
+
+| Punkt | Einordnung | Stand |
+|---|---|---|
+| Verarbeitung | Lesen aller Postfächer und Kalender von Timo, Erkennen von Entscheidungsbedarf, Anlegen von Rückfragen/Aufgaben im Office | geplant, nicht aktiviert |
+| Datenkategorien | Kontaktdaten und Inhalte Dritter (Kunden, Partner, Behörden), ggf. Beschäftigtendaten (Team-Mails), Termine | – |
+| Rechtsgrundlage | Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse, Organisation der eigenen Geschäftstätigkeit) für Geschäftsmails; bei Beschäftigten § 26 BDSG beachten; Interessenabwägung dokumentieren | ⬜ organisatorisch |
+| Modellaufruf | Mailinhalte an ein Modell (Anthropic/OpenAI) senden = Drittlandtransfer, AV-Vertrag und Datensparsamkeit nötig; Vorverarbeitung (nur Betreff/Absender/Kurzauszug) prüfen | ⬜ juristisch |
+| Datenminimierung | Office speichert nur Betreff, Absender, Frist und Entscheidungssatz, nie den Mailtext; Ereignisse mit `quelle_ref` auf die Mail-ID | technisch geplant |
+| Transparenz | Teammitglieder informieren, dass ein Assistent Team-Mails sichtet; keine Leistungsbewertung | ⬜ organisatorisch |
+| AI Act | Kein Hochrisiko (keine Entscheidungen über Personen); Art. 50 nicht berührt, solange der PA nicht nach außen schreibt | eingeordnet |
+| DSFA | Prüfen: systematische Auswertung von Kommunikation kann DSFA-pflichtig sein (Art. 35), insbesondere bei Beschäftigtenmails | ⬜ juristisch |
+
+Bis diese Punkte geklärt sind, bekommt der PA-Assistent keinen Ausführer mit Postfachzugriff.
