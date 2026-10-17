@@ -2280,7 +2280,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // Daten alle 2 Minuten im Hintergrund auffrischen, wenn kein Dialog offen ist
   setInterval(() => {
-    const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);
+    // Nicht neu aufbauen, solange jemand tippt oder im eingebetteten KI Office arbeitet (Fokus im iframe): render() würde das iframe neu laden
+    // und einen dort offenen Dialog (z. B. „Auftrag an Agent“) schließen.
+    const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA|IFRAME)$/.test(a.tagName);
     if (D && !D.setup && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
   }, 120000);
   leseHash();
