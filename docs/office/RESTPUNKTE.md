@@ -6,10 +6,10 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 
 | # | Frage | Warum | Vorschlag |
 |---|---|---|---|
-| F1 | Darf der neue Workflow **„TEAM: Office-API“** importiert und aktiviert werden (`office/n8n/office-api.workflow.json`)? | Ohne ihn zeigt das Office „Keine Verbindung“; das Portal läuft unverändert | Ja, nach dem SQL (SETUP.md) |
-| F2 | Darf `supabase/team_office.sql` laufen? Es ersetzt `team_laden()` (wie bisher jede Erweiterung) und legt `office_*`-Tabellen an | Portal-API v2 bekommt dadurch mehr Daten im JSON, ignoriert sie aber nach Lesart des Codes | Ja; danach Portal einmal prüfen |
-| F3 | Welche **Räume** bekommen die bestehenden Projekte (`team_projekte.raum`)? | Büro und Raumfilter | SQL-Update je Projekt (SETUP.md Abschnitt 1.4) |
-| F4 | Stimmt die **Agenten-Registry** (`office/agenten.json`): zehn Rollen, Modellzuordnung, Projektzuordnung, Executor-Identität (agent-claude/-codex/-hermes)? | Projektgrenzen hängen daran | Durchsehen, per `agent_speichern` anpassen |
+| F1 | ✅ 17.10.2026 erledigt (angelegt per MCP, aktiv). Ursprünglich: Darf der neue Workflow **„TEAM: Office-API“** importiert und aktiviert werden (`office/n8n/office-api.workflow.json`)? | Ohne ihn zeigt das Office „Keine Verbindung“; das Portal läuft unverändert | Ja, nach dem SQL (SETUP.md) |
+| F2 | ✅ 17.10.2026 erledigt (Timo hat die SQL ausgeführt). Ursprünglich: Darf `supabase/team_office.sql` laufen? Es ersetzt `team_laden()` (wie bisher jede Erweiterung) und legt `office_*`-Tabellen an | Portal-API v2 bekommt dadurch mehr Daten im JSON, ignoriert sie aber nach Lesart des Codes | Ja; danach Portal einmal prüfen |
+| F3 | ✅ 17.10.2026 als KI-Vorschlag gesetzt (SETUP.md Abschnitt 7), bitte prüfen. Ursprünglich: Welche **Räume** bekommen die bestehenden Projekte (`team_projekte.raum`)? | Büro und Raumfilter | SQL-Update je Projekt (SETUP.md Abschnitt 1.4) |
+| F4 | ✅ 17.10.2026 Projektlisten als KI-Vorschlag gesetzt (SETUP.md Abschnitt 7), Modelle/Executor noch zu prüfen. Ursprünglich: Stimmt die **Agenten-Registry** (`office/agenten.json`): zehn Rollen, Modellzuordnung, Projektzuordnung, Executor-Identität (agent-claude/-codex/-hermes)? | Projektgrenzen hängen daran | Durchsehen, per `agent_speichern` anpassen |
 | F5 | Löschfristen laut LOESCHKONZEPT.md (180 Tage Runs, 30 Tage Idempotenz, 14 Tage n8n-Fehlerausführungen)? | Datenschutz | bestätigen oder ändern |
 | F6 | Sollen Menschen außer Admin/Dozent **alle** Projekte im Office sehen (wie im Portal) oder soll es eine Projektliste je Person geben? | Vorbereitet über `mitglieder.projekte`, nicht aktiviert | wie Portal lassen |
 | F7 | Wer darf **normale Freigaben** (E-Mail, Post, Termin) erteilen: jede Person im Team oder nur Admin/Dozent? | aktuell: jeder Mensch mit Projektsicht außer dem Anfordernden; kritische nur Admin | so lassen |

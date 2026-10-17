@@ -55,3 +55,31 @@ node office/n8n/bauen.mjs                  # n8n-Dateien neu erzeugen
 - n8n: Der Workflow **„TEAM: Office-API“** wurde per MCP aus `office/n8n/office-api.workflow.js` angelegt (ID `NuK6m10yIGKMRWxC`, https://n8n.hm-storage.de/workflow/NuK6m10yIGKMRWxC), 19 Knoten, Webhook-Pfad `office-api`, Zeitplan alle 5 Minuten. Der Code-Knoten enthält `office/n8n/code/anfrage-pruefen.js` ohne Kommentarzeilen.
 - Noch offen, nur in der n8n-Oberfläche möglich: in **„Team-Daten laden“** und **„In Supabase schreiben“** das Credential „Supabase account“ auswählen (die Schnittstelle vergibt Credentials nicht an HTTP-Knoten), unter Einstellungen „Save successful executions“ auf „Do not save“ stellen, dann aktivieren.
 - Die SDK-Datei brauchte für die Schnittstelle drei Anpassungen: keine `.settings(...)`, Verzweigungen als `.add(x.output(n).to(y))`, Code-Knoten als eine Zeichenkette statt langer `+`-Kette. Die JSON-Importdatei bleibt der Weg für den manuellen Import.
+
+## 7. Stand 17.10.2026 (später): Office-API aktiv, Räume und Registry auf echte Projekte umgestellt
+
+- „TEAM: Office-API“ ist aktiv. Live-Test der Webhook-Adresse mit ungültigen Tokens: dreimal HTTP 401 mit korrekter Meldung (Supabase-Zugriff damit belegt). Einstellung „erfolgreiche Läufe nicht speichern“ und Zeitzone Europe/Berlin per Schnittstelle gesetzt.
+- Räume und Agenten-Projekte wurden per temporärem Hilfs-Workflow (archiviert) direkt in Supabase geschrieben. Das ist ein **KI-Vorschlag von Claude Code**, Timo kann ihn jederzeit ändern (Office-API `agent_speichern` als Admin oder SQL):
+
+| Raum | Projekte |
+|---|---|
+| Akademie | Kurs Modul 1, TEMP.Akademie, AZAV & GmbH |
+| Marketing | Webseite, Social Media, Hermetik Marketing |
+| Vertrieb | Vertrieb, KI-Agentur-Pipeline |
+| Kundenprojekte | Healthhack, TeamRebelMedia / Max Görtler, Technische Datenbasis …, AGOMED – Medtech, AWS GmbH, IFA GmbH, Spirit WoMen Zentrum, Wioletta Tuschnio, Yoga mit Seher |
+| Verwaltung | Systeme, Momentum Office, Firmenwissen, Sonstiges |
+
+| Agent | Projekte |
+|---|---|
+| akademie-redakteur | Kurs Modul 1, TEMP.Akademie |
+| kurs-waechter | Kurs Modul 1 |
+| marketing-texter | Webseite, Social Media, Hermetik Marketing |
+| social-planer | Social Media |
+| vertrieb-recherche | Vertrieb, KI-Agentur-Pipeline |
+| angebots-pruefer | Vertrieb, KI-Agentur-Pipeline und alle Kundenprojekte |
+| kunden-entwickler | alle Kundenprojekte |
+| architektur-review | alle Kundenprojekte, Systeme, Momentum Office, Webseite |
+| verwaltung-status | alle Projekte |
+| server-waechter | Systeme, Momentum Office |
+
+Hinweis zur Schnittstelle: `update_workflow` kann Credentials an HTTP-Knoten setzen (`setNodeCredential`), `create_workflow_from_code` nicht. Für künftige Anlagen per MCP also erst anlegen, dann Credential per Update setzen.
