@@ -19,10 +19,10 @@ const RAUM = {
   Kundenprojekte: { cx: 290, cy: 490, akzent: '#4CCB8F', icon: '🧩', nr: 4 },
   Verwaltung:     { cx: 710, cy: 490, akzent: '#9FA3C8', icon: '🗂️', nr: 5 }
 };
-const HUB = { cx: 500, cy: 370, r: 58 };
+const HUB = { cx: 500, cy: 410, r: 58 };          // Zentrale: das „Gehirn“ zwischen den unteren Räumen
 const PW = 140, PH = 70, DICKE = 18;              // Plattform: halbe Breite, halbe Höhe, Dicke
-const PLAETZE = [[-70, -10], [-20, -34], [20, 4], [-20, 28]]; // Schreibtische je Plattform (isometrisches Raster); die hintere rechte Ecke bleibt für den Monitor frei
-const MON = { dx: 50, dy: -82, w: 84, h: 52 };     // Monitor: Bildschirmfläche relativ zur Plattformmitte
+const PLAETZE = [[-62, -6], [-6, -36], [54, -6], [-2, 26]]; // Schreibtische je Plattform (isometrisches Raster), die Figuren sitzen vor dem Wandbildschirm
+const MON = { dx: -80, dy: -142, w: 160, h: 100 }; // Monitor: großer Wandbildschirm hinter der Plattform, relativ zur Plattformmitte (Bild 16:10)
 const PRUEF_FARBE = { abgenommen: '#1F9D6B', zurueckgewiesen: '#D9452F', ungeprueft: '#E98A15' };
 const PRUEF_KURZ = { abgenommen: 'geprüft', zurueckgewiesen: 'zurückgewiesen', ungeprueft: 'ungeprüft' };
 const PRUEF_CHIP = { abgenommen: 'fs-erteilt', zurueckgewiesen: 'fs-abgelehnt', ungeprueft: 'fs-offen' };
@@ -72,7 +72,8 @@ function figur(x, y, a, z, akzent) {
 }
 
 function labelKarte(L, info, oben) {
-  const w = 200, h = 66, x = L.cx - w / 2, y = oben ? L.cy - PH - h - 14 : L.cy + PH + DICKE + 10;
+  // Raumkarte immer vor der Plattform (unten); hinter der Plattform steht der Wandbildschirm
+  const w = 200, h = 60, x = L.cx - w / 2, y = L.cy + PH + DICKE + 8;
   const warn = info.freigaben ? '⏳ ' + info.freigaben + ' Freigabe' + (info.freigaben > 1 ? 'n' : '') : (info.fehler ? '⚠️ ' + info.fehler + ' Fehler' : '');
   return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="10" fill="#1E1D40" stroke="' + L.akzent + '" stroke-opacity=".6"/>' +
     '<rect x="' + x + '" y="' + y + '" width="4" height="' + h + '" rx="2" fill="' + L.akzent + '"/>' +
@@ -83,32 +84,72 @@ function labelKarte(L, info, oben) {
           : '<text x="' + (x + 14) + '" y="' + (y + 56) + '" font-size="10.5" fill="#8E8DB0">' + (info.agenten.length ? 'alles ruhig' : 'kein Agent zugeordnet') + '</text>');
 }
 
-/** Monitor eines Raums: Rahmen, Standfuß, Inhalt (Bild / HTML-Sandbox / Karte / leer), Prüfmarke, Beschriftung. m = neuestes Artefakt oder null. */
+/** Text in Zeilen umbrechen (an Wortgrenzen, höchstens max Zeichen je Zeile, höchstens maxZeilen Zeilen; Rest wird mit … gekürzt). */
+export function umbruch(text, max, maxZeilen) {
+  const zeilen = []; let z = '';
+  for (const w of String(text || '').trim().split(/\s+/).filter(Boolean)) {
+    const k = z ? z + ' ' + w : w;
+    if (k.length <= max) z = k; else { if (z) zeilen.push(z); z = w.length > max ? w.slice(0, max - 1) + '…' : w; }
+  }
+  if (z) zeilen.push(z);
+  if (zeilen.length > maxZeilen) { zeilen.length = maxZeilen; zeilen[maxZeilen - 1] = zeilen[maxZeilen - 1].slice(0, max - 1).replace(/…$/, '') + '…'; }
+  return zeilen;
+}
+const tspans = (zeilen, x, y, dy) => zeilen.map((z, i) => '<tspan x="' + x + '" y="' + (y + i * dy) + '">' + esc(z) + '</tspan>').join('');
+const idSicher = s => String(s || '').replace(/[^A-Za-z0-9_-]/g, '_');
+
+/** Monitor eines Raums: Rahmen, Inhalt (Bild / HTML-Sandbox / Karte / leer), Prüfmarke. m = neuestes Artefakt oder null.
+ *  Alle Texte werden umbrochen und auf die Bildschirmfläche begrenzt; der Inhalt wird zusätzlich am Rahmen abgeschnitten (clipPath). */
 function monitor(L, raum, m) {
   const x = L.cx + MON.dx, y = L.cy + MON.dy, w = MON.w, h = MON.h, mx = x + w / 2;
+  const clip = 'monitor-clip-' + idSicher(raum);
   let s = '<a href="#/monitor/' + esc(raum) + '" class="monitor" data-raum="' + esc(raum) + '" data-typ="' + esc(m ? m.typ : 'leer') + '" aria-label="' + esc('Monitor ' + raum + ': ' + (m ? 'zeigt „' + m.titel + '“ (' + ARTEFAKT_TYP_TEXT[m.typ] + ', ' + PRUEFSTAND_TEXT[m.pruefstand] + ')' : 'noch kein Ergebnis') + '. Öffnet die Monitorwand mit den letzten Ergebnissen des Raums.') + '">' +
     '<title>' + esc('Monitor ' + raum + ' · ' + (m ? m.titel + ' · ' + ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + PRUEFSTAND_TEXT[m.pruefstand] : 'noch kein Ergebnis') + ' · Klick öffnet die Monitorwand') + '</title>';
-  // Standfuß an der hinteren rechten Plattformkante
-  s += '<ellipse cx="' + mx + '" cy="' + (L.cy - 22) + '" rx="10" ry="3" fill="#3B3A66"/><rect x="' + (mx - 1.5) + '" y="' + (L.cy - 31) + '" width="3" height="9" fill="#5B5A8C"/>';
+  // Wandbildschirm hinter der Plattform, Lichtschein auf dem Boden
+  s += '<ellipse cx="' + mx + '" cy="' + (L.cy - PH + 10) + '" rx="' + (w / 2 - 10) + '" ry="9" fill="' + L.akzent + '" opacity=".14"/>';
   // Rahmen und Bildschirm
-  s += '<rect class="schirm" x="' + (x - 3) + '" y="' + (y - 3) + '" width="' + (w + 6) + '" height="' + (h + 6) + '" rx="5" fill="#0E0D22" stroke="' + L.akzent + '" stroke-width="1.5"/>';
+  s += '<rect class="schirm" x="' + (x - 4) + '" y="' + (y - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="7" fill="#0E0D22" stroke="' + L.akzent + '" stroke-width="2"/>';
+  s += '<clipPath id="' + clip + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="3"/></clipPath><g clip-path="url(#' + clip + ')">';
   if (!m) {
-    s += '<g class="leer"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1A1938"/><text x="' + mx + '" y="' + (y + h / 2 - 3) + '" text-anchor="middle" font-size="8.5" fill="#8E8DB0">noch kein Ergebnis</text><text x="' + mx + '" y="' + (y + h / 2 + 9) + '" text-anchor="middle" font-size="7" fill="#5F5E88">Monitor wartet</text></g>';
+    // Leer: zwei kurze Zeilen, mittig, bleiben sicher im Bildschirm (etwa 30 Zeichen je Zeile bei 9.5 px)
+    s += '<g class="leer"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1A1938"/><text x="' + mx + '" y="' + (y + h / 2 - 6) + '" text-anchor="middle" font-size="13" fill="#8E8DB0">noch kein Ergebnis</text>' +
+      '<text text-anchor="middle" font-size="9.5" fill="#5F5E88">' + tspans(umbruch('Hier erscheint das neueste Ergebnis der Agenten', 30, 2), mx, y + h / 2 + 12, 12) + '</text></g>';
   } else {
-    // Karte (Titel, Typ) liegt immer darunter: sichtbar bei PDF/Sonstigem und wenn ein Bild nicht geladen werden kann
+    // Karte (Titel, Typ) liegt immer darunter: sichtbar bei PDF/Sonstigem und wenn ein Bild nicht geladen werden kann. Alle Zeilen umbrochen.
+    const titel = umbruch(m.titel, 18, 2);
+    const hinweis = umbruch(m.typ === 'pdf' ? 'Keine Vorschau. Der Link steht in der Monitorwand.' : m.url ? 'Vorschau wird geladen …' : 'Ablage: ' + (m.ablageort || '–'), 32, 2);
     s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1E1D40"/>' +
-      '<text x="' + (x + 6) + '" y="' + (y + 17) + '" font-size="13">' + TYP_ICON[m.typ] + '</text>' +
-      '<text x="' + (x + 24) + '" y="' + (y + 16) + '" font-size="8" font-weight="700" fill="#fff">' + esc(kurz(m.titel, 15)) + '</text>' +
-      '<text x="' + (x + 6) + '" y="' + (y + 31) + '" font-size="7.5" fill="#B9B8D6">' + esc(ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + kurz(m.projekt || '', 18)) + '</text>' +
-      '<text x="' + (x + 6) + '" y="' + (y + 42) + '" font-size="7" fill="#8E8DB0">' + esc(m.typ === 'pdf' ? 'Link in der Monitorwand' : m.url ? 'Vorschau wird geladen …' : 'Ablage: ' + kurz(m.ablageort || '–', 22)) + '</text>';
+      '<text x="' + (x + 10) + '" y="' + (y + 30) + '" font-size="22">' + TYP_ICON[m.typ] + '</text>' +
+      '<text font-size="11" font-weight="700" fill="#fff">' + tspans(titel, x + 40, y + 22, 13) + '</text>' +
+      '<text font-size="9.5" fill="#B9B8D6">' + tspans(umbruch(ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + (m.projekt || ''), 30, 1), x + 10, y + 52, 12) + '</text>' +
+      '<text font-size="9" fill="#8E8DB0">' + tspans(hinweis, x + 10, y + 66, 11) + '</text>' +
+      '<text x="' + (x + 10) + '" y="' + (y + h - 8) + '" font-size="9" fill="#8E8DB0">' + esc(relativ(m.erstellt)) + '</text>';
     if (m.typ === 'bild') s += '<image href="' + esc(m.url) + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet"><title>' + esc(m.titel) + '</title></image>';
     else if (m.typ === 'html') s += '<foreignObject x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"><div xmlns="http://www.w3.org/1999/xhtml" class="mini"><iframe src="' + esc(m.url) + '" sandbox="" referrerpolicy="no-referrer" loading="lazy" tabindex="-1" aria-hidden="true" title="' + esc('Vorschau: ' + m.titel) + '"></iframe></div></foreignObject>';
     // Prüfmarke unten rechts im Bild
-    const t = PRUEF_KURZ[m.pruefstand], bw = t.length * 4.6 + 10;
-    s += '<rect class="marke" x="' + (x + w - bw - 3) + '" y="' + (y + h - 13) + '" width="' + bw + '" height="10.5" rx="5" fill="' + PRUEF_FARBE[m.pruefstand] + '"/><text x="' + (x + w - 3 - bw / 2) + '" y="' + (y + h - 5.2) + '" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">' + esc(t) + '</text>';
+    const t = PRUEF_KURZ[m.pruefstand], bw = t.length * 6 + 14;
+    s += '<rect class="marke" x="' + (x + w - bw - 5) + '" y="' + (y + h - 19) + '" width="' + bw + '" height="14" rx="7" fill="' + PRUEF_FARBE[m.pruefstand] + '"/><text x="' + (x + w - 5 - bw / 2) + '" y="' + (y + h - 8.5) + '" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">' + esc(t) + '</text>';
   }
-  s += '<text x="' + mx + '" y="' + (L.cy - 12) + '" text-anchor="middle" font-size="8" fill="#B9B8D6">' + esc(m ? kurz(m.titel, 18) : 'Monitor') + '</text></a>';
+  s += '</g></a>';   // Titel steht im Tooltip, in der Liste unter der Szene und in der Monitorwand
   return s;
+}
+
+/** Die Zentrale als Gehirn: zwei Hälften mit Windungen, Stamm, Synapsen leuchten bei laufender Arbeit. */
+function gehirn(cx, cy, aktiv) {
+  const p = (dx, dy) => (cx + dx) + ' ' + (cy + dy);
+  const umriss = 'M' + p(0, -50) + ' C' + p(-26, -56) + ' ' + p(-58, -40) + ' ' + p(-62, -14) + ' C' + p(-66, 12) + ' ' + p(-52, 38) + ' ' + p(-26, 42) + ' C' + p(-14, 46) + ' ' + p(-6, 42) + ' ' + p(0, 38) +
+    ' C' + p(6, 42) + ' ' + p(14, 46) + ' ' + p(26, 42) + ' C' + p(52, 38) + ' ' + p(66, 12) + ' ' + p(62, -14) + ' C' + p(58, -40) + ' ' + p(26, -56) + ' ' + p(0, -50) + ' Z';
+  const windungen = [
+    'M' + p(-50, -16) + ' q10 -16 20 -4 t18 -2 t10 8', 'M' + p(-54, 6) + ' q12 -12 24 -2 t20 4', 'M' + p(-44, 26) + ' q10 -10 20 -2 t14 2',
+    'M' + p(50, -16) + ' q-10 -16 -20 -4 t-18 -2 t-10 8', 'M' + p(54, 6) + ' q-12 -12 -24 -2 t-20 4', 'M' + p(44, 26) + ' q-10 -10 -20 -2 t-14 2',
+    'M' + p(-20, -40) + ' q8 -6 16 0', 'M' + p(4, -40) + ' q8 -6 16 0'
+  ];
+  const synapsen = [[-36, -8], [-22, 18], [30, -4], [40, 20], [-8, -30], [16, -28]];
+  return '<path class="gehirn" d="' + umriss + '" fill="url(#gehirnfuell)" stroke="#B48CFF" stroke-width="2"/>' +
+    '<path d="M' + p(0, -48) + ' C' + p(-6, -20) + ' ' + p(6, 10) + ' ' + p(0, 38) + '" fill="none" stroke="#B48CFF" stroke-width="1.6" opacity=".8"/>' +
+    windungen.map(d => '<path d="' + d + '" fill="none" stroke="#C9ADFF" stroke-width="1.3" stroke-linecap="round" opacity=".75"/>').join('') +
+    '<path d="M' + p(-7, 40) + ' q7 12 14 0" fill="#2A2956" stroke="#B48CFF" stroke-width="1.6"/>' +
+    synapsen.map(([dx, dy], i) => '<circle cx="' + (cx + dx) + '" cy="' + (cy + dy) + '" r="2.2" fill="#F0E6FF"' + (aktiv ? ' class="puls" style="animation-delay:' + (i * .27) + 's"' : ' opacity=".5"') + '/>').join('');
 }
 
 export function vBuero(ctx) {
@@ -131,10 +172,11 @@ export function vBuero(ctx) {
   const freigabenOffen = (D.freigaben || []).filter(f => f.status === 'offen');
   const fehlerGesamt = infos.reduce((s, i) => s + i.fehler, 0);
 
-  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird. Orchestrierer sitzen in der Zentrale; rosa Linien von der Zentrale zu Figuren sind laufende Teams. Der Monitor in jedem Raum zeigt das neueste Ergebnis seiner Agenten; „ungeprüft“ heißt, der Run ist noch nicht fachlich abgenommen.</desc>',
+  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird. Orchestrierer sitzen in der Zentrale; rosa Linien von der Zentrale zu Figuren sind laufende Teams. Hinter jedem Raum steht ein großer Wandbildschirm mit dem neuesten Ergebnis seiner Agenten; „ungeprüft“ heißt, der Run ist noch nicht fachlich abgenommen. Die Zentrale in der Mitte ist als Gehirn gezeichnet; dort sitzt der Orchestrierer.</desc>',
     '<defs><linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1D1B40"/><stop offset="1" stop-color="#0F0E24"/></linearGradient>',
     '<pattern id="raster" width="20" height="10" patternUnits="userSpaceOnUse"><path d="M10 0 L20 5 L10 10 L0 5 Z" fill="none" stroke="#4A4880" stroke-width=".6"/></pattern>',
-    '<radialGradient id="hubglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7B3FE4" stop-opacity=".55"/><stop offset="1" stop-color="#7B3FE4" stop-opacity="0"/></radialGradient></defs>',
+    '<radialGradient id="hubglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7B3FE4" stop-opacity=".55"/><stop offset="1" stop-color="#7B3FE4" stop-opacity="0"/></radialGradient>',
+    '<linearGradient id="gehirnfuell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A3BA8"/><stop offset="1" stop-color="#2A2956"/></linearGradient></defs>',
     '<rect width="1000" height="690" fill="url(#himmel)"/>'];
   // Sterne (ruhig, kein Flackern)
   for (let i = 0; i < 40; i++) svg.push('<circle cx="' + ((i * 257) % 1000) + '" cy="' + ((i * 131) % 690) + '" r="' + (i % 3 ? .8 : 1.4) + '" fill="#fff" opacity="' + (.15 + (i % 5) * .08) + '"/>');
@@ -161,16 +203,16 @@ export function vBuero(ctx) {
   reihenfolge.filter(i => RAUM[i.raum].cy < HUB.cy).forEach(zeichneRaum);
   // Zentrale
   svg.push('<a href="#/tab/projekte" class="zentrale" aria-label="Zentrale: ' + aktiveProjekte + ' aktive Projekte, ' + laufendGesamt + ' laufende Aufträge, ' + freigabenOffen.length + ' offene Freigaben. Öffnet die Projektübersicht."><title>Zentrale · alle Projekte</title>',
-    '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + (HUB.r + 40) + '" fill="url(#hubglow)"' + (laufendGesamt ? ' class="puls"' : '') + '/>',
-    '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + HUB.r + '" fill="#2A2956" stroke="#9B7BFF" stroke-width="2"/>',
-    '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + (HUB.r - 10) + '" fill="none" stroke="#9B7BFF" stroke-width=".8" stroke-dasharray="3 5" opacity=".7"/>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 30) + '" text-anchor="middle" font-size="11" fill="#B9B8D6" letter-spacing=".08em">ZENTRALE</text>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 8) + '" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">' + aktiveProjekte + '</text>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 8) + '" text-anchor="middle" font-size="10.5" fill="#B9B8D6">Projekte · ' + laufendGesamt + ' laufend</text>' +
-    (zentraleAgenten.length ? '' : '<text x="' + HUB.cx + '" y="' + (HUB.cy + 34) + '" text-anchor="middle" font-size="9.5" fill="#8E8DB0">kein Orchestrierer</text>') + '</a>');
-  // Orchestrierer in der Zentrale (eigene Figuren, violett wie die Zentrale)
+    '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + (HUB.r + 44) + '" fill="url(#hubglow)"' + (laufendGesamt ? ' class="puls"' : '') + '/>',
+    gehirn(HUB.cx, HUB.cy, laufendGesamt > 0 || teams.length > 0),
+    '<rect x="' + (HUB.cx - 40) + '" y="' + (HUB.cy - 22) + '" width="80" height="44" rx="10" fill="#15132B" opacity=".82"/>',
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 9) + '" text-anchor="middle" font-size="9.5" fill="#B9B8D6" letter-spacing=".08em">ZENTRALE</text>',
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 9) + '" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">' + aktiveProjekte + '</text>',
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 19) + '" text-anchor="middle" font-size="8.5" fill="#B9B8D6">Projekte · ' + laufendGesamt + ' laufend</text>' +
+    (zentraleAgenten.length ? '' : '<text x="' + HUB.cx + '" y="' + (HUB.cy + 62) + '" text-anchor="middle" font-size="9.5" fill="#8E8DB0">kein Orchestrierer</text>') + '</a>');
+  // Orchestrierer in der Zentrale (eigene Figuren, violett wie die Zentrale), unterhalb des Gehirns
   zentraleAgenten.slice(0, 3).forEach(({ a, z }, i, arr) => {
-    const x = HUB.cx + (i - (arr.length - 1) / 2) * 54, y = HUB.cy + 40;
+    const x = HUB.cx + (i - (arr.length - 1) / 2) * 54, y = HUB.cy + 66;
     position.set(a.agent_id, { x, y });
     svg.push('<a href="#/agent/' + esc(a.agent_id) + '" class="agent zentrale-agent" aria-label="Orchestrierer ' + esc(a.name) + ' in der Zentrale, ' + esc(ZUSTAND_TEXT[z.zustand]) + ', ' + z.runs.length + ' Ausführungen. Öffnet die Arbeitsübersicht."><title>' + esc(a.name + ' · Zentrale · ' + ZUSTAND_TEXT[z.zustand] + ' · ' + a.modell + ' · zuletzt ' + (z.letzter ? relativ(letzteAktivitaetRun(D, z.letzter)) : 'nie')) + '</title>' + figur(x, y, a, z, '#9B7BFF') + '</a>');
   });
@@ -234,7 +276,7 @@ export function vBuero(ctx) {
 // ---------- Monitorwand: die letzten 12 Ergebnisse eines Raums als Vorschaukacheln ----------
 function kachel(D, a) {
   const r = a.run || {}; const reg = r.agent_id ? agentReg(D, r.agent_id) : null;
-  const linkbar = a.url || (/^https?:\/\/[^\s"'<>\\]+$/i.test(String(a.ablageort || '')) ? a.ablageort : null);
+  const linkbar = a.url;   // nur https:// oder relativ (ladbareAdresse); http:, data:, javascript: usw. bekommen keinen Link
   let vorschau;
   if (a.typ === 'bild') vorschau = '<img src="' + esc(a.url) + '" alt="' + esc(a.titel) + '" loading="lazy" decoding="async" referrerpolicy="no-referrer">';
   else if (a.typ === 'html') vorschau = '<iframe src="' + esc(a.url) + '" sandbox="" referrerpolicy="no-referrer" loading="lazy" tabindex="-1" title="' + esc('Vorschau: ' + a.titel) + '"></iframe>';

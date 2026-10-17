@@ -38,12 +38,10 @@ function render() {
     '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<a role="tab" href="#/tab/' + k + '" aria-selected="' + (k === route.tab) + '" class="' + (k === route.tab ? 'on' : '') + '">' + l + ((k === 'freigaben' && (D.freigaben || []).some(f => f.status === 'offen')) ? ' <span class="chip fs-offen" style="padding:0 6px">' + (D.freigaben || []).filter(f => f.status === 'offen').length + '</span>' : '') + '</a>').join('') + '</nav></div><div class="bar"></div></header>' +
     (D.quelle === 'testadapter' ? '<div class="wrap" style="margin-top:12px"><div class="note test"><b>TESTADAPTER:</b> Diese Daten sind synthetisch (lokaler Testserver). Nichts hiervon ist echt oder produktiv getestet.</div></div>' : '') +
     '<main class="wrap" id="main"></main>' +
-    '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 60 Sekunden aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
+    '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 5 Minuten aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
   $('#logout').onclick = ev => { ev.preventDefault(); tokenSetzen(null); D = null; ohneZugang('Du bist abgemeldet.'); };
   if (EINGEBETTET) requestAnimationFrame(hoeheMelden);
   try {
-    // Nur-Büro-Einbettung (Portal-Übersicht): ohne Reiter, dafür ein Rücksprung, wenn man einen Raum oder Agenten geöffnet hat
-    if (NUR === 'buero' && (route.tab !== 'buero' || route.art)) $('#main').insertAdjacentHTML('afterbegin', '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a></p>');
     if (route.art === 'projekt') vProjekt(ctx, route.id);
     else if (route.art === 'agent') vAgent(ctx, route.id);
     else if (route.art === 'run') vRun(ctx, route.id);
@@ -53,6 +51,8 @@ function render() {
     else if (route.tab === 'buero') vBuero(ctx);
     else if (route.tab === 'freigaben') vFreigaben(ctx);
     else vProjekte(ctx, route.art === 'raum' ? route.id : undefined);
+    // Nur-Büro-Einbettung (Portal-Übersicht): Rücksprung erst NACH dem Aufbau der Ansicht einfügen, sonst überschreibt ihn die Ansicht (innerHTML)
+    if (NUR === 'buero' && (route.tab !== 'buero' || route.art)) $('#main').insertAdjacentHTML('afterbegin', '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a></p>');
   } catch (e) {
     $('#main').innerHTML = '<div class="card"><h2>Diese Ansicht konnte nicht aufgebaut werden</h2><p class="muted">' + esc(e.message) + '</p><a class="btn" href="#/tab/projekte">Zur Übersicht</a></div>';
     console.error(e);
@@ -90,7 +90,7 @@ if (EINGEBETTET) {
   document.addEventListener('click', ev => { const a = ev.target.closest('a[href]'); if (!a) return; const u = new URL(a.getAttribute('href'), location.href); if (u.pathname !== location.pathname) a.target = '_parent'; });
 }
 window.addEventListener('hashchange', () => { if (location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); if (!EINGEBETTET) window.scrollTo(0, 0); });
-setInterval(() => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); if (D && !$('#dlg').open && !tippt && document.visibilityState === 'visible') laden(true); }, 60000);
+setInterval(() => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); if (D && !$('#dlg').open && !tippt && document.visibilityState === 'visible') laden(true); }, 300000);
 tokenLesen();
 leseHash();
 if (!location.hash) history.replaceState(null, '', location.pathname + '#/tab/' + route.tab);

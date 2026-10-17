@@ -61,7 +61,18 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschn
 | C | Monitore: Ergebnisse privater Ablagen (Drive mit Anmeldung) zeigen im `<img>`/iframe nur einen Fehler oder die Anmeldeseite; dann signierte, kurzlebige Vorschau-URLs über die Office-API ausgeben | ARCHITEKTUR.md 9a |
 | C | Monitore: mehr als 12 Ergebnisse je Raum (Blättern), Filter nach Typ und Prüfstand, Vergleich zweier Versionen über den Hash | `vMonitorwand` |
 | C | Die Browser-Vorschau im Claude-Desktop-Browserfenster blockiert eingebettete iframes (`ERR_BLOCKED_BY_CLIENT`); in Chromium/Playwright laden sie. Für Sichtprüfungen einen normalen Browser nehmen | TESTBERICHT.md 9 |
+| B | Obsidian-Spiegelung (`office.py obsidian`, OBSIDIAN.md): **Entscheidung Timo** — mit welchem Token läuft sie? Hermes-Token sieht nur Hermes’ Registry-Projekte; für das ganze Office braucht es einen Menschen-Token mit Projektsicht (Timo) auf dem Rechner mit dem Vault, oder Hermes’ Projektliste wird erweitert | `docs/office/OBSIDIAN.md` Abschnitt 5, `office/lib/rechte.js` |
+| B | Obsidian-Spiegelung: wer startet den Lauf (Hermes-Zeitplan, nach jedem `fertig`, oder Windows-Aufgabenplanung alle 30 Min.)? Noch nicht eingeplant; Übergabe an Hermes in `Projekt-Manager/22_Momentum/_UEBERGABE.md` | `agenten/office.py` |
+| C | Obsidian-Spiegelung: einmaliger Hinweis-Abschnitt in `02 Projekte/Momentum KI Akademie.md` (Vault), dass Ergebnisse unter `01 Inbox/KI Office/` liegen; Maskierung ist ein Netz (E-Mail, Telefon, Schlüssel), keine Garantie gegen Kundendaten in Zusammenfassungen; gelöschte Runs (Löschkonzept) bleiben im Vault stehen | `docs/office/OBSIDIAN.md` |
+| B | ✅ 18.10.2026 **Text-Ausführer** (n8n, `UbQ5nph8FIUSrasi`) für `marketing-texter` und `social-planer` live, Ende-zu-Ende getestet. Weitere n8n-Textagenten nur noch Registry-Eintrag (`ausfuehrer_url`) | SETUP.md Abschnitt 10, TESTBERICHT.md Abschnitt 13 |
+| A | ✅ 18.10.2026 Office-API schrieb parallel; Rückmelde-Schlüssel fehlte seit 17.10. 16:06 bei jedem Auftrag, n8n-Ausführer wurden nie angestoßen. Behoben (Batching 1). Offen: hängende Runs aus dieser Zeit prüfen (`run_mvcxzknfbc2608` Orchestrierer, zwei Server-Wächter-Runs von Hermes in der Warteschlange) | SETUP.md Abschnitt 10 |
+| B | Anthropic-Credential in n8n anlegen, damit der Text-Ausführer das Claude-Modell aus der Registry nutzt (heute gpt-5-mini für alle; Kosten je Lauf unter 1 Cent) | `office/n8n/ausfuehrer-text.workflow.js` |
+| B | n8n-Execution 21296 (Fehlersuche am Text-Ausführer, Protokoll kurz eingeschaltet) enthält den Agenten-Token in Knotenausgaben: in n8n löschen | n8n → Executions |
+| B | Agenten mit Ausführer `claude-code` (Redakteur, Vertrieb, Angebots-Prüfer, Architektur, Rekruiter, Orchestrierer) brauchen jemanden, der ihre Warteschlange abarbeitet: geplante Claude-Code-Aufgabe mit `office.py meine` oder Umstellung auf den Text-Ausführer | `agenten/ANLEITUNG.md` |
 
 ## Hinweis zum Branch
 
 Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zusätzlich `claude/determined-curie-0gppav` vorgegeben. Die Arbeit liegt auf `feature/ki-office` (Pull Request), derselbe Stand wurde zusätzlich auf den vorgegebenen Sitzungs-Branch gepusht.
+
+| C | Monitorwand: Filter nach Typ (Bild/HTML/PDF/Sonstiges) und Prüfstand; viele Textnotizen verdrängen Grafiken aus den 12 Kacheln (der Monitor selbst bevorzugt Grafik/PDF) | `vMonitorwand` |
+| B | Ergebnisse des KI Office nach Obsidian spiegeln (Timos Wunsch 17.10.2026): je Artefakt eine Notiz oder ein Abschnitt im Vault (Titel, Run, Projekt, Prüfstand, Link), z. B. über office.py oder einen n8n-Knoten; vorher klären, welcher Vault-Ordner und ob Hermes das übernimmt | ARCHITEKTUR.md, `agenten/office.py` |
