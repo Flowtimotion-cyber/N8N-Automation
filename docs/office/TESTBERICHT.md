@@ -186,3 +186,5 @@ Prüfung „auf Herz und Nieren“ gegen `main` nach dem Merge von PR #2 (Commit
 **Umbau auf Timos Wunsch:** Monitore als große Wandbildschirme (160×100 statt 84×52 im Raster, fast viermal so groß) hinter jeder Plattform, Raumkarten vor allen Plattformen, Zentrale als Gehirn mit Synapsen (leuchten bei laufenden Aufträgen/Teams, `prefers-reduced-motion` stoppt sie). Tests nach dem Umbau: siehe Zeile unten.
 
 | `npm run test:office` nach dem Umbau (Wandbildschirme, Gehirn, Befunde 1 und 2) | 74/74 bestanden; Screenshots `*-buero.png`, `*-leer-buero.png`, `*-monitorwand*.png`, `*-portal-register-ki-office.png`, `*-run-team.png` neu |
+
+| Nachtrag Textumbruch (Branch `feature/ki-office-monitor-text`): Monitortexte werden an Wortgrenzen umbrochen (`umbruch()`, Unit-Test `unit.umbruch.test.mjs`) und der Bildschirminhalt per clipPath am Rahmen abgeschnitten; Timos Befund „Schrift steht über den Monitor“ | 76/76 bestanden |
