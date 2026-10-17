@@ -169,12 +169,6 @@
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json.body || {}) }}",
         "options": {
-          "batching": {
-            "batch": {
-              "batchSize": 1,
-              "batchInterval": 0
-            }
-          },
           "response": {
             "response": {
               "fullResponse": true,
@@ -189,6 +183,19 @@
       "position": [
         1300,
         480
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Nacheinander schreiben",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1190,
+        640
       ]
     },
     {
@@ -451,6 +458,24 @@
       "main": [
         [
           {
+            "node": "Nacheinander schreiben",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nacheinander schreiben": {
+      "main": [
+        [
+          {
+            "node": "Ergebnis prüfen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "In Supabase schreiben",
             "type": "main",
             "index": 0
@@ -462,7 +487,7 @@
       "main": [
         [
           {
-            "node": "Ergebnis prüfen",
+            "node": "Nacheinander schreiben",
             "type": "main",
             "index": 0
           }

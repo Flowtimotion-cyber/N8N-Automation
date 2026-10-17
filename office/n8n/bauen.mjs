@@ -47,7 +47,8 @@ export function workflowJson(code) {
     n('Fehler melden', 'n8n-nodes-base.respondToWebhook', 1.5, { respondWith: 'json', responseBody: '={{ JSON.stringify($json.antwort) }}', options: { responseCode: '={{ $json.code }}' } }, [1080, 120]),
     n('Antwort senden', 'n8n-nodes-base.respondToWebhook', 1.5, { respondWith: 'json', responseBody: '={{ JSON.stringify($json.antwort) }}', options: {} }, [1080, 300]),
     n('Schreibaufträge', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: 'return ($input.first().json.ops || []).map(o => ({ json: o }));' }, [1080, 480]),
-    n('In Supabase schreiben', 'n8n-nodes-base.httpRequest', 4.2, { method: '={{ $json.methode }}', url: "={{ '" + SUPABASE + "' + $json.pfad }}", authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', sendHeaders: true, headerParameters: { parameters: [{ name: 'Prefer', value: 'return=minimal' }] }, sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.body || {}) }}', options: { batching: { batch: { batchSize: 1, batchInterval: 0 } }, response: { response: { fullResponse: true, neverError: true } } } }, [1300, 480]),
+    n('In Supabase schreiben', 'n8n-nodes-base.httpRequest', 4.2, { method: '={{ $json.methode }}', url: "={{ '" + SUPABASE + "' + $json.pfad }}", authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', sendHeaders: true, headerParameters: { parameters: [{ name: 'Prefer', value: 'return=minimal' }] }, sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.body || {}) }}', options: { response: { response: { fullResponse: true, neverError: true } } } }, [1300, 480]),
+    n('Nacheinander schreiben', 'n8n-nodes-base.splitInBatches', 3, { batchSize: 1, options: {} }, [1190, 640]),
     n('Ergebnis prüfen', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: readFileSync(join(hier, 'code', 'ergebnis-pruefen.js'), 'utf8') }, [1520, 480]),
     n('Gespeichert?', 'n8n-nodes-base.if', 2.2, { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' }, conditions: [{ leftValue: '={{ $json.ok }}', operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' } }, [1740, 480]),
     n('Externe Wirkung?', 'n8n-nodes-base.switch', 3.2, { mode: 'expression', numberOutputs: 3, output: "={{ !$json.extern ? 0 : ($json.extern.art === 'aktion' ? 2 : ($json.extern.ausfuehrer_url ? 1 : 0)) }}" }, [1960, 380]),
@@ -64,7 +65,7 @@ export function workflowJson(code) {
   c('Office-API', 'Team-Daten laden'); c('Wartung alle 5 Minuten', 'Wartungsauftrag'); c('Wartungsauftrag', 'Team-Daten laden');
   c('Team-Daten laden', 'Anfrage prüfen'); c('Anfrage prüfen', 'Was ist zu tun?');
   c('Was ist zu tun?', 'Fehler melden', 0); c('Was ist zu tun?', 'Antwort senden', 1); c('Was ist zu tun?', 'Schreibaufträge', 2);
-  c('Schreibaufträge', 'In Supabase schreiben'); c('In Supabase schreiben', 'Ergebnis prüfen'); c('Ergebnis prüfen', 'Gespeichert?');
+  c('Schreibaufträge', 'Nacheinander schreiben'); c('Nacheinander schreiben', 'Ergebnis prüfen', 0); c('Nacheinander schreiben', 'In Supabase schreiben', 1); c('In Supabase schreiben', 'Nacheinander schreiben'); c('Ergebnis prüfen', 'Gespeichert?');
   c('Gespeichert?', 'Externe Wirkung?', 0); c('Gespeichert?', 'Speicherfehler melden', 1);
   c('Externe Wirkung?', 'Antwort nötig?', 0); c('Externe Wirkung?', 'Ausführer anstoßen', 1); c('Externe Wirkung?', 'Externe Aktion ausführen (Platzhalter)', 2);
   c('Ausführer anstoßen', 'Antwort nötig?'); c('Externe Aktion ausführen (Platzhalter)', 'Antwort nötig?');
