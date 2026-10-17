@@ -1258,8 +1258,15 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const k = D.kurs || {}, an = D.anfragen || [];
     return '<div class="dmini">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv (7 Tage)') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Check bestanden') + kpi(k.fragen_7_tage || 0, 'Fragen (7 Tage)') + kpi(an.length, 'Anfragen') + '</div>' +
       '<div class="dgrid">' + karte('Nach Kursteil', bars(k.je_teil)) + karte('Wo die Teilnehmenden stehen', bars(k.schritte, 'var(--acc2)')) + karte('Fragen an den Assistenten nach Schritt', bars(k.fragen_je_schritt, 'var(--teal)')) +
-      karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + '</div>' +
-      '<p class="dhint">Anwesenheit aus dem Klassenbuch (TEMP-Kurs) kommt als Nächstes dazu. <button class="btn ghost" data-goto="kurs">Details →</button></p>';
+      karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + (istDozent() ? kbDashKarte() : '') + '</div>' +
+      '<p class="dhint"><button class="btn ghost" data-goto="kurs">Details →</button></p>';
+  }
+  function kbDashKarte() {
+    if (!KB.d) { if (!KB.laedt && !KB.fehler) setTimeout(kbLaden, 0); return karte('Anwesenheit TEMP-Kurs je Woche', KB.fehler ? '<p class="empty small">' + esc(KB.fehler) + '</p>' : '<p class="muted small">Lade Klassenbuch …</p>'); }
+    const W = {};
+    for (const t of KB.d.tage) { const s = wochenStart(dDate(t.datum)); const k = ymd(s); const w = W[k] = W[k] || { s, ist: 0, soll: 0 }; w.ist += t.anwesend || 0; w.soll += t.tn_gesamt || 0; }
+    const L = Object.values(W).sort((a, b) => a.s - b.s).slice(-10).map(w => ({ label: 'KW ' + kwNr(w.s), wert: w.soll ? Math.round(w.ist / w.soll * 100) : 0, tip: 'KW ' + kwNr(w.s) + ': ' + (w.soll ? Math.round(w.ist / w.soll * 100) : 0) + ' % anwesend (' + w.ist + ' von ' + w.soll + ')' }));
+    return karte('Anwesenheit TEMP-Kurs je Woche (%)', saeulen(L, '%', true), 'Aus dem Klassenbuch (Zoom-Anwesenheit). Details und Monats-PDF unter „Kurs & Teilnehmer“.');
   }
   function dashMarketing() {
     const S = D.social || [], jetzt = heute();
@@ -1278,6 +1285,104 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="dmini">' + kpi(offen(proj), 'offene Punkte') + kpi('–', 'Besucher (30 Tage)') + kpi('–', 'Anfragen über die Seite') + '</div>' +
       '<p class="empty small">Besucherzahlen, Herkunft und Google-Suche erscheinen hier, sobald die Statistik-Quelle angebunden ist.</p></div>';
     return '<div class="dgrid">' + seite('Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>';
+  }
+
+  // ---------- Klassenbuch (TEMP-Kurs, aus Notion) ----------
+  const KB_API = API.replace('team-api-v2', 'team-klassenbuch');
+  const KB = { d: null, laedt: false, fehler: '', monat: ls.get('mt-kbmonat') || '', offen: null };
+  async function kbLaden() {
+    if (KB.laedt) return; KB.laedt = true; KB.fehler = '';
+    try {
+      const r = await fetch(KB_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion: 'liste' }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Das Klassenbuch ist gerade nicht erreichbar.');
+      KB.d = j;
+    } catch (e) { KB.fehler = e.message; }
+    KB.laedt = false;
+    if (tab === 'kurs' && $('#kbBox')) kbZeigen();
+    if (tab === 'start' && DB.tab === 'kurs' && $('#dbody')) dashSetzen();
+  }
+  const kbMonate = () => [...new Set(((KB.d || {}).tage || []).map(t => t.datum.slice(0, 7)))].sort().reverse();
+  const kbFrei = t => /freigegeben|PDF/i.test(t.status || '');
+  function kbAuswertung(ym) {
+    const T = ((KB.d || {}).tage || []).filter(t => t.datum.slice(0, 7) === ym).sort((a, b) => a.datum.localeCompare(b.datum));
+    const P = {};
+    for (const t of T) {
+      for (const p of t.personen) { const x = P[p.name] = P[p.name] || { name: p.name, da: 0, fehl: [], rueck: [], min: 0 }; x.da++; x.min += p.minuten; if (p.status !== 'erfüllt') x.rueck.push(t.datum); }
+      for (const n of t.abwesend) { const x = P[n] = P[n] || { name: n, da: 0, fehl: [], rueck: [], min: 0 }; x.fehl.push(t.datum); }
+    }
+    const L = Object.values(P).sort((a, b) => a.name.localeCompare(b.name));
+    const soll = T.reduce((s, t) => s + (t.tn_gesamt || 0), 0), ist = T.reduce((s, t) => s + (t.anwesend || 0), 0);
+    return { T, L, quote: soll ? Math.round(ist / soll * 100) : 0, nichtFrei: T.filter(t => !kbFrei(t)).length, rueck: T.reduce((s, t) => s + t.ruecksprache.length, 0), fehltage: L.reduce((s, x) => s + x.fehl.length, 0) };
+  }
+  const tagKurz = d => { const x = dDate(d); return x ? x.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : d; };
+  function kbZeigen() {
+    const box = $('#kbBox'); if (!box) return;
+    if (!KB.d) { box.innerHTML = '<div class="card"><h2>📒 Klassenbuch KI-Kurs (TEMP.Akademie)</h2>' + (KB.fehler ? '<div class="note warn">' + esc(KB.fehler) + '</div>' : '<p class="muted">Lade das Klassenbuch aus Notion …</p>') + '</div>'; if (!KB.laedt && !KB.fehler) kbLaden(); return; }
+    const M = kbMonate(); if (!M.includes(KB.monat)) KB.monat = M[0] || '';
+    const A = kbAuswertung(KB.monat);
+    box.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2 style="margin:0">📒 Klassenbuch KI-Kurs (TEMP.Akademie)</h2>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><select id="kbM">' + M.map(m => '<option value="' + m + '"' + (m === KB.monat ? ' selected' : '') + '>' + esc(monatName(m)) + '</option>').join('') + '</select>' +
+      '<button class="btn sec" id="kbPdf">Monat als PDF</button><button class="btn ghost" id="kbNeu" title="Neu aus Notion laden">↻</button></div></div>' +
+      '<p class="small muted" style="margin:6px 0 12px">Anwesenheit laut Zoom (Kurs-Meeting), Themen aus den Zoom-Zusammenfassungen. Pflege und Freigabe in Notion. Stand: ' + fmtDT(KB.d.stand) + '</p>' +
+      (A.nichtFrei ? '<div class="note warn" style="margin-bottom:10px">' + A.nichtFrei + ' Kurstag(e) in diesem Monat noch nicht freigegeben – das PDF ist bis dahin vorläufig.</div>' : '') +
+      '<div class="dmini">' + kpi(A.T.length, 'Kurstage') + kpi(A.quote + ' %', 'Anwesenheit') + kpi(A.fehltage, 'Fehltage gesamt', A.fehltage > 0) + kpi(A.rueck, 'Rücksprachen', A.rueck > 0) + '</div>' +
+      '<div class="grid"><div><h3>Teilnehmende im ' + esc(monatName(KB.monat).split(' ')[0]) + '</h3><div class="tablewrap"><table><tr><th>Name</th><th>anwesend</th><th>Quote</th><th>Fehltage</th></tr>' +
+      A.L.map(x => { const q = A.T.length ? Math.round(x.da / A.T.length * 100) : 0; return '<tr><td><b>' + esc(x.name) + '</b>' + (x.rueck.length ? ' <span class="chip" style="background:#FFF4E5">Rücksprache ' + x.rueck.length + '×</span>' : '') + '</td><td>' + x.da + ' / ' + A.T.length + '</td><td><div class="prog"><i style="width:' + q + '%"></i></div>' + q + ' %</td><td class="small">' + (x.fehl.length ? x.fehl.map(tagKurz).join(', ') : '–') + '</td></tr>'; }).join('') +
+      '</table></div></div><div><h3>Kurstage</h3>' +
+      A.T.slice().reverse().map(t => '<details class="kbtag" style="border-top:1px solid var(--line);padding:8px 0"><summary style="cursor:pointer"><b>' + esc(tagKurz(t.datum)) + '</b> · ' + t.anwesend + '/' + t.tn_gesamt + ' anwesend ' +
+        '<span class="chip"' + (kbFrei(t) ? '' : ' style="background:#FFF4E5"') + '>' + esc(t.status || '–') + '</span><div class="small muted" style="margin:2px 0 0 0">' + esc(t.thema || 'ohne Thema') + '</div></summary>' +
+        (t.zusammenfassung ? '<p class="small" style="margin:8px 0">' + esc(t.zusammenfassung) + '</p>' : '') +
+        '<div class="tablewrap"><table class="small"><tr><th>Name</th><th>Soll</th><th>Zoom</th><th>Min</th><th></th></tr>' + t.personen.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.soll) + '</td><td>' + esc(p.von) + '–' + esc(p.bis) + '</td><td>' + p.minuten + ' (' + p.abdeckung + ' %)</td><td>' + (p.status === 'erfüllt' ? '✅' : '⚠️') + '</td></tr>').join('') + '</table></div>' +
+        (t.abwesend.length ? '<p class="small" style="margin:6px 0 0"><b>Abwesend:</b> ' + esc(t.abwesend.join(', ')) + '</p>' : '') + (t.unbekannt ? '<p class="small muted" style="margin:4px 0 0">Unbekannt in Zoom: ' + esc(t.unbekannt) + '</p>' : '') + '</details>').join('') +
+      (A.T.length ? '' : '<p class="empty">Keine Kurstage in diesem Monat.</p>') + '</div></div></div>';
+    $('#kbM').onchange = e => { KB.monat = e.target.value; ls.set('mt-kbmonat', KB.monat); kbZeigen(); };
+    $('#kbNeu').onclick = () => { KB.d = null; kbZeigen(); };
+    $('#kbPdf').onclick = async e => { const b = e.target; b.disabled = true; try { await kbPdf(KB.monat); } catch (x) { toast(x.message); } b.disabled = false; };
+  }
+  async function kbPdf(ym) {
+    const JsPDF = await ladeJsPdf();
+    const A = kbAuswertung(ym);
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    const L = 15, R = 195; let y = 18;
+    const neueSeite = () => { doc.addPage(); y = 18; };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(20, 18, 58);
+    doc.text('Klassenbuch ' + monatName(ym), L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(60);
+    doc.text('KI-Kurs · TEMP.Akademie', L, y); doc.text('Erstellt am ' + fmtD(ymd(new Date())), R, y, { align: 'right' }); y += 5;
+    doc.text(A.T.length + ' Kurstage · Anwesenheit ' + A.quote + ' % · ' + A.fehltage + ' Fehltage · ' + A.rueck + ' Rücksprachen', L, y); y += 5;
+    if (A.nichtFrei) { doc.setTextColor(200, 110, 20); doc.text('Vorläufig: ' + A.nichtFrei + ' Kurstag(e) noch nicht freigegeben.', L, y); doc.setTextColor(60); y += 5; }
+    y += 4;
+    // Teil 1: Übersicht je Teilnehmer
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20); doc.text('Übersicht je Teilnehmer/in', L, y); y += 6;
+    doc.setFontSize(9); doc.setTextColor(110); [[L, 'Name'], [80, 'anwesend'], [100, 'Quote'], [118, 'Fehltage']].forEach(([x, t]) => doc.text(t, x, y)); y += 2; doc.setDrawColor(200); doc.line(L, y, R, y); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(20);
+    A.L.forEach(x => {
+      const f = doc.splitTextToSize(x.fehl.length ? x.fehl.map(tagKurz).join(', ') : '–', R - 118);
+      const h = Math.max(1, f.length) * 4.2 + 1.8; if (y + h > 280) neueSeite();
+      doc.text(x.name, L, y); doc.text(x.da + ' / ' + A.T.length, 80, y); doc.text((A.T.length ? Math.round(x.da / A.T.length * 100) : 0) + ' %', 100, y); doc.text(f, 118, y);
+      y += h; doc.setDrawColor(235); doc.line(L, y - 3.2, R, y - 3.2);
+    });
+    // Teil 2: Kurstage
+    y += 6; if (y > 250) neueSeite();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('Kurstage', L, y); y += 6;
+    A.T.forEach(t => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      const kopf = tagKurz(t.datum) + '  ·  ' + t.anwesend + '/' + t.tn_gesamt + ' anwesend  ·  ' + (kbFrei(t) ? 'freigegeben' : 'nicht freigegeben');
+      const th = doc.splitTextToSize('Thema: ' + (t.thema || '–'), R - L);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      const zs = t.zusammenfassung ? doc.splitTextToSize(t.zusammenfassung, R - L).slice(0, 8) : [];
+      const ab = doc.splitTextToSize('Abwesend: ' + (t.abwesend.length ? t.abwesend.join(', ') : '–') + (t.ruecksprache.length ? '   ·   Rücksprache: ' + t.ruecksprache.join(', ') : ''), R - L);
+      const h = 6 + (th.length + zs.length + ab.length) * 4.1 + 5; if (y + h > 282) neueSeite();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 18, 58); doc.text(kopf, L, y); y += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(20); doc.text(th, L, y); y += th.length * 4.1;
+      if (zs.length) { doc.setTextColor(70); doc.text(zs, L, y); y += zs.length * 4.1; doc.setTextColor(20); }
+      doc.text(ab, L, y); y += ab.length * 4.1 + 3; doc.setDrawColor(225); doc.line(L, y - 2, R, y - 2); y += 2;
+    });
+    if (!A.T.length) doc.text('Keine Kurstage in diesem Monat.', L, y);
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text('Klassenbuch ' + monatName(ym) + ' · Seite ' + i + ' von ' + n + ' · Anwesenheit laut Zoom-Protokoll', L, 290); }
+    doc.save('Klassenbuch_' + ym + '.pdf');
   }
 
   // ---------- Projekte ----------
@@ -1905,7 +2010,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const an = D.anfragen || [];
     $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">Modul 1 (n8n und Claude Code). ' + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
       '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
-      (istDozent() ? communityHtml() : '') +
+      (istDozent() ? '<div id="kbBox"></div>' + communityHtml() : '') +
       '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + '<h3 style="margin-top:14px">Nach Kursteil</h3>' + bars(k.je_teil, 'var(--acc2)') + '</div>' +
       '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
       (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Teil</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
@@ -1914,6 +2019,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
       (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
     bindCommunity();
+    if (istDozent()) kbZeigen();
   }
 
   function communityHtml() {
