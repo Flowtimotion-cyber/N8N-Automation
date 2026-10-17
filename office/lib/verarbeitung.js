@@ -80,7 +80,7 @@ export function verarbeiten(ctx) {
   const agentVon = run => agenten.find(a => a.agent_id === run.agent_id) || null;
   const runVon = id => runs.find(r => r.run_id === String(id || '')) || null;
   const ereignis = (run_id, art, titel, details, extra) => neu('office_ereignisse', Object.assign({ run_id, zeit: jetzt, art, titel: txt(titel, 200), details: details == null ? null : klein(details, 2000), autor: ich ? ich.mitglied_id : 'system', sequenz: ereignisse.filter(e => e.run_id === run_id).length + 1 }, extra || {}));
-  const verlaufEintrag = (run, art, text) => run.aufgabe_id && aufgaben.some(a => a.aufgabe_id === run.aufgabe_id) ? [neu('team_aufgaben_verlauf', { aufgabe_id: run.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art, text: txt(text, 4000) + ' ' + RUN_MARKER(run.run_id) })] : [];
+  const verlaufEintrag = (run, art, text) => run.aufgabe_id && aufgaben.some(a => a.aufgabe_id === run.aufgabe_id) ? [neu('team_aufgaben_verlauf', { aufgabe_id: run.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art, text: txt(text, 4000) + ' ' + RUN_MARKER(run.run_id), erstellt: jetzt })] : [];
   const wechsel = (run, nach, wer, grund) => {
     if (!darfWechseln(run.status, nach, wer)) return { fehler: 'Übergang von „' + STATUS_TEXT[run.status] + '“ nach „' + STATUS_TEXT[nach] + '“ ist nicht zulässig.' };
     const row = { status: nach, lebenszeichen: jetzt };
@@ -380,7 +380,7 @@ export function verarbeiten(ctx) {
     if (ziel === STATUS.ABGESCHLOSSEN) {
       ops.push(...verlaufEintrag(run, 'bericht', (zusammenfassung || 'Run abgeschlossen (ohne Zusammenfassung)') + (artefaktIds.length ? ' – ' + artefaktIds.length + ' Ergebnis(se) im KI Office.' : '')));
       const a = run.aufgabe_id ? aufgaben.find(x => x.aufgabe_id === run.aufgabe_id) : null;
-      if (a && a.status === 'In Arbeit') ops.push(aend('team_aufgaben', 'aufgabe_id', a.aufgabe_id, { status: 'Wird getestet', geaendert: jetzt }), neu('team_aufgaben_verlauf', { aufgabe_id: a.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art: 'status', text: 'In Arbeit → Wird getestet (Run beendet) ' + RUN_MARKER(run.run_id) }));
+      if (a && a.status === 'In Arbeit') ops.push(aend('team_aufgaben', 'aufgabe_id', a.aufgabe_id, { status: 'Wird getestet', geaendert: jetzt }), neu('team_aufgaben_verlauf', { aufgabe_id: a.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art: 'status', text: 'In Arbeit → Wird getestet (Run beendet) ' + RUN_MARKER(run.run_id), erstellt: jetzt }));
     } else ops.push(...verlaufEintrag(run, 'kommentar', 'Run fehlgeschlagen' + (fehler ? ': ' + fehler.slice(0, 300) : '') + (status === STATUS.WARTESCHLANGE ? ' – wird automatisch wiederholt.' : '')));
     return schreiben(ops, { run_id: run.run_id, status, angenommen: true, artefakte: artefaktIds }, status === STATUS.WARTESCHLANGE ? { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: (schluesselListe.find(s => s.run_id === run.run_id) || {}).schluessel || null } : null);
   }

@@ -83,11 +83,11 @@ export function basisTabellen(jetztIso) {
  * Die virtuelle Uhr startet 3 Stunden vor „jetzt“ und wird beim Aufbau vorgestellt, damit alle Zustände inkl. Timeouts entstehen.
  */
 export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
-  const start = new Date((jetzt ? new Date(jetzt).getTime() : Date.now()) - 3 * 3600 * 1000).toISOString();
+  const start = new Date((jetzt ? new Date(jetzt).getTime() : Date.now()) - 56 * 60 * 1000).toISOString();
   const uhr = new Uhr(start);
   const sp = new Speicher({ tabellen: basisTabellen(uhr.iso()), uhr, zufall: zufallsQuelle(7), quelle: 'testadapter' });
   const ad = new TestAdapter({ speicher: sp, uhr, tokenVon: tokenVonAgent });
-  if (szenario === 'leer') { uhr.vor(3 * 3600); return { speicher: sp, adapter: ad, uhr }; }
+  if (szenario === 'leer') { uhr.vor(56 * 60); return { speicher: sp, adapter: ad, uhr }; }
   const mensch = (wer, aktion, daten) => sp.aufruf({ token: TOKENS[wer], aktion, daten });
   const start1 = (wer, agent, projekt, aufgabe_id, auftrag, key) => mensch(wer, 'auftrag_starten', { agent_id: agent, projekt, aufgabe_id, auftrag, idempotenzschluessel: 'testdaten-' + key }).antwort.run_id;
   const tick = sek => { uhr.vor(sek); ad.laufen(); };
@@ -133,6 +133,6 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   tick(10); tick(25);
   // Uhr auf „jetzt“ bringen (restliche Zeit), ohne weitere Wartung, damit r7/r12 je nach Dauer sichtbar bleiben
   const rest = Math.max(0, (jetzt ? new Date(jetzt).getTime() : Date.now()) - uhr.ms);
-  uhr.vor(Math.min(rest / 1000, 120));
+  uhr.vor(rest / 1000);
   return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12 } };
 }
