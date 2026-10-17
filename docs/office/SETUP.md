@@ -133,7 +133,10 @@ Betrifft die Agenten mit Ausführer `claude-code`: `akademie-redakteur`, `vertri
 
 **Einmalig von dir:**
 1. Den Agenten-Code von Claude (Portal → Team → „Agenten-Code kopieren“) als Benutzer-Umgebungsvariable setzen: `setx TEAM_PORTAL_TOKEN "<Code>"` in der PowerShell, danach die Claude-App neu starten. Der Code gehört in keine Datei im Repo.
-2. Die geplante Aufgabe `office-claude-code-abholen` (alle 30 Minuten, Arbeitsordner = Klon dieses Repos auf `main`) in der Claude-App unter „Geplante Aufgaben“ prüfen und aktiv lassen. Der Rechner und die App müssen laufen; ist die App zu, läuft die Aufgabe beim nächsten Start nach.
+2. Die geplante Aufgabe **noch nicht angelegt** (sie braucht erst die Variable aus Schritt 1 und diesen Branch auf `main`). Anlegen in der Claude-App unter „Geplante Aufgaben“: Name `office-claude-code-abholen`, alle 30 Minuten (`*/30 * * * *`), Arbeitsordner = Klon dieses Repos auf `main`, Modell Sonnet, Prompt:
+   > Du bist der Abholer des Momentum KI Office. Lies zuerst agenten/OFFICE_ABARBEITER.md in diesem Arbeitsordner und führe genau einen Durchlauf nach dieser Anleitung aus (Aufträge mit `python agenten/office.py offen --json` holen, nacheinander abarbeiten, höchstens 3). Den Token nie ausgeben oder in Dateien schreiben. Zum Schluss eine Zeile Zusammenfassung auf Deutsch.
+
+   Erlaubt sein müssen `python agenten/office.py *`, `python agenten/team.py *`, Lesen und das Starten von Subagenten. Der Rechner und die App müssen laufen; ist die App zu, läuft die Aufgabe beim nächsten Start nach.
 3. Ein Auftrag testen: im KI Office beim Agenten „Akademie-Redakteur“ einen Auftrag anlegen. Spätestens nach 30 Minuten steht der Run auf „abgeschlossen“ (sofort: in der App „Jetzt ausführen“). Nach Ablauf von `timeout_sek` (20 bis 30 Minuten) würde die Wartung einen liegengebliebenen Auftrag als „unbekannt/veraltet“ markieren: der Takt von 30 Minuten gilt nur für die Warteschlange, die Frist läuft erst ab „in Arbeit“.
 
 **Grenzen:** Läuft nur, solange der Rechner an ist und die App offen. Wer das nicht will: Hermes (Hetzner-Server) könnte denselben Ablauf übernehmen (`claude -p` mit derselben Anleitung), das ist ein eigener Schritt.
