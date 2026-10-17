@@ -50,3 +50,11 @@ Gespeichert wird in Supabase, der Zugang läuft aber **nur** über die Team-API.
 | `social_speichern` | `thema`, `text`, `kanal`, `datum` (Status höchstens „Zur Freigabe“) |
 
 Status-Werte: Offen, Geplant, In Arbeit, Wartet, Wird getestet, Erledigt (nur Menschen).
+
+## KI Office: Aufträge ausführen (ab 17.10.2026)
+
+Neben der Aufgabenliste gibt es das KI Office (Portal → Register „KI Office“). Dort werden Aufträge an Agenten als **Runs** geführt, mit Zeitleiste, Ergebnissen und Freigaben. Werkzeug: `agenten/office.py`, gleicher Token wie `team.py` (`TEAM_PORTAL_TOKEN`), Endpunkt `https://n8n.hm-storage.de/webhook/office-api`.
+
+Ablauf je Run: `office.py meine` → `office.py start <run_id>` → Schritte mit `office.py schritt <run_id> "…" --tool NAME` melden (nur Werkzeuge aus deiner Allowlist in der Registry) → Ergebnisse mit `office.py ergebnis` ablegen (Ablageort: Datei, Link, Notiz-Titel, Commit) → `office.py fertig <run_id> "Zusammenfassung"`. Rückfragen: `office.py frage`. Externe Aktionen (E-Mail, Post, Zahlung, Löschen, Vertrag, Termin) nur nach `office.py freigabe` und erteilter Freigabe durch einen Menschen; der Inhalt darf danach nicht mehr geändert werden.
+
+Für Hermes gilt zusätzlich: Du bist in der Registry als `kurs-waechter`, `server-waechter` und `pa-assistent` eingetragen. Der PA-Assistent darf noch keine Postfächer lesen, bis Timo den Datenschutz geklärt hat (docs/office/DATENSCHUTZ_AI_ACT.md, Anwendungsfall D). Der zentrale Speicher des Office ist Supabase (Tabellen `office_*`); Obsidian ist nicht angebunden. Wissen aus dem Vault legst du als Ergebnis vom Typ `notiz` mit dem Notiz-Pfad als Ablageort ab, nicht als Volltext.
