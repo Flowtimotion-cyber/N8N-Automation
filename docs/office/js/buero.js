@@ -4,9 +4,13 @@
 // rechts ein Live-Panel mit offenen Freigaben und den letzten Ereignissen. Büro und Übersicht nutzen dieselben Daten (ctx.D).
 // Klick auf Raum → Projekte des Raums; Klick auf Agent → seine echte Arbeitsübersicht; Klick auf die Zentrale → alle Projekte.
 // Tastatur: 1–5 springt zum Raum, Tab läuft durch Räume und Agenten, Enter öffnet. Unter der Szene steht alles noch einmal als Liste.
-import { $, $$, esc, relativ, fmtZeit, chip, kurz } from './util.js';
-import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied } from './modell.js';
+// Monitor je Raum: eine Bildschirmfläche an der hinteren rechten Kante der Plattform zeigt das neueste grafische Ergebnis (Artefakt) des Raums
+// (Bild oder HTML; gibt es keins, das neueste Ergebnis überhaupt als Karte) – Bilder direkt, HTML nur in einem iframe mit sandbox=""
+// (keine Skripte, keine gleiche Herkunft), alles andere als Karte. Klick → Monitorwand (#/monitor/<Raum>) mit den letzten 12 Ergebnissen.
+import { $, $$, esc, relativ, fmtZeit, fmtDT, chip, kurz } from './util.js';
+import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied, raumArtefakte, raumMonitor, ARTEFAKT_TYP_TEXT, PRUEFSTAND_TEXT } from './modell.js';
 import { freigabeDialog } from './ansichten.js';
+import { PORTAL } from './api.js';
 
 const RAUM = {
   Akademie:       { cx: 200, cy: 190, akzent: '#A77BFF', icon: '📘', nr: 1 },
@@ -17,7 +21,12 @@ const RAUM = {
 };
 const HUB = { cx: 500, cy: 370, r: 58 };
 const PW = 140, PH = 70, DICKE = 18;              // Plattform: halbe Breite, halbe Höhe, Dicke
-const PLAETZE = [[-62, -6], [-6, -36], [54, -6], [-2, 26]]; // Schreibtische je Plattform (isometrisches Raster)
+const PLAETZE = [[-70, -10], [-20, -34], [20, 4], [-20, 28]]; // Schreibtische je Plattform (isometrisches Raster); die hintere rechte Ecke bleibt für den Monitor frei
+const MON = { dx: 50, dy: -82, w: 84, h: 52 };     // Monitor: Bildschirmfläche relativ zur Plattformmitte
+const PRUEF_FARBE = { abgenommen: '#1F9D6B', zurueckgewiesen: '#D9452F', ungeprueft: '#E98A15' };
+const PRUEF_KURZ = { abgenommen: 'geprüft', zurueckgewiesen: 'zurückgewiesen', ungeprueft: 'ungeprüft' };
+const PRUEF_CHIP = { abgenommen: 'fs-erteilt', zurueckgewiesen: 'fs-abgelehnt', ungeprueft: 'fs-offen' };
+const TYP_ICON = { bild: '🖼️', html: '🌐', pdf: '📄', sonst: '🔗' };
 const EREIGNIS_ICON = { schritt: '•', tool: '🔧', quelle: '📎', fehler: '⚠️', wiederholung: '↻', hinweis: 'ℹ️', status: '→', rueckfrage: '❓', antwort: '💬', freigabe: '✅', artefakt: '📄', abnahme: '🏁', entscheidung: '⚖️' };
 
 const raute = (cx, cy, w, h) => [[cx, cy - h], [cx + w, cy], [cx, cy + h], [cx - w, cy]].map(p => p.join(',')).join(' ');
@@ -74,6 +83,34 @@ function labelKarte(L, info, oben) {
           : '<text x="' + (x + 14) + '" y="' + (y + 56) + '" font-size="10.5" fill="#8E8DB0">' + (info.agenten.length ? 'alles ruhig' : 'kein Agent zugeordnet') + '</text>');
 }
 
+/** Monitor eines Raums: Rahmen, Standfuß, Inhalt (Bild / HTML-Sandbox / Karte / leer), Prüfmarke, Beschriftung. m = neuestes Artefakt oder null. */
+function monitor(L, raum, m) {
+  const x = L.cx + MON.dx, y = L.cy + MON.dy, w = MON.w, h = MON.h, mx = x + w / 2;
+  let s = '<a href="#/monitor/' + esc(raum) + '" class="monitor" data-raum="' + esc(raum) + '" data-typ="' + esc(m ? m.typ : 'leer') + '" aria-label="' + esc('Monitor ' + raum + ': ' + (m ? 'zeigt „' + m.titel + '“ (' + ARTEFAKT_TYP_TEXT[m.typ] + ', ' + PRUEFSTAND_TEXT[m.pruefstand] + ')' : 'noch kein Ergebnis') + '. Öffnet die Monitorwand mit den letzten Ergebnissen des Raums.') + '">' +
+    '<title>' + esc('Monitor ' + raum + ' · ' + (m ? m.titel + ' · ' + ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + PRUEFSTAND_TEXT[m.pruefstand] : 'noch kein Ergebnis') + ' · Klick öffnet die Monitorwand') + '</title>';
+  // Standfuß an der hinteren rechten Plattformkante
+  s += '<ellipse cx="' + mx + '" cy="' + (L.cy - 22) + '" rx="10" ry="3" fill="#3B3A66"/><rect x="' + (mx - 1.5) + '" y="' + (L.cy - 31) + '" width="3" height="9" fill="#5B5A8C"/>';
+  // Rahmen und Bildschirm
+  s += '<rect class="schirm" x="' + (x - 3) + '" y="' + (y - 3) + '" width="' + (w + 6) + '" height="' + (h + 6) + '" rx="5" fill="#0E0D22" stroke="' + L.akzent + '" stroke-width="1.5"/>';
+  if (!m) {
+    s += '<g class="leer"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1A1938"/><text x="' + mx + '" y="' + (y + h / 2 - 3) + '" text-anchor="middle" font-size="8.5" fill="#8E8DB0">noch kein Ergebnis</text><text x="' + mx + '" y="' + (y + h / 2 + 9) + '" text-anchor="middle" font-size="7" fill="#5F5E88">Monitor wartet</text></g>';
+  } else {
+    // Karte (Titel, Typ) liegt immer darunter: sichtbar bei PDF/Sonstigem und wenn ein Bild nicht geladen werden kann
+    s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1E1D40"/>' +
+      '<text x="' + (x + 6) + '" y="' + (y + 17) + '" font-size="13">' + TYP_ICON[m.typ] + '</text>' +
+      '<text x="' + (x + 24) + '" y="' + (y + 16) + '" font-size="8" font-weight="700" fill="#fff">' + esc(kurz(m.titel, 15)) + '</text>' +
+      '<text x="' + (x + 6) + '" y="' + (y + 31) + '" font-size="7.5" fill="#B9B8D6">' + esc(ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + kurz(m.projekt || '', 18)) + '</text>' +
+      '<text x="' + (x + 6) + '" y="' + (y + 42) + '" font-size="7" fill="#8E8DB0">' + esc(m.typ === 'pdf' ? 'Link in der Monitorwand' : m.url ? 'Vorschau wird geladen …' : 'Ablage: ' + kurz(m.ablageort || '–', 22)) + '</text>';
+    if (m.typ === 'bild') s += '<image href="' + esc(m.url) + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet"><title>' + esc(m.titel) + '</title></image>';
+    else if (m.typ === 'html') s += '<foreignObject x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"><div xmlns="http://www.w3.org/1999/xhtml" class="mini"><iframe src="' + esc(m.url) + '" sandbox="" referrerpolicy="no-referrer" loading="lazy" tabindex="-1" aria-hidden="true" title="' + esc('Vorschau: ' + m.titel) + '"></iframe></div></foreignObject>';
+    // Prüfmarke unten rechts im Bild
+    const t = PRUEF_KURZ[m.pruefstand], bw = t.length * 4.6 + 10;
+    s += '<rect class="marke" x="' + (x + w - bw - 3) + '" y="' + (y + h - 13) + '" width="' + bw + '" height="10.5" rx="5" fill="' + PRUEF_FARBE[m.pruefstand] + '"/><text x="' + (x + w - 3 - bw / 2) + '" y="' + (y + h - 5.2) + '" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">' + esc(t) + '</text>';
+  }
+  s += '<text x="' + mx + '" y="' + (L.cy - 12) + '" text-anchor="middle" font-size="8" fill="#B9B8D6">' + esc(m ? kurz(m.titel, 18) : 'Monitor') + '</text></a>';
+  return s;
+}
+
 export function vBuero(ctx) {
   const D = ctx.D;
   const agenten = D.agenten || [];
@@ -82,7 +119,7 @@ export function vBuero(ctx) {
     const A = agenten.filter(a => a.raum === raum && a.aktiv !== false);
     const P = projekte.filter(p => p.status !== 'abgeschlossen' && raumVon(D, p) === raum);
     const st = P.map(p => projektStand(D, p));
-    return { raum, agenten: A.map(a => ({ a, z: agentZustand(D, a) })), projekte: P, laufend: st.reduce((s, x) => s + x.aktiveRuns.length, 0), freigaben: st.reduce((s, x) => s + x.freigabenOffen.length, 0), fehler: st.reduce((s, x) => s + x.fehler.length, 0), offen: st.reduce((s, x) => s + x.offen.length, 0) };
+    return { raum, agenten: A.map(a => ({ a, z: agentZustand(D, a) })), projekte: P, laufend: st.reduce((s, x) => s + x.aktiveRuns.length, 0), freigaben: st.reduce((s, x) => s + x.freigabenOffen.length, 0), fehler: st.reduce((s, x) => s + x.fehler.length, 0), offen: st.reduce((s, x) => s + x.offen.length, 0), monitor: raumMonitor(D, raum) };
   });
   const ohneRaum = projekte.filter(p => p.status !== 'abgeschlossen' && !raumVon(D, p));
   const aktiveProjekte = projekte.filter(p => p.status !== 'abgeschlossen').length;
@@ -90,7 +127,7 @@ export function vBuero(ctx) {
   const freigabenOffen = (D.freigaben || []).filter(f => f.status === 'offen');
   const fehlerGesamt = infos.reduce((s, i) => s + i.fehler, 0);
 
-  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird.</desc>',
+  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird. Der Monitor in jedem Raum zeigt das neueste Ergebnis seiner Agenten; „ungeprüft“ heißt, der Run ist noch nicht fachlich abgenommen.</desc>',
     '<defs><linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1D1B40"/><stop offset="1" stop-color="#0F0E24"/></linearGradient>',
     '<pattern id="raster" width="20" height="10" patternUnits="userSpaceOnUse"><path d="M10 0 L20 5 L10 10 L0 5 Z" fill="none" stroke="#4A4880" stroke-width=".6"/></pattern>',
     '<radialGradient id="hubglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7B3FE4" stop-opacity=".55"/><stop offset="1" stop-color="#7B3FE4" stop-opacity="0"/></radialGradient></defs>',
@@ -107,6 +144,8 @@ export function vBuero(ctx) {
   const zeichneRaum = info => {
     const L = RAUM[info.raum]; const oben = L.cy < HUB.cy;
     svg.push('<a href="#/raum/' + esc(info.raum) + '" class="raum" aria-label="Raum ' + esc(info.raum) + ' (Taste ' + L.nr + '): ' + info.projekte.length + ' Projekte, ' + info.laufend + ' laufende Aufträge, ' + info.freigaben + ' offene Freigaben, ' + info.fehler + ' Fehler. Klick filtert die Projekte."><title>' + esc(info.raum) + ' · ' + info.projekte.length + ' Projekte · ' + info.laufend + ' laufend · ' + info.freigaben + ' Freigaben · ' + info.fehler + ' Fehler</title>' + plattform(L, info) + labelKarte(L, info, oben) + '</a>');
+    // Monitor an der hinteren rechten Kante, vor der Plattform und hinter den Figuren
+    svg.push(monitor(L, info.raum, info.monitor));
     // Plätze von hinten nach vorn zeichnen (kleineres y zuerst), damit vordere Figuren die hinteren überdecken
     const plaetze = info.agenten.slice(0, PLAETZE.length).map((p, i) => ({ ...p, x: L.cx + PLAETZE[i][0], y: L.cy + PLAETZE[i][1] })).sort((p, q) => p.y - q.y);
     plaetze.forEach(({ a, z, x, y }) => {
@@ -147,7 +186,8 @@ export function vBuero(ctx) {
     '<div class="card"><h2>Räume und Agenten als Liste</h2><p class="small muted">Für Tastatur und Screenreader: dieselben Inhalte wie im Bild.</p>' +
     infos.map(info => '<h3 style="margin-top:12px"><a href="#/raum/' + esc(info.raum) + '">' + esc(info.raum) + '</a> <span class="small muted">' + info.projekte.length + ' Projekte · ' + info.laufend + ' laufend · ' + info.freigaben + ' Freigaben · ' + info.fehler + ' Fehler</span></h3>' +
       (info.agenten.length ? '<ul style="margin:0;padding-left:18px">' + info.agenten.map(({ a, z }) => '<li><a href="#/agent/' + esc(a.agent_id) + '">' + esc(a.name) + '</a> · ' + chip(ZUSTAND_TEXT[z.zustand]) + ' · ' + esc(a.modell) + ' · ' + z.runs.length + ' Ausführungen' + (z.probleme.length ? ' · ' + chip(z.probleme.length + ' Problem(e)', 'rs-fehlgeschlagen') : '') + '</li>').join('') + '</ul>' : '<p class="small muted">Kein Agent zugeordnet.</p>') +
-      (info.projekte.length ? '<p class="small">Projekte: ' + info.projekte.map(p => '<a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>').join(', ') + '</p>' : '')).join('') +
+      (info.projekte.length ? '<p class="small">Projekte: ' + info.projekte.map(p => '<a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>').join(', ') + '</p>' : '') +
+      '<p class="small">Monitor: ' + (info.monitor ? '<a href="#/monitor/' + esc(info.raum) + '">' + esc(info.monitor.titel) + '</a> · ' + esc(ARTEFAKT_TYP_TEXT[info.monitor.typ]) + ' · ' + chip(PRUEFSTAND_TEXT[info.monitor.pruefstand], PRUEF_CHIP[info.monitor.pruefstand]) + ' · ' + esc(relativ(info.monitor.erstellt)) : 'noch kein Ergebnis · <a href="#/monitor/' + esc(info.raum) + '">Monitorwand</a>') + '</p>').join('') +
     (ohneRaum.length ? '<h3 style="margin-top:12px">Ohne Raum</h3><p class="small">' + ohneRaum.map(p => '<a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>').join(', ') + ' · Raum setzt Timo in Supabase (team_projekte.raum) oder über die Office-API.</p>' : '') +
     '<p class="small muted">3D ist bewusst nicht Teil dieser Version (optional später, siehe RESTPUNKTE.md).</p></div>');
 
@@ -163,4 +203,38 @@ export function vBuero(ctx) {
     if (link) { link.focus(); ev.preventDefault(); }
   };
   document.addEventListener('keydown', vBuero.tasten);
+}
+
+// ---------- Monitorwand: die letzten 12 Ergebnisse eines Raums als Vorschaukacheln ----------
+function kachel(D, a) {
+  const r = a.run || {}; const reg = r.agent_id ? agentReg(D, r.agent_id) : null;
+  const linkbar = a.url || (/^https?:\/\/[^\s"'<>\\]+$/i.test(String(a.ablageort || '')) ? a.ablageort : null);
+  let vorschau;
+  if (a.typ === 'bild') vorschau = '<img src="' + esc(a.url) + '" alt="' + esc(a.titel) + '" loading="lazy" decoding="async" referrerpolicy="no-referrer">';
+  else if (a.typ === 'html') vorschau = '<iframe src="' + esc(a.url) + '" sandbox="" referrerpolicy="no-referrer" loading="lazy" tabindex="-1" title="' + esc('Vorschau: ' + a.titel) + '"></iframe>';
+  else vorschau = '<div><div style="font-size:30px;line-height:1.2">' + TYP_ICON[a.typ] + '</div>' + esc(ARTEFAKT_TYP_TEXT[a.typ]) + ' · keine Vorschau' + (a.typ === 'pdf' ? '<br><span class="muted" style="font-size:12px">PDF-Vorschaubilder sind ein Restpunkt</span>' : '') + '</div>';
+  const pruef = a.pruefstand === 'abgenommen' ? 'fachlich abgenommen von ' + esc(mitglied(D, r.abgenommen_von).name) + ' am ' + esc(fmtDT(r.abgenommen_am))
+    : a.pruefstand === 'zurueckgewiesen' ? 'zurückgewiesen von ' + esc(mitglied(D, r.abgenommen_von).name) + ' am ' + esc(fmtDT(r.abgenommen_am))
+    : '<b>ungeprüft</b> – Run ' + esc((D.status_text || {})[r.status] || r.status || 'unbekannt') + ', keine fachliche Abnahme durch einen Menschen';
+  return '<div class="kachel ' + esc(a.pruefstand) + '" data-typ="' + esc(a.typ) + '"><div class="vorschau">' + vorschau + '<span class="marke">' + chip(PRUEFSTAND_TEXT[a.pruefstand], PRUEF_CHIP[a.pruefstand]) + '</span></div>' +
+    '<div class="text"><b>' + esc(a.titel) + '</b>' + chip(ARTEFAKT_TYP_TEXT[a.typ]) + ' ' + chip(a.art) + (a.zusammenfassung ? '<div class="muted" style="margin-top:4px">' + esc(kurz(a.zusammenfassung, 160)) + '</div>' : '') +
+    '<dl class="kv"><dt>Run</dt><dd><a href="#/run/' + esc(a.run_id) + '">' + esc(kurz(r.auftrag || a.run_id, 60)) + '</a>' + (reg ? ' · ' + esc(reg.name) : '') + '</dd>' +
+    '<dt>Aufgabe</dt><dd>' + (a.aufgabe_id ? '<a href="' + PORTAL + '#/aufgabe/' + esc(a.aufgabe_id) + '" title="Im Team-Portal öffnen">' + esc(a.aufgabe_id) + '</a>' : '<span class="muted">keine Aufgabe verknüpft</span>') + (a.projekt ? ' · ' + esc(a.projekt) : '') + '</dd>' +
+    '<dt>Zeit</dt><dd>' + esc(fmtDT(a.erstellt)) + ' <span class="muted">(' + esc(relativ(a.erstellt)) + ')</span></dd>' +
+    '<dt>Hash</dt><dd>' + (a.inhalt_hash ? '<span class="hash" title="' + esc(a.inhalt_hash) + '">' + esc(a.inhalt_hash.slice(0, 16)) + '…</span>' : '<span class="muted">kein Hash übermittelt</span>') + '</dd>' +
+    '<dt>Prüfung</dt><dd>' + pruef + '</dd>' +
+    '<dt>Ablage</dt><dd>' + (linkbar ? '<a href="' + esc(linkbar) + '" target="_blank" rel="noopener noreferrer">Öffnen ↗</a> <span class="muted">' + esc(kurz(linkbar, 50)) + '</span>' : esc(a.ablageort || '–')) + '</dd></dl></div></div>';
+}
+
+export function vMonitorwand(ctx, raum) {
+  const D = ctx.D;
+  if (!RAEUME.includes(raum)) { $('#main').innerHTML = '<div class="card"><h2>Diesen Raum gibt es nicht</h2><p class="muted">Bekannte Räume: ' + esc(RAEUME.join(', ')) + '.</p><a class="btn" href="#/tab/buero">Zum Büro</a></div>'; return; }
+  const L = RAUM[raum];
+  const A = raumArtefakte(D, raum, 12);
+  const ungeprueft = A.filter(a => a.pruefstand !== 'abgenommen').length;
+  $('#main').innerHTML = (ctx.nur === 'buero' ? '' : '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a> · <a href="#/raum/' + esc(raum) + '">Projekte des Raums</a></p>') +
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>' + esc(L.icon + ' Monitorwand: ' + raum) + '</h1><p class="sub">Die letzten 12 Ergebnisse aus den Agentenläufen dieses Raums, neueste zuerst. <b>Ungeprüft</b> heißt: Der Run ist noch nicht fachlich abgenommen. Vorschauen sind reine Anzeige: Bilder direkt, HTML in einer Sandbox ohne Skripte, alles andere als Karte mit Link.</p></div>' +
+    '<div class="meta">' + chip(A.length + ' Ergebnis' + (A.length === 1 ? '' : 'se')) + (ungeprueft ? chip(ungeprueft + ' ungeprüft', 'fs-offen') : (A.length ? chip('alle geprüft', 'fs-erteilt') : '')) + '</div></div>' +
+    (A.length ? '<div class="kacheln">' + A.map(a => kachel(D, a)).join('') + '</div>' : '<div class="card"><p class="empty">Noch kein Ergebnis in diesem Raum.<br><span class="small">Sobald ein Agent ein Ergebnis ablegt, erscheint es hier und auf dem Monitor im Büro.</span></p></div>') +
+    '<div class="card" style="margin-top:14px"><h2>So liest du die Monitorwand</h2><ul class="small" style="margin:0;padding-left:18px"><li><b>geprüft</b> heißt: Ein Mensch hat den Run fachlich abgenommen (steht am Run). <b>ungeprüft</b>: noch nicht; <b>zurückgewiesen</b>: fachlich abgelehnt.</li><li>Der Hash ist der Fingerabdruck des Inhalts, wie ihn der Agent gemeldet hat; er ändert sich, wenn sich der Inhalt ändert.</li><li>Es erscheinen nur Ergebnisse, die die Office-API für dich liefert (gleiche Rechte wie überall im KI Office).</li><li>Links „Öffnen ↗“ führen zum Ablageort; dort gelten zusätzlich die Rechte des Zielsystems.</li></ul></div>';
 }

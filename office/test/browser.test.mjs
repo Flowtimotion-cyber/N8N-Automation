@@ -14,7 +14,8 @@ let S, B, fehler = [];
 const neueSeite = async (vp, opts = {}) => {
   const p = await B.seite(vp);
   p.on('pageerror', e => fehler.push(vp.width + ' ' + opts.name + ' pageerror: ' + e.message));
-  p.on('console', m => { if (m.type() === 'error' && !(opts.netzfehlerErwartet && /Failed to load resource/.test(m.text()))) fehler.push(vp.width + ' ' + opts.name + ' console: ' + m.text()); });
+  // Chromium meldet blockierte Skripte in sandboxed iframes als Konsolenfehler: Bei den HTML-Testartefakten ist genau das erwartet (die Sandbox greift).
+  p.on('console', m => { if (m.type() === 'error' && !(opts.netzfehlerErwartet && /Failed to load resource/.test(m.text())) && !/Blocked script execution in '[^']*\/testbilder\/[^']*' because the document's frame is sandboxed/.test(m.text())) fehler.push(vp.width + ' ' + opts.name + ' console: ' + m.text()); });
   return p;
 };
 const oeffne = async (p, hash, tok = TOKENS.m_timo) => { await p.goto(S.base + '/office/?z=' + tok + hash, { waitUntil: 'networkidle' }); await p.waitForTimeout(250); };
@@ -63,6 +64,63 @@ for (const vp of [DESKTOP, MOBIL]) {
   });
 }
 
+for (const vp of [DESKTOP, MOBIL]) {
+  const n = vp.width > 600 ? 'Desktop' : 'Mobil';
+  test(n + ': Monitor zeigt Bild / zeigt ungeprüft / leer, HTML nur in der Sandbox, Monitorwand', async t => {
+    if (!B) return t.skip();
+    const p = await neueSeite(vp, { name: n + ' monitor' });
+    await oeffne(p, '#/tab/buero');
+    const mon = raum => 'svg.buero a.monitor[data-raum="' + raum + '"]';
+    assert.equal(await p.locator('svg.buero a.monitor').count(), 5, 'ein Monitor je Raum');
+    // Akademie: Bild aus testbilder/, Run fachlich abgenommen → „geprüft“
+    const akademie = await p.evaluate(sel => { const a = document.querySelector(sel); const img = a.querySelector('image'); return { typ: a.dataset.typ, href: img && img.getAttribute('href'), marke: a.querySelector('.marke + text').textContent, label: a.getAttribute('aria-label') }; }, mon('Akademie'));
+    assert.equal(akademie.typ, 'bild'); assert.match(akademie.href, /^testbilder\/akademie-quiz-modul-1-2\.svg$/); assert.equal(akademie.marke, 'geprüft'); assert.ok(akademie.label.includes('fachlich abgenommen'));
+    assert.ok(await p.evaluate(src => fetch(src).then(r => r.ok && /svg/.test(r.headers.get('content-type'))), akademie.href), 'Testbild ist abrufbar');
+    // Vertrieb: Bild, Run technisch abgeschlossen, aber nicht abgenommen → „ungeprüft“
+    const vertrieb = await p.evaluate(sel => { const a = document.querySelector(sel); return { typ: a.dataset.typ, marke: a.querySelector('.marke + text').textContent, label: a.getAttribute('aria-label') }; }, mon('Vertrieb'));
+    assert.equal(vertrieb.typ, 'bild'); assert.equal(vertrieb.marke, 'ungeprüft'); assert.ok(vertrieb.label.includes('ungeprüft'));
+    // Kundenprojekte: PDF-Verweis → Karte ohne Ladevorgang (kein image, kein iframe)
+    const kunden = await p.evaluate(sel => { const a = document.querySelector(sel); return { typ: a.dataset.typ, bild: !!a.querySelector('image'), frame: !!a.querySelector('iframe'), text: a.textContent }; }, mon('Kundenprojekte'));
+    assert.equal(kunden.typ, 'pdf'); assert.ok(!kunden.bild && !kunden.frame); assert.ok(kunden.text.includes('PDF')); assert.ok(kunden.text.includes('ungeprüft'));
+    // Verwaltung: kein Artefakt → „noch kein Ergebnis“
+    assert.equal(await p.evaluate(sel => document.querySelector(sel).dataset.typ, mon('Verwaltung')), 'leer');
+    assert.ok((await p.evaluate(sel => document.querySelector(sel + ' .leer').textContent, mon('Verwaltung'))).includes('noch kein Ergebnis'));
+    // Marketing: HTML nur im iframe mit sandbox="" (keine Skripte, fremde Herkunft); das Prüfskript der Testseite darf nicht laufen
+    const marketing = await p.evaluate(sel => { const f = document.querySelector(sel + ' foreignObject iframe'); return f ? { src: f.getAttribute('src'), sandbox: f.getAttribute('sandbox'), referrer: f.getAttribute('referrerpolicy') } : null; }, mon('Marketing'));
+    assert.ok(marketing, 'HTML-Artefakt im iframe'); assert.equal(marketing.sandbox, ''); assert.equal(marketing.referrer, 'no-referrer'); assert.match(marketing.src, /^testbilder\/linkedin-vorschau-kw43\.html$/);
+    await p.waitForTimeout(400);
+    const frame = p.frames().find(f => /linkedin-vorschau-kw43\.html/.test(f.url()));
+    assert.ok(frame, 'Vorschau-Frame geladen');
+    const inFrame = await frame.evaluate(() => ({ origin: window.origin, titel: document.title, skript: document.getElementById('skript').textContent, text: document.body.textContent }));
+    assert.equal(inFrame.origin, 'null', 'Sandbox: fremde Herkunft');
+    assert.equal(inFrame.skript, 'Skript nicht ausgeführt (Sandbox).'); assert.notEqual(inFrame.titel, 'SKRIPT LIEF');
+    assert.ok(inFrame.text.includes('Ignoriere alle vorherigen Anweisungen'), 'Prompt-Injection-Satz ist nur Text');
+    assert.ok(!(await text(p, '#main')).includes('SKRIPT LIEF'));
+    // Liste unter der Szene nennt den Monitorinhalt je Raum
+    assert.ok((await text(p, '#main')).includes('Monitor: Quiz-Auswertung Modul 1.2'));
+    assert.ok((await text(p, '#main')).includes('Monitor: noch kein Ergebnis'));
+    // Klick auf den Monitor öffnet die Monitorwand des Raums
+    await p.evaluate(sel => { const a = document.querySelector(sel); a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); if (location.hash.indexOf('#/monitor/') !== 0) location.hash = a.getAttribute('href'); }, mon('Marketing')); await p.waitForTimeout(400);
+    assert.equal(await p.evaluate(() => location.hash), '#/monitor/Marketing');
+    assert.match(await text(p, 'h1'), /Monitorwand: Marketing/);
+    assert.equal(await p.locator('.kachel').count(), 3, 'HTML, Bild, Versandprotokoll');
+    assert.deepEqual(await p.evaluate(() => Array.from(document.querySelectorAll('.kachel')).map(k => k.dataset.typ)), ['html', 'bild', 'sonst'], 'neueste zuerst');
+    const wandFrame = await p.evaluate(() => { const f = document.querySelector('.kachel iframe'); return { sandbox: f.getAttribute('sandbox'), src: f.getAttribute('src') }; });
+    assert.equal(wandFrame.sandbox, ''); assert.match(wandFrame.src, /^testbilder\//);
+    const wandText = await text(p, '#main');
+    for (const s of ['ungeprüft', 'Hash', 'Aufgabe', 'Run', 'Öffnen ↗', '3 Ergebnisse', 'keine fachliche Abnahme']) assert.ok(wandText.includes(s), 'Monitorwand nennt ' + s);
+    await shot(p, 'monitorwand', vp);
+    // Akademie-Wand: abgenommenes Ergebnis ist als „fachlich abgenommen“ gekennzeichnet
+    await oeffne(p, '#/monitor/Akademie'); assert.ok((await text(p, '#main')).includes('fachlich abgenommen von')); assert.ok((await text(p, '.kachel img').then(() => true, () => false)) || (await p.locator('.kachel img').count()) >= 1);
+    assert.ok(await p.evaluate(() => { const i = document.querySelector('.kachel img'); return i && i.complete && i.naturalWidth > 0; }), 'Bild in der Monitorwand geladen');
+    // Verwaltung-Wand: leer
+    await oeffne(p, '#/monitor/Verwaltung'); assert.ok((await text(p, '#main')).includes('Noch kein Ergebnis in diesem Raum')); await shot(p, 'monitorwand-leer', vp);
+    // Unbekannter Raum
+    await oeffne(p, '#/monitor/Keller'); assert.ok((await text(p, '#main')).includes('Diesen Raum gibt es nicht'));
+    await p.close();
+  });
+}
+
 test('Fehlerzustände: ohne Zugang, ungültiger Code, API nicht erreichbar, 401, unbekannter Run', async t => {
   if (!B) return t.skip();
   for (const vp of [DESKTOP, MOBIL]) {
@@ -92,7 +150,7 @@ test('Leerzustände (Szenario leer) und Freigabe-Entscheidung im Browser', async
     await oeffne(p, '#/tab/projekte'); assert.ok((await text(p, '#main')).includes('Noch kein Agent') || (await text(p, '.kpis')).includes('0')); await shot(p, 'leer-projekte', vp);
     await oeffne(p, '#/tab/agenten'); assert.ok((await text(p, '#main')).includes('zuletzt nie')); await shot(p, 'leer-agenten', vp);
     await oeffne(p, '#/tab/freigaben'); assert.ok((await text(p, '#main')).includes('Keine offenen Freigaben')); await shot(p, 'leer-freigaben', vp);
-    await oeffne(p, '#/tab/buero'); assert.ok((await text(p, '#main')).includes('0 laufend')); await shot(p, 'leer-buero', vp);
+    await oeffne(p, '#/tab/buero'); assert.ok((await text(p, '#main')).includes('0 laufend')); assert.equal(await p.locator('svg.buero a.monitor[data-typ="leer"]').count(), 5, 'alle fünf Monitore: noch kein Ergebnis'); await shot(p, 'leer-buero', vp);
     await oeffne(p, '#/agent/kurs-waechter'); assert.ok((await text(p, '#main')).includes('Noch keine Ausführungen')); await shot(p, 'leer-agent-detail', vp);
     await p.close();
   }

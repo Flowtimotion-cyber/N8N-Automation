@@ -121,7 +121,7 @@ Die Office-API kennt nur die Schnittstelle. Damit bleibt n8n ein austauschbares 
 | `js/api.js` | Token (`mt-token`, `?z=`), API-URL (lokal `/api/office`, sonst n8n) |
 | `js/modell.js` | Kennzahlen aus zählbaren Daten mit Quelle, Agentenzustand, Raumzuordnung |
 | `js/ansichten.js` | Projekte (Liste/Kanban, Suche, Filter), Projekt-Detail, Agenten, Agent-Detail, Run, Freigaben, Dialoge |
-| `js/buero.js` | Virtuelles Büro als SVG, Liste darunter für Tastatur und Screenreader |
+| `js/buero.js` | Virtuelles Büro als SVG mit Monitor je Raum, Monitorwand (`#/monitor/<Raum>`), Liste darunter für Tastatur und Screenreader |
 | `js/util.js` | `esc()`, Datum, Chips |
 
 Im Portal (`docs/team/index.html`) kam nur das Register „KI Office“ dazu (TABS-Eintrag, Funktion `vOffice`), rückwärtskompatibel.
@@ -142,6 +142,16 @@ Im Portal (`docs/team/index.html`) kam nur das Register „KI Office“ dazu (TA
 | Register „Übersicht“ | `<iframe src="../office/?einbetten=1&nur=buero#/tab/buero">` | nur die Büroszene und das Live-Panel, ohne Reiter; wer einen Raum oder Agenten öffnet, bekommt einen Rücksprung „← Zurück zum Büro“ |
 
 Gleiche Herkunft (GitHub Pages, derselbe Host und Pfad `/N8N-Automation/`), darum teilen Portal und Office den Token in `localStorage` ohne Weitergabe per URL. Das Office meldet seine Höhe per `postMessage({typ:'ko-hoehe'})` an das Portal; das Portal akzeptiert nur Nachrichten mit `e.origin === location.origin` und nur von seinen eigenen iframes. Links aus dem Office ins Portal (Aufgaben, Notizen) öffnen im Elternfenster (`target=_parent`), damit das Portal nicht im Portal lädt. Die Parameter stehen in `docs/office/js/app.js` (`EINGEBETTET`, `NUR`).
+
+## 9a. Monitore je Raum und Monitorwand (Ergänzung 17.10.2026)
+
+**Daten.** `modell.js` liefert mit `raumArtefakte(D, raum, n)` die letzten n Artefakte aus den Runs aller Projekte eines Raums (Raum über `team_projekte.raum` oder Agentenzuordnung, wie überall), sortiert nach `erstellt` absteigend, jedes mit `typ`, `url`, `run`, `projekt` und `pruefstand` (`abgenommen` / `zurueckgewiesen` / `ungeprueft` aus `run.abgenommen`). `artefaktTyp(a)` erkennt aus `art` und Dateiendung des Ablageorts: `bild` (png, jpg, jpeg, svg, webp, gif), `html`, `pdf`, sonst `sonst`. `ladbareAdresse(s)` lässt nur `https://` und relative Pfade (ohne Schema, nicht `//`, kein Backslash, kein Leerraum, keine Steuerzeichen) durch; Bild und HTML ohne ladbare Adresse werden zu `sonst`. `raumMonitor(D, raum)` wählt für den Monitor das neueste Bild- oder HTML-Artefakt, sonst das neueste PDF, sonst das neueste überhaupt (eine neuere Textnotiz verdrängt also kein Diagramm und keinen PDF-Verweis). Keine zweite Datenquelle: alles aus `ctx.D`, also aus der schon rechtegefilterten `laden`-Antwort.
+
+**Szene.** `buero.js` zeichnet je Raum ein Monitor-Element (`<a class="monitor" href="#/monitor/<Raum>">`) an der hinteren rechten Plattformkante: Rahmen mit Raumakzent, Standfuß, Inhalt und Prüfmarke. Bild → `<image href>`, HTML → `<foreignObject>` mit `<iframe sandbox="" referrerpolicy="no-referrer" loading="lazy">` (verkleinert dargestellt, `pointer-events:none`), PDF/sonst → Karte, kein Artefakt → „noch kein Ergebnis“. Unter dem Bild steht immer eine Textkarte, damit ein nicht ladbares Bild nicht leer bleibt. Die Schreibtischplätze wurden so verschoben, dass die hintere rechte Ecke frei bleibt.
+
+**Monitorwand.** Route `#/monitor/<Raum>` (app.js) → `vMonitorwand(ctx, raum)`: bis zu 12 Kacheln (`.kacheln`/`.kachel`), gleiche Regeln für die Vorschau, dazu Run-Link, Aufgabe (Portal), Projekt, Zeit, Hash, Prüftext und „Öffnen ↗“ (`target=_blank rel=noopener noreferrer`). Vorschauen sind nie interaktiv; der Weg zum Original ist der explizite Link.
+
+**Testdaten.** `office/dev/testdaten.mjs` legt über die normale `artefakt`-Aktion vier grafische Ergebnisse an (drei selbst gezeichnete SVG-Diagramme und eine HTML-Vorschau aus `docs/office/testbilder/`, Hash = echter SHA-256 der Datei) sowie einen PDF-Verweis ohne Vorschau; Verwaltung bleibt ohne Ergebnis. Keine fremden Bilder.
 
 ## 10. Anbindung von Werkzeugen (API, MCP) über n8n
 

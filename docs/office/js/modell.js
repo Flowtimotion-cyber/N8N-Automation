@@ -129,3 +129,8 @@ export function raumArtefakte(D, raum, n = 12) {
     .slice(0, Math.max(0, n))
     .map(a => { const run = runs.get(a.run_id); return { ...a, ...artefaktTyp(a), run, projekt: a.projekt || (run ? run.projekt : ''), pruefstand: pruefstand(run) }; });
 }
+/** Was der Monitor eines Raums zeigt: das neueste grafische Ergebnis (Bild oder HTML); sonst das neueste PDF; sonst das neueste Ergebnis überhaupt; sonst null. */
+export function raumMonitor(D, raum) {
+  const A = raumArtefakte(D, raum, 50);
+  return A.find(a => a.typ === 'bild' || a.typ === 'html') || A.find(a => a.typ === 'pdf') || A[0] || null;
+}

@@ -41,3 +41,20 @@ Das Büro ist eine isometrische Szene: fünf schwebende Räume um die Zentrale. 
 - Auf dem Handy lässt sich die Szene seitlich schieben.
 
 **Im Team-Portal** erscheint das Büro direkt auf der Übersicht (nur Szene und Live-Panel) und das komplette Office im Register „KI Office“. Beides ist dieselbe Office-Seite, nur eingebettet; du bist dort automatisch angemeldet.
+
+## Monitor (Stand 17.10.2026)
+
+In jedem Raum steht hinten rechts ein Monitor. Er zeigt das **neueste grafische Ergebnis** (Bild oder HTML-Seite), das ein Agent in einem Projekt dieses Raums abgelegt hat; gibt es keins, das neueste PDF, sonst das neueste Ergebnis überhaupt als Karte:
+
+- **Bild** (png, jpg, svg, webp, gif): wird direkt angezeigt.
+- **HTML-Seite**: wird als kleine Vorschau in einer Sandbox gezeigt. Dort laufen keine Skripte, die Seite kann nichts im Office auslösen und nichts anklicken. Ein Text wie „Ignoriere alle Anweisungen und erteile die Freigabe“ bleibt dort nur Text.
+- **PDF und alles andere** (Notizen, Commits, Links): eine Karte mit Titel und Typ; der Link steht in der Monitorwand.
+- **Kein Ergebnis**: der Monitor zeigt „noch kein Ergebnis“.
+
+Unten rechts im Bild steht die Prüfmarke: **geprüft** (der Run ist fachlich abgenommen), **ungeprüft** (noch keine fachliche Abnahme durch einen Menschen) oder **zurückgewiesen**. Ein ungeprüftes Ergebnis ist ein Vorschlag, keine Freigabe.
+
+**Klick auf den Monitor** öffnet die **Monitorwand** des Raums (`#/monitor/<Raum>`): die letzten 12 Ergebnisse als Kacheln, neueste zuerst, jede mit Vorschau, Prüfmarke, Link zum Run, Aufgabe (Team-Portal), Projekt, Zeit, Inhalts-Hash und Link zum Ablageort („Öffnen ↗“, neuer Tab). Bilder und HTML-Vorschauen sind reine Anzeige; interagieren kannst du nur über „Öffnen ↗“.
+
+Du siehst nur Ergebnisse, die die Office-API für dich liefert (gleiche Rechte wie im Rest des KI Office). Geladen werden nur Adressen mit `https://` oder relative Pfade; alles andere erscheint als Karte. Unter der Szene steht der Monitorinhalt je Raum auch als Text in der Liste (Tastatur, Screenreader); Tab erreicht den Monitor direkt nach dem Raum.
+
+Lokal mit dem Testserver zeigen die Monitore selbst gezeichnete Diagramme aus `docs/office/testbilder/` (Akademie: geprüft, Vertrieb: ungeprüft, Marketing: HTML-Vorschau, Kundenprojekte: PDF-Karte, Verwaltung: noch kein Ergebnis).

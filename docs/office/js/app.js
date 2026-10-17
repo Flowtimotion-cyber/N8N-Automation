@@ -2,7 +2,7 @@
 import { $, $$, esc, toast } from './util.js';
 import { api, tokenLesen, tokenSetzen, TOKEN, PORTAL, ls } from './api.js';
 import { vProjekte, vProjekt, vAgenten, vAgent, vRun, vFreigaben, av } from './ansichten.js';
-import { vBuero } from './buero.js';
+import { vBuero, vMonitorwand } from './buero.js';
 
 const TABS = [['projekte', 'Projekte'], ['agenten', 'KI Office'], ['buero', 'Virtuelles Büro'], ['freigaben', 'Freigaben']];
 // Eingebettet im Team-Portal (iframe, gleiche Herkunft): ?einbetten=1 blendet Kopf/Fuß aus, ?nur=buero zeigt nur die Szene.
@@ -23,6 +23,7 @@ function leseHash() {
   else if ((m = /^#\/agent\/([\w-]+)$/.exec(h))) route = { tab: 'agenten', art: 'agent', id: m[1] };
   else if ((m = /^#\/run\/([\w-]+)$/.exec(h))) route = { tab: 'agenten', art: 'run', id: m[1] };
   else if ((m = /^#\/raum\/([^/]+)$/.exec(h))) route = { tab: 'projekte', art: 'raum', id: decodeURIComponent(m[1]) };
+  else if ((m = /^#\/monitor\/([^/]+)$/.exec(h))) route = { tab: 'buero', art: 'monitor', id: decodeURIComponent(m[1]) };
   else if (h && h !== '#/' ) return; // unbekannt: letzte Route behalten
   if (!route.art && !EINGEBETTET) ls.set('ko-tab', route.tab);
 }
@@ -47,6 +48,7 @@ function render() {
     else if (route.art === 'agent') vAgent(ctx, route.id);
     else if (route.art === 'run') vRun(ctx, route.id);
     else if (route.art === 'raum') vProjekte(ctx, route.id);
+    else if (route.art === 'monitor') vMonitorwand(ctx, route.id);
     else if (route.tab === 'agenten') vAgenten(ctx);
     else if (route.tab === 'buero') vBuero(ctx);
     else if (route.tab === 'freigaben') vFreigaben(ctx);

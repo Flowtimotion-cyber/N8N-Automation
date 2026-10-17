@@ -99,3 +99,20 @@ Weiterhin ungetestet: alles aus Abschnitt 5 (Supabase, n8n, Modelle). Die Browse
 | Sichtprüfung Szene Desktop und Mobil (375 px, seitlich scrollbar) | Räume, Figuren, Sprechblasen, Linien, Live-Panel wie vorgesehen |
 
 Die eingecheckten Screenshots stammen ab jetzt aus dem Windows-Lauf (Playwright-Chromium). Die Einbettung ist nur lokal geprüft; auf GitHub Pages muss einmal kontrolliert werden, dass `…/team/` und `…/office/` denselben Token sehen (gleiche Herkunft, siehe ARCHITEKTUR.md Abschnitt 9).
+
+## 9. Nachtrag 17.10.2026: Monitor je Raum und Monitorwand (Branch `feature/ki-office-monitor`)
+
+| Lauf | Ergebnis |
+|---|---|
+| `npm run test:office` (Playwright-Chromium 1.56, Windows 11, Node 24.18) | **63/63 bestanden** (vorher 55; neu: 6 Unit-Tests `unit.monitor.test.mjs`, Browsertest „Monitor“ Desktop und Mobil, Leerprüfung der fünf Monitore im Szenario „leer“) |
+| Unit: `ladbareAdresse`, `artefaktTyp`, `raumArtefakte`, `raumMonitor` | nur `https://` oder relativ wird geladen; `http:`, `data:`, `javascript:` (auch mit eingestreutem Zeilenumbruch), `blob:`, `file:`, `notiz:`, `//…`, Backslash, Leerraum, Anführungszeichen werden abgelehnt; Typ aus Endung (png/jpg/jpeg/svg/webp/gif, html/htm, pdf) oder `art`; Bild/HTML ohne ladbare Adresse wird zur Karte; Artefakte nur aus Runs der Raumprojekte, neueste zuerst, höchstens n; Monitor bevorzugt Bild/HTML, dann PDF, dann das neueste überhaupt |
+| Browser „Monitor zeigt Bild“ | Akademie: `<image href="testbilder/akademie-quiz-modul-1-2.svg">`, Marke „geprüft“ (Run fachlich abgenommen); Bild in der Monitorwand geladen (`naturalWidth > 0`) |
+| Browser „Monitor zeigt ungeprüft“ | Vertrieb: Bild mit Marke „ungeprüft“ (Run abgeschlossen, keine Abnahme); Kundenprojekte: PDF-Karte ohne `image`/`iframe`, „ungeprüft“ |
+| Browser „Monitor leer“ | Verwaltung: `data-typ="leer"`, Text „noch kein Ergebnis“; Szenario „leer“: alle fünf Monitore leer; Monitorwand Verwaltung: „Noch kein Ergebnis in diesem Raum“ |
+| Browser „HTML nur in der Sandbox“ | Marketing: `<iframe sandbox="" referrerpolicy="no-referrer">` in Szene und Monitorwand; im Frame `window.origin === "null"`, das Prüfskript der Testseite lief nicht (Text bleibt „Skript nicht ausgeführt (Sandbox)“, Titel unverändert), der Prompt-Injection-Satz ist nur Text; Chromium protokolliert „Blocked script execution … sandboxed“ – im Test als erwarteter Beleg gefiltert, nur für `testbilder/` |
+| Browser „Monitorwand“ | Klick auf den Monitor → `#/monitor/Marketing`, 3 Kacheln in der Reihenfolge HTML, Bild, Sonstiges; jede mit Run-Link, Aufgabe, Zeit, Hash, Prüftext, „Öffnen ↗“; unbekannter Raum → Hinweis |
+| Screenshots | `desktop-/mobil-buero.png` (Szene mit Monitoren), `desktop-/mobil-monitorwand.png`, `desktop-/mobil-monitorwand-leer.png`, `desktop-/mobil-leer-buero.png`, `portal-*.png` (eingebettete Szene) neu; die übrigen Screenshots wurden nicht ausgetauscht (unveränderte Ansichten) |
+| Sichtprüfung | Desktop 1280 und Mobil 390: Monitore liegen hinten rechts auf den Plattformen, Figuren überdecken nichts, Prüfmarke lesbar; Monitorwand bricht auf eine Spalte um. Hinweis: Das Browserfenster der Claude-Desktop-App blockiert eingebettete iframes (`ERR_BLOCKED_BY_CLIENT`), in Chromium laden sie |
+| `npm run test:office` unter Windows | Vorher fand der Befehl 0 Tests, weil cmd.exe die einfachen Anführungszeichen des Globs nicht auflöst (der Lauf aus Abschnitt 7 nutzte den Glob direkt). Jetzt doppelte Anführungszeichen in `package.json`; Node löst den Glob selbst auf, in Bash und cmd |
+
+Weiterhin ungetestet: alles aus Abschnitt 5. Produktiv hängt die Monitor-Anzeige davon ab, dass Executoren Ablageorte als `https://`-Adressen melden, die der Browser der angemeldeten Person laden darf (RESTPUNKTE.md).
