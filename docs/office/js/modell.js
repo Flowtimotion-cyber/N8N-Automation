@@ -16,6 +16,27 @@ export const artefakteVon = (D, run_id) => (D.artefakte || []).filter(a => a.run
 export const freigabenVon = (D, run_id) => (D.freigaben || []).filter(f => f.run_id === run_id);
 export const letzteAktivitaetRun = (D, r) => { const E = ereignisseVon(D, r.run_id); return E.length ? E[E.length - 1].zeit : (r.lebenszeichen || r.erstellt); };
 
+// ---------- Orchestrierung: Eltern-Run, Kind-Runs, Teams ----------
+/** Agent mit dem Werkzeug auftrag_delegieren: sitzt im Büro in der Zentrale, führt selbst nichts aus. */
+export const istOrchestrierer = a => !!a && Array.isArray(a.erlaubte_tools) && a.erlaubte_tools.includes('auftrag_delegieren');
+export const kinderVon = (D, run_id) => (D.runs || []).filter(r => r.eltern_run_id === run_id).sort((a, b) => String(a.erstellt).localeCompare(String(b.erstellt)));
+export const elternVon = (D, r) => (r && r.eltern_run_id) ? runVon(D, r.eltern_run_id) : null;
+/** Alle Teilaufträge, die aus Runs dieses Agenten heraus delegiert wurden (Kind-Runs, deren Eltern-Run der Agent ausführt). */
+export const delegierteVon = (D, agent_id) => { const eigene = new Set((D.runs || []).filter(r => r.agent_id === agent_id).map(r => r.run_id)); return (D.runs || []).filter(r => r.eltern_run_id && eigene.has(r.eltern_run_id)); };
+/**
+ * Laufende Teams fürs Büro: ein Eltern-Run, der noch aktiv ist und Kind-Runs hat (oder eine team_id trägt).
+ * Mitglieder = Agenten der Kind-Runs mit dem Status ihres jeweiligen Teilauftrags.
+ */
+export function laufendeTeams(D) {
+  return (D.runs || []).filter(r => !r.eltern_run_id && AKTIVE_RUN_STATUS.includes(r.status)).map(r => {
+    const kinder = kinderVon(D, r.run_id);
+    if (!kinder.length && !r.team_id) return null;
+    const mitglieder = [];
+    for (const k of kinder) { let m = mitglieder.find(x => x.agent_id === k.agent_id); if (!m) { m = { agent_id: k.agent_id, reg: agentReg(D, k.agent_id), runs: [] }; mitglieder.push(m); } m.runs.push(k); }
+    return { run: r, team_id: r.team_id || null, reg: agentReg(D, r.agent_id), kinder, mitglieder, offen: kinder.filter(k => AKTIVE_RUN_STATUS.includes(k.status)).length };
+  }).filter(Boolean);
+}
+
 /** Raum eines Projekts: Spalte team_projekte.raum; sonst der Raum der zugeordneten Agenten; sonst null. */
 export function raumVon(D, p) {
   if (!p) return null;

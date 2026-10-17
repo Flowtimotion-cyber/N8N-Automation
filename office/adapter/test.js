@@ -19,7 +19,9 @@ export class TestAdapter {
   startRun(ext) {
     const run = this.run(ext.run_id); if (!run) return;
     const a = run.auftrag;
-    const art = enthaelt(a, 'nie übernehmen', 'nie uebernehmen') ? 'nie' : enthaelt(a, 'verspätet', 'verspaetet', 'spät') ? 'spaet' : enthaelt(a, 'langsam', 'hängt', 'haengt') ? 'langsam'
+    // Agenten mit dem Werkzeug auftrag_delegieren (Orchestrierer) arbeiten nicht selbst, sondern zerlegen und delegieren (Skript „team“).
+    const orchestriert = (this.agent(run.agent_id).erlaubte_tools || []).includes('auftrag_delegieren') && !run.eltern_run_id;
+    const art = orchestriert ? 'team' : enthaelt(a, 'nie übernehmen', 'nie uebernehmen') ? 'nie' : enthaelt(a, 'verspätet', 'verspaetet', 'spät') ? 'spaet' : enthaelt(a, 'langsam', 'hängt', 'haengt') ? 'langsam'
       : enthaelt(a, 'fehler', 'kaputt') ? 'fehler' : enthaelt(a, 'rückfrage', 'rueckfrage') ? 'frage' : enthaelt(a, 'e-mail', 'email', 'mail', 'veröffentlich', 'post', 'zahlung') ? 'freigabe' : 'normal';
     this.laeufe.set(run.run_id, { art, schritt: 0, faellig: this.uhr.ms + 5000, schluessel: ext.schluessel, agent_id: run.agent_id, gestartet: this.uhr.ms });
   }
@@ -45,6 +47,32 @@ export class TestAdapter {
       const verbrauch = (reg.ausfuehrer === 'n8n' || reg.ausfuehrer === 'hermes') ? { tokens_ein: 1200 + s.schritt * 300, tokens_aus: 400 + s.schritt * 50, modell: reg.modell, kosten_eur: 0.004, kosten_quelle: 'Preisliste Anthropic 10/2026 (Testdaten)' } : null;
       switch (s.art) {
         case 'nie': this.laeufe.delete(run_id); continue;                                   // kein Executor übernimmt → Wartung setzt „unbekannt“
+        case 'team': {
+          // Orchestrierer: Aufgaben und Registry lesen, zwei Teilaufträge an Agenten desselben Projekts delegieren (Team), auf die Kinder warten, zusammenführen.
+          // Steht im Auftrag „langsam“, bekommt der zweite Teilauftrag dieses Stichwort und bleibt „in Arbeit“ (für Testdaten und Browsertests).
+          if (s.schritt === 0) {
+            this.api(A, 'lebenszeichen', { run_id });
+            this.api(A, 'ereignis', { run_id, art: 'tool', titel: 'Aufgaben des Projekts gelesen', tool: 'aufgaben_lesen' });
+            const ziele = (this.sp.T.office_agenten || []).filter(x => x.aktiv !== false && x.agent_id !== A && (x.projekte || []).includes(run.projekt) && !(x.erlaubte_tools || []).includes('auftrag_delegieren')).slice(0, 2);
+            this.api(A, 'ereignis', { run_id, art: 'tool', titel: 'Registry gelesen, ' + ziele.length + ' Agenten für das Team gewählt: ' + ziele.map(x => x.name).join(', '), tool: 'registry_lesen' });
+            s.kinder = [];
+            ziele.forEach((z, i) => {
+              const teil = 'Teil ' + (i + 1) + ' von ' + ziele.length + ': ' + run.auftrag.replace(/,?\s*(zweiter|2\.)\s*teilauftrag läuft langsam/i, '').slice(0, 1500) + (i === 1 && enthaelt(run.auftrag, 'langsam') ? ' (läuft langsam)' : '');
+              const r = this.api(A, 'auftrag_delegieren', { eltern_run_id: run_id, agent_id: z.agent_id, projekt: run.projekt, auftrag: teil, team_id: 'team-' + run_id, idempotenzschluessel: 'deleg-' + run_id + '-' + (i + 1) });
+              if (r.antwort && r.antwort.run_id) s.kinder.push(r.antwort.run_id);
+            });
+            if (!s.kinder.length) { this.rueckmeldung(run_id, s.schluessel, { status: 'fehlgeschlagen', fehler: 'Kein Agent für dieses Projekt in der Registry; nichts delegiert.' }); this.laeufe.delete(run_id); continue; }
+            s.schritt = 1; weiter(10); continue;
+          }
+          const kinder = s.kinder.map(id => this.run(id)).filter(Boolean);
+          const offen = kinder.filter(k => !['abgeschlossen', 'fehlgeschlagen', 'abgebrochen', 'unbekannt'].includes(k.status));
+          if (offen.length) { this.api(A, 'lebenszeichen', { run_id }); weiter(30); continue; }
+          const gut = kinder.filter(k => k.status === 'abgeschlossen').length;
+          this.api(A, 'ereignis', { run_id, art: 'schritt', titel: 'Teilergebnisse zusammengeführt: ' + gut + ' von ' + kinder.length + ' Teilaufträgen abgeschlossen' });
+          this.api(A, 'artefakt', { run_id, art: 'notiz', titel: 'Teamergebnis: ' + run.auftrag.slice(0, 50), ablageort: 'notiz:Teamergebnis ' + run_id, zusammenfassung: 'Zusammenführung der Teilergebnisse (synthetisch).' });
+          this.rueckmeldung(run_id, s.schluessel, { status: gut === kinder.length ? 'abgeschlossen' : 'fehlgeschlagen', zusammenfassung: 'Team mit ' + kinder.length + ' Teilaufträgen: ' + gut + ' abgeschlossen. Ergebnis liegt als Notiz vor.', fehler: gut === kinder.length ? undefined : (kinder.length - gut) + ' Teilauftrag/Teilaufträge nicht abgeschlossen.' });
+          this.laeufe.delete(run_id); continue;
+        }
         case 'langsam': if (s.schritt === 0) { this.api(A, 'lebenszeichen', { run_id }); this.api(A, 'ereignis', { run_id, art: 'schritt', titel: 'Beginne mit der Analyse' }); s.schritt = 1; } this.laeufe.delete(run_id); continue; // danach Stille → Timeout
         case 'spaet': {
           if (s.schritt === 0) { this.api(A, 'lebenszeichen', { run_id }); s.schritt = 1; weiter((Number(run.timeout_sek) || 900) + 600); continue; }   // meldet sich erst nach dem Timeout

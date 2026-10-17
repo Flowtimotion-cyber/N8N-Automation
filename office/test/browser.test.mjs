@@ -45,9 +45,18 @@ for (const vp of [DESKTOP, MOBIL]) {
     await oeffne(p, '#/run/' + un.run_id); assert.ok((await text(p, '#main')).includes('unbekannt / veraltet')); await shot(p, 'run-unbekannt', vp);
     await oeffne(p, '#/run/' + fe.run_id); assert.ok((await text(p, '#main')).includes('Fehler:')); await shot(p, 'run-fehlgeschlagen', vp);
     await oeffne(p, '#/run/' + ab.run_id); assert.ok((await text(p, '#main')).includes('fachlich abgenommen')); assert.ok((await text(p, '#main')).includes('Rückverfolgbar')); await shot(p, 'run-abgeschlossen', vp);
+    // Orchestrierung: Team-Run mit Kind-Runs als eingerückte Zweige, Kind-Run mit Breadcrumb zum Eltern-Run
+    const team = z.tabellen.office_runs.find(r => r.agent_id === 'orchestrierer' && !r.eltern_run_id), kind = z.tabellen.office_runs.find(r => r.eltern_run_id === team.run_id);
+    await oeffne(p, '#/run/' + team.run_id); assert.ok((await text(p, '#main')).includes('Teilaufträge (2)')); assert.equal(await p.locator('.teilauftraege .zweige > li').count(), 2); assert.ok((await p.locator('.teilauftraege .zweige a[href="#/run/' + kind.run_id + '"]').count()) >= 1, 'Kind verlinkt'); assert.ok((await text(p, '.teilauftraege')).includes('in Arbeit')); await shot(p, 'run-team', vp);
+    await oeffne(p, '#/run/' + kind.run_id); assert.ok((await text(p, '#main')).includes('Teil von')); assert.ok((await p.locator('a[href="#/run/' + team.run_id + '"]').count()) >= 1, 'Breadcrumb zum Eltern-Run'); assert.ok((await text(p, '#main')).includes('Teilauftrag')); await shot(p, 'run-teil', vp);
+    await oeffne(p, '#/agent/orchestrierer'); assert.match(await text(p, '#main'), /delegiert: 2 Teilaufträge/); assert.ok((await p.locator('.zweig').count()) >= 2, 'Teilaufträge eingerückt unter dem Eltern-Run'); await shot(p, 'agent-orchestrierer', vp);
+    await oeffne(p, '#/projekt/p_kurs'); assert.equal(await p.locator('#main a.run[href="#/run/' + kind.run_id + '"]').count(), 1, 'Kind-Run genau einmal im Projekt'); assert.ok((await p.locator('.zweig a.run').count()) >= 2);
     await oeffne(p, '#/tab/freigaben'); assert.match(await text(p, 'h1'), /Freigaben/); assert.ok((await p.locator('[data-freigabe][data-entscheidung="erteilt"]').count()) >= 1); await shot(p, 'freigaben', vp);
     // Büro: SVG vorhanden, Räume und Agenten verlinkt, Tastatur: Tab bis zum ersten Raum-Link, Enter filtert Projekte
     await oeffne(p, '#/tab/buero'); assert.ok(await p.locator('svg.buero').count()); assert.ok((await p.locator('svg.buero a').count()) >= 15); await shot(p, 'buero', vp);
+    // Zentrale: Orchestrierer sitzt dort (nicht auf einer Raumplattform), laufendes Team als Linien zu den Figuren, Legende und Liste nennen das Team
+    assert.equal(await p.locator('svg.buero a.zentrale-agent[href="#/agent/orchestrierer"]').count(), 1); assert.equal(await p.locator('svg.buero a.agent:not(.zentrale-agent)[href="#/agent/orchestrierer"]').count(), 0);
+    assert.equal(await p.locator('svg.buero line.teamlinie').count(), 2, 'zwei Teammitglieder'); assert.ok((await text(p, '.legende')).includes('1 Team laufend: Orchestrierer mit Akademie-Redakteur, Kurs-Wächter')); assert.ok((await text(p, '#main')).includes('1 Orchestrierer · 1 Teams laufend')); assert.ok((await p.locator('ul.teams li').count()) >= 1);
     await p.evaluate(() => document.querySelector('svg.buero a').focus()); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
     assert.match(await p.evaluate(() => location.hash), /^#\/raum\//); assert.ok((await text(p, '#main')).includes('Filter aufheben')); await shot(p, 'projekte-raumfilter', vp);
     // Klick auf Agent führt zur Arbeitsübersicht
@@ -56,6 +65,7 @@ for (const vp of [DESKTOP, MOBIL]) {
     // reduced motion: keine Animation
     await p.emulateMedia({ reducedMotion: 'reduce' }); await oeffne(p, '#/tab/buero');
     const anim = await p.evaluate(() => { const e = document.querySelector('.puls'); return e ? getComputedStyle(e).animationName : 'none'; }); assert.equal(anim, 'none');
+    assert.equal(await p.evaluate(() => { const e = document.querySelector('line.teamlinie.fluss'); return e ? getComputedStyle(e).animationName : 'none'; }), 'none', 'Teamlinien stehen bei reduced motion still');
     await p.emulateMedia({ reducedMotion: 'no-preference' });
     // Dialog „Auftrag an Agent“ per Tastatur öffnen und wieder schließen
     await oeffne(p, '#/tab/projekte'); await p.locator('#neuAuftrag').click(); await p.waitForTimeout(150); assert.ok(await p.evaluate(() => document.querySelector('#dlg').open)); assert.ok((await p.locator('#f_a option').count()) >= 10); await shot(p, 'dialog-auftrag', vp);

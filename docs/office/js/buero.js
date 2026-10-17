@@ -8,7 +8,7 @@
 // (Bild oder HTML; gibt es keins, das neueste Ergebnis überhaupt als Karte) – Bilder direkt, HTML nur in einem iframe mit sandbox=""
 // (keine Skripte, keine gleiche Herkunft), alles andere als Karte. Klick → Monitorwand (#/monitor/<Raum>) mit den letzten 12 Ergebnissen.
 import { $, $$, esc, relativ, fmtZeit, fmtDT, chip, kurz } from './util.js';
-import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied, raumArtefakte, raumMonitor, ARTEFAKT_TYP_TEXT, PRUEFSTAND_TEXT } from './modell.js';
+import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied, istOrchestrierer, laufendeTeams, raumArtefakte, raumMonitor, ARTEFAKT_TYP_TEXT, PRUEFSTAND_TEXT } from './modell.js';
 import { freigabeDialog } from './ansichten.js';
 import { PORTAL } from './api.js';
 
@@ -115,8 +115,12 @@ export function vBuero(ctx) {
   const D = ctx.D;
   const agenten = D.agenten || [];
   const projekte = D.projekte || [];
+  // Orchestrierer (Werkzeug auftrag_delegieren) sitzen in der Zentrale, nicht auf einer Raumplattform.
+  const zentraleAgenten = agenten.filter(a => a.aktiv !== false && istOrchestrierer(a)).map(a => ({ a, z: agentZustand(D, a) }));
+  const teams = laufendeTeams(D);
+  const position = new Map();   // agent_id → { x, y } der Figur (für Teamlinien)
   const infos = RAEUME.map(raum => {
-    const A = agenten.filter(a => a.raum === raum && a.aktiv !== false);
+    const A = agenten.filter(a => a.raum === raum && a.aktiv !== false && !istOrchestrierer(a));
     const P = projekte.filter(p => p.status !== 'abgeschlossen' && raumVon(D, p) === raum);
     const st = P.map(p => projektStand(D, p));
     return { raum, agenten: A.map(a => ({ a, z: agentZustand(D, a) })), projekte: P, laufend: st.reduce((s, x) => s + x.aktiveRuns.length, 0), freigaben: st.reduce((s, x) => s + x.freigabenOffen.length, 0), fehler: st.reduce((s, x) => s + x.fehler.length, 0), offen: st.reduce((s, x) => s + x.offen.length, 0), monitor: raumMonitor(D, raum) };
@@ -127,7 +131,7 @@ export function vBuero(ctx) {
   const freigabenOffen = (D.freigaben || []).filter(f => f.status === 'offen');
   const fehlerGesamt = infos.reduce((s, i) => s + i.fehler, 0);
 
-  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird. Der Monitor in jedem Raum zeigt das neueste Ergebnis seiner Agenten; „ungeprüft“ heißt, der Run ist noch nicht fachlich abgenommen.</desc>',
+  const svg = ['<svg class="buero" viewBox="0 0 1000 690" role="img" aria-labelledby="bueroTitel bueroDesc" xmlns="http://www.w3.org/2000/svg"><title id="bueroTitel">Virtuelles Büro der Momentum KI Akademie</title><desc id="bueroDesc">Fünf schwebende Räume um die Zentrale. Figuren an Schreibtischen sind Agenten; Farbpunkte zeigen den Zustand: grün arbeitet, orange wartet auf Freigabe, violett wartet auf Antwort, blau Auftrag wartet, grau frei. Sprechblasen zeigen, wo ein Mensch gebraucht wird. Orchestrierer sitzen in der Zentrale; rosa Linien von der Zentrale zu Figuren sind laufende Teams. Der Monitor in jedem Raum zeigt das neueste Ergebnis seiner Agenten; „ungeprüft“ heißt, der Run ist noch nicht fachlich abgenommen.</desc>',
     '<defs><linearGradient id="himmel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1D1B40"/><stop offset="1" stop-color="#0F0E24"/></linearGradient>',
     '<pattern id="raster" width="20" height="10" patternUnits="userSpaceOnUse"><path d="M10 0 L20 5 L10 10 L0 5 Z" fill="none" stroke="#4A4880" stroke-width=".6"/></pattern>',
     '<radialGradient id="hubglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#7B3FE4" stop-opacity=".55"/><stop offset="1" stop-color="#7B3FE4" stop-opacity="0"/></radialGradient></defs>',
@@ -149,6 +153,7 @@ export function vBuero(ctx) {
     // Plätze von hinten nach vorn zeichnen (kleineres y zuerst), damit vordere Figuren die hinteren überdecken
     const plaetze = info.agenten.slice(0, PLAETZE.length).map((p, i) => ({ ...p, x: L.cx + PLAETZE[i][0], y: L.cy + PLAETZE[i][1] })).sort((p, q) => p.y - q.y);
     plaetze.forEach(({ a, z, x, y }) => {
+      position.set(a.agent_id, { x, y });
       svg.push('<a href="#/agent/' + esc(a.agent_id) + '" class="agent" aria-label="Agent ' + esc(a.name) + ', ' + esc(ZUSTAND_TEXT[z.zustand]) + ', ' + z.runs.length + ' Ausführungen. Öffnet die Arbeitsübersicht."><title>' + esc(a.name + ' · ' + ZUSTAND_TEXT[z.zustand] + ' · ' + a.modell + ' · zuletzt ' + (z.letzter ? relativ(letzteAktivitaetRun(D, z.letzter)) : 'nie')) + '</title>' + figur(x, y, a, z, L.akzent) + '</a>');
     });
     if (info.agenten.length > PLAETZE.length) svg.push('<text x="' + (L.cx + PW - 30) + '" y="' + (L.cy + PH - 6) + '" text-anchor="end" font-size="10.5" fill="#B9B8D6">+' + (info.agenten.length - PLAETZE.length) + ' weitere</text>');
@@ -159,10 +164,26 @@ export function vBuero(ctx) {
     '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + (HUB.r + 40) + '" fill="url(#hubglow)"' + (laufendGesamt ? ' class="puls"' : '') + '/>',
     '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + HUB.r + '" fill="#2A2956" stroke="#9B7BFF" stroke-width="2"/>',
     '<circle cx="' + HUB.cx + '" cy="' + HUB.cy + '" r="' + (HUB.r - 10) + '" fill="none" stroke="#9B7BFF" stroke-width=".8" stroke-dasharray="3 5" opacity=".7"/>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 14) + '" text-anchor="middle" font-size="11" fill="#B9B8D6" letter-spacing=".08em">ZENTRALE</text>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 8) + '" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">' + aktiveProjekte + '</text>',
-    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 24) + '" text-anchor="middle" font-size="10.5" fill="#B9B8D6">Projekte · ' + laufendGesamt + ' laufend</text></a>');
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 30) + '" text-anchor="middle" font-size="11" fill="#B9B8D6" letter-spacing=".08em">ZENTRALE</text>',
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy - 8) + '" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">' + aktiveProjekte + '</text>',
+    '<text x="' + HUB.cx + '" y="' + (HUB.cy + 8) + '" text-anchor="middle" font-size="10.5" fill="#B9B8D6">Projekte · ' + laufendGesamt + ' laufend</text>' +
+    (zentraleAgenten.length ? '' : '<text x="' + HUB.cx + '" y="' + (HUB.cy + 34) + '" text-anchor="middle" font-size="9.5" fill="#8E8DB0">kein Orchestrierer</text>') + '</a>');
+  // Orchestrierer in der Zentrale (eigene Figuren, violett wie die Zentrale)
+  zentraleAgenten.slice(0, 3).forEach(({ a, z }, i, arr) => {
+    const x = HUB.cx + (i - (arr.length - 1) / 2) * 54, y = HUB.cy + 40;
+    position.set(a.agent_id, { x, y });
+    svg.push('<a href="#/agent/' + esc(a.agent_id) + '" class="agent zentrale-agent" aria-label="Orchestrierer ' + esc(a.name) + ' in der Zentrale, ' + esc(ZUSTAND_TEXT[z.zustand]) + ', ' + z.runs.length + ' Ausführungen. Öffnet die Arbeitsübersicht."><title>' + esc(a.name + ' · Zentrale · ' + ZUSTAND_TEXT[z.zustand] + ' · ' + a.modell + ' · zuletzt ' + (z.letzter ? relativ(letzteAktivitaetRun(D, z.letzter)) : 'nie')) + '</title>' + figur(x, y, a, z, '#9B7BFF') + '</a>');
+  });
   reihenfolge.filter(i => RAUM[i.raum].cy >= HUB.cy).forEach(zeichneRaum);
+  // Laufende Teams: fließende Linien vom Orchestrierer (Zentrale) zu den Figuren der Teammitglieder. reduced motion: CSS stoppt die Animation.
+  for (const t of teams) {
+    const von = position.get(t.run.agent_id) || { x: HUB.cx, y: HUB.cy };
+    for (const m of t.mitglieder) {
+      const zu = position.get(m.agent_id); if (!zu) continue;
+      const aktiv = m.runs.some(k => ['in_arbeit', 'warteschlange', 'wartet_rueckmeldung', 'wartet_freigabe'].includes(k.status));
+      svg.push('<line class="teamlinie' + (aktiv ? ' fluss' : '') + '" x1="' + von.x + '" y1="' + (von.y - 10) + '" x2="' + zu.x + '" y2="' + (zu.y - 10) + '"' + (aktiv ? '' : ' opacity=".45"') + '><title>' + esc('Team ' + (t.team_id || t.run.run_id) + ': ' + (t.reg ? t.reg.name : t.run.agent_id) + ' → ' + (m.reg ? m.reg.name : m.agent_id) + ' (' + m.runs.length + ' Teilauftrag' + (m.runs.length === 1 ? '' : 'e') + ')') + '</title></line>');
+    }
+  }
   // Kopfzeile in der Szene
   svg.push('<text x="18" y="24" font-size="12" font-weight="700" fill="#fff" letter-spacing=".1em">MOMENTUM KI OFFICE</text><text x="18" y="40" font-size="10.5" fill="#8E8DB0">Stand ' + esc(relativ(D.stand)) + ' · ' + laufendGesamt + ' laufend · ' + freigabenOffen.length + ' Freigaben offen · ' + fehlerGesamt + ' Fehler/veraltet</text>');
   svg.push('<text x="982" y="24" text-anchor="end" font-size="10.5" fill="#8E8DB0">Tasten 1–5 springen zum Raum · Enter öffnet</text>');
@@ -175,15 +196,20 @@ export function vBuero(ctx) {
   const frei = freigabenOffen.map(f => { const r = runVon(D, f.run_id); const ext = (D.externe_aktionen || {})[f.aktion] || { text: f.aktion }; const darf = mensch && f.angefordert_von !== ich.mitglied_id && (!f.kritisch || ich.rolle === 'admin');
     return '<div class="small" style="border-top:1px solid var(--line);padding:8px 0"><b>' + esc(ext.text) + '</b> <span class="chip fs-offen">offen</span><div class="muted">' + esc(kurz(f.inhalt_vorschau || '', 90)) + '</div><div class="quelle">' + esc(relativ(f.angefordert)) + ' · <a href="#/run/' + esc(f.run_id) + '">' + esc(kurz(r ? r.auftrag : f.run_id, 40)) + '</a></div>' +
       (darf ? '<div style="display:flex;gap:6px;margin-top:6px"><button class="btn ok" style="padding:5px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="erteilt">Freigeben</button><button class="btn danger" style="padding:5px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="abgelehnt">Ablehnen</button></div>' : '') + '</div>'; }).join('');
-  const zaehler = Object.keys(ZUSTAND_TEXT).map(k => { const n = infos.reduce((s, i) => s + i.agenten.filter(x => x.z.zustand === k).length, 0); return '<span><i style="background:' + esc(ZUSTAND_FARBE[k]) + '"></i>' + n + ' ' + esc(ZUSTAND_TEXT[k]) + '</span>'; }).join('');
+  const zaehler = Object.keys(ZUSTAND_TEXT).map(k => { const n = infos.reduce((s, i) => s + i.agenten.filter(x => x.z.zustand === k).length, 0) + zentraleAgenten.filter(x => x.z.zustand === k).length; return '<span><i style="background:' + esc(ZUSTAND_FARBE[k]) + '"></i>' + n + ' ' + esc(ZUSTAND_TEXT[k]) + '</span>'; }).join('');
+  const teamName = t => (t.reg ? t.reg.name : t.run.agent_id) + ' mit ' + (t.mitglieder.map(m => m.reg ? m.reg.name : m.agent_id).join(', ') || 'noch niemandem');
+  const teamLegende = '<span><i class="teamlinie"></i>' + teams.length + ' Team' + (teams.length === 1 ? '' : 's') + ' laufend' + (teams.length ? ': ' + esc(teams.map(t => teamName(t) + ' (' + t.kinder.length + ' Teilaufträge, ' + t.offen + ' offen)').join(' · ')) : '') + '</span>';
+  const zentraleListe = '<h3 style="margin-top:12px"><a href="#/tab/projekte">Zentrale</a> <span class="small muted">' + zentraleAgenten.length + ' Orchestrierer · ' + teams.length + ' Teams laufend</span></h3>' +
+    (zentraleAgenten.length ? '<ul style="margin:0;padding-left:18px">' + zentraleAgenten.map(({ a, z }) => '<li><a href="#/agent/' + esc(a.agent_id) + '">' + esc(a.name) + '</a> · ' + chip(ZUSTAND_TEXT[z.zustand]) + ' · ' + esc(a.modell) + ' · ' + z.runs.length + ' Ausführungen · delegiert, führt selbst nichts aus</li>').join('') + '</ul>' : '<p class="small muted">Kein Agent mit dem Werkzeug auftrag_delegieren.</p>') +
+    (teams.length ? '<p class="small" style="margin:6px 0 0"><b>Teams:</b></p><ul class="teams" style="margin:0;padding-left:18px">' + teams.map(t => '<li><a href="#/run/' + esc(t.run.run_id) + '">' + esc(kurz(t.run.auftrag, 70)) + '</a> · ' + esc(teamName(t)) + ' · ' + t.kinder.length + ' Teilaufträge, ' + t.offen + ' offen' + (t.team_id ? ' · <span class="hash">' + esc(t.team_id) + '</span>' : '') + '</li>').join('') + '</ul>' : '');
 
   $('#main').innerHTML = (ctx.nur === 'buero' ? '' : '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Virtuelles Büro</h1><p class="sub">Klick auf einen Raum filtert Projekte und Aufgaben, Klick auf einen Agenten zeigt seine tatsächliche Arbeit. Gleiche Daten wie die Übersicht, Stand ' + esc(relativ(D.stand)) + '.</p></div><a class="btn sec" href="#/tab/agenten">Agenten-Register</a></div>') +
     '<div class="szene"><div class="card" style="padding:10px;margin:0"><div class="szene-scroll">' + svg.join('') + '</div>' +
-    '<div class="legende" style="margin-top:10px">' + zaehler + '<span>⚠️ Fehler oder veraltet in den letzten 7 Tagen</span></div></div>' +
+    '<div class="legende" style="margin-top:10px">' + zaehler + '<span>⚠️ Fehler oder veraltet in den letzten 7 Tagen</span>' + teamLegende + '</div></div>' +
     '<div class="livepanel"><div class="card" style="margin:0 0 12px"><h2 style="display:flex;justify-content:space-between;align-items:center">Freigaben <span class="chip ' + (freigabenOffen.length ? 'fs-offen' : '') + '">' + freigabenOffen.length + ' offen</span></h2>' + (frei || '<p class="empty small">Nichts wartet auf dich.</p>') + (freigabenOffen.length ? '<a class="btn ghost" href="#/tab/freigaben">Alle Freigaben →</a>' : '') + '</div>' +
     '<div class="card" style="margin:0"><h2>Live</h2><p class="small muted" style="margin:-6px 0 8px">Die letzten Ereignisse aller Agenten, mit Link zum Run.</p>' + (feed ? '<ul class="zl feed">' + feed + '</ul>' : '<p class="empty small">Noch keine Ereignisse.</p>') + '</div></div></div>' +
     (ctx.nur === 'buero' ? '' :
-    '<div class="card"><h2>Räume und Agenten als Liste</h2><p class="small muted">Für Tastatur und Screenreader: dieselben Inhalte wie im Bild.</p>' +
+    '<div class="card"><h2>Räume und Agenten als Liste</h2><p class="small muted">Für Tastatur und Screenreader: dieselben Inhalte wie im Bild.</p>' + zentraleListe +
     infos.map(info => '<h3 style="margin-top:12px"><a href="#/raum/' + esc(info.raum) + '">' + esc(info.raum) + '</a> <span class="small muted">' + info.projekte.length + ' Projekte · ' + info.laufend + ' laufend · ' + info.freigaben + ' Freigaben · ' + info.fehler + ' Fehler</span></h3>' +
       (info.agenten.length ? '<ul style="margin:0;padding-left:18px">' + info.agenten.map(({ a, z }) => '<li><a href="#/agent/' + esc(a.agent_id) + '">' + esc(a.name) + '</a> · ' + chip(ZUSTAND_TEXT[z.zustand]) + ' · ' + esc(a.modell) + ' · ' + z.runs.length + ' Ausführungen' + (z.probleme.length ? ' · ' + chip(z.probleme.length + ' Problem(e)', 'rs-fehlgeschlagen') : '') + '</li>').join('') + '</ul>' : '<p class="small muted">Kein Agent zugeordnet.</p>') +
       (info.projekte.length ? '<p class="small">Projekte: ' + info.projekte.map(p => '<a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>').join(', ') + '</p>' : '') +

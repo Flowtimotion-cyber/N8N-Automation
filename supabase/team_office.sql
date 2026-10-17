@@ -66,6 +66,12 @@ create table if not exists office_runs (
   abgenommen_am         timestamptz,
   abnahme_kommentar     text
 );
+-- 2a) Orchestrierung (ergänzt 17.10.2026, additiv; Produktion läuft schon, darum nur add column if not exists):
+--     eltern_run_id = Teilauftrag zeigt auf den Run des Orchestrierers; team_id = eine Teambildung (Eltern-Run und alle Kind-Runs tragen dieselbe ID).
+alter table office_runs add column if not exists eltern_run_id text references office_runs (run_id);
+alter table office_runs add column if not exists team_id text;
+create index if not exists office_runs_eltern on office_runs (eltern_run_id) where eltern_run_id is not null;
+create index if not exists office_runs_team on office_runs (team_id) where team_id is not null;
 create unique index if not exists office_runs_idem on office_runs (idempotenzschluessel);
 create unique index if not exists office_runs_n8n on office_runs (n8n_execution_id) where n8n_execution_id is not null;
 create index if not exists office_runs_projekt on office_runs (projekt, status);

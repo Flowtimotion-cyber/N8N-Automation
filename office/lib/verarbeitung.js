@@ -110,18 +110,36 @@ export function verarbeiten(ctx) {
   }
 
   switch (aktion) {
-    case 'auftrag_starten': {
+    case 'auftrag_starten':
+    case 'auftrag_delegieren': {
+      // auftrag_delegieren = auftrag_starten mit eltern_run_id (Orchestrierung, ARCHITEKTUR.md Abschnitt 11): ein Teilauftrag an einen anderen Agenten,
+      // nur aus einem laufenden Eltern-Run heraus, nur innerhalb der Projektgrenzen des delegierenden Agenten und des Zielagenten.
+      const delegiert = aktion === 'auftrag_delegieren';
       const key = String(d.idempotenzschluessel || '');
       if (!schluesselGueltig(key)) return raus(400, 'Bitte gib einen Idempotenzschlüssel an (8 bis 120 Zeichen, Buchstaben, Ziffern, _ . : -).');
       const frueher = frueherGesehen(idem, 'auftrag', key) || (runs.find(r => r.idempotenzschluessel === key) ? { antwort: { run_id: runs.find(r => r.idempotenzschluessel === key).run_id } } : null);
       if (frueher) return nurAntwort(Object.assign({}, frueher.antwort, { wiederholt: true, hinweis: 'Dieser Auftrag wurde schon angelegt. Es wurde nichts doppelt gestartet.' }));
+      let eltern = null, elternReg = null, team_id = null;
+      if (delegiert) {
+        eltern = runVon(d.eltern_run_id);
+        if (!eltern) return raus(404, 'Den Eltern-Run gibt es nicht. Für auftrag_delegieren ist eltern_run_id Pflicht.');
+        elternReg = agentVon(eltern);
+        if (istAgent(ich)) { if (!fuehrtAus(ich, eltern.agent_id, agenten)) return raus(403, 'Der Eltern-Run gehört einem anderen Agenten. Delegieren darf nur der ausführende Agent des Eltern-Runs.'); }
+        else if (!darfRunSteuern(ich, eltern, agenten)) return raus(403, 'Diesen Run darfst du nicht steuern, darum auch nicht aus ihm heraus delegieren.');
+        if (!darfTool(elternReg, 'auftrag_delegieren')) return raus(403, 'Das Werkzeug „auftrag_delegieren“ ist für ' + (elternReg ? elternReg.name : eltern.agent_id) + ' nicht erlaubt. Erlaubt: ' + ((elternReg && elternReg.erlaubte_tools) || []).join(', ') + '.');
+        if (eltern.status !== STATUS.IN_ARBEIT) return raus(409, 'Delegieren geht nur aus „in Arbeit“ heraus (Eltern-Run ist ' + STATUS_TEXT[eltern.status] + ').', { status: eltern.status });
+        team_id = d.team_id ? String(d.team_id).slice(0, 80) : (eltern.team_id || null);
+        if (team_id && !/^[A-Za-z0-9_.:-]{3,80}$/.test(team_id)) return raus(400, 'team_id: 3 bis 80 Zeichen, Buchstaben, Ziffern, _ . : -.');
+        if (eltern.team_id && team_id !== eltern.team_id) return raus(409, 'Der Eltern-Run gehört schon zum Team „' + eltern.team_id + '“.');
+      }
       const reg = agenten.find(a => a.agent_id === String(d.agent_id || ''));
       if (!reg) return raus(404, 'Diesen Agenten gibt es nicht in der Registry.');
       if (reg.aktiv === false) return raus(409, 'Dieser Agent ist deaktiviert.');
-      if (istAgent(ich) && reg.mitglied_id !== ich.mitglied_id) return raus(403, 'Agenten dürfen nur Aufträge für sich selbst anlegen.');
-      const projekt = txt(d.projekt, 120);
+      if (!delegiert && istAgent(ich) && reg.mitglied_id !== ich.mitglied_id) return raus(403, 'Agenten dürfen nur Aufträge für sich selbst anlegen. Teilaufträge an andere Agenten laufen über auftrag_delegieren.');
+      const projekt = txt(d.projekt || (eltern ? eltern.projekt : ''), 120);
       if (!projekte.some(p => p.name === projekt)) return raus(404, 'Dieses Projekt gibt es nicht.');
       if (!darfProjekt(ich, projekt, agenten)) return raus(403, 'Dieses Projekt siehst du nicht.');
+      if (eltern && !(elternReg && Array.isArray(elternReg.projekte) && elternReg.projekte.includes(projekt))) return raus(403, 'Projektgrenze: ' + (elternReg ? elternReg.name : eltern.agent_id) + ' darf nur in die eigenen Projekte delegieren, nicht in „' + projekt + '“.');
       if (!(Array.isArray(reg.projekte) && reg.projekte.includes(projekt))) return raus(403, 'Der Agent „' + reg.name + '“ ist dem Projekt „' + projekt + '“ nicht zugeordnet. Timo kann das in der Registry ändern.');
       let aufgabe_id = d.aufgabe_id ? String(d.aufgabe_id) : null;
       if (aufgabe_id) { const a = aufgaben.find(x => x.aufgabe_id === aufgabe_id); if (!a) return raus(404, 'Diese Aufgabe gibt es nicht.'); if (a.projekt !== projekt) return raus(400, 'Die Aufgabe gehört zu einem anderen Projekt.'); }
@@ -134,13 +152,21 @@ export function verarbeiten(ctx) {
       const run = { run_id, projekt, aufgabe_id, auftraggeber: ich.mitglied_id, agent_id: reg.agent_id, ausfuehrer: reg.ausfuehrer || 'n8n', workflow_version: String(reg.workflow_version || ''), konfig_version: String(reg.konfig_version || ''),
         status: STATUS.WARTESCHLANGE, auftrag, eingabe: d.eingabe == null ? null : klein(d.eingabe, 4000), idempotenzschluessel: key, n8n_execution_id: null, externe_id: null,
         erstellt: jetzt, gestartet: null, lebenszeichen: null, beendet: null, timeout_sek, versuche: 1, max_versuche, fehler: null,
-        zusammenfassung: null, zusammenfassung_zeit: null, zusammenfassung_quelle: null, verbrauch: null, abgenommen: null, abgenommen_von: null, abgenommen_am: null, abnahme_kommentar: null, grund: null };
-      const antwort = { run_id, status: run.status, wiederholt: false };
+        zusammenfassung: null, zusammenfassung_zeit: null, zusammenfassung_quelle: null, verbrauch: null, abgenommen: null, abgenommen_von: null, abgenommen_am: null, abnahme_kommentar: null, grund: null,
+        eltern_run_id: eltern ? eltern.run_id : null, team_id };
+      const antwort = { run_id, status: run.status, wiederholt: false, eltern_run_id: run.eltern_run_id, team_id };
       const ops = [neu('office_runs', run), neu('office_run_schluessel', { run_id, schluessel, erstellt: jetzt }),
-        ereignis(run_id, 'status', 'Auftrag angelegt für ' + reg.name + ' (Versuch 1 von ' + max_versuche + ')', { projekt, aufgabe_id, auftraggeber: ich.mitglied_id }),
+        ereignis(run_id, 'status', (eltern ? 'Teilauftrag angelegt für ' : 'Auftrag angelegt für ') + reg.name + ' (Versuch 1 von ' + max_versuche + ')', { projekt, aufgabe_id, auftraggeber: ich.mitglied_id, eltern_run_id: run.eltern_run_id, team_id }),
         neu('office_idempotenz', merken({ art: 'auftrag', schluessel: key, run_id, antwort, jetzt }))];
-      ops.push(...verlaufEintrag(run, 'kommentar', 'Auftrag an ' + reg.name + ' gestartet: ' + auftrag.slice(0, 300)));
-      return schreiben(ops, Object.assign({ rueckmelde_schluessel: schluessel }, antwort), { art: 'start', run_id, agent_id: reg.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: reg.ausfuehrer_url || null, schluessel });
+      if (eltern) {
+        // Beide Seiten sehen die Verbindung: am Kind „Teilauftrag von …“, am Eltern-Run „Teilauftrag delegiert an …“ mit der Kind-run_id.
+        ops.push(ereignis(run_id, 'hinweis', 'Teilauftrag von ' + (elternReg ? elternReg.name : eltern.agent_id) + ' (Run ' + eltern.run_id + ')', { eltern_run_id: eltern.run_id, team_id }));
+        ops.push(ereignis(eltern.run_id, 'tool', 'Teilauftrag delegiert an ' + reg.name + ': ' + auftrag.slice(0, 120), { kind_run_id: run_id, agent_id: reg.agent_id, projekt, team_id }, { tool: 'auftrag_delegieren' }));
+        const elternRow = { lebenszeichen: jetzt }; if (team_id && !eltern.team_id) elternRow.team_id = team_id;
+        ops.push(aend('office_runs', 'run_id', eltern.run_id, elternRow));
+      }
+      ops.push(...verlaufEintrag(run, 'kommentar', (eltern ? 'Teilauftrag an ' : 'Auftrag an ') + reg.name + ' gestartet: ' + auftrag.slice(0, 300)));
+      return schreiben(ops, Object.assign({ rueckmelde_schluessel: schluessel }, antwort), { art: 'start', run_id, agent_id: reg.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: reg.ausfuehrer_url || null, schluessel, eltern_run_id: run.eltern_run_id, team_id });
     }
     case 'lebenszeichen': {
       const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
@@ -277,7 +303,16 @@ export function verarbeiten(ctx) {
     case 'wartung': {
       const ops = [], veraltet = [], verfallen = [];
       for (const run of runs) {
-        const f = fristPruefen(run, jetztMs);
+        // Teamregel: Ein Eltern-Run mit offenen Teilaufträgen wartet auf seine Kinder; sie sind sein Lebenszeichen. Erst wenn alle Kinder beendet sind
+        // und danach timeout_sek ohne Lebenszeichen vergehen, gilt er als unbekannt (das letzte Kind-Ende zählt als Lebenszeichen).
+        const kinder = runs.filter(k => k.eltern_run_id === run.run_id);
+        let pruefRun = run;
+        if (kinder.length && run.status === STATUS.IN_ARBEIT) {
+          if (kinder.some(k => !istEndzustand(k.status))) continue;
+          const letztes = kinder.map(k => k.beendet || k.lebenszeichen || '').concat([run.lebenszeichen || '']).sort().pop();
+          pruefRun = Object.assign({}, run, { lebenszeichen: letztes || run.lebenszeichen });
+        }
+        const f = fristPruefen(pruefRun, jetztMs);
         if (f) { const w = wechsel(run, f.nach, 'system', f.grund); if (!w.fehler) { ops.push(...w.ops, aend('office_runs', 'run_id', run.run_id, { grund: f.grund }), ereignis(run.run_id, 'hinweis', 'Automatisch als veraltet markiert: ' + f.grund)); veraltet.push(run.run_id); } }
       }
       for (const fr of freigaben) {
@@ -319,6 +354,11 @@ export function verarbeiten(ctx) {
       if (d.run_id) { const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.'); if (!istEndzustand(run.status)) return raus(409, 'Nur beendete Runs können gelöscht werden. Brich den Run zuerst ab.'); ziel = [run]; }
       else if (d.aelter_als_tage) { const t = Number(d.aelter_als_tage); if (!(t >= 30)) return raus(400, 'aelter_als_tage muss mindestens 30 sein.'); const grenze = new Date(jetztMs - t * 86400 * 1000).toISOString(); ziel = runs.filter(r => istEndzustand(r.status) && (r.beendet || r.erstellt) < grenze); }
       else return raus(400, 'Gib run_id oder aelter_als_tage an.');
+      // Teilaufträge hängen am Eltern-Run (Fremdschlüssel eltern_run_id): Einzellöschung nimmt alle Nachkommen mit (Kinder zuerst), sofern sie beendet sind;
+      // die Sammellöschung lässt Eltern-Runs stehen, deren Kinder nicht selbst erfasst sind.
+      const nachkommen = id => runs.filter(k => k.eltern_run_id === id).flatMap(k => [...nachkommen(k.run_id), k]);
+      if (d.run_id) { const n = nachkommen(ziel[0].run_id); const offen = n.filter(k => !istEndzustand(k.status)); if (offen.length) return raus(409, 'Dieser Run hat noch ' + offen.length + ' laufende Teilaufträge. Brich sie zuerst ab.'); ziel = [...n, ...ziel]; }
+      else { const zielIds = new Set(ziel.map(r => r.run_id)); ziel = ziel.filter(r => !runs.some(k => k.eltern_run_id === r.run_id && !zielIds.has(k.run_id))); ziel.sort((a, b) => (a.eltern_run_id ? 0 : 1) - (b.eltern_run_id ? 0 : 1)); }
       if (!ziel.length) return nurAntwort({ geloescht: 0, ablageorte: [] });
       const ops = [], ablageorte = [];
       for (const run of ziel) {
@@ -360,6 +400,11 @@ export function verarbeiten(ctx) {
       return schreiben(ops, { run_id: run.run_id, status: run.status, hinweis: 'verspaetet', angenommen: false }, null, 200);
     }
     if (e.n8n_execution_id) { const x = String(e.n8n_execution_id).slice(0, 80); if (run.n8n_execution_id && run.n8n_execution_id !== x) return raus(409, 'Dieser Run gehört zu einer anderen n8n-Ausführung.'); if (!run.n8n_execution_id && runs.some(r => r.n8n_execution_id === x)) return raus(409, 'Diese n8n-Ausführung ist schon einem anderen Run zugeordnet.'); }
+    // Teamregel: Ein Run gilt erst als technisch abgeschlossen, wenn alle seine Teilaufträge (Kind-Runs) in einem Endzustand sind. Fehlschlag darf er immer melden.
+    if (ziel === STATUS.ABGESCHLOSSEN) {
+      const offen = runs.filter(k => k.eltern_run_id === run.run_id && !istEndzustand(k.status));
+      if (offen.length) return raus(409, 'Dieser Run hat noch ' + offen.length + ' offene Teilaufträge (' + offen.map(k => k.run_id + ': ' + STATUS_TEXT[k.status]).join(', ') + '). Er gilt erst als abgeschlossen, wenn alle Kind-Runs beendet sind.', { offene_kind_runs: offen.map(k => k.run_id) });
+    }
     const w = wechsel(run, ziel, wer, ziel === STATUS.FEHLGESCHLAGEN && fehler ? fehler.slice(0, 200) : undefined);
     if (w.fehler) return raus(409, w.fehler);
     ops.push(...w.ops);
@@ -382,6 +427,8 @@ export function verarbeiten(ctx) {
       const a = run.aufgabe_id ? aufgaben.find(x => x.aufgabe_id === run.aufgabe_id) : null;
       if (a && a.status === 'In Arbeit') ops.push(aend('team_aufgaben', 'aufgabe_id', a.aufgabe_id, { status: 'Wird getestet', geaendert: jetzt }), neu('team_aufgaben_verlauf', { aufgabe_id: a.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art: 'status', text: 'In Arbeit → Wird getestet (Run beendet) ' + RUN_MARKER(run.run_id), erstellt: jetzt }));
     } else ops.push(...verlaufEintrag(run, 'kommentar', 'Run fehlgeschlagen' + (fehler ? ': ' + fehler.slice(0, 300) : '') + (status === STATUS.WARTESCHLANGE ? ' – wird automatisch wiederholt.' : '')));
+    // Teilauftrag beendet: der Eltern-Run (Orchestrierer) bekommt einen Hinweis in seine Zeitleiste, solange er noch läuft.
+    if (run.eltern_run_id) { const el = runVon(run.eltern_run_id); if (el && !istEndzustand(el.status)) ops.push(ereignis(el.run_id, 'hinweis', 'Teilauftrag ' + STATUS_TEXT[status] + ': ' + run.auftrag.slice(0, 100), { kind_run_id: run.run_id, agent_id: run.agent_id, status, fehler })); }
     return schreiben(ops, { run_id: run.run_id, status, angenommen: true, artefakte: artefaktIds }, status === STATUS.WARTESCHLANGE ? { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: (schluesselListe.find(s => s.run_id === run.run_id) || {}).schluessel || null } : null);
   }
 }
@@ -409,7 +456,11 @@ export function antwortBauen(ich, D, opts) {
   const aufgabenIds = new Set(aufgaben.map(a => a.aufgabe_id));
   const verlauf = (D.verlauf || []).filter(v => v && aufgabenIds.has(v.aufgabe_id)).map(v => ({ id: v.id, aufgabe_id: v.aufgabe_id, autor: v.autor, art: v.art, text: v.text, erstellt: v.erstellt }));
   const notizen = (D.notizen || []).filter(n => n && n.notiz_id && n.projekt && projektOk(n.projekt)).map(n => ({ notiz_id: n.notiz_id, titel: n.titel, projekt: n.projekt, autor: n.autor || '', geaendert: n.geaendert || '', laenge: String(n.inhalt || '').length }));
-  const runs = (D.office_runs || []).filter(r => r && r.run_id && darfRunSehen(ich, r, agenten)).map(r => { const x = { ...r }; delete x.rueckmelde_schluessel; return x; });
+  const alleRuns = (D.office_runs || []).filter(r => r && r.run_id);
+  const sichtbar = new Set(alleRuns.filter(r => darfRunSehen(ich, r, agenten)).map(r => r.run_id));
+  // Teilaufträge sind sichtbar, wenn ihr Eltern-Run sichtbar ist (der Orchestrierer sieht seine Kind-Runs), Projektgrenze bleibt.
+  for (const r of alleRuns) if (r.eltern_run_id && sichtbar.has(r.eltern_run_id) && projektOk(r.projekt)) sichtbar.add(r.run_id);
+  const runs = alleRuns.filter(r => sichtbar.has(r.run_id)).map(r => { const x = { ...r, eltern_run_id: r.eltern_run_id || null, team_id: r.team_id || null }; delete x.rueckmelde_schluessel; return x; });
   const runIds = new Set(runs.map(r => r.run_id));
   const ereignisse = (D.office_ereignisse || []).filter(e => e && runIds.has(e.run_id)).sort((a, b) => String(a.zeit).localeCompare(String(b.zeit)) || (Number(a.sequenz) || 0) - (Number(b.sequenz) || 0));
   const artefakte = (D.office_artefakte || []).filter(a => a && runIds.has(a.run_id));

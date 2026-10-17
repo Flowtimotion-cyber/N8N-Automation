@@ -36,6 +36,7 @@ Browser: Der Test nutzt `playwright` (global oder lokal), sonst `puppeteer-core`
 | `n8n-buendel.test.mjs` | 4 | Bündel = eingecheckte Datei, läuft in n8n-ähnlicher Sandbox (Webhook- und Wartungspfad), Workflow-JSON ohne Credentials, Registry = SQL |
 | `integration.test.mjs` | 7 | HTTP gegen Testserver: Rollen, Idempotenz, Zeitsprung, Neustart, Freigabe-Ablauf, Portal-Nachbildung, statische Auslieferung, Szenario leer |
 | `browser.test.mjs` | 7 | Desktop 1280×900 und Mobil 390×844: alle Register, Detailseiten, Dialoge, Tastatur, reduced motion, Fehler- und Leerzustände, Portal-Register, keine JS-Fehler |
+| `unit.delegation.test.mjs` | 10 (seit 17.10.2026) | Orchestrierung: Pflichtfelder, Delegation mit Ereignissen, Idempotenz, Projektgrenze, falscher Aufrufer und Werkzeug-Allowlist, Eltern-Run nicht in Arbeit, Teamregel, Wartung, Sichtbarkeit und Löschen, Testdaten |
 
 ## 3. Pflicht-Prüfungen
 
@@ -118,7 +119,34 @@ Erster Lauf gegen die echten Systeme (nicht Testadapter). Ausführer: n8n-Workfl
 
 Nicht getestet: der Fehlerpfad (`run_beenden fehlgeschlagen`), der Abbruchpfad, die Glättung mit gpt-5-mini (Standard AUS) und eine Wiederholung nach Fehler. Hinweis: Die n8n-Executions des Hilfs-Workflows (20708, 20713, 20714, 20723) und die erste Ausführer-Execution 20716 enthalten in Knotenausgaben den Agenten-Token; der Ausführer speichert seit dem Test keine erfolgreichen Läufe mehr. Timo kann die Executions in n8n löschen oder den Token des Mitglieds `agent-claude` neu setzen (RESTPUNKTE).
 
-## 10. Nachtrag 17.10.2026: Monitor je Raum und Monitorwand (Branch `feature/ki-office-monitor`)
+## 10. Nachtrag 17.10.2026: Orchestrierung (Branch `feature/ki-office-orchestrierer`, KI-erstellt: Claude Code)
+
+Umgebung: Windows 11, Node 24.18, Playwright 1.56.1 (lokal in `node_modules`, nicht in `package.json`) mit Chromium. Alles gegen den TESTADAPTER; Supabase und n8n wurden nicht angefasst (Timo spielt SQL und Code-Knoten selbst ein, SETUP.md Abschnitt 9).
+
+```
+# tests 66
+# pass 66
+# fail 0
+# duration_ms 69488
+```
+
+| Prüfung | Wo | Ergebnis |
+|---|---|---|
+| Projektgrenze: Zielagent nicht im Projekt, Projekt für den Orchestrierer unsichtbar, Projekt nicht in der Registry des Orchestrierers, Projekt existiert nicht | `unit.delegation.test.mjs` | 403 / 403 / 403 (Meldung „Projektgrenze“) / 404; ohne `projekt` gilt das Projekt des Eltern-Runs |
+| Falscher Aufrufer: fremder Agent, Teammitglied ohne Steuerrecht, Agent ohne Werkzeug `auftrag_delegieren`, `auftrag_starten` für fremde Agenten | Unit, HTTP (`integration.test.mjs`) | jeweils 403; Dozent darf aus dem Run heraus delegieren |
+| Eltern-Run nicht in Arbeit: Warteschlange, wartet auf Rückmeldung, abgebrochen | Unit | 409; nach Antwort wieder erlaubt |
+| Idempotenz: gleicher Schlüssel | Unit | `wiederholt: true`, ein Kind-Run, ein Start an den Ausführer, kein zweiter Rückmelde-Schlüssel |
+| Teamregel: Eltern-Run erst fertig, wenn alle Kinder beendet | Unit, HTTP | `run_beenden abgeschlossen` → 409 mit `offene_kind_runs`, solange ein Kind läuft; nach Abschluss/Abbruch aller Kinder → 200; Fehlschlag jederzeit erlaubt; Hinweis „Teilauftrag abgeschlossen“ am Eltern-Run |
+| Wartung | Unit | Eltern-Run mit laufendem Kind bleibt 40 Minuten ohne eigenes Lebenszeichen „in Arbeit“; nach Kind-Ende zählt `timeout_sek` ab dem Kind-Ende (10 Min.: in Arbeit, 31 Min.: unbekannt) |
+| Sichtbarkeit und Löschen | Unit | Orchestrierer sieht den Kind-Run eines Hermes-Agenten; `laden` liefert `eltern_run_id`/`team_id` bei jedem Run; Codex sieht weder Eltern- noch Kind-Run; Löschen mit laufendem Kind 409, danach Kind zuerst gelöscht |
+| HTTP Ende-zu-Ende (Testadapter als Orchestrierer-Ausführer) | `integration.test.mjs` | Auftrag an Orchestrierer (Webseite) → zwei Teilaufträge mit `team_id` → Kinder laufen zu Ende → Eltern-Run abgeschlossen |
+| Browser Desktop und Mobil | `browser.test.mjs` | Run-Detail des Team-Runs: „Teilaufträge (2)“ mit zwei Zweigen, Kind verlinkt, Status „in Arbeit“ sichtbar (`run-team`); Kind-Run mit Breadcrumb „Teil von“ und Link zum Eltern-Run (`run-teil`); Agenten-Arbeitsübersicht „delegiert: 2 Teilaufträge“ mit eingerückten Teilaufträgen (`agent-orchestrierer`); Projekt-Detail zeigt den Kind-Run genau einmal (eingerückt); Büro: Orchestrierer nur in der Zentrale, zwei Teamlinien, Legende „1 Team laufend: Orchestrierer mit Akademie-Redakteur, Kurs-Wächter“, Liste „Zentrale“; reduced motion stoppt Puls und Teamlinien |
+
+Neue Screenshots: `desktop-run-team.png`, `mobil-run-team.png`, `desktop-run-teil.png`, `mobil-run-teil.png`, `desktop-agent-orchestrierer.png`, `mobil-agent-orchestrierer.png`; `*-buero.png` und `*-agenten.png` zeigen jetzt die Zentrale mit Orchestrierer und das Team. Alle anderen Screenshots wurden vom Lauf neu geschrieben.
+
+Nicht getestet: die neuen Spalten gegen das echte Supabase (`alter table … add column if not exists … references`), der ersetzte Code-Knoten im echten n8n (das Bündel läuft in der `vm`-Sandbox des Bündeltests), ein echter Orchestrierer-Ausführer (gibt es noch nicht). Nebenbefund: `npm run test:office` fand unter Windows 0 Tests, weil der Glob in einfachen Anführungszeichen stand; `package.json` nutzt jetzt doppelte (gleicher Befund wie in PR #2).
+
+## 11. Nachtrag 17.10.2026: Monitor je Raum und Monitorwand (Branch `feature/ki-office-monitor`)
 
 | Lauf | Ergebnis |
 |---|---|
