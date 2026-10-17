@@ -30,7 +30,11 @@ export async function browserStarten() {
 
 // Puppeteer-Seite an die wenigen Playwright-Methoden anpassen, die die Tests nutzen.
 function anpassen(p) {
-  p.locator = sel => ({ first: () => ({ textContent: async () => p.$eval(sel, e => e.textContent) }), textContent: async () => p.$eval(sel, e => e.textContent), count: async () => (await p.$$(sel)).length, click: opts => p.click(sel, opts), fill: v => p.$eval(sel, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v), isVisible: async () => !!(await p.$(sel)) });
+  // Playwright sagt „networkidle“, Puppeteer „networkidle0“; waitForTimeout gibt es in Puppeteer 22+ nicht mehr.
+  const gotoAlt = p.goto.bind(p);
+  p.goto = (url, opts) => gotoAlt(url, opts && opts.waitUntil === 'networkidle' ? { ...opts, waitUntil: 'networkidle0' } : opts);
+  if (!p.waitForTimeout) p.waitForTimeout = ms => new Promise(r => setTimeout(r, ms));
+  p.locator = sel => ({ first: () => p.locator(sel), textContent: async () => p.$eval(sel, e => e.textContent), count: async () => (await p.$$(sel)).length, click: opts => p.click(sel, opts), fill: v => p.$eval(sel, (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v), isVisible: async () => !!(await p.$(sel)) });
   p.emulateMedia = async o => { if (o && o.reducedMotion) await p.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: o.reducedMotion }]); };
   p.route = async (muster, handler) => { await p.setRequestInterception(true); p.on('request', req => { if (muster.test(req.url())) handler({ request: () => ({ postData: () => req.postData(), url: () => req.url() }), fulfill: ({ status, body, contentType }) => req.respond({ status, body, contentType }), continue: () => req.continue() }); else req.continue(); }); };
   p.waitForLoadState = () => p.waitForNetworkIdle({ idleTime: 300 }).catch(() => {});

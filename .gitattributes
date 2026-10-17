@@ -1,0 +1,8 @@
+# Zeilenenden: Quelltext immer mit LF auschecken (Windows mit core.autocrlf=true erzeugt sonst ein anderes n8n-Bündel)
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+*.sql text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
