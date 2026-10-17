@@ -38,7 +38,7 @@ function render() {
     '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<a role="tab" href="#/tab/' + k + '" aria-selected="' + (k === route.tab) + '" class="' + (k === route.tab ? 'on' : '') + '">' + l + ((k === 'freigaben' && (D.freigaben || []).some(f => f.status === 'offen')) ? ' <span class="chip fs-offen" style="padding:0 6px">' + (D.freigaben || []).filter(f => f.status === 'offen').length + '</span>' : '') + '</a>').join('') + '</nav></div><div class="bar"></div></header>' +
     (D.quelle === 'testadapter' ? '<div class="wrap" style="margin-top:12px"><div class="note test"><b>TESTADAPTER:</b> Diese Daten sind synthetisch (lokaler Testserver). Nichts hiervon ist echt oder produktiv getestet.</div></div>' : '') +
     '<main class="wrap" id="main"></main>' +
-    '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 60 Sekunden aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
+    '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 5 Minuten aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
   $('#logout').onclick = ev => { ev.preventDefault(); tokenSetzen(null); D = null; ohneZugang('Du bist abgemeldet.'); };
   if (EINGEBETTET) requestAnimationFrame(hoeheMelden);
   try {
@@ -90,7 +90,7 @@ if (EINGEBETTET) {
   document.addEventListener('click', ev => { const a = ev.target.closest('a[href]'); if (!a) return; const u = new URL(a.getAttribute('href'), location.href); if (u.pathname !== location.pathname) a.target = '_parent'; });
 }
 window.addEventListener('hashchange', () => { if (location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); if (!EINGEBETTET) window.scrollTo(0, 0); });
-setInterval(() => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); if (D && !$('#dlg').open && !tippt && document.visibilityState === 'visible') laden(true); }, 60000);
+setInterval(() => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); if (D && !$('#dlg').open && !tippt && document.visibilityState === 'visible') laden(true); }, 300000);
 tokenLesen();
 leseHash();
 if (!location.hash) history.replaceState(null, '', location.pathname + '#/tab/' + route.tab);
