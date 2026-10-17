@@ -995,7 +995,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (unter ? '<div class="k">' + esc(unter) + '</div>' : '') +
       '<div class="m">' + (c.betrag ? '<span class="chip eur">' + euroTxt(c.betrag) + '</span>' : '') +
       (c.naechsterFollowup ? '<span class="chip fu' + (fuFaellig(c) ? ' weg' : '') + '" title="Nächster Follow-up">⏰ ' + fmtD(tagIso(c.naechsterFollowup)) + '</span>' : '') +
-      (c.ig ? '<span class="chip ig" title="Instagram">IG</span>' : '') + (c.notizen ? '<span class="chip" title="Notizen">📝 ' + c.notizen + '</span>' : '') +
+      (c.ig ? '<span class="chip ig" title="Instagram">IG</span>' : '') + (c.kiflow ? '<span class="chip" title="Aus KI Flow übernommen">KI Flow</span>' : '') + (c.notizen ? '<span class="chip" title="Notizen">📝 ' + c.notizen + '</span>' : '') +
       '<span style="margin-left:auto">' + vAv(c.ownerId) + '</span></div></div>';
   }
   function vVertrieb() {
