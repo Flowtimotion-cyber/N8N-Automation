@@ -64,6 +64,11 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschn
 | B | Obsidian-Spiegelung (`office.py obsidian`, OBSIDIAN.md): **Entscheidung Timo** — mit welchem Token läuft sie? Hermes-Token sieht nur Hermes’ Registry-Projekte; für das ganze Office braucht es einen Menschen-Token mit Projektsicht (Timo) auf dem Rechner mit dem Vault, oder Hermes’ Projektliste wird erweitert | `docs/office/OBSIDIAN.md` Abschnitt 5, `office/lib/rechte.js` |
 | B | Obsidian-Spiegelung: wer startet den Lauf (Hermes-Zeitplan, nach jedem `fertig`, oder Windows-Aufgabenplanung alle 30 Min.)? Noch nicht eingeplant; Übergabe an Hermes in `Projekt-Manager/22_Momentum/_UEBERGABE.md` | `agenten/office.py` |
 | C | Obsidian-Spiegelung: einmaliger Hinweis-Abschnitt in `02 Projekte/Momentum KI Akademie.md` (Vault), dass Ergebnisse unter `01 Inbox/KI Office/` liegen; Maskierung ist ein Netz (E-Mail, Telefon, Schlüssel), keine Garantie gegen Kundendaten in Zusammenfassungen; gelöschte Runs (Löschkonzept) bleiben im Vault stehen | `docs/office/OBSIDIAN.md` |
+| B | ✅ 18.10.2026 **Text-Ausführer** (n8n, `UbQ5nph8FIUSrasi`) für `marketing-texter` und `social-planer` live, Ende-zu-Ende getestet. Weitere n8n-Textagenten nur noch Registry-Eintrag (`ausfuehrer_url`) | SETUP.md Abschnitt 10, TESTBERICHT.md Abschnitt 13 |
+| A | ✅ 18.10.2026 Office-API schrieb parallel; Rückmelde-Schlüssel fehlte seit 17.10. 16:06 bei jedem Auftrag, n8n-Ausführer wurden nie angestoßen. Behoben (Batching 1). Offen: hängende Runs aus dieser Zeit prüfen (`run_mvcxzknfbc2608` Orchestrierer, zwei Server-Wächter-Runs von Hermes in der Warteschlange) | SETUP.md Abschnitt 10 |
+| B | Anthropic-Credential in n8n anlegen, damit der Text-Ausführer das Claude-Modell aus der Registry nutzt (heute gpt-5-mini für alle; Kosten je Lauf unter 1 Cent) | `office/n8n/ausfuehrer-text.workflow.js` |
+| B | n8n-Execution 21296 (Fehlersuche am Text-Ausführer, Protokoll kurz eingeschaltet) enthält den Agenten-Token in Knotenausgaben: in n8n löschen | n8n → Executions |
+| B | Agenten mit Ausführer `claude-code` (Redakteur, Vertrieb, Angebots-Prüfer, Architektur, Rekruiter, Orchestrierer) brauchen jemanden, der ihre Warteschlange abarbeitet: geplante Claude-Code-Aufgabe mit `office.py meine` oder Umstellung auf den Text-Ausführer | `agenten/ANLEITUNG.md` |
 
 ## Hinweis zum Branch
 
