@@ -162,7 +162,7 @@ Alle Werkzeuge der Agenten laufen über n8n, nie direkt aus dem Browser. Das ist
 
 | Weg | Wofür | Stand |
 |---|---|---|
-| **n8n-Agentenworkflow als Ausführer** (`ausfuehrer_url` je Agent in der Registry) | Agent bekommt den Auftrag per signiertem Webhook, nutzt in n8n seine Werkzeugknoten (HTTP, Supabase, Twenty CRM, E-Mail, Kalender …) und meldet Schritte, Werkzeugaufrufe und Ergebnisse an die Office-API zurück | **läuft** für `verwaltung-status`: Workflow „TEAM: Office-Ausführer verwaltung-status“ (ID `KwRsEDr743IGDPJ1`), Ende-zu-Ende getestet 17.10.2026 (Abschnitt 10a); weitere n8n-Agenten nach demselben Muster |
+| **n8n-Agentenworkflow als Ausführer** (`ausfuehrer_url` je Agent in der Registry) | Agent bekommt den Auftrag per signiertem Webhook, nutzt in n8n seine Werkzeugknoten (HTTP, Supabase, Twenty CRM, E-Mail, Kalender …) und meldet Schritte, Werkzeugaufrufe und Ergebnisse an die Office-API zurück | **läuft** für `verwaltung-status`: Workflow „TEAM: Office-Ausführer verwaltung-status“ (ID `KwRsEDr743IGDPJ1`), Ende-zu-Ende getestet 17.10.2026 (Abschnitt 10a); für `orchestrierer`: „TEAM: Office-Ausführer orchestrierer“ (ID `D0jPTU1LjNzhGfyI`), Ende-zu-Ende getestet 18.10.2026 (Abschnitt 10b); weitere n8n-Agenten nach demselben Muster |
 | **n8n MCP-Server-Trigger** | Externe Agenten (Claude Code, Codex, Hermes) rufen n8n-Workflows als Werkzeuge über MCP auf; n8n prüft Token und Rechte, schreibt Ereignisse ins Office | Konzept; n8n bietet den MCP-Server-Trigger und Instance-level MCP (siehe Kursinhalt Anleitung B) |
 | **n8n MCP-Client-Knoten** | n8n-Agenten nutzen fremde MCP-Server (z. B. Obsidian, CRM) als Werkzeuge | Konzept; jedes Werkzeug muss in der Registry unter `werkzeuge` stehen, sonst darf der Agent es nicht nutzen |
 | **Portal-API v2 / Office-API per HTTP** | Agenten lesen Aufgaben und melden Berichte (heute `agenten/team.py`) | läuft (Portal) bzw. wartet auf Import (Office) |
@@ -194,9 +194,42 @@ Bewusst so entschieden:
 
 Weitere n8n-Ausführer (marketing-texter, social-planer) entstehen nach demselben Muster: Datei kopieren, Webhook-Pfad, `mitglied_id`, Werkzeugknoten und Rückmeldungen anpassen, `ausfuehrer_url` in der Registry setzen.
 
+### 10b. Ausführer des Orchestrierers (ergänzt 18.10.2026, KI-erstellt: Claude Code)
+
+Quelle: `office/n8n/ausfuehrer-orchestrierer.workflow.js` (SDK-Code, per MCP angelegt). n8n-Workflow „TEAM: Office-Ausführer orchestrierer“ (ID `D0jPTU1LjNzhGfyI`). Webhook: `POST https://n8n.hm-storage.de/webhook/office-ausfuehrer-orchestrierer`, eingetragen als `ausfuehrer_url` des Agenten `orchestrierer` (Ausführer `n8n`). Erste Fassung ohne Modellaufruf: Zerlegen, Agentenwahl und Zusammenführen sind deterministisch und kosten nichts außer n8n-Laufzeit.
+
+Der Orchestrierer arbeitet in zwei getrennten Läufen, weil er nicht aktiv auf seine Teilaufträge wartet. Offene Kind-Runs zählen als sein Lebenszeichen (Teamregel, Abschnitt 4).
+
+**Pfad A, Webhook (zerlegen und delegieren):**
+
+1. Auftrag vom Office, Einstellungen, „Start?“, Zugang und Rückmelde-Schlüssel prüfen: genau wie beim Muster (Abschnitt 10a, Schritte 1 bis 4).
+2. **Lebenszeichen** (Warteschlange → in Arbeit), **Daten laden** mit dem Agenten-Token.
+3. **Zerlegen** (Code): Der Auftragstext wird an Zeilenumbrüchen und Semikolons in Teile zerlegt. Aufzählungszeichen (`-`, `*`, `•`, `1.`) am Zeilenanfang werden entfernt, Teile unter 3 Zeichen ignoriert. Ein Teil darf mit `@agent-id:` beginnen, dann geht er an genau diesen Agenten. Ohne Angabe wählt der Workflow aus der Registry einen aktiven Agenten desselben Projekts ohne das Werkzeug `auftrag_delegieren`, in Registry-Reihenfolge; mehrere Teile ohne Angabe gehen der Reihe nach an die Kandidaten. Jeder Teil heißt „Teil n von m: …“.
+4. **Abbruch vor jeder Delegation**, wenn die Zerlegung leer ist, ein `@agent` nicht in der Registry steht, deaktiviert ist, selbst delegieren darf oder dem Projekt nicht zugeordnet ist, oder wenn das Projekt keinen Kandidaten hat. Dann meldet der Fehlerpfad `run_beenden fehlgeschlagen` mit einer Meldung, die die Zeile nennt. So entsteht nie ein halbes Team aus einem fehlerhaften Auftrag.
+5. **Ereignis: Aufgaben gelesen** (`tool = aufgaben_lesen`) und **Ereignis: Registry gelesen** (`tool = registry_lesen`, gewählte Agenten und Kandidaten in den Details).
+6. **Nacheinander delegieren** (Schleife, ein Teil je Runde) → **Delegieren**: je Teil `auftrag_delegieren` mit `eltern_run_id = run_id`, `team_id = team-<run_id>`, `idempotenzschluessel = deleg-<run_id>-<n>`. Die Office-API legt den Kind-Run an und stößt seinen Ausführer an. Wiederholt n8n den Lauf, entsteht durch den Idempotenzschlüssel kein zweiter Kind-Run.
+7. **Delegation prüfen**: ordnet die Antworten den Teilen zu. Gelingt keine Delegation, Fehlerpfad. Gelingen nur einige, steht das im Ereignis **„n Teilaufträge delegiert, m nicht delegiert“** (`art = schritt`, Kinder und Fehlschläge in den Details). Danach endet der Lauf.
+
+**Pfad B, Zeitplan alle 5 Minuten (zusammenführen):**
+
+1. Token von `agent-claude` laden, **Daten laden** mit dem Agenten-Token.
+2. **Teams prüfen** (Code): alle Runs des Orchestrierers in `in_arbeit` mit Kind-Runs, bei denen alle Kinder in einem Endzustand sind. Für jedes solche Team entsteht deterministisch ein Markdown-Text: je Teil Agent, Status, Auftrag, Zusammenfassung oder Fehler, Ergebnisse (Artefakt-Titel und Ablageort) und Kind-Run-ID. Zeilen mit Passwort-, Token- oder Schlüsselwörtern werden herausgefiltert.
+3. **Notiz speichern**: `team_notizen` mit `notiz_id = n_office_teamergebnis_<run_id>`, Titel „Teamergebnis <run_id>“, Projekt des Runs (Upsert).
+4. **Ereignis: Teamergebnis** (`tool = notiz_speichern`, `quelle_ref = team_notizen/<id>`), **Artefakt** (`art = notiz`, nur wenn es noch keins mit diesem Titel gibt), **Run abschließen** mit `run_beenden`: `abgeschlossen`, wenn alle Kinder abgeschlossen und alle Teile delegiert sind; sonst `fehlgeschlagen` mit Fehlertext (welcher Teil, welcher Agent, welcher Status).
+5. Mehrere fertige Teams in einem Lauf bleiben getrennt: die Knoten nach „Ablage prüfen“ greifen mit `.item` auf ihr eigenes Team zu, nie mit `.first()`.
+6. Scheitert ein Schritt, bleibt der Lauf ein gespeicherter n8n-Fehlerlauf. Der nächste Takt versucht es erneut; Notiz (Upsert), Ereignis (Idempotenz) und Artefakt (nur einmal) entstehen dabei nicht doppelt.
+
+Bewusst so entschieden:
+- **Kein Modell in der ersten Fassung.** Zerlegen nach Zeilen und Zusammenführen nach Status sind für heutige Aufträge ausreichend und prüfbar. Ein Modell für freie Zerlegung kommt erst mit Timos Ja (RESTPUNKTE.md).
+- **Kein aktives Warten.** Ein n8n-Lauf, der minutenlang auf Kinder wartet, bindet einen Worker und verliert bei einem Neustart seinen Zustand. Der Zeitplan liest den Zustand dagegen jedes Mal frisch aus der Datenbank.
+- **Nacheinander delegieren.** Ein HTTP-Knoten schickt mehrere Items gleichzeitig ab. Die Office-API bekäme dann mehrere Aufrufe für denselben Eltern-Run zur selben Zeit.
+- **Fehler, Token, Läufe:** wie beim Muster (Abschnitt 10a). Erfolgreiche Läufe werden nicht gespeichert, weil Knotenausgaben den Agenten-Token enthalten.
+
+**Schreibreihenfolge der Office-API (behoben 18.10.2026).** Beim ersten echten Team-Lauf scheiterte ein Kind-Run am Fremdschlüssel. Ursache: Der Knoten „In Supabase schreiben“ schickte die Schreibaufträge einer Aktion gleichzeitig, `office_ereignisse` und `office_run_schluessel` kamen vor der Zeile in `office_runs` an. Batching allein ordnet die Anfragen nicht sicher. Die Office-API schreibt deshalb jetzt in einer Schleife „Nacheinander schreiben“ (Loop Over Items, eine Zeile je Runde); „Ergebnis prüfen“ hängt am Fertig-Ausgang.
+
 ## 11. Rekruiter, Orchestrierer und PA-Assistent (ergänzt 17.10.2026)
 
-Drei weitere Registry-Einträge, auf Timos Wunsch angelegt. Sie sind zunächst nur Rollen in der Registry; ihre Ausführer fehlen noch (siehe RESTPUNKTE.md).
+Drei weitere Registry-Einträge, auf Timos Wunsch angelegt. Der Orchestrierer hat seit 18.10.2026 einen n8n-Ausführer (Abschnitt 10b); Rekruiter und PA-Assistent haben noch keinen (siehe RESTPUNKTE.md).
 
 | Agent | Aufgabe | Was er darf | Was er nicht darf |
 |---|---|---|---|
