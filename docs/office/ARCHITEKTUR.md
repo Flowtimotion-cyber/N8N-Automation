@@ -263,7 +263,7 @@ Ein Auftrag eines Teammitglieds startet **sofort**, wenn alle vier Bedingungen g
 | Kostenlimit des Runs ist klein | höchstens 0,05 € (`budget_eur` im Run, Standard 0,05; ein höheres Limit beim Anlegen macht den Auftrag „nicht klein“) | `START_REGELN.klein_budget_eur` |
 | Tagesbudget der Person reicht | Summe der Run-Kosten des Tages plus Limit dieses Runs höchstens 1 € | `START_REGELN.tagesbudget_eur` |
 
-Alle Werte stehen als Konstanten mit Kommentar oben in `office/lib/kosten.js`. Nach einer Änderung `node office/n8n/bauen.mjs` und das Bündel in „Anfrage prüfen“ einspielen (SETUP.md Abschnitt 13).
+Alle Werte stehen als Konstanten mit Kommentar oben in `office/lib/kosten.js` (`START_REGELN`); dort schaltet `aktiv: false` die ganze Regel aus (alle starten wie früher sofort). Nach einer Änderung `node office/n8n/bauen.mjs` und das Bündel in „Anfrage prüfen“ einspielen (SETUP.md Abschnitt 13).
 
 **Kostenstufe je Agent** (`kostenstufe()`): günstig (die drei Modelle oben), teuer (`claude-opus-5-5`), alles andere normal (auch unbekannte Modelle). Das optionale Registry-Feld `freigabe_noetig` überschreibt die Stufe für den Sofortstart: `true` = Teammitglieder brauchen für diesen Agenten immer Timos Freigabe (im Startbestand: `server-waechter`), `false` = nie wegen des Agenten, leer = nach Modell. Die übrigen Bedingungen (Länge, Limit, Tagesbudget) gelten weiter. Pflege über `agent_speichern` oder SQL; `laden` liefert je Agent `kostenstufe`, `freigabe_noetig` und `sofort_ok`. `deepseek-v4-flash` ist jetzt auch als Modell in der Registry zulässig.
 

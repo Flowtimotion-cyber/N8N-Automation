@@ -4,6 +4,7 @@
 
 // ---- Stellschrauben (Timo kann sie ändern; danach `node office/n8n/bauen.mjs` und das Bündel in die Office-API einspielen) ----
 export const START_REGELN = {
+  aktiv: true,              // Hauptschalter: false = Regel aus, alle Teammitglieder starten wie früher sofort (nichts anderes ändert sich)
   klein_max_zeichen: 600,   // „klein“: Auftragstext höchstens so lang (Zeichen)
   klein_budget_eur: 0.05,   // „klein“: Kostenlimit je Run in Euro (Standard, wenn der Auftrag kein budget_eur mitbringt; höher = nicht klein)
   tagesbudget_eur: 1,       // Tagesbudget je Person in Euro (Summe der Run-Kosten des Tages); darüber braucht jeder weitere Auftrag Timos Freigabe
@@ -62,7 +63,7 @@ const eur = x => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',') + ' �
 export function startPruefung({ mensch_ohne_admin, agent, auftrag, budget_eur, runs, mitglied_id, jetztMs }) {
   const stufe = kostenstufe(agent);
   const verbrauch = tagesverbrauchEur(runs, mitglied_id, jetztMs);
-  if (!mensch_ohne_admin) return { sofort: true, gruende: [], stufe, tagesverbrauch_eur: verbrauch };
+  if (!mensch_ohne_admin || !START_REGELN.aktiv) return { sofort: true, gruende: [], stufe, tagesverbrauch_eur: verbrauch };
   const gruende = [];
   if (!agentSofortOk(agent)) gruende.push({ code: 'agent', text: agent && agent.freigabe_noetig === true ? 'Für diesen Agenten ist in der Registry immer eine Freigabe eingestellt.' : 'Der Agent gehört zur Kostenstufe „' + KOSTENSTUFE_TEXT[stufe] + '“ (Modell ' + ((agent && agent.modell) || '?') + ').' });
   const laenge = String(auftrag || '').length;

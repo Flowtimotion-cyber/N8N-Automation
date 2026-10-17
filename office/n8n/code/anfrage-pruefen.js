@@ -191,6 +191,7 @@ function fristPruefen(run, jetztMs) {
 
 // ---- Stellschrauben (Timo kann sie ändern; danach `node office/n8n/bauen.mjs` und das Bündel in die Office-API einspielen) ----
 const START_REGELN = {
+  aktiv: true,              // Hauptschalter: false = Regel aus, alle Teammitglieder starten wie früher sofort (nichts anderes ändert sich)
   klein_max_zeichen: 600,   // „klein“: Auftragstext höchstens so lang (Zeichen)
   klein_budget_eur: 0.05,   // „klein“: Kostenlimit je Run in Euro (Standard, wenn der Auftrag kein budget_eur mitbringt; höher = nicht klein)
   tagesbudget_eur: 1,       // Tagesbudget je Person in Euro (Summe der Run-Kosten des Tages); darüber braucht jeder weitere Auftrag Timos Freigabe
@@ -249,7 +250,7 @@ const eur = x => (Math.round(x * 100) / 100).toFixed(2).replace('.', ',') + ' �
 function startPruefung({ mensch_ohne_admin, agent, auftrag, budget_eur, runs, mitglied_id, jetztMs }) {
   const stufe = kostenstufe(agent);
   const verbrauch = tagesverbrauchEur(runs, mitglied_id, jetztMs);
-  if (!mensch_ohne_admin) return { sofort: true, gruende: [], stufe, tagesverbrauch_eur: verbrauch };
+  if (!mensch_ohne_admin || !START_REGELN.aktiv) return { sofort: true, gruende: [], stufe, tagesverbrauch_eur: verbrauch };
   const gruende = [];
   if (!agentSofortOk(agent)) gruende.push({ code: 'agent', text: agent && agent.freigabe_noetig === true ? 'Für diesen Agenten ist in der Registry immer eine Freigabe eingestellt.' : 'Der Agent gehört zur Kostenstufe „' + KOSTENSTUFE_TEXT[stufe] + '“ (Modell ' + ((agent && agent.modell) || '?') + ').' });
   const laenge = String(auftrag || '').length;
@@ -1034,7 +1035,7 @@ function antwortBauen(ich, D, opts) {
     mitglieder, projekte, aufgaben, verlauf, notizen, agenten: regs, runs, ereignisse, artefakte, freigaben,
     sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: Object.assign({}, EXTERNE_AKTIONEN, { [FREIGABE_START.aktion]: FREIGABE_START }),
     // Startregeln für Hinweise in der Oberfläche; entschieden wird serverseitig (kosten.js, startPruefung).
-    start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) }),
+    start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) || !START_REGELN.aktiv }),
     quelle: o.quelle || 'n8n', stand: o.jetzt || new Date().toISOString()
   };
 }

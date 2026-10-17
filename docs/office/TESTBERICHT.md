@@ -268,10 +268,11 @@ Die Produktions-Registry weicht vom Testadapter ab (Projektnamen, z. B. rekruite
 
 Getestet gegen den **Testadapter** (synthetische Daten, `office/dev/`), nicht gegen Supabase oder n8n. Das neue Bündel ist **nicht live**.
 
-**Ergebnis:** `npm run test:office:unit` → 83/83 (davon neu: 17 in `office/test/unit.auftrag-freigabe.test.mjs`); `npm run test:office` mit Playwright (Chromium) → 102/102, darunter 1 neuer Browsertest (Desktop und Mobil) und 1 neuer Integrationstest über HTTP; `python agenten/test_office_obsidian.py` → 14/14.
+**Ergebnis:** `npm run test:office:unit` → 84/84 (davon neu: 18 in `office/test/unit.auftrag-freigabe.test.mjs`); `npm run test:office` mit Playwright (Chromium) → 103/103, darunter 1 neuer Browsertest (Desktop und Mobil) und 1 neuer Integrationstest über HTTP; `python agenten/test_office_obsidian.py` → 14/14.
 
 | Fall | Erwartung | Ergebnis |
 |---|---|---|
+| Hauptschalter `START_REGELN.aktiv = false` | alle Teammitglieder starten sofort, keine Freigabe | ✅ |
 | Admin, teurer Agent, 1500 Zeichen, Limit 5 € | startet sofort, keine Freigabe | ✅ |
 | Teammitglied (team, vertrieb, dozent), günstiger Agent, kurzer Auftrag | startet sofort, `budget_eur` = 0,05 | ✅ |
 | Genau 600 Zeichen / 601 Zeichen | sofort / wartet auf Timo | ✅ |

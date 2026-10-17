@@ -530,7 +530,7 @@ export function antwortBauen(ich, D, opts) {
     mitglieder, projekte, aufgaben, verlauf, notizen, agenten: regs, runs, ereignisse, artefakte, freigaben,
     sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: Object.assign({}, EXTERNE_AKTIONEN, { [FREIGABE_START.aktion]: FREIGABE_START }),
     // Startregeln für Hinweise in der Oberfläche; entschieden wird serverseitig (kosten.js, startPruefung).
-    start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) }),
+    start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) || !START_REGELN.aktiv }),
     quelle: o.quelle || 'n8n', stand: o.jetzt || new Date().toISOString()
   };
 }

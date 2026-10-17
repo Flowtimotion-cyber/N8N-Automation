@@ -263,3 +263,15 @@ test('Wartung: wartende Startfreigaben verfallen erst nach der Wartefrist für M
   w.uhr.vor(6 * 24 * 3600); w.als('m_timo', 'wartung', {});
   assert.equal(w.run(r.antwort.run_id).status, 'unbekannt'); assert.equal(w.startFreigabe(r.antwort.run_id).status, 'verfallen');
 });
+
+test('Hauptschalter START_REGELN.aktiv = false: alle Teammitglieder starten wieder sofort, nichts wartet', () => {
+  const w = welt();
+  START_REGELN.aktiv = false;
+  try {
+    const r = w.start('m_murat', TEUER[0], TEUER[1], 'x'.repeat(900), { budget_eur: 3 });
+    assert.equal(r.antwort.status, 'warteschlange'); assert.ok(r.antwort.rueckmelde_schluessel);
+    assert.equal(w.sp.T.office_freigaben.length, 0); assert.equal(w.starts(), 1);
+    assert.equal(w.als('m_murat', 'laden', {}).antwort.start_regeln.startet_sofort, true);
+  } finally { START_REGELN.aktiv = true; }
+  assert.equal(w.start('m_murat', TEUER[0], TEUER[1], 'Wieder an').antwort.status, 'wartet_freigabe');
+});
