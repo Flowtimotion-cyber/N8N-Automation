@@ -242,7 +242,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -368,7 +368,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, team: vTeam };
+    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
     if (!V[tab]) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
@@ -1651,6 +1651,32 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (L.length - offen.length ? '<div class="card"><details><summary><b>Erledigt (' + (L.length - offen.length) + ')</b></summary>' + L.filter(a => a.status === 'Erledigt').map(taskRow).join('') + '</details></div>' : '');
     bindTasks();
     $('#neuw').onclick = () => aufgabeDialog(null);
+  }
+
+  // ---------- KI Office (eigene Seite unter ../office/, gleicher Token) ----------
+  const OFFICE = '../office/';
+  const OFFICE_API = 'https://n8n.hm-storage.de/webhook/office-api';
+  function vOffice() {
+    const agenten = (D.mitglieder || []).filter(p => p.typ === 'agent');
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>KI Office</h1><p class="sub">Gemeinsame Übersicht über Projekte, Aufgaben, Agenten und ihre tatsächlich ausgeführte Arbeit. Dieselben Projekte und Aufgaben wie hier im Portal, dazu Agentenläufe, Freigaben und das virtuelle Büro.</p></div><a class="btn" href="' + OFFICE + '#/tab/projekte">KI Office öffnen →</a></div>' +
+      '<div class="kpis" id="offKpis"><div class="kpi"><b>…</b><span>laufende Agentenaufträge</span></div><div class="kpi"><b>…</b><span>offene Freigaben</span></div><div class="kpi"><b>…</b><span>fehlgeschlagen / veraltet</span></div><div class="kpi"><b>…</b><span>Ergebnisse ohne Abnahme</span></div></div>' +
+      '<div class="grid">' +
+      '<a class="card" href="' + OFFICE + '#/tab/agenten" style="text-decoration:none;color:inherit;margin:0"><h2>🤖 Agenten-Register</h2><p class="small muted">Rolle, Fähigkeiten, erlaubte Werkzeuge, Modell und jede Ausführung mit lesbarer Zeitleiste: Schritte, Werkzeugaufrufe, Quellen, Ergebnisse, Fehler, Freigaben.</p><div class="meta">' + agenten.map(p => '<span class="chip ki">' + esc(p.name) + '</span>').join('') + '</div></a>' +
+      '<a class="card" href="' + OFFICE + '#/tab/buero" style="text-decoration:none;color:inherit;margin:0"><h2>🏢 Virtuelles Büro</h2><p class="small muted">Räume Akademie, Marketing, Vertrieb, Kundenprojekte, Verwaltung. Klick auf einen Raum filtert Projekte, Klick auf einen Agenten zeigt seine echte Arbeit.</p></a>' +
+      '<a class="card" href="' + OFFICE + '#/tab/freigaben" style="text-decoration:none;color:inherit;margin:0"><h2>✅ Freigaben</h2><p class="small muted">E-Mails, Veröffentlichungen, Zahlungen und Löschungen führen Agenten nur mit einer Freigabe aus, die an den exakten Inhalt gebunden ist.</p></a>' +
+      '<div class="card" style="margin:0"><h2>Wie es zusammenhängt</h2><p class="small muted">Das Office liest dieselben Daten wie das Portal (team_laden) und ergänzt Runs, Ereignisse, Ergebnisse und Freigaben über den n8n-Workflow „TEAM: Office-API“. Rückfragen und Berichte der Agenten erscheinen auch hier im Aufgabenverlauf. Doku: <code>docs/office/</code> im Repo.</p><p class="small muted" id="offStand"></p></div></div>';
+    fetch(OFFICE_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion: 'laden', daten: {} }) })
+      .then(r => r.json()).then(j => {
+        if (!j || j.ok === false) throw new Error((j && j.fehler) || 'Keine Antwort');
+        const runs = j.runs || [], frei = (j.freigaben || []).filter(f => f.status === 'offen').length;
+        const laufend = runs.filter(r => ['warteschlange', 'in_arbeit', 'wartet_rueckmeldung', 'wartet_freigabe'].includes(r.status)).length;
+        const fehler = runs.filter(r => ['fehlgeschlagen', 'unbekannt'].includes(r.status)).length;
+        const offen = runs.filter(r => r.status === 'abgeschlossen' && r.abgenommen == null).length;
+        const el = $('#offKpis'); if (el) el.innerHTML = kpi(laufend, 'laufende Agentenaufträge') + kpi(frei, 'offene Freigaben', frei > 0) + kpi(fehler, 'fehlgeschlagen / veraltet', fehler > 0) + kpi(offen, 'Ergebnisse ohne Abnahme');
+        const st = $('#offStand'); if (st) st.textContent = 'Office-API erreichbar, Stand ' + fmtDT(j.stand) + (j.quelle === 'testadapter' ? ' (TESTADAPTER, synthetische Daten)' : '') + '.';
+      }).catch(e => {
+        const el = $('#offKpis'); if (el) el.innerHTML = '<div class="note warn" style="grid-column:1/-1">Die Office-API antwortet noch nicht (' + esc(e.message) + '). Der n8n-Workflow „TEAM: Office-API“ muss erst importiert und aktiviert werden, siehe docs/office/SETUP.md im Repo.</div>';
+      });
   }
 
   // ---------- Team ----------
