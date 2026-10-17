@@ -140,7 +140,15 @@ for (const run of runs.filter(r => r.agent_id === Z.agent_id && r.status === 'in
   if (!kinder.length) continue;
   if (kinder.some(k => !END.includes(k.status))) continue;
   const ereignisse = (D.ereignisse || []).filter(e => e && e.run_id === run.run_id);
-  const nichtDelegiert = ereignisse.filter(e => e.art === 'schritt' && e.details && Array.isArray(e.details.fehlgeschlagen)).flatMap(e => e.details.fehlgeschlagen);
+  // Die Office-API speichert verschachtelte Details als JSON-Text (klein(), höchstens 1000 Zeichen). Darum parsen; ist der Text gekürzt,
+  // zählt die Anzahl aus dem Titel „n Teilaufträge delegiert, m nicht delegiert“.
+  const nichtDelegiert = ereignisse.filter(e => e.art === 'schritt' && e.details && e.details.fehlgeschlagen != null).flatMap(e => {
+    let v = e.details.fehlgeschlagen;
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (x) { v = null; } }
+    if (Array.isArray(v)) return v;
+    const m = String(e.titel || '').match(/(\\d+) nicht delegiert/);
+    return m ? Array.from({ length: Number(m[1]) }, (x, i) => ({ n: '?', agent_id: '?', fehler: 'Details gekürzt, siehe Ereignis „' + String(e.titel).slice(0, 80) + '“' })) : [];
+  });
   const gut = kinder.filter(k => k.status === 'abgeschlossen');
   const schlecht = kinder.filter(k => k.status !== 'abgeschlossen');
   const artefakte = (D.artefakte || []).filter(a => a && kinder.some(k => k.run_id === a.run_id));

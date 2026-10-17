@@ -117,6 +117,21 @@ test('Teams prüfen: wartet, solange ein Kind läuft; führt zusammen, wenn alle
   assert.equal(T3.status, 'fehlgeschlagen'); assert.match(T3.fehler, /konnten nicht delegiert werden: Teil 2 \(kurs-waechter\): Projektgrenze/);
   D3.ereignisse.pop();
   assert.equal(sandbox(C.CODE_TEAMS, { 'Token prüfen': Z, 'Daten laden (Zeitplan)': D3 })[0].json.status, 'abgeschlossen', 'alle Kinder abgeschlossen → abgeschlossen');
+  // Echter Weg über die Office-API: verschachtelte Details kommen als JSON-Text zurück (klein()), lange Listen gekürzt → trotzdem „fehlgeschlagen“
+  const abschluss = id => w.speicher.T.office_runs.find(r => r.run_id === id);
+  const kindAbschliessen = () => { const k = abschluss(offen.run_id); k.status = 'abgeschlossen'; };
+  kindAbschliessen();
+  const ev = w.als('agent-claude', 'ereignis', { run_id: w.runs.r13, art: 'schritt', titel: '1 Teilaufträge delegiert, 1 nicht delegiert (Team x)', details: { fehlgeschlagen: [{ n: 3, agent_id: 'kurs-waechter', http: 403, fehler: 'Projektgrenze' }] } });
+  assert.equal(ev.code, 200, JSON.stringify(ev.antwort));
+  const D5 = w.laden();
+  const gespeichert = D5.ereignisse.find(e => e.run_id === w.runs.r13 && /nicht delegiert/.test(e.titel));
+  assert.equal(typeof gespeichert.details.fehlgeschlagen, 'string', 'Office-API speichert verschachtelte Details als Text');
+  const T5 = sandbox(C.CODE_TEAMS, { 'Token prüfen': Z, 'Daten laden (Zeitplan)': D5 })[0].json;
+  assert.equal(T5.status, 'fehlgeschlagen'); assert.match(T5.fehler, /1 Teilaufträge konnten nicht delegiert werden: Teil 3 \(kurs-waechter\): Projektgrenze/);
+  // Gekürzter Text (über 1000 Zeichen) → Anzahl aus dem Titel
+  const D6 = JSON.parse(JSON.stringify(D5)); D6.ereignisse.find(e => e === gespeichert || (e.run_id === w.runs.r13 && /nicht delegiert/.test(e.titel))).details.fehlgeschlagen = '[{"n":3,"agent_id":"kurs-wae';
+  const T6 = sandbox(C.CODE_TEAMS, { 'Token prüfen': Z, 'Daten laden (Zeitplan)': D6 })[0].json;
+  assert.equal(T6.status, 'fehlgeschlagen'); assert.match(T6.fehler, /1 Teilaufträge konnten nicht delegiert werden: Teil \? \(\?\): Details gekürzt/);
   // Geheimnisse aus Kind-Zusammenfassungen bleiben draußen
   const D4 = JSON.parse(JSON.stringify(D)); D4.runs.find(r => r.run_id === kinder[0].run_id).zusammenfassung = 'Alles gut.\nPasswort: geheim123\nZweite Zeile.';
   const T4 = sandbox(C.CODE_TEAMS, { 'Token prüfen': Z, 'Daten laden (Zeitplan)': D4 })[0].json;
