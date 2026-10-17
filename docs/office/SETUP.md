@@ -122,3 +122,20 @@ Antwort: `run_id` des Teilauftrags, `eltern_run_id`, `team_id`, einmalig `rueckm
 - **Grenzen:** Das Modell hat keine Werkzeuge (kein Internet, keine E-Mail, keine Social-Konten). Verlangt ein Auftrag eine externe Aktion, liefert der Agent nur den Entwurf mit der Zeile „Freigabe nötig: …“. Zeilen, die wie Zugangsdaten aussehen, werden aus Prompt und Antwort entfernt. Projektgrenze wird im Ausführer ein zweites Mal geprüft.
 - **Behobener Fehler in der Office-API:** Der Knoten „In Supabase schreiben“ schickte alle Schreibaufträge gleichzeitig. Der Rückmelde-Schlüssel kam dadurch oft vor dem Run an und scheiterte am Fremdschlüssel. Der Ausführer wurde dann nie angestoßen, der Run blieb in der Warteschlange. Seit 17.10.2026 16:06 Uhr betraf das jeden neuen Auftrag. Jetzt läuft der Knoten mit Batching (ein Auftrag je Schritt). Live eingespielt und veröffentlicht.
 - **Hinweis n8n:** Auf dieser Instanz ist `require('crypto')` in Code-Knoten gesperrt. Ausführer müssen das abfangen (der Text-Ausführer lässt dann nur die Prüfsumme weg).
+
+## 11. Stand 18.10.2026 (Nacht): Ausführer für den Orchestrierer aktiv (KI-erstellt: Claude Code)
+
+- Workflow **„TEAM: Office-Ausführer orchestrierer“** (ID `D0jPTU1LjNzhGfyI`, https://n8n.hm-storage.de/workflow/D0jPTU1LjNzhGfyI) ist aktiv. Quelle: `office/n8n/ausfuehrer-orchestrierer.workflow.js`. Webhook: `https://n8n.hm-storage.de/webhook/office-ausfuehrer-orchestrierer`. Ablauf: ARCHITEKTUR.md Abschnitt 10b.
+- Credential „Supabase account“ an „Zugang laden“, „Schlüssel prüfen“, „Zugang laden (Zeitplan)“, „Notiz speichern“. Erfolgreiche Läufe werden nicht gespeichert, Fehlerläufe schon. Kein Modellaufruf, kein OpenAI-Credential.
+- Registry (mit Timos Ja per temporärem Hilfs-Workflow gesetzt, danach archiviert): `orchestrierer.ausfuehrer = n8n`, `ausfuehrer_url` = Webhook oben, `workflow_version = D0jPTU1LjNzhGfyI`, `konfig_version` 3. `office/agenten.json` und `supabase/team_office.sql` tragen jetzt ebenfalls `n8n`.
+- **Einen Team-Auftrag starten:** im KI Office beim Agenten „Orchestrierer“ einen Auftrag anlegen. Eine Zeile (oder ein Semikolon-Abschnitt) je Teilauftrag. Wer einen bestimmten Agenten will, schreibt `@agent-id:` davor, zum Beispiel:
+
+```
+@verwaltung-status: Wochenstand für das Team erstellen
+@marketing-texter: Drei LinkedIn-Posts zum Wochenstand entwerfen
+```
+
+  Ohne `@agent-id:` nimmt der Orchestrierer den ersten passenden Agenten des Projekts aus der Registry. Das kann ein Agent ohne Ausführer sein (z. B. `architektur-review` in „Momentum Office“), dessen Teilauftrag dann nach 30 Minuten als veraltet endet. Darum vorerst Agenten mit Ausführer per `@` nennen: `verwaltung-status`, `marketing-texter`, `social-planer`, `server-waechter` (Hermes).
+- **Was dann passiert:** Sekunden später ist der Run „in Arbeit“, die Teilaufträge stehen darunter, im Büro laufen Teamlinien aus der Zentrale. Spätestens 5 Minuten nach dem letzten fertigen Teilauftrag liegt die Notiz „Teamergebnis <run_id>“ im Projekt, und der Run ist abgeschlossen. Ist ein Teil fehlgeschlagen, abgebrochen oder veraltet, endet der Team-Run als „fehlgeschlagen“ mit Grund; die Notiz gibt es trotzdem.
+- **Office-API, mit deinem Ja geändert:** Vor „In Supabase schreiben“ steht jetzt die Schleife „Nacheinander schreiben“ (Loop Over Items, eine Zeile je Runde), „Ergebnis prüfen“ hängt am Fertig-Ausgang. Das Batching aus Abschnitt 10 reichte nicht: Bei zwei Aufrufen gleichzeitig scheiterte ein Kind-Run trotzdem am Fremdschlüssel. Versionen in n8n: „Claude Code: Schreibaufträge strikt nacheinander (Schleife)“ (aktiv), davor 6c630162 (Batching) und 2d31b793 (Ausgangsstand). `office/n8n/bauen.mjs`, `office-api.workflow.js` und `office-api.workflow.json` hat die Hauptsitzung mit PR #10 nachgezogen (Repo = Live).
+- **Bitte löschen (enthalten den Agenten-Token):** n8n-Executions 21282, 21303, 21336 des archivierten Hilfs-Workflows „TEMP: Office-Hilfe orchestrierer Testauftrag“.

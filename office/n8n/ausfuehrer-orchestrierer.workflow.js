@@ -11,7 +11,7 @@
 //  3) lebenszeichen → laden (Agenten-Token) → Zerlegen: Der Auftragstext des Runs wird an Zeilenumbrüchen oder Semikolons in Teilaufträge zerlegt.
 //     Eine Zeile je Teil, optional „@agent-id:“ am Anfang. Ohne Angabe wählt der Workflow aus der Registry (laden.agenten) einen aktiven Agenten
 //     desselben Projekts ohne das Werkzeug auftrag_delegieren, in Registry-Reihenfolge (mehrere Teile ohne Angabe gehen der Reihe nach an die Kandidaten).
-//  4) Ereignisse tool aufgaben_lesen und tool registry_lesen; je Teil ein auftrag_delegieren (eltern_run_id = run_id, team_id = team-<run_id>,
+//  4) Ereignisse tool aufgaben_lesen und tool registry_lesen; je Teil ein auftrag_delegieren (strikt nacheinander, Schleife „Nacheinander delegieren“) (eltern_run_id = run_id, team_id = team-<run_id>,
 //     idempotenzschluessel deleg-<run_id>-<n>); Ereignis schritt „n Teilaufträge delegiert“. Danach endet der Webhook-Lauf: Der Orchestrierer wartet
 //     nicht aktiv, offene Kind-Runs sind sein Lebenszeichen (Teamregel der Office-API).
 //  5) Jeder Fehler nach dem Lebenszeichen → run_beenden fehlgeschlagen mit Fehlertext. Leere Zerlegung oder unbekannter @agent → fehlgeschlagen, nichts delegiert.
@@ -242,6 +242,9 @@ const ereignisRegistry = node({ type: 'n8n-nodes-base.httpRequest', version: 4.2
 const teileAufteilen = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Teile aufteilen', onError: 'continueErrorOutput', parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: CODE_TEILE }, position: [2420, 200] },
   output: [{ token: 'nur-im-test', run_id: 'run_test', projekt: 'Momentum Office', team_id: 'team-run_test', n: 1, agent_id: 'verwaltung-status', agent_name: 'Verwaltungs-Status', auftrag: 'Teil 1 von 1: …', idempotenzschluessel: 'deleg-run_test-1' }] });
 
+const schleife = node({ type: 'n8n-nodes-base.splitInBatches', version: 3, config: { name: 'Nacheinander delegieren', parameters: { batchSize: 1, options: {} }, position: [2530, 380] },
+  output: [{ token: 'nur-im-test', run_id: 'run_test', n: 1 }] });
+
 const delegieren = node({ type: 'n8n-nodes-base.httpRequest', version: 4.2, config: { name: 'Delegieren', onError: 'continueErrorOutput', parameters: { method: 'POST', url: OFFICE_API, sendBody: true, specifyBody: 'json',
   jsonBody: expr('{{ JSON.stringify({ token: $json.token, aktion: "auftrag_delegieren", daten: { eltern_run_id: $json.run_id, agent_id: $json.agent_id, projekt: $json.projekt, auftrag: $json.auftrag, team_id: $json.team_id, idempotenzschluessel: $json.idempotenzschluessel } }) }}'), options: antwortOptionen }, position: [2640, 200] },
   output: [{ statusCode: 200, headers: {}, body: { ok: true, run_id: 'run_kind', status: 'warteschlange', eltern_run_id: 'run_test', team_id: 'team-run_test' } }] });
@@ -320,8 +323,11 @@ export default workflow('team-office-ausfuehrer-orchestrierer', 'TEAM: Office-Au
   .add(zerlegen.output(0).to(ereignisGelesen))
   .add(ereignisGelesen.output(0).to(ereignisRegistry))
   .add(ereignisRegistry.output(0).to(teileAufteilen))
-  .add(teileAufteilen.output(0).to(delegieren))
-  .add(delegieren.output(0).to(delegationPruefen))
+  // Ein auftrag_delegieren nach dem anderen (ein HTTP-Knoten schickt mehrere Items sonst gleichzeitig): Schleife, Fertig-Ausgang → Delegation prüfen
+  .add(teileAufteilen.output(0).to(schleife))
+  .add(schleife.output(1).to(delegieren))
+  .add(delegieren.output(0).to(schleife))
+  .add(schleife.output(0).to(delegationPruefen))
   .add(delegationPruefen.output(0).to(ereignisDelegiert))
   .add(ereignisDelegiert.output(0).to(fertig))
   .add(lebenszeichen.output(1).to(fehlertext))

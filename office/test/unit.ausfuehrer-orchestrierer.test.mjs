@@ -150,3 +150,16 @@ test('Workflow-Datei: keine Zugangsdaten, Webhook-Pfad, Knotenreferenzen vorhand
   for (const m of quelle.matchAll(/tool: "([a-z_]+)"/g)) assert.ok(reg.erlaubte_tools.includes(m[1]), 'Werkzeug nicht in der Allowlist des Orchestrierers: ' + m[1]);
   assert.ok(!/openai|anthropic|chat\/completions/i.test(quelle), 'erste Fassung ohne Modellaufruf');
 });
+
+test('Office-API schreibt strikt nacheinander: Schleife „Nacheinander schreiben“ zwischen Schreibaufträgen und Supabase, Ergebnis am Fertig-Ausgang', () => {
+  const json = JSON.parse(readFileSync(new URL('../n8n/office-api.workflow.json', import.meta.url), 'utf8'));
+  const c = json.connections, ziele = (von, i) => ((c[von] && c[von].main[i]) || []).map(x => x.node);
+  const schleife = json.nodes.find(n => n.name === 'Nacheinander schreiben');
+  assert.equal(schleife.type, 'n8n-nodes-base.splitInBatches'); assert.equal(schleife.parameters.batchSize, 1);
+  assert.deepEqual(ziele('Schreibaufträge', 0), ['Nacheinander schreiben']);
+  assert.deepEqual(ziele('Nacheinander schreiben', 0), ['Ergebnis prüfen'], 'Fertig-Ausgang');
+  assert.deepEqual(ziele('Nacheinander schreiben', 1), ['In Supabase schreiben'], 'Schleifen-Ausgang');
+  assert.deepEqual(ziele('In Supabase schreiben', 0), ['Nacheinander schreiben'], 'zurück in die Schleife');
+  // Der Ausführer des Orchestrierers delegiert ebenso nacheinander
+  assert.ok(/schleife\.output\(1\)\.to\(delegieren\)/.test(quelle) && /delegieren\.output\(0\)\.to\(schleife\)/.test(quelle) && /schleife\.output\(0\)\.to\(delegationPruefen\)/.test(quelle));
+});
