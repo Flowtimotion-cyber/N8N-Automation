@@ -186,3 +186,19 @@ Prüfung „auf Herz und Nieren“ gegen `main` nach dem Merge von PR #2 (Commit
 **Umbau auf Timos Wunsch:** Monitore als große Wandbildschirme (160×100 statt 84×52 im Raster, fast viermal so groß) hinter jeder Plattform, Raumkarten vor allen Plattformen, Zentrale als Gehirn mit Synapsen (leuchten bei laufenden Aufträgen/Teams, `prefers-reduced-motion` stoppt sie). Tests nach dem Umbau: siehe Zeile unten.
 
 | `npm run test:office` nach dem Umbau (Wandbildschirme, Gehirn, Befunde 1 und 2) | 74/74 bestanden; Screenshots `*-buero.png`, `*-leer-buero.png`, `*-monitorwand*.png`, `*-portal-register-ki-office.png`, `*-run-team.png` neu |
+
+## 13. Nachtrag 18.10.2026 (Nacht): Text-Ausführer Ende-zu-Ende (KI-erstellt: Claude Code)
+
+| Prüfung | Ergebnis |
+|---|---|
+| Code-Knoten lokal mit Testdaten (Zugang, Prompt, Antwort, Ablage, Fehlertext) | bestanden |
+| Zugangsdaten-Filter: Zeile „Token: …“ im Auftrag und „api_key=…“ in der Antwort | entfernt |
+| Falscher Rückmelde-Schlüssel, Projekt außerhalb der Grenze, leere Modellantwort | jeweils abgewiesen |
+| `validate_workflow` (24 Knoten) | gültig |
+| `node --test office/test/n8n-buendel.test.mjs` nach Batching-Änderung | 4 von 4 bestanden |
+| Marketing-Texter: Auftrag über Office-API, Ausführer manuell angestoßen (Schlüssel fehlte, siehe unten) | abgeschlossen in 20 s, Notiz im Projekt „Social Media“, 515/1559 Tokens, ca. 0,003 € |
+| Social-Planer: Auftrag über Office-API nach der Batching-Korrektur, ohne Eingriff | abgeschlossen in 31 s, Ereignisse, Artefakt (Notiz) und Verbrauch vorhanden, ca. 0,0055 € |
+
+Befund beim ersten Test: Für alle Aufträge seit 17.10.2026 16:06 Uhr fehlte der Eintrag in `office_run_schluessel`. Ursache war das gleichzeitige Schreiben in der Office-API (siehe SETUP.md Abschnitt 10). Nach der Korrektur hat die Office-API den Social-Planer eine Sekunde nach dem Anlegen angestoßen.
+
+Nicht getestet: Wiederholung nach Fehlschlag über die Office-API, Abbruch eines laufenden Text-Runs, sehr lange Antworten über `max_tokens`.

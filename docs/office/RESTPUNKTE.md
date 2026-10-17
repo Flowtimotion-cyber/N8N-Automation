@@ -61,6 +61,11 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschn
 | C | Monitore: Ergebnisse privater Ablagen (Drive mit Anmeldung) zeigen im `<img>`/iframe nur einen Fehler oder die Anmeldeseite; dann signierte, kurzlebige Vorschau-URLs über die Office-API ausgeben | ARCHITEKTUR.md 9a |
 | C | Monitore: mehr als 12 Ergebnisse je Raum (Blättern), Filter nach Typ und Prüfstand, Vergleich zweier Versionen über den Hash | `vMonitorwand` |
 | C | Die Browser-Vorschau im Claude-Desktop-Browserfenster blockiert eingebettete iframes (`ERR_BLOCKED_BY_CLIENT`); in Chromium/Playwright laden sie. Für Sichtprüfungen einen normalen Browser nehmen | TESTBERICHT.md 9 |
+| B | ✅ 18.10.2026 **Text-Ausführer** (n8n, `UbQ5nph8FIUSrasi`) für `marketing-texter` und `social-planer` live, Ende-zu-Ende getestet. Weitere n8n-Textagenten nur noch Registry-Eintrag (`ausfuehrer_url`) | SETUP.md Abschnitt 10, TESTBERICHT.md Abschnitt 13 |
+| A | ✅ 18.10.2026 Office-API schrieb parallel; Rückmelde-Schlüssel fehlte seit 17.10. 16:06 bei jedem Auftrag, n8n-Ausführer wurden nie angestoßen. Behoben (Batching 1). Offen: hängende Runs aus dieser Zeit prüfen (`run_mvcxzknfbc2608` Orchestrierer, zwei Server-Wächter-Runs von Hermes in der Warteschlange) | SETUP.md Abschnitt 10 |
+| B | Anthropic-Credential in n8n anlegen, damit der Text-Ausführer das Claude-Modell aus der Registry nutzt (heute gpt-5-mini für alle; Kosten je Lauf unter 1 Cent) | `office/n8n/ausfuehrer-text.workflow.js` |
+| B | n8n-Execution 21296 (Fehlersuche am Text-Ausführer, Protokoll kurz eingeschaltet) enthält den Agenten-Token in Knotenausgaben: in n8n löschen | n8n → Executions |
+| B | Agenten mit Ausführer `claude-code` (Redakteur, Vertrieb, Angebots-Prüfer, Architektur, Rekruiter, Orchestrierer) brauchen jemanden, der ihre Warteschlange abarbeitet: geplante Claude-Code-Aufgabe mit `office.py meine` oder Umstellung auf den Text-Ausführer | `agenten/ANLEITUNG.md` |
 
 ## Hinweis zum Branch
 
