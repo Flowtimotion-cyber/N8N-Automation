@@ -42,8 +42,6 @@ function render() {
   $('#logout').onclick = ev => { ev.preventDefault(); tokenSetzen(null); D = null; ohneZugang('Du bist abgemeldet.'); };
   if (EINGEBETTET) requestAnimationFrame(hoeheMelden);
   try {
-    // Nur-Büro-Einbettung (Portal-Übersicht): ohne Reiter, dafür ein Rücksprung, wenn man einen Raum oder Agenten geöffnet hat
-    if (NUR === 'buero' && (route.tab !== 'buero' || route.art)) $('#main').insertAdjacentHTML('afterbegin', '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a></p>');
     if (route.art === 'projekt') vProjekt(ctx, route.id);
     else if (route.art === 'agent') vAgent(ctx, route.id);
     else if (route.art === 'run') vRun(ctx, route.id);
@@ -53,6 +51,8 @@ function render() {
     else if (route.tab === 'buero') vBuero(ctx);
     else if (route.tab === 'freigaben') vFreigaben(ctx);
     else vProjekte(ctx, route.art === 'raum' ? route.id : undefined);
+    // Nur-Büro-Einbettung (Portal-Übersicht): Rücksprung erst NACH dem Aufbau der Ansicht einfügen, sonst überschreibt ihn die Ansicht (innerHTML)
+    if (NUR === 'buero' && (route.tab !== 'buero' || route.art)) $('#main').insertAdjacentHTML('afterbegin', '<p style="margin:0 0 10px"><a href="#/tab/buero">← Zurück zum Büro</a></p>');
   } catch (e) {
     $('#main').innerHTML = '<div class="card"><h2>Diese Ansicht konnte nicht aufgebaut werden</h2><p class="muted">' + esc(e.message) + '</p><a class="btn" href="#/tab/projekte">Zur Übersicht</a></div>';
     console.error(e);

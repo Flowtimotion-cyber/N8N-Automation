@@ -65,3 +65,6 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschn
 ## Hinweis zum Branch
 
 Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zusätzlich `claude/determined-curie-0gppav` vorgegeben. Die Arbeit liegt auf `feature/ki-office` (Pull Request), derselbe Stand wurde zusätzlich auf den vorgegebenen Sitzungs-Branch gepusht.
+
+| C | Monitorwand: Filter nach Typ (Bild/HTML/PDF/Sonstiges) und Prüfstand; viele Textnotizen verdrängen Grafiken aus den 12 Kacheln (der Monitor selbst bevorzugt Grafik/PDF) | `vMonitorwand` |
+| B | Ergebnisse des KI Office nach Obsidian spiegeln (Timos Wunsch 17.10.2026): je Artefakt eine Notiz oder ein Abschnitt im Vault (Titel, Run, Projekt, Prüfstand, Link), z. B. über office.py oder einen n8n-Knoten; vorher klären, welcher Vault-Ordner und ob Hermes das übernimmt | ARCHITEKTUR.md, `agenten/office.py` |
