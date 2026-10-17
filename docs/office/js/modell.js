@@ -101,3 +101,57 @@ export function verbrauchText(v) {
   else s += ' · Kosten unbekannt';
   return s;
 }
+
+// ---------- Monitore: grafische Ergebnisse je Raum ----------
+// Ein Artefakt wird nur geladen, wenn seine Adresse https:// ist oder relativ zur Office-Seite liegt.
+// Alles mit Schema (http:, data:, javascript:, blob:, notiz:, …), schema-relativ (//…), mit Backslash oder Leerraum wird NICHT geladen.
+export function ladbareAdresse(s) {
+  s = String(s ?? '').trim();
+  if (!s || s.length > 500) return null;
+  if (/[\s"'<>]|\\|[\u0000-\u001f\u007f]/.test(s)) return null;
+  if (/^https:\/\/[^/?#]+/i.test(s)) return s;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return null;
+  if (s.startsWith('//')) return null;
+  return s;
+}
+export const ARTEFAKT_TYP_TEXT = { bild: 'Bild', html: 'HTML', pdf: 'PDF', sonst: 'Sonstiges' };
+/** Typ eines Artefakts aus art und Ablageort: bild (png/jpg/jpeg/svg/webp/gif), html, pdf, sonst. url ist nur gesetzt, wenn die Adresse ladbar ist. */
+export function artefaktTyp(a) {
+  a = a || {};
+  const art = String(a.art || '').toLowerCase();
+  const url = ladbareAdresse(a.ablageort);
+  const pfad = String(a.ablageort || '').trim().replace(/[?#].*$/, '').toLowerCase();
+  let typ = 'sonst';
+  if (/\.(png|jpe?g|svg|webp|gif)$/.test(pfad) || ['bild', 'grafik', 'diagramm', 'image'].includes(art)) typ = 'bild';
+  else if (/\.(html?|xhtml)$/.test(pfad) || art === 'html') typ = 'html';
+  else if (/\.pdf$/.test(pfad) || art === 'pdf') typ = 'pdf';
+  // Ohne ladbare Adresse kann nichts angezeigt werden: Bild/HTML werden dann als Karte behandelt
+  if (!url && (typ === 'bild' || typ === 'html')) typ = 'sonst';
+  return { typ, url };
+}
+/** Fachliche Prüfung des Runs, zu dem ein Artefakt gehört: abgenommen, zurueckgewiesen oder ungeprueft. */
+export function pruefstand(run) {
+  if (!run) return 'ungeprueft';
+  if (run.abgenommen === true) return 'abgenommen';
+  if (run.abgenommen === false) return 'zurueckgewiesen';
+  return 'ungeprueft';
+}
+export const PRUEFSTAND_TEXT = { abgenommen: 'fachlich abgenommen', zurueckgewiesen: 'zurückgewiesen', ungeprueft: 'ungeprüft' };
+/**
+ * Die letzten Artefakte eines Raums: aus den Runs aller Projekte dieses Raums, neueste zuerst (erstellt), höchstens n.
+ * Jeder Eintrag trägt typ, url (nur ladbar), run, projekt und pruefstand. Rechte: nur, was die Office-API in D.artefakte liefert.
+ */
+export function raumArtefakte(D, raum, n = 12) {
+  const P = (D.projekte || []).filter(p => raumVon(D, p) === raum);
+  const namen = new Set(P.map(p => p.name));
+  const runs = new Map((D.runs || []).filter(r => namen.has(r.projekt)).map(r => [r.run_id, r]));
+  return (D.artefakte || []).filter(a => a && runs.has(a.run_id))
+    .sort((a, b) => String(b.erstellt || '').localeCompare(String(a.erstellt || '')) || String(b.artefakt_id || '').localeCompare(String(a.artefakt_id || '')))
+    .slice(0, Math.max(0, n))
+    .map(a => { const run = runs.get(a.run_id); return { ...a, ...artefaktTyp(a), run, projekt: a.projekt || (run ? run.projekt : ''), pruefstand: pruefstand(run) }; });
+}
+/** Was der Monitor eines Raums zeigt: das neueste grafische Ergebnis (Bild oder HTML); sonst das neueste PDF; sonst das neueste Ergebnis überhaupt; sonst null. */
+export function raumMonitor(D, raum) {
+  const A = raumArtefakte(D, raum, 50);
+  return A.find(a => a.typ === 'bild' || a.typ === 'html') || A.find(a => a.typ === 'pdf') || A[0] || null;
+}

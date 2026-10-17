@@ -1,14 +1,18 @@
 // TESTADAPTER: synthetische Testdaten für das KI Office. Keine echten Personen, keine echten Zugangsdaten.
 // Die Runs werden nicht „hingeschrieben“, sondern mit demselben Verarbeitungscode wie in n8n erzeugt (Speicher + TestAdapter),
 // damit Zustände, Ereignisse und Verlaufseinträge immer konsistent zur Zustandsmaschine sind.
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Speicher, Uhr, zufallsQuelle } from './speicher.mjs';
 import { TestAdapter } from '../adapter/test.js';
+import { sha256 } from '../lib/hash.js';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const REG = JSON.parse(readFileSync(join(hier, '..', 'agenten.json'), 'utf8'));
+// Grafische Testergebnisse für die Monitore: selbst gezeichnete SVG-Diagramme und eine HTML-Vorschau unter docs/office/testbilder/.
+// Der Ablageort ist relativ zur Office-Seite, der Hash ist der echte SHA-256 der Datei.
+export const TESTBILD = name => { const p = join(hier, '..', '..', 'docs', 'office', 'testbilder', name); return { ablageort: 'testbilder/' + name, inhalt_hash: sha256(readFileSync(p, 'utf8')), groesse: statSync(p).size }; };
 
 // Synthetische Zugangscodes (Hex, 32 Zeichen). Nur für den Testserver. Im echten Portal vergibt Timo andere.
 export const TOKENS = {
@@ -91,16 +95,18 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const mensch = (wer, aktion, daten) => sp.aufruf({ token: TOKENS[wer], aktion, daten });
   const start1 = (wer, agent, projekt, aufgabe_id, auftrag, key) => mensch(wer, 'auftrag_starten', { agent_id: agent, projekt, aufgabe_id, auftrag, idempotenzschluessel: 'testdaten-' + key }).antwort.run_id;
   const tick = sek => { uhr.vor(sek); ad.laufen(); };
-  // 1) Abgeschlossen + fachlich abgenommen (Akademie)
+  // Ein Agent legt ein Ergebnis ab (wie über die Office-API), eine Sekunde nach dem letzten Tick, damit die Reihenfolge eindeutig ist
+  const ergebnis = (agent, run_id, daten) => { uhr.vor(1); return sp.aufruf({ token: tokenVonAgent(agent), aktion: 'artefakt', daten: { run_id, ...daten } }); };
+  // 1) Abgeschlossen + fachlich abgenommen (Akademie) – mit Diagramm als Bild (Monitor: geprüft)
   const r1 = start1('m_kurt', 'akademie-redakteur', 'Akademie-Kurs', 'a_k1', 'Merkblatt Modul 1.2 als Entwurf schreiben', 'td-r1');
-  for (let i = 0; i < 6; i++) tick(30);
+  for (let i = 0; i < 6; i++) { tick(30); if (i === 2) ergebnis('akademie-redakteur', r1, { art: 'datei', titel: 'Quiz-Auswertung Modul 1.2 (Diagramm)', zusammenfassung: 'Richtige Antworten je Frage als Balkendiagramm; Frage 8 fällt ab.', ...TESTBILD('akademie-quiz-modul-1-2.svg') }); }
   mensch('m_kurt', 'run_abnehmen', { run_id: r1, abgenommen: true, kommentar: 'Passt, zwei Tippfehler selbst korrigiert.' });
-  // 2) Abgeschlossen, noch nicht abgenommen (Vertrieb)
+  // 2) Abgeschlossen, noch nicht abgenommen (Vertrieb) – mit Diagramm als Bild (Monitor: ungeprüft)
   const r2 = start1('m_murat', 'vertrieb-recherche', 'Vertrieb Herbst', 'a_v1', 'Firmenliste Region Süd aus öffentlichen Quellen erstellen', 'td-r2');
-  for (let i = 0; i < 6; i++) tick(30);
-  // 3) Fehlgeschlagen (Kundenprojekt)
+  for (let i = 0; i < 6; i++) { tick(30); if (i === 2) ergebnis('vertrieb-recherche', r2, { art: 'datei', titel: 'Firmenliste Region Süd nach Branche (Diagramm)', zusammenfassung: 'Verteilung der 87 gefundenen Firmen nach Branche.', ...TESTBILD('vertrieb-firmen-region-sued.svg') }); }
+  // 3) Fehlgeschlagen (Kundenprojekt) – PDF-Verweis ohne Vorschau (Monitor: Karte mit Link, ungeprüft)
   const r3 = start1('m_timo', 'kunden-entwickler', 'Kundenprojekt Müller GmbH', 'a_m1', 'Workflow Angebotsannahme bauen, Zielsystem liefert Fehler', 'td-r3');
-  for (let i = 0; i < 4; i++) tick(20);
+  for (let i = 0; i < 4; i++) { tick(20); if (i === 1) ergebnis('kunden-entwickler', r3, { art: 'datei', titel: 'Datenfluss-Skizze Angebotsannahme (unvollständig)', ablageort: 'https://beispiel.example/momentum/datenfluss-angebot.pdf', zusammenfassung: 'Erster Entwurf des Datenflusses als PDF (synthetischer Verweis, nicht abrufbar).' }); }
   // 4) Wartet auf Rückmeldung (Marketing)
   const r4 = start1('m_lillien', 'marketing-texter', 'Webseite', 'a_w2', 'Landingpage-Text Fördercheck überarbeiten, Rückfrage zur Anrede klären', 'td-r4');
   for (let i = 0; i < 3; i++) tick(10);
@@ -113,6 +119,9 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const fr6 = sp.T.office_freigaben.find(f => f.run_id === r6);
   if (fr6) mensch('m_timo', 'freigabe_entscheiden', { freigabe_id: fr6.freigabe_id, entscheidung: 'erteilt', begruendung: 'Text geprüft.' });
   for (let i = 0; i < 3; i++) tick(10);
+  // Marketing: Reichweiten-Diagramm (Bild) und danach die Beitragsvorschau als HTML (Monitor zeigt das neueste: HTML in der Sandbox)
+  ergebnis('marketing-texter', r6, { art: 'datei', titel: 'Reichweite LinkedIn KW 40–42 (Diagramm)', zusammenfassung: 'Impressionen je Tag, Anstieg ab dem Beitrag „Fördercheck“.', ...TESTBILD('marketing-reichweite-kw42.svg') });
+  ergebnis('marketing-texter', r6, { art: 'datei', titel: 'LinkedIn-Beitrag KW 43 (Vorschau)', zusammenfassung: 'Vorschau des veröffentlichten Beitrags als HTML-Seite. Enthält absichtlich ein Prüfskript und einen Prompt-Injection-Satz für den Sandbox-Test.', ...TESTBILD('linkedin-vorschau-kw43.html') });
   // 7) In Arbeit (Hermes, Backup-Prüfung): langsamer Lauf, noch innerhalb des Timeouts
   const r7 = start1('m_timo', 'server-waechter', 'Verwaltung & Finanzen', 'a_f2', 'Backup-Prüfung Oktober, läuft langsam', 'td-r7');
   tick(10);

@@ -129,6 +129,21 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 @keyframes fluss{to{stroke-dashoffset:-22}}
 @keyframes winkt{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion: reduce){.puls,.fluss,.winkt{animation:none}#toast{transition:none}}
+/* Monitor je Raum (in der Szene) und Monitorwand (#/monitor/<Raum>): Bilder direkt, HTML nur im Sandbox-iframe ohne Skripte, reine Anzeige */
+.buero a.monitor:focus .schirm,.buero a.monitor:hover .schirm{stroke:#fff;stroke-width:2.5}
+.buero .monitor foreignObject{overflow:hidden}
+.buero .monitor .mini{width:84px;height:52px;overflow:hidden;background:#fff;margin:0}
+.buero .monitor .mini iframe{width:336px;height:208px;border:0;display:block;transform:scale(.25);transform-origin:0 0;pointer-events:none;background:#fff}
+.kacheln{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.kachel{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;margin:0}
+.kachel.ungeprueft{border-color:#F5D9A6}.kachel.zurueckgewiesen{border-color:#F1C7C0}
+.kachel .vorschau{position:relative;aspect-ratio:16/10;background:#15132B;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#B9B8D6;font-size:13px;text-align:center;padding:10px}
+.kachel .vorschau img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+.kachel .vorschau iframe{position:absolute;left:0;top:0;width:200%;height:200%;border:0;transform:scale(.5);transform-origin:0 0;pointer-events:none;background:#fff}
+.kachel .vorschau .marke{position:absolute;top:8px;right:8px;z-index:1}
+.kachel .text{padding:10px 12px 12px;font-size:13px}
+.kachel .text b{display:block;font-size:14px;margin-bottom:4px}
+.kachel .kv{font-size:12.5px;margin-top:6px}
 /* Eingebettet im Team-Portal (?einbetten=1): kein eigener Kopf und Fuß, Reiter kompakt */
 body.eingebettet header .hrow,body.eingebettet footer{display:none}
 body.eingebettet header{position:static}

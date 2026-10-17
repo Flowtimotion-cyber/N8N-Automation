@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-labelledby="t d">
+  <title id="t">Firmenliste Region Süd: Verteilung nach Branche (Testdaten)</title>
+  <desc id="d">Liegende Balken je Branche. Synthetische Testdaten des KI Office, keine echten Firmen.</desc>
+  <rect width="640" height="400" fill="#FFFFFF"/>
+  <text x="32" y="44" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#14123A">Firmenliste Region Süd · nach Branche</text>
+  <text x="32" y="68" font-family="system-ui, sans-serif" font-size="13" fill="#62607E">TESTDATEN (synthetisch) · 87 Firmen aus öffentlichen Quellen · Quelle: Testadapter</text>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#14123A">
+    <text x="32" y="112">Handwerk</text><rect x="180" y="98" width="310" height="20" rx="5" fill="#1FA9B0"/><text x="498" y="113" fill="#62607E">31</text>
+    <text x="32" y="152">Produktion</text><rect x="180" y="138" width="220" height="20" rx="5" fill="#1FA9B0"/><text x="408" y="153" fill="#62607E">22</text>
+    <text x="32" y="192">Handel</text><rect x="180" y="178" width="150" height="20" rx="5" fill="#1FA9B0"/><text x="338" y="193" fill="#62607E">15</text>
+    <text x="32" y="232">Dienstleistung</text><rect x="180" y="218" width="120" height="20" rx="5" fill="#1FA9B0"/><text x="308" y="233" fill="#62607E">12</text>
+    <text x="32" y="272">Gesundheit</text><rect x="180" y="258" width="50" height="20" rx="5" fill="#1FA9B0"/><text x="238" y="273" fill="#62607E">5</text>
+    <text x="32" y="312">Sonstige</text><rect x="180" y="298" width="20" height="20" rx="5" fill="#9FA3C8"/><text x="208" y="313" fill="#62607E">2</text>
+  </g>
+  <line x1="180" y1="88" x2="180" y2="330" stroke="#DFDDEC"/>
+  <text x="32" y="372" font-family="system-ui, sans-serif" font-size="12" fill="#62607E">Noch nicht fachlich geprüft: Branchen wurden automatisch aus Webseiten abgeleitet.</text>
+</svg>

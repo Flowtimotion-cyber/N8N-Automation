@@ -55,6 +55,12 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschn
 | B | Registry: Executor und Modell passen nicht überall zusammen (`kunden-entwickler` läuft über Codex, `kurs-waechter`/`server-waechter` über Hermes, tragen aber Claude-Modell-IDs). Bei F4 klären, welches Modell dort wirklich läuft, sonst „unbekannt“ eintragen | `office/agenten.json` |
 | B | ~~Startbestand der Registry enthält „Kundenprojekt Müller GmbH“~~ – gelöst 17.10.: `supabase/team_office_produktiv.sql` ersetzt synthetische Projektnamen und setzt Räume (siehe INBETRIEBNAHME.md) | `supabase/team_office_produktiv.sql` |
 | C | Subagent `office-entwickler` darf `Bash(node *)`/`Bash(npm run *)`: auf die Testskripte einschränken | `.claude/agents/office-entwickler.md` |
+| B | Monitore: **Vorschaubilder für PDF** (und Office-Dateien). Heute nur Karte mit Link; Vorschau bräuchte ein serverseitiges Rendering (z. B. n8n-Knoten erzeugt PNG und legt es als eigenes Artefakt ab) | `docs/office/js/buero.js`, ARCHITEKTUR.md 9a |
+| B | Monitore: **Allowlist der Ablage-Domains** als CSP (`img-src`, `frame-src`) in `docs/office/index.html` oder am Hoster, sobald klar ist, wo Agenten Ergebnisse ablegen (Supabase Storage, Drive, Repo). Bis dahin lädt das Office jede `https://`-Adresse aus der rechtegefilterten API-Antwort | SICHERHEIT.md S20 |
+| C | Monitore: Executoren sollten `art` genauer setzen (heute nur text/datei/link/commit/notiz/bericht; Typ wird aus der Dateiendung erkannt). Vorschlag: `bild`, `html`, `pdf` in `ARTEFAKT_ARTEN` aufnehmen und Bildgröße/MIME mitliefern | `office/lib/verarbeitung.js` |
+| C | Monitore: Ergebnisse privater Ablagen (Drive mit Anmeldung) zeigen im `<img>`/iframe nur einen Fehler oder die Anmeldeseite; dann signierte, kurzlebige Vorschau-URLs über die Office-API ausgeben | ARCHITEKTUR.md 9a |
+| C | Monitore: mehr als 12 Ergebnisse je Raum (Blättern), Filter nach Typ und Prüfstand, Vergleich zweier Versionen über den Hash | `vMonitorwand` |
+| C | Die Browser-Vorschau im Claude-Desktop-Browserfenster blockiert eingebettete iframes (`ERR_BLOCKED_BY_CLIENT`); in Chromium/Playwright laden sie. Für Sichtprüfungen einen normalen Browser nehmen | TESTBERICHT.md 9 |
 
 ## Hinweis zum Branch
 

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-labelledby="t d">
+  <title id="t">Quiz Modul 1.2: richtige Antworten je Frage (Testdaten)</title>
+  <desc id="d">Balkendiagramm mit zehn Fragen. Synthetische Testdaten des KI Office, keine echten Teilnehmenden.</desc>
+  <rect width="640" height="400" fill="#FFFFFF"/>
+  <text x="32" y="44" font-family="system-ui, sans-serif" font-size="22" font-weight="700" fill="#14123A">Quiz Modul 1.2 · richtige Antworten je Frage</text>
+  <text x="32" y="68" font-family="system-ui, sans-serif" font-size="13" fill="#62607E">TESTDATEN (synthetisch) · 24 Teilnehmende · Quelle: Testadapter</text>
+  <g stroke="#DFDDEC" stroke-width="1">
+    <line x1="60" y1="330" x2="610" y2="330"/><line x1="60" y1="270" x2="610" y2="270"/><line x1="60" y1="210" x2="610" y2="210"/><line x1="60" y1="150" x2="610" y2="150"/><line x1="60" y1="90" x2="610" y2="90"/>
+  </g>
+  <g font-family="system-ui, sans-serif" font-size="11" fill="#62607E" text-anchor="end">
+    <text x="54" y="334">0</text><text x="54" y="274">6</text><text x="54" y="214">12</text><text x="54" y="154">18</text><text x="54" y="94">24</text>
+  </g>
+  <g fill="#7B3FE4">
+    <rect x="76" y="110" width="36" height="220" rx="4"/><rect x="129" y="130" width="36" height="200" rx="4"/><rect x="182" y="170" width="36" height="160" rx="4"/>
+    <rect x="235" y="100" width="36" height="230" rx="4"/><rect x="288" y="210" width="36" height="120" rx="4" fill="#E98A15"/><rect x="341" y="120" width="36" height="210" rx="4"/>
+    <rect x="394" y="150" width="36" height="180" rx="4"/><rect x="447" y="250" width="36" height="80" rx="4" fill="#D9452F"/><rect x="500" y="115" width="36" height="215" rx="4"/><rect x="553" y="140" width="36" height="190" rx="4"/>
+  </g>
+  <g font-family="system-ui, sans-serif" font-size="12" fill="#14123A" text-anchor="middle">
+    <text x="94" y="350">F1</text><text x="147" y="350">F2</text><text x="200" y="350">F3</text><text x="253" y="350">F4</text><text x="306" y="350">F5</text><text x="359" y="350">F6</text><text x="412" y="350">F7</text><text x="465" y="350">F8</text><text x="518" y="350">F9</text><text x="571" y="350">F10</text>
+  </g>
+  <text x="32" y="384" font-family="system-ui, sans-serif" font-size="12" fill="#62607E">Orange: unter 50 % · Rot: unter 35 % → Frage 8 im Kurs noch einmal erklären</text>
+</svg>
