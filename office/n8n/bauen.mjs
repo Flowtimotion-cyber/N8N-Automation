@@ -14,9 +14,7 @@ export const MODULE = ['hash.js', 'zustand.js', 'freigabe.js', 'rechte.js', 'sig
 export function buendel() {
   const teile = [], namen = new Map();
   for (const f of MODULE) {
-    let src = readFileSync(join(LIB, f), 'utf8').replace(/
-/g, '
-'); // Windows-Checkouts mit CRLF ergeben sonst ein anderes Bündel
+    let src = readFileSync(join(LIB, f), 'utf8').replace(/\r\n/g, '\n'); // Windows-Checkouts mit CRLF ergeben sonst ein anderes Bündel
     src = src.split('\n').filter(z => !/^import\s/.test(z)).map(z => z.replace(/^export\s+(const|function|let|class)\s/, '$1 ')).join('\n');
     for (const m of src.matchAll(/^(?:const|function|let|class)\s+([A-Za-z_$][\w$]*)/gm)) { if (namen.has(m[1])) throw new Error('Doppelter Name im Bündel: ' + m[1] + ' in ' + f + ' und ' + namen.get(m[1])); namen.set(m[1], f); }
     teile.push('// ===== office/lib/' + f + ' =====\n' + src.trim());

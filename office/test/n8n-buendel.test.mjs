@@ -7,9 +7,7 @@ import { buendel, workflowJson } from '../n8n/bauen.mjs';
 import { testSpeicher, TOKENS } from '../dev/testdaten.mjs';
 
 test('Bündel entspricht der eingecheckten Datei (bauen.mjs wurde nach Änderungen ausgeführt)', () => {
-  assert.equal(buendel(), readFileSync(new URL('../n8n/code/anfrage-pruefen.js', import.meta.url), 'utf8').replace(/
-/g, '
-'));
+  assert.equal(buendel(), readFileSync(new URL('../n8n/code/anfrage-pruefen.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n'));
   const code = buendel();
   const json = JSON.parse(readFileSync(new URL('../n8n/office-api.workflow.json', import.meta.url), 'utf8'));
   assert.equal(json.nodes.find(n => n.name === 'Anfrage prüfen').parameters.jsCode, code);
