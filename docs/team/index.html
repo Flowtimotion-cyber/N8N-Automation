@@ -9,7 +9,7 @@
 html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:var(--acc)}
 button,input,select,textarea{font:inherit;color:inherit}
-.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+.wrap{max-width:1920px;margin:0 auto;padding:0 clamp(16px,2.5vw,40px)}
 header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .hrow{display:flex;align-items:center;gap:14px;padding:12px 0}
 .logo{height:34px;display:block}
@@ -222,6 +222,30 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   .task{grid-template-columns:auto 1fr}.task .right{grid-column:2}
   h1{font-size:22px}
 }
+/* Vertrieb (Pipeline aus Twenty) */
+.vboard{display:grid;grid-auto-flow:column;grid-auto-columns:250px;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:start}
+.vcol{background:#EFEEF7;border-radius:14px;padding:8px;min-height:140px;transition:background .15s}
+.vcol.drop{background:#E3DCF8;outline:2px dashed var(--acc);outline-offset:-2px}
+.vcol h3{font-size:12.5px;text-transform:none;letter-spacing:0;color:var(--ink);margin:2px 4px 2px;display:flex;justify-content:space-between;gap:6px}
+.vcol h3 span{color:var(--mut);font-weight:600}
+.vcol .vsum{font-size:12px;color:var(--mut);margin:0 4px 8px}
+.vcol .vstrich{height:3px;border-radius:3px;margin:0 4px 8px}
+.vcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:8px;cursor:pointer;font-size:13px}
+.vcard:hover{border-color:var(--acc)}
+.vcard.zieht{opacity:.45}
+.vcard .t{font-weight:650;font-size:13.5px;line-height:1.3;word-break:break-word}
+.vcard .k{color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vcard .m{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:6px}
+.chip.fu{background:#FFF4E5;color:#9A5B00}.chip.fu.weg{background:#FDECEA;color:var(--red)}.chip.ig{background:#FCE7F3;color:#9D174D}.chip.eur{background:#E9F7F0;color:#146C47}
+.vmehr{width:100%;border:1px dashed var(--line);background:none;border-radius:10px;padding:6px;color:var(--mut);cursor:pointer;font-size:12.5px}
+.vtab td,.vtab th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:13.5px;vertical-align:top}
+.vtab tr.klick{cursor:pointer}.vtab tr.klick:hover td{background:#FAF9FE}
+.vnotiz{border-top:1px solid var(--line);padding:10px 0}.vnotiz .kopf{font-size:12.5px;color:var(--mut);margin-bottom:4px}
+.vbald{border:1px dashed #C9C2EE;background:#F7F5FE;border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--mut);margin:10px 0}
+.vtreffer{border:1px solid var(--line);border-radius:10px;margin-top:4px;max-height:200px;overflow:auto}
+.vtreffer button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:#fff;padding:7px 10px;cursor:pointer}
+.vtreffer button:hover{background:var(--soft)}
+.vkontakt{background:var(--soft);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
@@ -242,7 +266,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -364,12 +388,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' + zkKopf() +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
-      '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => k !== 'vertrieb' || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
-    if (!V[tab]) tab = 'start';
+    const V = { vertrieb: vVertrieb, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
+    if (!V[tab] || (tab === 'vertrieb' && !darfVertrieb())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
     kiAufbauen();
@@ -924,6 +948,195 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       b.onclick = () => { d.style.width = ''; d.classList.toggle('voll'); }; $('#dlgInner').prepend(b);
     }
     return d;
+  }
+
+  // ---------- Vertrieb (Pipeline aus Twenty CRM) ----------
+  // Daten liegen in Twenty (twenty.hm-storage.de); das Portal ist nur die Oberfläche. Schnittstelle: n8n „TEAM: Vertrieb-Pipeline (Twenty)“.
+  const VERTRIEB_API = API.replace('team-api-v2', 'team-vertrieb');
+  const TWENTY = 'https://twenty.hm-storage.de';
+  const VSTUFEN = [['NEW', '(Noch) kein Termin gebucht', '#9CA3AF'], ['ERSTKONTAKT', 'Fokus Erstkontakt', '#5B6EE6'], ['PITCH', 'Pitch auf KI Flow', '#38BDF8'], ['TIMO_CALL', 'Timo Call', '#7B3FE4'],
+    ['UNGUELTIG', 'Ungültiger Kontakt', '#D9452F'], ['NICHT_ERREICHBAR', 'Nicht erreichbar', '#E98A15'], ['SPAETER', 'Später nochmal melden', '#EAB308'], ['NICHT_INTERESSIERT', 'Nicht interessiert', '#D9452F'],
+    ['SCREENING', 'Interessiert', '#1FA9B0'], ['MEETING', '📆 Termin gebucht', '#1F9D6B'], ['NO_SHOW', 'No Show', '#E98A15'], ['ENTSCHEIDUNG', 'Fokus auf Entscheidung', '#7B3FE4'],
+    ['MEETING_DONE', 'In der Beratung', '#5B6EE6'], ['PROPOSAL', 'Erhebungsbogen eingereicht', '#38BDF8'], ['LOST', 'Abgelehnt', '#9CA3AF'], ['BGS_GENEHMIGT', 'Bildungsgutschein genehmigt', '#1FA9B0'], ['CUSTOMER', 'Vertrag unterschrieben', '#1F9D6B']];
+  const VZU = ['UNGUELTIG', 'NICHT_INTERESSIERT', 'LOST'];            // „erledigt, nicht gewonnen“ – lassen sich ausblenden
+  const vLabel = s => (VSTUFEN.find(x => x[0] === s) || [s, s])[1];
+  const darfVertrieb = () => D && D.ich && ['admin', 'dozent', 'vertrieb'].includes(D.ich.rolle);
+  const VT = { d: null, laedt: false, fehler: '', q: '', owner: ls.get('mt-vowner') || '', zu: ls.get('mt-vzu') !== '0', ansicht: ls.get('mt-vans') || 'board', mehr: {} };
+  const euroTxt = n => n == null || n === '' ? '' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+  const tagIso = s => s ? String(s).slice(0, 10) : '';
+  const fuFaellig = c => c.naechsterFollowup && tagIso(c.naechsterFollowup) <= heute().toLocaleDateString('sv-SE');
+  async function vApi(aktion, daten) {
+    const r = await fetch(VERTRIEB_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Twenty ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.');
+    return j;
+  }
+  async function vLaden() {
+    VT.laedt = true; VT.fehler = '';
+    try { VT.d = await vApi('liste'); } catch (e) { VT.fehler = e.message; }
+    VT.laedt = false; if (tab === 'vertrieb') vVertrieb();
+  }
+  const vMitglied = id => ((VT.d && VT.d.mitglieder) || []).find(m => m.id === id);
+  const vAv = id => { const m = vMitglied(id); return m ? '<span class="av ' + farbe(id) + '" style="width:22px;height:22px;font-size:11px" title="' + esc(m.name) + '">' + esc(m.name.slice(0, 1)) + '</span>' : ''; };
+  function vGefiltert() {
+    const q = VT.q.trim().toLowerCase();
+    return (VT.d.chancen || []).filter(c => {
+      if (VT.owner === 'ohne' && c.ownerId) return false;
+      if (VT.owner && VT.owner !== 'ohne' && c.ownerId !== VT.owner) return false;
+      if (!q) return true;
+      const k = c.kontakt || {};
+      return [c.name, k.name, k.email, k.telefon, c.ig, c.firma && c.firma.name].join(' ').toLowerCase().includes(q);
+    });
+  }
+  function vKarte(c) {
+    const k = c.kontakt || {};
+    const unter = [k.name && k.name !== c.name ? k.name : '', c.firma ? c.firma.name : ''].filter(Boolean).join(' · ');
+    return '<div class="vcard" draggable="true" data-vc="' + esc(c.id) + '"><div class="t">' + esc(c.name || k.name || 'Ohne Namen') + '</div>' +
+      (unter ? '<div class="k">' + esc(unter) + '</div>' : '') +
+      '<div class="m">' + (c.betrag ? '<span class="chip eur">' + euroTxt(c.betrag) + '</span>' : '') +
+      (c.naechsterFollowup ? '<span class="chip fu' + (fuFaellig(c) ? ' weg' : '') + '" title="Nächster Follow-up">⏰ ' + fmtD(tagIso(c.naechsterFollowup)) + '</span>' : '') +
+      (c.ig ? '<span class="chip ig" title="Instagram">IG</span>' : '') + (c.kiflow ? '<span class="chip" title="Aus KI Flow übernommen">KI Flow</span>' : '') + (c.notizen ? '<span class="chip" title="Notizen">📝 ' + c.notizen + '</span>' : '') +
+      '<span style="margin-left:auto">' + vAv(c.ownerId) + '</span></div></div>';
+  }
+  function vVertrieb() {
+    if (!darfVertrieb()) { $('#main').innerHTML = '<div class="card"><p>Die Vertriebs-Pipeline sehen Timo, Kurt, Murat und das Vertriebsteam.</p></div>'; return; }
+    const kopf = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vertrieb</h1><p class="sub">Leads und Verkaufschancen – Daten liegen in Twenty CRM, Änderungen hier landen direkt dort.</p></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn sec" href="' + TWENTY + '/objects/opportunities" target="_blank" rel="noopener" style="text-decoration:none">Twenty öffnen ↗</a><button class="btn sec" id="vneu_laden" title="Neu laden">↻</button><button class="btn" id="vneu">+ Verkaufschance</button></div></div>';
+    if (!VT.d) {
+      $('#main').innerHTML = kopf + '<div class="card">' + (VT.fehler ? '<p>' + esc(VT.fehler) + '</p><button class="btn" id="vnochmal">Erneut versuchen</button>' : '<p class="muted">Lade Pipeline aus Twenty …</p>') + '</div>';
+      if (VT.fehler) $('#vnochmal').onclick = () => { VT.fehler = ''; vVertrieb(); };
+      else if (!VT.laedt) vLaden();
+      $('#vneu').onclick = () => toast('Einen Moment, die Pipeline lädt noch.'); $('#vneu_laden').onclick = () => vLaden();
+      return;
+    }
+    const L = vGefiltert(), alle = VT.d.chancen || [], an = VT.d.anzahl || {};
+    const offen = alle.filter(c => !VZU.includes(c.stage) && c.stage !== 'CUSTOMER');
+    const fu = alle.filter(c => fuFaellig(c) && !VZU.includes(c.stage) && c.stage !== 'CUSTOMER');
+    const wert = offen.reduce((s, c) => s + (Number(c.betrag) || 0), 0);
+    const stufen = VSTUFEN.filter(s => !(VT.zu && VZU.includes(s[0])));
+    $('#main').innerHTML = kopf +
+      '<div class="kpis">' + kpi(offen.length, 'offene Leads') + kpi(alle.filter(c => c.stage === 'MEETING').length, 'Termine gebucht') + kpi(fu.length, 'Follow-ups fällig', fu.length > 0) + kpi(alle.filter(c => c.stage === 'CUSTOMER').length, 'Verträge unterschrieben') + kpi(euroTxt(wert) || '0 €', 'offener Pipeline-Wert') + '</div>' +
+      '<div class="tools"><input class="grow" id="vq" placeholder="Suchen: Name, E-Mail, Telefon, Instagram …" value="' + esc(VT.q) + '">' +
+      '<select id="vown" aria-label="Zuständig"><option value="">Alle Zuständigen</option><option value="ohne"' + (VT.owner === 'ohne' ? ' selected' : '') + '>Ohne Zuständigen</option>' + (VT.d.mitglieder || []).map(m => '<option value="' + esc(m.id) + '"' + (VT.owner === m.id ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('') + '</select>' +
+      '<label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="vzu"' + (VT.zu ? ' checked' : '') + '> Ungültig / Nicht interessiert / Abgelehnt ausblenden</label>' +
+      '<div class="seg"><button data-va="board" class="' + (VT.ansicht === 'board' ? 'on' : '') + '">Board</button><button data-va="liste" class="' + (VT.ansicht === 'liste' ? 'on' : '') + '">Liste</button></div></div>' +
+      (VT.ansicht === 'board' ? '<div class="vboard">' + stufen.map(([s, l, f]) => {
+        const C = L.filter(c => c.stage === s), max = VT.mehr[s] || 40;
+        const summe = C.reduce((x, c) => x + (Number(c.betrag) || 0), 0);
+        const geladen = alle.filter(c => c.stage === s).length, gesamt = an[s] ?? geladen;
+        return '<div class="vcol" data-vs="' + s + '"><h3>' + esc(l) + '<span>' + C.length + (gesamt > geladen ? ' / ' + gesamt : '') + '</span></h3><div class="vsum">' + (summe ? euroTxt(summe) : '&nbsp;') + '</div><div class="vstrich" style="background:' + f + '"></div>' +
+          C.slice(0, max).map(vKarte).join('') + (C.length > max ? '<button class="vmehr" data-vm="' + s + '">+ ' + (C.length - max) + ' weitere anzeigen</button>' : '') +
+          (gesamt > geladen ? '<div class="small muted" style="padding:4px">Die neuesten ' + geladen + ' von ' + gesamt + ' – den Rest in Twenty.</div>' : '') + '</div>';
+      }).join('') + '</div>'
+        : '<div class="card" style="overflow-x:auto"><table class="vtab"><thead><tr><th>Name</th><th>Stufe</th><th>Kontakt</th><th>Zuständig</th><th>Follow-up</th><th>Wert</th></tr></thead><tbody>' +
+          L.filter(c => !(VT.zu && VZU.includes(c.stage))).sort((a, b) => String(b.geaendert).localeCompare(String(a.geaendert))).slice(0, 400).map(c => '<tr class="klick" data-vc="' + esc(c.id) + '"><td><b>' + esc(c.name || '–') + '</b>' + (c.ig ? ' <span class="chip ig">IG</span>' : '') + '</td><td>' + esc(vLabel(c.stage)) + '</td><td>' + esc((c.kontakt || {}).name || '') + '<div class="small muted">' + esc((c.kontakt || {}).email || '') + '</div></td><td>' + esc((vMitglied(c.ownerId) || {}).name || '–') + '</td><td>' + (c.naechsterFollowup ? '<span class="chip fu' + (fuFaellig(c) ? ' weg' : '') + '">' + fmtD(tagIso(c.naechsterFollowup)) + '</span>' : '') + '</td><td>' + euroTxt(c.betrag) + '</td></tr>').join('') +
+          '</tbody></table>' + (L.length ? '' : '<p class="empty">Keine Treffer.</p>') + '</div>') +
+      '<p class="small muted">Stand ' + fmtDT(VT.d.stand) + ' · ' + (VT.d.gesamt || 0) + ' Verkaufschancen in Twenty. Karten per Ziehen in eine andere Spalte verschieben oder anklicken zum Bearbeiten.</p>';
+    $('#vneu').onclick = () => chanceDialog(null);
+    $('#vneu_laden').onclick = () => { VT.d = null; vVertrieb(); };
+    let tq; $('#vq').oninput = e => { VT.q = e.target.value; clearTimeout(tq); tq = setTimeout(() => { const p = e.target.selectionStart; vVertrieb(); const i = $('#vq'); i.focus(); try { i.setSelectionRange(p, p); } catch (x) {} }, 250); };
+    $('#vown').onchange = e => { VT.owner = e.target.value; ls.set('mt-vowner', VT.owner); vVertrieb(); };
+    $('#vzu').onchange = e => { VT.zu = e.target.checked; ls.set('mt-vzu', VT.zu ? '1' : '0'); vVertrieb(); };
+    document.querySelectorAll('[data-va]').forEach(b => b.onclick = () => { VT.ansicht = b.dataset.va; ls.set('mt-vans', VT.ansicht); vVertrieb(); });
+    document.querySelectorAll('[data-vm]').forEach(b => b.onclick = () => { VT.mehr[b.dataset.vm] = (VT.mehr[b.dataset.vm] || 40) + 100; vVertrieb(); });
+    document.querySelectorAll('[data-vc]').forEach(e => e.onclick = () => { const c = alle.find(x => x.id === e.dataset.vc); if (c) chanceDialog(c); });
+    // Ziehen und Ablegen zwischen den Spalten
+    let gezogen = null;
+    document.querySelectorAll('.vcard').forEach(k => {
+      k.addEventListener('dragstart', ev => { gezogen = k.dataset.vc; k.classList.add('zieht'); try { ev.dataTransfer.setData('text/plain', gezogen); ev.dataTransfer.effectAllowed = 'move'; } catch (x) {} });
+      k.addEventListener('dragend', () => { k.classList.remove('zieht'); document.querySelectorAll('.vcol.drop').forEach(c => c.classList.remove('drop')); });
+    });
+    document.querySelectorAll('.vcol').forEach(col => {
+      col.addEventListener('dragover', ev => { ev.preventDefault(); col.classList.add('drop'); });
+      col.addEventListener('dragleave', ev => { if (!col.contains(ev.relatedTarget)) col.classList.remove('drop'); });
+      col.addEventListener('drop', async ev => {
+        ev.preventDefault(); col.classList.remove('drop');
+        const id = gezogen || (ev.dataTransfer && ev.dataTransfer.getData('text/plain')); gezogen = null;
+        const c = alle.find(x => x.id === id), s = col.dataset.vs;
+        if (!c || c.stage === s) return;
+        await vStufe(c, s);
+      });
+    });
+  }
+  async function vStufe(c, s) {
+    const alt = c.stage; c.stage = s; if (tab === 'vertrieb') vVertrieb();
+    try { await vApi('stufe', { id: c.id, stage: s }); toast('„' + (c.name || 'Lead') + '“ → ' + vLabel(s)); }
+    catch (e) { c.stage = alt; if (tab === 'vertrieb') vVertrieb(); toast(e.message); }
+  }
+  function chanceDialog(c) {
+    const neu = !c;
+    c = c || { name: '', stage: 'NEW', betrag: null, ownerId: '', naechsterFollowup: '', closeDate: '', kontakt: null };
+    const mOpts = '<option value="">– niemand –</option>' + ((VT.d && VT.d.mitglieder) || []).map(m => '<option value="' + esc(m.id) + '"' + (m.id === c.ownerId ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('');
+    let k = c.kontakt;
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Verkaufschance' : esc(c.name || 'Verkaufschance')) + '</h2><form id="vf">' +
+      '<div class="f"><label for="v_name">Name (z. B. Person oder Firma)</label><input id="v_name" maxlength="120" value="' + esc(c.name) + '"' + (neu ? '' : ' required') + ' placeholder="' + (neu ? 'leer = Name des Kontakts' : '') + '"></div>' +
+      '<div class="f2"><div class="f"><label for="v_st">Stufe</label><select id="v_st">' + VSTUFEN.map(([s, l]) => '<option value="' + s + '"' + (s === c.stage ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select></div>' +
+      '<div class="f"><label for="v_own">Zuständig (in Twenty)</label><select id="v_own">' + mOpts + '</select></div>' +
+      '<div class="f"><label for="v_fu">Nächster Follow-up</label><input id="v_fu" type="date" value="' + esc(tagIso(c.naechsterFollowup)) + '"></div>' +
+      '<div class="f"><label for="v_bt">Wert in €</label><input id="v_bt" inputmode="decimal" value="' + (c.betrag == null ? '' : esc(String(c.betrag).replace('.', ','))) + '" placeholder="z. B. 2500"></div></div>' +
+      '<h3 style="margin-top:6px">Kontakt</h3><div id="v_kbox"></div>' +
+      '<div class="dlgbtns">' + (!neu ? '<a class="btn sec left" href="' + TWENTY + '/object/opportunity/' + esc(c.id) + '" target="_blank" rel="noopener" style="text-decoration:none">In Twenty öffnen ↗</a>' : '') + '<button type="button" class="btn sec" id="v_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>' +
+      (neu ? '' : '<div class="verlauf"><h3>Aktivitäten</h3>' +
+        '<div class="f2"><div class="f"><label for="v_art">Art</label><select id="v_art"><option value="anruf">📞 Anruf</option><option value="notiz">📝 Notiz</option><option value="termin">📆 Termin</option><option value="mail">✉️ E-Mail</option></select></div><div></div></div>' +
+        '<div class="f"><textarea id="v_ntext" rows="3" maxlength="50000" placeholder="Was wurde besprochen? Nächste Schritte?"></textarea></div>' +
+        '<div class="dlgbtns" style="margin-top:-4px"><button type="button" class="btn sec" id="v_nsave">Aktivität speichern</button></div>' +
+        '<div class="vbald">🎙️ <b>Gespräch aufnehmen &amp; zusammenfassen</b> – kommt als Nächstes: Aufnahme oder Transkript hochladen, die KI fasst zusammen und legt die Zusammenfassung hier als Aktivität ab.</div>' +
+        '<div id="v_notizen"><p class="small muted">Lade Aktivitäten …</p></div></div>');
+    const dlg = openDlg(true);
+    let kontakt = k ? { id: k.id } : {};
+    function kBox(modus) {
+      const b = $('#v_kbox');
+      if (k && modus !== 'neu') {
+        b.innerHTML = '<div class="vkontakt"><b>' + esc(k.name || '–') + '</b>' + (k.email ? '<br><a href="mailto:' + esc(k.email) + '">' + esc(k.email) + '</a>' : '') + (k.telefon ? '<br><a href="tel:' + esc(k.telefon) + '">' + esc(k.telefon) + '</a>' : '') +
+          '<div class="small" style="margin-top:6px"><a href="' + TWENTY + '/object/person/' + esc(k.id) + '" target="_blank" rel="noopener">Kontakt in Twenty ↗</a> · <a href="#" id="v_kwechsel">anderen Kontakt wählen</a></div></div>';
+        $('#v_kwechsel').onclick = ev => { ev.preventDefault(); k = null; kontakt = {}; kBox('suche'); };
+        return;
+      }
+      b.innerHTML = '<div class="f"><label for="v_ks">Vorhandenen Kontakt aus Twenty suchen</label><input id="v_ks" placeholder="Name oder E-Mail (mind. 2 Zeichen)" autocomplete="off"><div id="v_kt"></div></div>' +
+        '<p class="small muted" style="margin:-4px 0 6px">… oder neuen Kontakt anlegen:</p>' +
+        '<div class="f2"><div class="f"><label for="v_kv">Vorname</label><input id="v_kv" maxlength="60"></div><div class="f"><label for="v_kn">Nachname</label><input id="v_kn" maxlength="80"></div>' +
+        '<div class="f"><label for="v_ke">E-Mail</label><input id="v_ke" type="email" maxlength="120"></div><div class="f"><label for="v_kp">Telefon</label><input id="v_kp" type="tel" maxlength="30" placeholder="+49 …"></div></div>';
+      let t;
+      $('#v_ks').oninput = e => {
+        clearTimeout(t); const q = e.target.value.trim();
+        if (q.length < 2) { $('#v_kt').innerHTML = ''; return; }
+        t = setTimeout(async () => {
+          try {
+            const r = await vApi('kontakt_suchen', { q });
+            $('#v_kt').innerHTML = (r.kontakte || []).length ? '<div class="vtreffer">' + r.kontakte.map((x, i) => '<button type="button" data-ki="' + i + '"><b>' + esc(x.name || '–') + '</b> <span class="small muted">' + esc(x.email || x.telefon || '') + '</span></button>').join('') + '</div>' : '<p class="small muted">Kein Kontakt gefunden – unten neu anlegen.</p>';
+            document.querySelectorAll('[data-ki]').forEach(bt => bt.onclick = () => { k = r.kontakte[Number(bt.dataset.ki)]; kontakt = { id: k.id }; if (!$('#v_name').value) $('#v_name').value = k.name; kBox(); });
+          } catch (x) { $('#v_kt').innerHTML = '<p class="small muted">' + esc(x.message) + '</p>'; }
+        }, 300);
+      };
+    }
+    kBox();
+    $('#v_c').onclick = () => dlg.close();
+    $('#vf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const daten = { id: neu ? '' : c.id, name: $('#v_name').value, stage: $('#v_st').value, ownerId: $('#v_own').value, naechsterFollowup: $('#v_fu').value, betrag: $('#v_bt').value };
+      if (kontakt.id) daten.kontakt = { id: kontakt.id };
+      else if ($('#v_kv') && ($('#v_kv').value.trim() || $('#v_kn').value.trim())) daten.kontakt = { vorname: $('#v_kv').value, nachname: $('#v_kn').value, email: $('#v_ke').value, telefon: $('#v_kp').value };
+      if (neu && !daten.name.trim() && !daten.kontakt) { toast('Bitte einen Namen oder einen Kontakt angeben.'); btn.disabled = false; return; }
+      try { await vApi('speichern', daten); dlg.close(); toast('In Twenty gespeichert'); VT.d = null; vVertrieb(); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+    if (neu) return;
+    async function notizenLaden() {
+      try {
+        const r = await vApi('details', { id: c.id });
+        const N = r.notizen || [];
+        $('#v_notizen').innerHTML = (r.verlauf ? '<details class="vnotiz"><summary class="small"><b>Instagram-Verlauf</b> (vom Setter-Bot)</summary><div class="small md" style="margin-top:6px">' + md(r.verlauf) + '</div></details>' : '') +
+          (N.length ? N.map(n => '<div class="vnotiz"><div class="kopf">' + esc(n.titel || 'Notiz') + ' · ' + fmtDT(n.erstellt) + '</div><div class="small md">' + md(n.text) + '</div></div>').join('') : '<p class="small muted">Noch keine Aktivitäten.</p>');
+      } catch (e) { $('#v_notizen').innerHTML = '<p class="small muted">' + esc(e.message) + '</p>'; }
+    }
+    notizenLaden();
+    $('#v_nsave').onclick = async ev => {
+      const text = $('#v_ntext').value.trim(); if (text.length < 2) return toast('Bitte kurz aufschreiben, was besprochen wurde.');
+      ev.target.disabled = true;
+      try { await vApi('notiz', { id: c.id, personId: (c.kontakt || {}).id || '', art: $('#v_art').value, text }); $('#v_ntext').value = ''; dlgGeaendert = false; toast('Aktivität in Twenty gespeichert'); c.notizen = (c.notizen || 0) + 1; c.letzterKontakt = new Date().toISOString(); notizenLaden(); }
+      catch (e) { toast(e.message); }
+      ev.target.disabled = false;
+    };
   }
 
   // ---------- Projekte ----------
