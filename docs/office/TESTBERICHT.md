@@ -205,7 +205,30 @@ Befund beim ersten Test: Für alle Aufträge seit 17.10.2026 16:06 Uhr fehlte de
 
 Nicht getestet: Wiederholung nach Fehlschlag über die Office-API, Abbruch eines laufenden Text-Runs, sehr lange Antworten über `max_tokens`.
 
-## 14. Nachtrag 18.10.2026: Abholer für Claude-Code-Agenten (Branch `feature/ki-office-claude-code-ausfuehrer`, KI-erstellt: Claude Code)
+## 14. Nachtrag 18.10.2026 (Nacht): Ausführer des Orchestrierers Ende-zu-Ende (KI-erstellt: Claude Code)
+
+Echte Systeme (Supabase, n8n), kein Testadapter. Ausführer: „TEAM: Office-Ausführer orchestrierer“ (ID `D0jPTU1LjNzhGfyI`). Aufträge mit dem Token von `agent-claude` über einen temporären Hilfs-Workflow angelegt (danach archiviert). Projekt „Momentum Office“, alle Teilaufträge per `@verwaltung-status:` an den Agenten mit vorhandenem Ausführer.
+
+| Schritt | Ergebnis |
+|---|---|
+| Lokale Tests der Code-Knoten (`unit.ausfuehrer-orchestrierer.test.mjs`, vm-Sandbox gegen den Testspeicher) | 7 von 7: Zerlegung (Zeilen, Semikolons, Aufzählungszeichen, `@agent-id`, Kandidaten in Registry-Reihenfolge), Abbruch bei leerer Zerlegung, unbekanntem, fremdem oder delegierendem Agenten, Zuordnung der Delegationsantworten, Zusammenführen erst nach dem letzten Kind, Fehlertext bei abgebrochenem Kind und bei nicht delegierten Teilen, Zugangsdaten-Filter, zwei Teams in einem Lauf getrennt, Datei-Hygiene, Schleife in Office-API und Ausführer |
+| `validate_workflow` | gültig (33 Knoten, nach dem Umbau 34) |
+| Registry: `ausfuehrer_url`, dann `ausfuehrer = n8n` gesetzt (PATCH per Hilfs-Workflow, Executions 21278 und 21376) | HTTP 200, `konfig_version` 3, `geaendert_von = agent-claude` |
+| Versuch 1 (`run_mvcxzknfbc2608`) | HTTP 409 von der Office-API: `office_run_schluessel` verletzt den Fremdschlüssel. Run angelegt, Schlüssel fehlt, Ausführer nie angestoßen. Ursache: gleichzeitige Schreibaufträge der Office-API (siehe unten). Der Run endet ohne Eingriff als „unbekannt/veraltet“ |
+| Versuch 2 (`run_mvcy6j1h38b1e6`), Office-API mit Batching 1 / 250 ms | Run übernommen, Zerlegung in 2 Teile, Ereignisse `aufgaben_lesen` und `registry_lesen`. Die beiden Delegationen liefen gleichzeitig: Teil 2 (`run_mvcy6lai08299a`) abgeschlossen in 4 s; Teil 1 (`run_mvcy6l9g222c9d`) angelegt, aber 409 (`office_ereignisse` vor `office_runs`), nie angestoßen. Ereignis „1 Teilaufträge delegiert, 1 nicht delegiert“ mit Fehler in den Details. Ausführer-Execution 21305 |
+| Korrekturen | Office-API: Schleife „Nacheinander schreiben“ (Timos Ja, live, Version 194265d8, ins Repo mit PR #10). Ausführer: Schleife „Nacheinander delegieren“ |
+| Versuch 3 (`run_mvcyf16j5155dd`), 3 Zeilen gemischt mit Zeilenumbruch und Semikolon | 22:14:24 angelegt · 22:14:26 in Arbeit · 22:14:27 `tool aufgaben_lesen` · 22:14:28 `tool registry_lesen` · 22:14:28/30/32 je ein `auftrag_delegieren` (Kinder `run_mvcyf49u4b017f`, `run_mvcyf5dgaaca97`, `run_mvcyf6n76ee3dc`, Team `team-run_mvcyf16j5155dd`, Schlüssel `deleg-…-1/2/3`) · 22:14:33 „3 Teilaufträge delegiert“ · Kinder abgeschlossen 22:14:34/35/37 (verwaltung-status, Executions 21344, 21349, 21355) · Zeitplanlauf 22:15: `schritt` „Teilergebnisse zusammengeführt: 3 von 3 Teilaufträgen abgeschlossen, Notiz gespeichert“ (`tool notiz_speichern`, `quelle_ref team_notizen/n_office_teamergebnis_run_mvcyf16j5155dd`) · 22:15:55 in Arbeit → abgeschlossen. Ausführer-Execution 21338 |
+| Ergebnis von Versuch 3 | Notiz „Teamergebnis run_mvcyf16j5155dd“ im Projekt „Momentum Office“ (2446 Zeichen, drei Abschnitte „Teil n – Verwaltungs-Status (abgeschlossen)“ mit Auftrag, Ergebnis, Ablageort, Kind-Run). Artefakt `art_mvcygyme20551b` (`art = notiz`). Zusammenfassung des Runs = Status je Teil plus Ablageort. Kein Modellaufruf, Verbrauch „unbekannt“ |
+
+Die Läufe der Ausführer selbst sind in n8n nicht sichtbar, weil erfolgreiche Läufe absichtlich nicht gespeichert werden (Token in Knotenausgaben). Die Execution-IDs stehen in den Ereignis-Details der Runs.
+
+Befund Office-API: Seit 17.10.2026 16:06 Uhr fehlte bei jedem neuen Auftrag der Rückmelde-Schlüssel, weil der HTTP-Knoten „In Supabase schreiben“ alle Schreibaufträge einer Aktion gleichzeitig abschickt. Das Batching der Hauptsitzung (Abschnitt 13) startet die Anfragen nur zeitversetzt und wartet nicht auf die Antwort; bei zwei gleichzeitigen Aufrufen scheiterte Teil 1 von Versuch 2 deshalb trotzdem. Mit der Schleife lief Versuch 3 ohne Fehler.
+
+Gesamtlauf `npm run test:office` (Windows 11, Node 24, Playwright-Chromium): **83 von 83 bestanden**, 86 s.
+
+Nicht im Office-Browser geprüft: Ich habe keinen eigenen Zugang zum Office im Browser (persönlicher Token-Link). Die Darstellung (Team-Run in der Zentrale, Teilaufträge, Teamlinien) ist mit Testdaten in den Browsertests abgedeckt (Abschnitt 10). Live liefert `laden` dieselben Felder (`eltern_run_id`, `team_id`); bitte einmal im Office den Run `run_mvcyf16j5155dd` öffnen.
+
+## 15. Nachtrag 18.10.2026: Abholer für Claude-Code-Agenten (Branch `feature/ki-office-claude-code-ausfuehrer`, KI-erstellt: Claude Code)
 
 **Wichtig: Live-Test offen, wartet auf `TEAM_PORTAL_TOKEN`.** Auf dem Rechner ist die Variable nicht gesetzt; ein Agenten-Token wurde bewusst nicht aus Supabase geholt. Getestet wurde gegen den **Testadapter** (synthetische Daten), nicht gegen die Produktion.
 
