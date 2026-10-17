@@ -74,3 +74,18 @@ Browser: Der Test nutzt `playwright` (global oder lokal), sonst `puppeteer-core`
 - Der Testadapter leitet Verhalten aus Stichwörtern im Auftragstext ab („langsam“, „verspätet“, „nie übernehmen“, „fehler“, „rückfrage“, „e-mail/post/zahlung“). Das ist Simulation, kein Modellverhalten.
 - Die virtuelle Uhr läuft mit `--tempo 10` zehnmal schneller als echt; in den Tests ist sie eingefroren und wird per Testendpunkt vorgestellt.
 - `/api/team` bildet nur `laden` der Portal-API nach, damit das Portal-Register lokal geprüft werden kann; alle Schreibaktionen des Portals bleiben ungetestet.
+
+## 7. Nachprüfung auf Windows (17.10.2026, Claude Code lokal)
+
+Unabhängig vom Cloud-Lauf wurde der Branch auf Windows 11 (Node 24.18, Chrome 141 bzw. Playwright-Chromium 1.56.1) erneut geprüft.
+
+| Lauf | Ergebnis |
+|---|---|
+| `npm run test:office` mit Playwright (lokal installiert, nicht in package.json) | 55/55 bestanden, auch nach dem Merge von `main` (Reiter „Vertrieb“) |
+| Erstlauf mit Standard-Git-Checkout (`core.autocrlf=true`) | `n8n-buendel` schlug fehl: CRLF im Arbeitsverzeichnis ergab ein anderes Bündel. Behoben durch `.gitattributes` (LF für Quelltext) und CRLF-Normalisierung in `bauen.mjs` und im Test. Gegenprobe mit `autocrlf=true`: bestanden |
+| Browsertests über den Puppeteer-Ersatzpfad (`CHROME_PFAD`, ohne Playwright) | 4/7. Die Brücke in `office/test/browser.mjs` deckt Playwright-Aufrufe nur teilweise ab (Fehlerzustände, Portal-Register, JS-Fehler-Sammlung). Playwright ist der Referenzpfad; der Ersatzpfad ist ein Restpunkt |
+| Sichtprüfung im Browser (Desktop und Mobil 375 px): Projekte, Agenten, Büro, Freigaben, Run-Zeitleiste | funktioniert; Testadapter-Hinweis überall sichtbar, keine erfundenen Prozente, Freigabe an Inhalts-Hash gebunden, Rückverfolgung Ergebnis → Run → Aufgabe → Projekt angezeigt |
+| Secret-Muster im Branch-Diff, externe Skriptquellen in `docs/office/` | keine Treffer; einzige externe Adresse ist der n8n-Webhook |
+| Merge-Test gegen `main` | zwei Konflikte in `docs/team/index.html` (Reiterliste und Ansichten-Zuordnung, beide Seiten hatten die Zeile geändert). Aufgelöst: „Vertrieb“ und „KI Office“ stehen nebeneinander, Vertriebs-Rechteprüfung von `main` bleibt |
+
+Weiterhin ungetestet: alles aus Abschnitt 5 (Supabase, n8n, Modelle). Die Browsertests schreiben die Screenshots bei jedem Lauf neu; die eingecheckten Bilder stammen aus dem Cloud-Lauf (Linux-Rendering).
