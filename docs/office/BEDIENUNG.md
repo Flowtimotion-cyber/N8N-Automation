@@ -41,3 +41,16 @@ Das Büro ist eine isometrische Szene: fünf schwebende Räume um die Zentrale. 
 - Auf dem Handy lässt sich die Szene seitlich schieben.
 
 **Im Team-Portal** erscheint das Büro direkt auf der Übersicht (nur Szene und Live-Panel) und das komplette Office im Register „KI Office“. Beides ist dieselbe Office-Seite, nur eingebettet; du bist dort automatisch angemeldet.
+
+## Orchestrierer und Teams (Stand 17.10.2026)
+
+Der **Orchestrierer** führt selbst nichts aus. Er bekommt einen Auftrag wie jeder Agent („+ Auftrag an Agent“ → Orchestrierer, Projekt wählen), zerlegt ihn und delegiert Teilaufträge an Agenten, die dem Projekt zugeordnet sind. Jeder Teilauftrag ist ein eigener Run mit eigener Zeitleiste, eigenen Ergebnissen und eigener fachlicher Abnahme.
+
+- **Run-Detail des Orchestrierers:** Block „Teilaufträge (n)“ mit jedem Teilauftrag als eingerücktem Zweig (Status, Agent, Projekt, Link). Chip „Team: n Teilaufträge, m offen“. Der Team-Run gilt erst als technisch abgeschlossen, wenn alle Teilaufträge beendet sind.
+- **Run-Detail eines Teilauftrags:** Oben „Teil von ↑ …“ führt zum Eltern-Run. Chip „Teilauftrag“.
+- **Projekt-Detail und Agenten-Übersicht:** Teilaufträge stehen eingerückt unter ihrem Eltern-Run und werden nur einmal gezählt, nämlich im Projekt des Teilauftrags.
+- **Agenten-Register:** Beim Orchestrierer steht „delegiert: n Teilaufträge“.
+- **Virtuelles Büro:** Der Orchestrierer sitzt in der Zentrale, nicht in einem Raum. Läuft ein Team, fließen rosa Linien von der Zentrale zu den beteiligten Figuren; die Legende und der Abschnitt „Zentrale“ in der Liste nennen das Team mit seinen Mitgliedern. Mit „Bewegung reduzieren“ stehen die Linien still.
+- **Abbrechen:** Ein Abbruch des Team-Runs bricht die Teilaufträge nicht automatisch ab; sie laufen zu Ende oder werden einzeln abgebrochen.
+
+Was der Orchestrierer nicht darf: über Projektgrenzen delegieren, an Agenten delegieren, die dem Projekt nicht zugeordnet sind, externe Aktionen auslösen, Freigaben erteilen oder abnehmen. Das prüft die Office-API serverseitig.

@@ -75,3 +75,24 @@ test('Szenario leer: keine Runs, keine Freigaben', async () => {
   const a = await office(TOKENS.m_timo, 'laden'); assert.equal(a.j.runs.length, 0); assert.equal(a.j.freigaben.length, 0); assert.ok(a.j.agenten.length > 0);
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
 });
+test('Orchestrierung über HTTP: Team-Run delegiert Teilaufträge, Eltern-Run erst fertig, wenn die Kinder fertig sind', async () => {
+  const r = await office(TOKENS.m_timo, 'auftrag_starten', { agent_id: 'orchestrierer', projekt: 'Webseite', auftrag: 'HTTP: Landingpage überarbeiten und prüfen lassen', idempotenzschluessel: 'http-team-00001' });
+  assert.equal(r.status, 200); assert.equal(r.j.eltern_run_id, null); assert.equal(r.j.team_id, null);
+  await post(S.base, '/api/test/zeit', { sek: 10 });   // Testadapter: Orchestrierer übernimmt, liest Aufgaben und Registry, delegiert
+  let z = await fetch(S.base + '/api/test/zustand').then(x => x.json());
+  const kinder = () => z.tabellen.office_runs.filter(x => x.eltern_run_id === r.j.run_id);
+  assert.equal(kinder().length, 2, 'zwei Teilaufträge (marketing-texter, architektur-review)');
+  assert.ok(kinder().every(k => k.team_id === 'team-' + r.j.run_id && k.projekt === 'Webseite'));
+  assert.ok(z.tabellen.office_ereignisse.some(e => e.run_id === r.j.run_id && e.tool === 'auftrag_delegieren'));
+  // Eltern-Run kann nicht abgeschlossen werden, solange Kinder laufen (409); fremder Agent darf nicht delegieren (403)
+  const zu = await office(TOKENS['agent-claude'], 'run_beenden', { run_id: r.j.run_id, status: 'abgeschlossen', zusammenfassung: 'zu früh' });
+  assert.equal(zu.status, 409); assert.equal(zu.j.offene_kind_runs.length, 2);
+  assert.equal((await office(TOKENS['agent-hermes'], 'auftrag_delegieren', { eltern_run_id: r.j.run_id, agent_id: 'marketing-texter', auftrag: 'Einmischung', idempotenzschluessel: 'http-team-fremd-1' })).status, 403);
+  // laden liefert eltern_run_id und team_id; Kinder laufen zu Ende, der Orchestrierer führt zusammen
+  const L = await office(TOKENS.m_timo, 'laden');
+  assert.ok(L.j.runs.filter(x => x.eltern_run_id === r.j.run_id).length === 2);
+  for (let i = 0; i < 6; i++) await post(S.base, '/api/test/zeit', { sek: 30 });
+  z = await fetch(S.base + '/api/test/zustand').then(x => x.json());
+  assert.ok(kinder().every(k => k.status === 'abgeschlossen'), JSON.stringify(kinder().map(k => k.status)));
+  assert.equal(z.tabellen.office_runs.find(x => x.run_id === r.j.run_id).status, 'abgeschlossen');
+});

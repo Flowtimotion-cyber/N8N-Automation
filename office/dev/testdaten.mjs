@@ -126,6 +126,10 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const r10 = start1('m_lillien', 'social-planer', 'Social Media', 'a_s2', 'Redaktionsplan November vorbereiten', 'td-r10');
   tick(5);
   mensch('m_lillien', 'run_abbrechen', { run_id: r10, grund: 'Thema wird nächste Woche neu besprochen.' });
+  // 13) Team-Run des Orchestrierers (Akademie-Kurs): zwei Teilaufträge, der erste abgeschlossen, der zweite noch in Arbeit (Stichwort „langsam“)
+  const r13 = start1('m_timo', 'orchestrierer', 'Akademie-Kurs', null, 'Modul 1.2 fertigstellen: Merkblatt und Kursstatus an die passenden Agenten verteilen, zweiter Teilauftrag läuft langsam', 'td-r13');
+  for (let i = 0; i < 4; i++) tick(25);   // Delegation nach 5 s, Kind 1 fertig nach ~85 s, Kind 2 meldet sich einmal und schweigt
+  const kinder13 = sp.T.office_runs.filter(r => r.eltern_run_id === r13).map(r => r.run_id);
   // 11) Warteschlange (frisch)
   const r11 = start1('m_timo', 'architektur-review', 'Kundenprojekt Müller GmbH', 'a_m2', 'Datenfluss des Angebots-Workflows begutachten', 'td-r11');
   // 12) Frischer Lauf in Arbeit mit Ereignissen (für die Zeitleiste)
@@ -134,5 +138,5 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   // Uhr auf „jetzt“ bringen (restliche Zeit), ohne weitere Wartung, damit r7/r12 je nach Dauer sichtbar bleiben
   const rest = Math.max(0, (jetzt ? new Date(jetzt).getTime() : Date.now()) - uhr.ms);
   uhr.vor(rest / 1000);
-  return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12 } };
+  return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, kinder13 } };
 }

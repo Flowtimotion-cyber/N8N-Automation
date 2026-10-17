@@ -92,3 +92,22 @@ Hinweis zur Schnittstelle: `update_workflow` kann Credentials an HTTP-Knoten set
 - **Einen Auftrag starten:** im KI Office beim Agenten „Verwaltungs-Status“ einen Auftrag anlegen (beliebiges Projekt aus seiner Liste, z. B. „Momentum Office“). Nach etwa 5 Sekunden steht der Run auf „abgeschlossen“, das Ergebnis liegt als Notiz „Wochenstand KW …/… – KI Office (Verwaltungs-Status)“ im gewählten Projekt.
 - **Glättung einschalten (kostet Geld):** im Workflow im Knoten „Einstellungen“ `glaettung` auf `true` setzen. Modell dort ebenfalls (`gpt-5-mini`). Standard ist AUS; die Antwort wird nur übernommen, wenn keine Zahl verändert wurde.
 - **Weiteren n8n-Ausführer anlegen:** Datei kopieren, Webhook-Pfad (`office-ausfuehrer-<agent>`), `mitglied_id`, Werkzeugknoten und Ereignisse anpassen; `validate_workflow` → `create_workflow_from_code` → `update_workflow` (Credentials, Einstellungen) → `publish_workflow`; dann `ausfuehrer_url` in der Registry setzen (als Admin per `agent_speichern` oder PATCH auf `office_agenten`). Für die SDK-Datei gilt: keine Pfeilfunktionen außerhalb der Code-Knoten-Strings, Verzweigungen als `.add(knoten.output(n).to(ziel))`.
+
+## 9. Orchestrierung einspielen (Branch `feature/ki-office-orchestrierer`, 17.10.2026)
+
+Zwei Handgriffe von dir, nichts davon macht der Branch allein. Reihenfolge: erst Supabase, dann n8n.
+
+1. **Supabase:** `supabase/team_office.sql` erneut im SQL Editor ausführen (Run). Die Datei ist weiterhin idempotent; neu sind nur `alter table office_runs add column if not exists eltern_run_id …`, `… team_id text` und zwei Teilindizes (Abschnitt 2a). Bestehende Runs behalten `null`. Kontrolle: `select column_name from information_schema.columns where table_name = 'office_runs' and column_name in ('eltern_run_id','team_id');` muss zwei Zeilen liefern. `team_laden()` liefert die neuen Spalten automatisch mit (`to_jsonb`).
+2. **n8n, Workflow „TEAM: Office-API“ (ID `NuK6m10yIGKMRWxC`):** den Code-Knoten **„Anfrage prüfen“** öffnen und den Inhalt durch `office/n8n/code/anfrage-pruefen.js` ersetzen (Datei komplett kopieren; sie ist mit `node office/n8n/bauen.mjs` aus `office/lib/*.js` erzeugt). Alternativ `office/n8n/office-api.workflow.json` neu importieren, dann aber Credentials in „Team-Daten laden“ und „In Supabase schreiben“ erneut wählen und den alten Workflow deaktivieren. Speichern, Workflow bleibt aktiv.
+3. **Prüfen:** Office öffnen, Agenten-Register → „Orchestrierer“ zeigt „delegiert: 0 Teilaufträge“; im Büro sitzt der Orchestrierer in der Zentrale. Ein echter Team-Lauf braucht einen Ausführer für den Orchestrierer (Claude Code oder n8n), der `auftrag_delegieren` aufruft; den gibt es noch nicht (RESTPUNKTE.md). Ohne Ausführer bleibt ein Auftrag an den Orchestrierer nach 30 Minuten als „unbekannt/veraltet“ stehen, wie bei jedem Agenten ohne Ausführer.
+
+Was ein Ausführer des Orchestrierers aufruft (alles mit seinem Agenten-Token; Projekt = Projekt des Eltern-Runs, wenn nicht angegeben):
+
+```
+POST …/webhook/office-api
+{ "token": "<Agenten-Token>", "aktion": "auftrag_delegieren",
+  "daten": { "eltern_run_id": "<eigener run_id>", "agent_id": "marketing-texter", "projekt": "Webseite",
+             "auftrag": "Teil 1: …", "team_id": "team-<run_id>", "idempotenzschluessel": "deleg-<run_id>-1" } }
+```
+
+Antwort: `run_id` des Teilauftrags, `eltern_run_id`, `team_id`, einmalig `rueckmelde_schluessel`. Danach wartet der Orchestrierer (offene Teilaufträge zählen als sein Lebenszeichen) und meldet `run_beenden` erst, wenn alle Teilaufträge beendet sind, sonst antwortet die API mit 409.
