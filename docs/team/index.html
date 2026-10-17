@@ -247,6 +247,27 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .vtreffer button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:#fff;padding:7px 10px;cursor:pointer}
 .vtreffer button:hover{background:var(--soft)}
 .vkontakt{background:var(--soft);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:14px}
+.dash{margin-bottom:16px}
+.dash .dhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.dash .dtabs{display:flex;gap:6px;flex-wrap:wrap}
+.dash .dtabs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-weight:600;color:var(--mut);cursor:pointer}
+.dash .dtabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.dgrid .card{margin-bottom:0}
+.dmini{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.dmini .kpi b{font-size:24px}
+.cchart{width:100%;height:auto;display:block;overflow:visible}
+.cchart .bar{fill:var(--acc)}
+.cchart .bar.alt{fill:var(--teal)}
+.cchart g:hover .bar{opacity:.75}
+.cchart text{font-size:11.5px;fill:var(--mut)}
+.cchart .val{fill:var(--ink);font-weight:600}
+.cchart .grid{stroke:var(--line);stroke-width:1}
+.funnel .row{display:grid;grid-template-columns:minmax(120px,38%) 1fr auto;gap:10px;align-items:center;margin:7px 0;font-size:14px}
+.funnel .bt{height:16px;background:var(--soft);border-radius:6px;overflow:hidden}
+.funnel .bt i{display:block;height:100%;background:linear-gradient(90deg,#9B4DF0,#5B6EE6);border-radius:6px}
+.funnel .q{color:var(--mut);font-size:12px;margin-left:4px}
+.dhint{font-size:12.5px;color:var(--mut);margin:6px 0 0}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
@@ -550,6 +571,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
       (meine.length ? meine.slice(0, 7).map(taskRow).join('') : '<p class="empty">Nichts offen. Stark!</p>') +
@@ -561,6 +583,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     bindTasks(); bindPosts();
     document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
     const n = $('[data-neu]'); if (n) n.onclick = () => aufgabeDialog(null);
+    dashBind();
   }
   const kpi = (n, l, warn) => '<div class="kpi' + (warn ? ' warn' : '') + '"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
 
@@ -1139,6 +1162,262 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       catch (e) { toast(e.message); }
       ev.target.disabled = false;
     };
+  }
+
+  // ---------- Dashboard (Übersicht) ----------
+  const DB = { tab: ls.get('mt-dash') || 'team', vLaedt: false };
+  const wochenStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); const wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); return x; };
+  const kwNr = d => { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const j = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - j) / 864e5 + 1) / 7); };
+  // Zählt Einträge je Kalenderwoche (letzte n Wochen, aktuelle zuletzt)
+  function proWoche(liste, datumVon, n) {
+    const start = wochenStart(new Date()); start.setDate(start.getDate() - 7 * (n - 1));
+    const W = []; for (let i = 0; i < n; i++) { const s = new Date(start); s.setDate(s.getDate() + 7 * i); W.push({ s, label: 'KW ' + kwNr(s), wert: 0 }); }
+    for (const x of liste) { const v = datumVon(x); if (!v) continue; const d = new Date(v); if (isNaN(d)) continue; const i = Math.floor((wochenStart(d) - start) / (7 * 864e5)); if (i >= 0 && i < n) W[i].wert++; }
+    return W;
+  }
+  // Säulendiagramm (eine Reihe), Hover-Tooltip über <title>
+  function saeulen(daten, einheit, alt) {
+    if (!daten.length) return '<p class="empty small">Noch keine Daten.</p>';
+    const B = Math.max(400, daten.length * 26), H = 150, unten = 20, oben = 16, max = Math.max(1, ...daten.map(d => d.wert));
+    const jedes = Math.ceil(daten.length / 12), werteZeigen = daten.length <= 14;
+    const bw = B / daten.length, w = Math.max(6, Math.min(36, bw - 8));
+    const y = v => H - unten - (v / max) * (H - unten - oben);
+    let s = '<svg class="cchart" viewBox="0 0 ' + B + ' ' + H + '" role="img"><line class="grid" x1="0" x2="' + B + '" y1="' + (H - unten) + '" y2="' + (H - unten) + '"/>';
+    daten.forEach((d, i) => {
+      const x = i * bw + (bw - w) / 2, yy = y(d.wert), h = Math.max(d.wert ? 3 : 0, H - unten - yy);
+      s += '<g><title>' + esc(d.tip || (d.label + ': ' + d.wert + ' ' + einheit)) + '</title><rect x="' + (i * bw) + '" y="0" width="' + bw + '" height="' + H + '" fill="transparent"/>' +
+        (h ? '<path class="bar' + (alt ? ' alt' : '') + '" d="M' + x + ',' + (H - unten) + 'V' + (H - unten - h + 4) + 'q0,-4 4,-4h' + (w - 8) + 'q4,0 4,4V' + (H - unten) + 'Z"/>' : '') +
+        (d.wert && (werteZeigen || d.wert === max) ? '<text class="val" x="' + (x + w / 2) + '" y="' + (H - unten - h - 4) + '" text-anchor="middle">' + d.wert + '</text>' : '') +
+        ((daten.length - 1 - i) % jedes === 0 ? '<text x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(d.label) + '</text>' : '') + '</g>';
+    });
+    return s + '</svg>';
+  }
+  function trichter(stufen) {
+    const max = Math.max(1, stufen[0] ? stufen[0][1] : 1);
+    return '<div class="funnel">' + stufen.map(([k, v], i) => '<div class="row"><span>' + esc(k) + '</span><span class="bt"><i style="width:' + Math.max(v ? 2 : 0, Math.round(v / max * 100)) + '%"></i></span><b>' + v + (i ? '<span class="q">' + (stufen[0][1] ? Math.round(v / stufen[0][1] * 1000) / 10 : 0) + ' %</span>' : '') + '</b></div>').join('') + '</div>';
+  }
+  const karte = (titel, inhalt, hinweis) => '<div class="card"><h2>' + titel + '</h2>' + inhalt + (hinweis ? '<p class="dhint">' + hinweis + '</p>' : '') + '</div>';
+
+  function dashHtml() {
+    const tabs = [['team', 'Team & Aufgaben'], ['vertrieb', 'Vertrieb'], ['kurs', 'Kurse & Teilnehmer'], ['marketing', 'Marketing'], ['web', 'Webseiten']].filter(([k]) => k !== 'vertrieb' || darfVertrieb());
+    if (!tabs.some(([k]) => k === DB.tab)) DB.tab = 'team';
+    return '<div class="dash"><div class="dhead"><h2 style="margin:0">📊 Dashboard</h2><div class="dtabs">' + tabs.map(([k, l]) => '<button data-dt="' + k + '"' + (k === DB.tab ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div></div><div id="dbody">' + dashTeil() + '</div></div>';
+  }
+  function dashBind() {
+    document.querySelectorAll('[data-dt]').forEach(b => b.onclick = () => { DB.tab = b.dataset.dt; ls.set('mt-dash', DB.tab); document.querySelectorAll('[data-dt]').forEach(x => x.classList.toggle('on', x === b)); dashSetzen(); dashNachladen(); });
+    dashNachladen();
+  }
+  function dashNachladen() {
+    if (DB.tab === 'vertrieb' && darfVertrieb() && !VT.d && !VT.laedt && !DB.vLaedt) {
+      DB.vLaedt = true;
+      vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DB.vLaedt = false; if (tab === 'start' && DB.tab === 'vertrieb' && $('#dbody')) dashSetzen(); });
+    }
+  }
+  function dashSetzen() {
+    $('#dbody').innerHTML = dashTeil();
+    $('#dbody').querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
+  }
+  function dashTeil() {
+    if (DB.tab === 'vertrieb') return dashVertrieb();
+    if (DB.tab === 'kurs') return dashKurs();
+    if (DB.tab === 'marketing') return dashMarketing();
+    if (DB.tab === 'web') return dashWeb();
+    return dashTeam();
+  }
+  function dashTeam() {
+    const A = D.aufgaben || [], offen = A.filter(a => a.status !== 'Erledigt');
+    const neu = proWoche(A, a => a.erstellt, 8), erl = proWoche(A.filter(a => a.status === 'Erledigt'), a => a.erledigt_am || (a.status === 'Erledigt' ? a.geaendert : null), 8);
+    const jePerson = {}; offen.forEach(a => { const n = mitglied(a.verantwortlich).name || 'ohne'; jePerson[n] = (jePerson[n] || 0) + 1; });
+    const jeProjekt = {}; offen.forEach(a => { const n = a.projekt || 'ohne Projekt'; jeProjekt[n] = (jeProjekt[n] || 0) + 1; });
+    const ym = new Date().toLocaleDateString('sv-SE').slice(0, 7);
+    const Z = (D.zeiten || []).filter(z => String(z.datum).slice(0, 7) === ym);
+    const std = {}; Z.forEach(z => { const n = mitglied(z.mitglied_id).name || z.mitglied_id; std[n] = (std[n] || 0) + (Number(z.minuten) || 0); });
+    const erl30 = A.filter(a => a.status === 'Erledigt' && (a.erledigt_am || a.geaendert) && (Date.now() - new Date(a.erledigt_am || a.geaendert)) < 30 * 864e5).length;
+    return '<div class="dmini">' + kpi(offen.length, 'offene Aufgaben') + kpi(offen.filter(ueberfaellig).length, 'überfällig', offen.some(ueberfaellig)) + kpi(erl30, 'erledigt (30 Tage)') + kpi(offen.filter(a => String(a.verantwortlich).startsWith('agent-')).length, 'bei KI-Agenten') + '</div>' +
+      '<div class="dgrid">' + karte('Neue Aufgaben je Woche', saeulen(neu, 'neue Aufgaben')) + karte('Erledigt je Woche', saeulen(erl, 'erledigt', true)) +
+      karte('Offen je Person', bars(Object.entries(jePerson).sort((a, b) => b[1] - a[1]))) + karte('Offen je Projekt', bars(Object.entries(jeProjekt).sort((a, b) => b[1] - a[1]).slice(0, 10), 'var(--acc2)')) +
+      karte('Stunden ' + new Date().toLocaleDateString('de-DE', { month: 'long' }), bars(Object.entries(std).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v / 6) / 10]), 'var(--teal)'), istAdmin() ? 'Alle eingetragenen Stunden des Monats.' : 'Deine eigenen Stunden; Team-Stunden sieht nur die Leitung.') + '</div>';
+  }
+  const VPOS = ['NEW', 'ERSTKONTAKT', 'PITCH', 'TIMO_CALL', 'SCREENING', 'MEETING', 'ENTSCHEIDUNG', 'MEETING_DONE', 'PROPOSAL', 'BGS_GENEHMIGT', 'CUSTOMER'];
+  function dashVertrieb() {
+    if (!VT.d) return VT.fehler ? '<div class="note warn">' + esc(VT.fehler) + '</div>' : '<p class="muted">Lade Vertriebszahlen aus Twenty …</p>';
+    const C = VT.d.chancen || [], rang = s => VPOS.indexOf(s);
+    const tage = (c, n) => c.eingang && (Date.now() - new Date(c.eingang)) < n * 864e5;
+    const ab = s => C.filter(c => rang(c.stage) >= rang(s)).length;
+    const zu = new Set(['UNGUELTIG', 'NICHT_INTERESSIERT', 'LOST', 'CUSTOMER']);
+    const wert = C.filter(c => !zu.has(c.stage)).reduce((s, c) => s + (Number(c.betrag) || 0), 0);
+    const quelle = {}; C.forEach(c => { const q = c.kiflow ? 'KI Flow (TEMP)' : c.ig ? 'Instagram' : 'Direkt in Twenty'; quelle[q] = (quelle[q] || 0) + 1; });
+    const label = Object.fromEntries(VSTUFEN.map(s => [s[0], s[1]]));
+    const verteilung = VSTUFEN.map(s => [s[1], (VT.d.anzahl || {})[s[0]] || 0]).filter(x => x[1]);
+    return '<div class="dmini">' + kpi(C.length, 'Leads gesamt') + kpi(C.filter(c => tage(c, 7)).length, 'neu (7 Tage)') + kpi(C.filter(c => tage(c, 30)).length, 'neu (30 Tage)') + kpi((VT.d.anzahl || {}).MEETING || 0, 'Termin gebucht') + kpi(ab('MEETING_DONE') - ab('CUSTOMER'), 'in Beratung / Antrag') + kpi((VT.d.anzahl || {}).CUSTOMER || 0, 'Verträge') + (wert ? kpi(euroTxt(wert), 'offener Pipeline-Wert') : '') + '</div>' +
+      '<div class="dgrid">' + karte('Neue Leads je Woche', saeulen(proWoche(C, c => c.eingang, 12), 'neue Leads'), 'Nach Eingangsdatum (bei KI-Flow-Leads das Datum aus KI Flow).') +
+      karte('Weg zum Vertrag', trichter([['Alle Leads', C.length], ['Interessiert', ab('SCREENING')], [label.MEETING.replace('📆 ', ''), ab('MEETING')], ['In der Beratung', ab('MEETING_DONE')], ['Erhebungsbogen', ab('PROPOSAL')], ['Bildungsgutschein', ab('BGS_GENEHMIGT')], ['Vertrag', ab('CUSTOMER')]]), 'Wie viele Leads diese Stufe schon erreicht haben (heutiger Stand, Prozent von allen Leads).') +
+      karte('Verteilung nach Stufe', bars(verteilung)) + karte('Woher die Leads kommen', bars(Object.entries(quelle).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) + '</div>' +
+      '<p class="dhint">Stand: ' + fmtDT(VT.d.stand) + ' · <button class="btn ghost" data-goto="vertrieb">Zur Pipeline →</button></p>';
+  }
+  function dashKurs() {
+    const k = D.kurs || {}, an = D.anfragen || [];
+    return '<div class="dmini">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv (7 Tage)') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Check bestanden') + kpi(k.fragen_7_tage || 0, 'Fragen (7 Tage)') + kpi(an.length, 'Anfragen') + '</div>' +
+      '<div class="dgrid">' + karte('Nach Kursteil', bars(k.je_teil)) + karte('Wo die Teilnehmenden stehen', bars(k.schritte, 'var(--acc2)')) + karte('Fragen an den Assistenten nach Schritt', bars(k.fragen_je_schritt, 'var(--teal)')) +
+      karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + (istDozent() ? kbDashKarte() : '') + '</div>' +
+      '<p class="dhint"><button class="btn ghost" data-goto="kurs">Details →</button></p>';
+  }
+  function kbDashKarte() {
+    if (!KB.d) { if (!KB.laedt && !KB.fehler) setTimeout(kbLaden, 0); return karte('Anwesenheit TEMP-Kurs je Woche', KB.fehler ? '<p class="empty small">' + esc(KB.fehler) + '</p>' : '<p class="muted small">Lade Klassenbuch …</p>'); }
+    const W = {};
+    for (const t of KB.d.tage) { const s = wochenStart(dDate(t.datum)); const k = ymd(s); const w = W[k] = W[k] || { s, ist: 0, soll: 0 }; w.ist += t.anwesend || 0; w.soll += t.tn_gesamt || 0; }
+    const L = Object.values(W).sort((a, b) => a.s - b.s).slice(-10).map(w => ({ label: 'KW ' + kwNr(w.s), wert: w.soll ? Math.round(w.ist / w.soll * 100) : 0, tip: 'KW ' + kwNr(w.s) + ': ' + (w.soll ? Math.round(w.ist / w.soll * 100) : 0) + ' % anwesend (' + w.ist + ' von ' + w.soll + ')' }));
+    return karte('Anwesenheit TEMP-Kurs je Woche (%)', saeulen(L, '%', true), 'Aus dem Klassenbuch (Zoom-Anwesenheit). Details und Monats-PDF unter „Kurs & Teilnehmer“.');
+  }
+  function dashMarketing() {
+    const S = D.social || [], jetzt = heute();
+    const kanal = {}; S.forEach(p => { const k = p.kanal || 'ohne Kanal'; kanal[k] = (kanal[k] || 0) + 1; });
+    const status = {}; S.forEach(p => { status[p.status || '–'] = (status[p.status || '–'] || 0) + 1; });
+    const veroeff = S.filter(p => p.status === 'Veröffentlicht');
+    const naechste14 = S.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= jetzt && (dDate(p.datum) - jetzt) < 14 * 864e5).length;
+    return '<div class="dmini">' + kpi(S.length, 'Beiträge im Plan') + kpi(veroeff.length, 'veröffentlicht') + kpi(naechste14, 'geplant (14 Tage)') + kpi(S.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) < jetzt).length, 'Termin verpasst', S.some(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) < jetzt)) + '</div>' +
+      '<div class="dgrid">' + karte('Beiträge je Woche (nach Datum)', saeulen(proWoche(S, p => p.datum, 10), 'Beiträge')) + karte('Je Kanal', bars(Object.entries(kanal).sort((a, b) => b[1] - a[1]))) + karte('Nach Status', bars(Object.entries(status).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) +
+      karte('Newsletter', '<p class="empty small">Kommt mit dem neuen Newsletter über info@momentum-ki-akademie.de: Empfänger, Öffnungen, Klicks, Abmeldungen.</p>') + '</div>';
+  }
+  // Webseiten-Statistik: Lovable Analytics (Besucher) + Google Search Console, täglich in n8n-Data-Table Web_Statistik
+  const WEB_API = API.replace('team-api-v2', 'team-web');
+  const WEB = { d: null, laedt: false, fehler: '' };
+  async function webLaden() {
+    if (WEB.laedt) return; WEB.laedt = true;
+    try {
+      const r = await fetch(WEB_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Webseiten-Statistik ist gerade nicht erreichbar.');
+      WEB.d = j;
+    } catch (e) { WEB.fehler = e.message; }
+    WEB.laedt = false;
+    if (tab === 'start' && DB.tab === 'web' && $('#dbody')) dashSetzen();
+  }
+  const ddmm = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
+  const dauerTxt = s => s >= 60 ? Math.floor(s / 60) + ' min ' + Math.round(s % 60) + ' s' : Math.round(s || 0) + ' s';
+  function dashWeb() {
+    if (!WEB.d && !WEB.laedt && !WEB.fehler) setTimeout(webLaden, 0);
+    const L = (D.aufgaben || []).filter(a => a.projekt === 'Webseite' || a.projekt === 'Hermetik Marketing');
+    const offen = n => L.filter(a => a.projekt === n && a.status !== 'Erledigt').length;
+    const seite = (key, name, url, proj) => {
+      const S = WEB.d && WEB.d.seiten ? WEB.d.seiten[key] : null;
+      const li = S && S.listen, T = (S && S.tage || []).slice(-30), G = (S && S.gsc_tage || []).slice(-28);
+      const gK = G.reduce((a, x) => a + (x.klicks || 0), 0), gI = G.reduce((a, x) => a + (x.impressionen || 0), 0);
+      const gP = gI ? Math.round(G.reduce((a, x) => a + (x.position || 0) * (x.impressionen || 0), 0) / gI * 10) / 10 : null;
+      let h = '<div class="card"><h2>' + name + '</h2><p class="small"><a href="' + url + '" target="_blank" rel="noopener">' + url.replace('https://', '') + ' ↗</a></p>' +
+        '<div class="dmini">' + kpi(li ? li.besucher : '–', 'Besucher (30 Tage)') + kpi(li ? li.aufrufe : '–', 'Seitenaufrufe') + kpi(li ? li.absprung + ' %' : '–', 'Absprungrate') + kpi(li ? dauerTxt(li.dauer_s) : '–', 'Ø Besuchsdauer') +
+        (G.length ? kpi(gK, 'Google-Klicks (28 T.)') + kpi(gI, 'Google-Impressionen') + kpi(gP == null ? '–' : gP, 'Ø Google-Position') : '') + kpi(offen(proj), 'offene Punkte') + '</div>';
+      if (!WEB.d) return h + '<p class="muted small">' + (WEB.fehler ? esc(WEB.fehler) : 'Lade Statistik …') + '</p></div>';
+      h += '<h3>Besucher je Tag</h3>' + saeulen(T.map(x => ({ label: ddmm(x.datum), wert: x.besucher, tip: ddmm(x.datum) + ': ' + x.besucher + ' Besucher, ' + x.aufrufe + ' Aufrufe' })), 'Besucher');
+      if (li) h += '<div class="grid" style="margin-top:10px"><div><h3>Woher</h3>' + bars(li.quellen || [], 'var(--acc2)') + '</div><div><h3>Meistbesuchte Seiten</h3>' + bars((li.seiten || []).slice(0, 8), 'var(--teal)') + '</div></div>';
+      if (G.length) {
+        h += '<h3 style="margin-top:12px">Google-Suche: Impressionen je Tag</h3>' + saeulen(G.map(x => ({ label: ddmm(x.datum), wert: x.impressionen, tip: ddmm(x.datum) + ': ' + x.impressionen + ' Impressionen, ' + x.klicks + ' Klicks, Position ' + x.position })), 'Impressionen', true);
+        const g = S.gsc || {};
+        if ((g.suchanfragen || []).length) h += '<h3 style="margin-top:10px">Suchbegriffe (' + esc(g.zeitraum || '') + ')</h3><div class="tablewrap"><table class="small"><tr><th>Suchbegriff</th><th>Klicks</th><th>Impr.</th><th>Position</th></tr>' + g.suchanfragen.map(q => '<tr><td>' + esc(q[0]) + '</td><td>' + q[1] + '</td><td>' + q[2] + '</td><td>' + q[3] + '</td></tr>').join('') + '</table></div>';
+        if ((g.seiten || []).length) h += '<h3 style="margin-top:10px">Seiten in der Google-Suche</h3><div class="tablewrap"><table class="small"><tr><th>Seite</th><th>Klicks</th><th>Impr.</th><th>Position</th></tr>' + g.seiten.map(q => '<tr><td>' + esc(q[0]) + '</td><td>' + q[1] + '</td><td>' + q[2] + '</td><td>' + q[3] + '</td></tr>').join('') + '</table></div>';
+      } else h += '<p class="dhint">Noch nicht in der Google Search Console angemeldet – Google-Zahlen erscheinen nach der Einrichtung.</p>';
+      return h + '</div>';
+    };
+    return '<div class="dgrid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))">' + seite('momentum', 'Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('hermetik', 'Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>' +
+      '<p class="dhint">Besucher aus der Lovable-Statistik, Google-Zahlen aus der Search Console (2–3 Tage Verzug). Täglich aktualisiert' + (WEB.d && WEB.d.stand ? ', Stand ' + fmtDT(WEB.d.stand) : '') + '.</p>';
+  }
+
+  // ---------- Klassenbuch (TEMP-Kurs, aus Notion) ----------
+  const KB_API = API.replace('team-api-v2', 'team-klassenbuch');
+  const KB = { d: null, laedt: false, fehler: '', monat: ls.get('mt-kbmonat') || '', offen: null };
+  async function kbLaden() {
+    if (KB.laedt) return; KB.laedt = true; KB.fehler = '';
+    try {
+      const r = await fetch(KB_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion: 'liste' }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Das Klassenbuch ist gerade nicht erreichbar.');
+      KB.d = j;
+    } catch (e) { KB.fehler = e.message; }
+    KB.laedt = false;
+    if (tab === 'kurs' && $('#kbBox')) kbZeigen();
+    if (tab === 'start' && DB.tab === 'kurs' && $('#dbody')) dashSetzen();
+  }
+  const kbMonate = () => [...new Set(((KB.d || {}).tage || []).map(t => t.datum.slice(0, 7)))].sort().reverse();
+  const kbFrei = t => /freigegeben|PDF/i.test(t.status || '');
+  function kbAuswertung(ym) {
+    const T = ((KB.d || {}).tage || []).filter(t => t.datum.slice(0, 7) === ym).sort((a, b) => a.datum.localeCompare(b.datum));
+    const P = {};
+    for (const t of T) {
+      for (const p of t.personen) { const x = P[p.name] = P[p.name] || { name: p.name, da: 0, fehl: [], rueck: [], min: 0 }; x.da++; x.min += p.minuten; if (p.status !== 'erfüllt') x.rueck.push(t.datum); }
+      for (const n of t.abwesend) { const x = P[n] = P[n] || { name: n, da: 0, fehl: [], rueck: [], min: 0 }; x.fehl.push(t.datum); }
+    }
+    const L = Object.values(P).sort((a, b) => a.name.localeCompare(b.name));
+    const soll = T.reduce((s, t) => s + (t.tn_gesamt || 0), 0), ist = T.reduce((s, t) => s + (t.anwesend || 0), 0);
+    return { T, L, quote: soll ? Math.round(ist / soll * 100) : 0, nichtFrei: T.filter(t => !kbFrei(t)).length, rueck: T.reduce((s, t) => s + t.ruecksprache.length, 0), fehltage: L.reduce((s, x) => s + x.fehl.length, 0) };
+  }
+  const tagKurz = d => { const x = dDate(d); return x ? x.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : d; };
+  function kbZeigen() {
+    const box = $('#kbBox'); if (!box) return;
+    if (!KB.d) { box.innerHTML = '<div class="card"><h2>📒 Klassenbuch KI-Kurs (TEMP.Akademie)</h2>' + (KB.fehler ? '<div class="note warn">' + esc(KB.fehler) + '</div>' : '<p class="muted">Lade das Klassenbuch aus Notion …</p>') + '</div>'; if (!KB.laedt && !KB.fehler) kbLaden(); return; }
+    const M = kbMonate(); if (!M.includes(KB.monat)) KB.monat = M[0] || '';
+    const A = kbAuswertung(KB.monat);
+    box.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2 style="margin:0">📒 Klassenbuch KI-Kurs (TEMP.Akademie)</h2>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><select id="kbM">' + M.map(m => '<option value="' + m + '"' + (m === KB.monat ? ' selected' : '') + '>' + esc(monatName(m)) + '</option>').join('') + '</select>' +
+      '<button class="btn sec" id="kbPdf">Monat als PDF</button><button class="btn ghost" id="kbNeu" title="Neu aus Notion laden">↻</button></div></div>' +
+      '<p class="small muted" style="margin:6px 0 12px">Anwesenheit laut Zoom (Kurs-Meeting), Themen aus den Zoom-Zusammenfassungen. Pflege und Freigabe in Notion. Stand: ' + fmtDT(KB.d.stand) + '</p>' +
+      (A.nichtFrei ? '<div class="note warn" style="margin-bottom:10px">' + A.nichtFrei + ' Kurstag(e) in diesem Monat noch nicht freigegeben – das PDF ist bis dahin vorläufig.</div>' : '') +
+      '<div class="dmini">' + kpi(A.T.length, 'Kurstage') + kpi(A.quote + ' %', 'Anwesenheit') + kpi(A.fehltage, 'Fehltage gesamt', A.fehltage > 0) + kpi(A.rueck, 'Rücksprachen', A.rueck > 0) + '</div>' +
+      '<div class="grid"><div><h3>Teilnehmende im ' + esc(monatName(KB.monat).split(' ')[0]) + '</h3><div class="tablewrap"><table><tr><th>Name</th><th>anwesend</th><th>Quote</th><th>Fehltage</th></tr>' +
+      A.L.map(x => { const q = A.T.length ? Math.round(x.da / A.T.length * 100) : 0; return '<tr><td><b>' + esc(x.name) + '</b>' + (x.rueck.length ? ' <span class="chip" style="background:#FFF4E5">Rücksprache ' + x.rueck.length + '×</span>' : '') + '</td><td>' + x.da + ' / ' + A.T.length + '</td><td><div class="prog"><i style="width:' + q + '%"></i></div>' + q + ' %</td><td class="small">' + (x.fehl.length ? x.fehl.map(tagKurz).join(', ') : '–') + '</td></tr>'; }).join('') +
+      '</table></div></div><div><h3>Kurstage</h3>' +
+      A.T.slice().reverse().map(t => '<details class="kbtag" style="border-top:1px solid var(--line);padding:8px 0"><summary style="cursor:pointer"><b>' + esc(tagKurz(t.datum)) + '</b> · ' + t.anwesend + '/' + t.tn_gesamt + ' anwesend ' +
+        '<span class="chip"' + (kbFrei(t) ? '' : ' style="background:#FFF4E5"') + '>' + esc(t.status || '–') + '</span><div class="small muted" style="margin:2px 0 0 0">' + esc(t.thema || 'ohne Thema') + '</div></summary>' +
+        (t.zusammenfassung ? '<p class="small" style="margin:8px 0">' + esc(t.zusammenfassung) + '</p>' : '') +
+        '<div class="tablewrap"><table class="small"><tr><th>Name</th><th>Soll</th><th>Zoom</th><th>Min</th><th></th></tr>' + t.personen.map(p => '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.soll) + '</td><td>' + esc(p.von) + '–' + esc(p.bis) + '</td><td>' + p.minuten + ' (' + p.abdeckung + ' %)</td><td>' + (p.status === 'erfüllt' ? '✅' : '⚠️') + '</td></tr>').join('') + '</table></div>' +
+        (t.abwesend.length ? '<p class="small" style="margin:6px 0 0"><b>Abwesend:</b> ' + esc(t.abwesend.join(', ')) + '</p>' : '') + (t.unbekannt ? '<p class="small muted" style="margin:4px 0 0">Unbekannt in Zoom: ' + esc(t.unbekannt) + '</p>' : '') + '</details>').join('') +
+      (A.T.length ? '' : '<p class="empty">Keine Kurstage in diesem Monat.</p>') + '</div></div></div>';
+    $('#kbM').onchange = e => { KB.monat = e.target.value; ls.set('mt-kbmonat', KB.monat); kbZeigen(); };
+    $('#kbNeu').onclick = () => { KB.d = null; kbZeigen(); };
+    $('#kbPdf').onclick = async e => { const b = e.target; b.disabled = true; try { await kbPdf(KB.monat); } catch (x) { toast(x.message); } b.disabled = false; };
+  }
+  async function kbPdf(ym) {
+    const JsPDF = await ladeJsPdf();
+    const A = kbAuswertung(ym);
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    const L = 15, R = 195; let y = 18;
+    const neueSeite = () => { doc.addPage(); y = 18; };
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.setTextColor(20, 18, 58);
+    doc.text('Klassenbuch ' + monatName(ym), L, y); y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(60);
+    doc.text('KI-Kurs · TEMP.Akademie', L, y); doc.text('Erstellt am ' + fmtD(ymd(new Date())), R, y, { align: 'right' }); y += 5;
+    doc.text(A.T.length + ' Kurstage · Anwesenheit ' + A.quote + ' % · ' + A.fehltage + ' Fehltage · ' + A.rueck + ' Rücksprachen', L, y); y += 5;
+    if (A.nichtFrei) { doc.setTextColor(200, 110, 20); doc.text('Vorläufig: ' + A.nichtFrei + ' Kurstag(e) noch nicht freigegeben.', L, y); doc.setTextColor(60); y += 5; }
+    y += 4;
+    // Teil 1: Übersicht je Teilnehmer
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(20); doc.text('Übersicht je Teilnehmer/in', L, y); y += 6;
+    doc.setFontSize(9); doc.setTextColor(110); [[L, 'Name'], [80, 'anwesend'], [100, 'Quote'], [118, 'Fehltage']].forEach(([x, t]) => doc.text(t, x, y)); y += 2; doc.setDrawColor(200); doc.line(L, y, R, y); y += 5;
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(20);
+    A.L.forEach(x => {
+      const f = doc.splitTextToSize(x.fehl.length ? x.fehl.map(tagKurz).join(', ') : '–', R - 118);
+      const h = Math.max(1, f.length) * 4.2 + 1.8; if (y + h > 280) neueSeite();
+      doc.text(x.name, L, y); doc.text(x.da + ' / ' + A.T.length, 80, y); doc.text((A.T.length ? Math.round(x.da / A.T.length * 100) : 0) + ' %', 100, y); doc.text(f, 118, y);
+      y += h; doc.setDrawColor(235); doc.line(L, y - 3.2, R, y - 3.2);
+    });
+    // Teil 2: Kurstage
+    y += 6; if (y > 250) neueSeite();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('Kurstage', L, y); y += 6;
+    A.T.forEach(t => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+      const kopf = tagKurz(t.datum) + '  ·  ' + t.anwesend + '/' + t.tn_gesamt + ' anwesend  ·  ' + (kbFrei(t) ? 'freigegeben' : 'nicht freigegeben');
+      const th = doc.splitTextToSize('Thema: ' + (t.thema || '–'), R - L);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      const zs = t.zusammenfassung ? doc.splitTextToSize(t.zusammenfassung, R - L).slice(0, 8) : [];
+      const ab = doc.splitTextToSize('Abwesend: ' + (t.abwesend.length ? t.abwesend.join(', ') : '–') + (t.ruecksprache.length ? '   ·   Rücksprache: ' + t.ruecksprache.join(', ') : ''), R - L);
+      const h = 6 + (th.length + zs.length + ab.length) * 4.1 + 5; if (y + h > 282) neueSeite();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 18, 58); doc.text(kopf, L, y); y += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(20); doc.text(th, L, y); y += th.length * 4.1;
+      if (zs.length) { doc.setTextColor(70); doc.text(zs, L, y); y += zs.length * 4.1; doc.setTextColor(20); }
+      doc.text(ab, L, y); y += ab.length * 4.1 + 3; doc.setDrawColor(225); doc.line(L, y - 2, R, y - 2); y += 2;
+    });
+    if (!A.T.length) doc.text('Keine Kurstage in diesem Monat.', L, y);
+    const n = doc.getNumberOfPages();
+    for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140); doc.text('Klassenbuch ' + monatName(ym) + ' · Seite ' + i + ' von ' + n + ' · Anwesenheit laut Zoom-Protokoll', L, 290); }
+    doc.save('Klassenbuch_' + ym + '.pdf');
   }
 
   // ---------- Projekte ----------
@@ -1766,7 +2045,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const an = D.anfragen || [];
     $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">Modul 1 (n8n und Claude Code). ' + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
       '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
-      (istDozent() ? communityHtml() : '') +
+      (istDozent() ? '<div id="kbBox"></div>' + communityHtml() : '') +
       '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + '<h3 style="margin-top:14px">Nach Kursteil</h3>' + bars(k.je_teil, 'var(--acc2)') + '</div>' +
       '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
       (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Teil</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
@@ -1775,6 +2054,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
       (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
     bindCommunity();
+    if (istDozent()) kbZeigen();
   }
 
   function communityHtml() {

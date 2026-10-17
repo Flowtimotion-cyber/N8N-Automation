@@ -106,7 +106,7 @@ Fristen (Standard, je Agent und Run überschreibbar): Warteschlange 30 Minuten b
 | Datei | Status | Beschreibung |
 |---|---|---|
 | `schnittstelle.js` | definiert | `startRun(auftrag)`, `cancelRun(auftrag)`, `rueckmeldung(nachricht)` plus Regeln für alle Ausführer |
-| `n8n.js` | echt, nur konfiguriert, **nicht getestet** | Übergibt Aufträge an die `ausfuehrer_url` des Agenten (im Workflow: Knoten „Ausführer anstoßen“); Hilfsfunktion zum Signieren |
+| `n8n.js` | echt, **live getestet 17.10.2026** (Knoten „Ausführer anstoßen“ hat den n8n-Ausführer aufgerufen, Abschnitt 10a) | Übergibt Aufträge an die `ausfuehrer_url` des Agenten (im Workflow: Knoten „Ausführer anstoßen“); Hilfsfunktion zum Signieren |
 | `test.js` | TESTADAPTER | Simuliert Executoren: Lebenszeichen, Schritte, Rückfragen, Freigaben, Ergebnisse, Fehler, Stille (Timeout), verspätete Rückmeldung, Abbruch |
 | `hermes.stub.js`, `claude-code.stub.js` | Stubs | Geplanter Ablauf und Pflichten (isolierte Umgebung, begrenzte Rechte, keine Shell aus Eingaben) |
 
@@ -159,9 +159,50 @@ Alle Werkzeuge der Agenten laufen über n8n, nie direkt aus dem Browser. Das ist
 
 | Weg | Wofür | Stand |
 |---|---|---|
-| **n8n-Agentenworkflow als Ausführer** (`ausfuehrer_url` je Agent in der Registry) | Agent bekommt den Auftrag per signiertem Webhook, nutzt in n8n seine Werkzeugknoten (HTTP, Supabase, Twenty CRM, E-Mail, Kalender …) und meldet Schritte, Werkzeugaufrufe und Ergebnisse an die Office-API zurück | Schnittstelle fertig, Executor noch Stub (RESTPUNKTE Prio B) |
+| **n8n-Agentenworkflow als Ausführer** (`ausfuehrer_url` je Agent in der Registry) | Agent bekommt den Auftrag per signiertem Webhook, nutzt in n8n seine Werkzeugknoten (HTTP, Supabase, Twenty CRM, E-Mail, Kalender …) und meldet Schritte, Werkzeugaufrufe und Ergebnisse an die Office-API zurück | **läuft** für `verwaltung-status`: Workflow „TEAM: Office-Ausführer verwaltung-status“ (ID `KwRsEDr743IGDPJ1`), Ende-zu-Ende getestet 17.10.2026 (Abschnitt 10a); weitere n8n-Agenten nach demselben Muster |
 | **n8n MCP-Server-Trigger** | Externe Agenten (Claude Code, Codex, Hermes) rufen n8n-Workflows als Werkzeuge über MCP auf; n8n prüft Token und Rechte, schreibt Ereignisse ins Office | Konzept; n8n bietet den MCP-Server-Trigger und Instance-level MCP (siehe Kursinhalt Anleitung B) |
 | **n8n MCP-Client-Knoten** | n8n-Agenten nutzen fremde MCP-Server (z. B. Obsidian, CRM) als Werkzeuge | Konzept; jedes Werkzeug muss in der Registry unter `werkzeuge` stehen, sonst darf der Agent es nicht nutzen |
 | **Portal-API v2 / Office-API per HTTP** | Agenten lesen Aufgaben und melden Berichte (heute `agenten/team.py`) | läuft (Portal) bzw. wartet auf Import (Office) |
 
 Regeln, die für alle Wege gelten: Werkzeuge nur aus der Allowlist der Registry; externe Aktionen (E-Mail, Posts, Zahlungen, Löschen) nur mit inhaltsgebundener Freigabe; Rückmeldungen signiert (HMAC, Zeitfenster, Nonce); Allowlist für `ausfuehrer_url`-Domains ist offen (SICHERHEIT.md S6).
+
+### 10a. Erster echter Ausführer: verwaltung-status (ergänzt 17.10.2026, KI-erstellt: Claude Code)
+
+Quelle: `office/n8n/ausfuehrer-verwaltung-status.workflow.js` (SDK-Code, per MCP angelegt). Webhook: `POST https://n8n.hm-storage.de/webhook/office-ausfuehrer-verwaltung`, eingetragen als `ausfuehrer_url` des Agenten `verwaltung-status` in `office_agenten`.
+
+Ablauf eines Runs (24 Knoten, ein Durchlauf etwa 4 Sekunden):
+
+1. **Auftrag vom Office**: Die Office-API ruft den Webhook mit `{ art, run_id, agent_id, rueckmelde_schluessel }` auf; der Webhook antwortet sofort (HTTP 200), die Office-API wartet nicht.
+2. **Einstellungen** (Set-Knoten): Mitglied `agent-claude`, Adressen, `glaettung = false`, `modell = gpt-5-mini`. Hier wird die Glättung ein- oder ausgeschaltet.
+3. **Start?**: nur `art = start`, `run_id` und Schlüssel mit erlaubten Zeichen. `abbruch` wird nur zur Kenntnis genommen (der Run ist serverseitig schon abgebrochen).
+4. **Zugang laden / Schlüssel prüfen / Zugang prüfen**: Der Token des Mitglieds `agent-claude` wird zur Laufzeit aus `team_mitglieder` gelesen (Supabase-Credential in n8n; der Token steht nirgends im Workflow). Der mitgeschickte Rückmelde-Schlüssel muss zu `office_run_schluessel` passen, sonst wird der Aufruf verworfen. Das ersetzt eine Signatur des Startaufrufs: Nur wer den Schlüssel des Runs kennt (die Office-API), kann den Ausführer arbeiten lassen.
+5. **Lebenszeichen** → Warteschlange → in Arbeit. **Daten laden** (`laden` mit Agenten-Token, also nur die Projekte des Agenten).
+6. **Wochenstand bauen** (Code, deterministisch, kein Modell): offene Aufgaben je Projekt (Tabelle), überfällig, fällig in 7 Tagen, Blockaden (Status „Wartet“ oder Label „blockiert/wartet auf“), Liste je Projekt. Zeilen mit Passwort-/Token-Wörtern werden herausgefiltert. Kurzfassung bis 900 Zeichen für Office und Artefakt.
+7. **Ereignis: Aufgaben gelesen** (`art = tool`, `tool = aufgaben_lesen`, `quelle_ref = …/webhook/office-api#laden`, Kennzahlen und n8n-Execution-ID in den Details).
+8. **Glättung an?** → optional `gpt-5-mini` über HTTP mit dem OpenAI-Credential; die Antwort wird nur übernommen, wenn alle Zahlen im Text unverändert sind, sonst bleibt der deterministische Text. Standard AUS (kostet sonst Geld).
+9. **Notiz speichern**: Markdown als `team_notizen` (`n_office_wochenstand_JJJJwWW`, Upsert, Projekt des Runs). **Ereignis: Wochenstand erstellt** (`tool = notiz_speichern`, `quelle_ref = team_notizen/<id>`), **Artefakt** (`art = bericht`, `ablageort` = Notiz-Titel und Projekt), **Run abschließen** (`run_beenden`, `status = abgeschlossen`, Zusammenfassung = Kurzfassung plus Ablageort).
+10. **Fehler**: Jeder Knoten nach dem Lebenszeichen hat einen Fehlerausgang → „Fehlertext bauen“ → `run_beenden` mit `status = fehlgeschlagen` und Fehlertext (inkl. n8n-Execution-ID). Fehler vor dem Lebenszeichen (kein Token, falscher Schlüssel) bleiben n8n-Fehlerläufe; die Office-API markiert den Run nach 30 Minuten als veraltet.
+
+Bewusst so entschieden:
+- **Token aus Supabase statt Header-Credential**: Die Office-API nimmt den Token nur im Body an. Ein Header-Auth-Credential käme dort nicht an. Der Weg über das Supabase-Credential ist derselbe, den die bestehenden TEAM-Workflows (Wochenstand, Störungswächter) nutzen. Alternative für später: Office-API akzeptiert zusätzlich einen Header (RESTPUNKTE).
+- **`run_beenden` mit Token statt signierter `rueckmeldung`**: beides erlaubt die Schnittstelle; mit Token entfällt HMAC im Code-Knoten (`require('crypto')` ist dort gesperrt).
+- **`n8n_execution_id` nur in Ereignis-Details**, nicht im Run: Der Unique-Index auf `office_runs.n8n_execution_id` würde bei einer Wiederholung (neue Execution) ein 409 auslösen (RESTPUNKTE).
+- **Erfolgreiche Läufe werden nicht gespeichert** (`saveDataSuccessExecution: none`, wie bei der Office-API), weil Knotenausgaben den Agenten-Token enthalten. Fehlerläufe werden gespeichert.
+
+Weitere n8n-Ausführer (marketing-texter, social-planer) entstehen nach demselben Muster: Datei kopieren, Webhook-Pfad, `mitglied_id`, Werkzeugknoten und Rückmeldungen anpassen, `ausfuehrer_url` in der Registry setzen.
+
+## 11. Rekruiter, Orchestrierer und PA-Assistent (ergänzt 17.10.2026)
+
+Drei weitere Registry-Einträge, auf Timos Wunsch angelegt. Sie sind zunächst nur Rollen in der Registry; ihre Ausführer fehlen noch (siehe RESTPUNKTE.md).
+
+| Agent | Aufgabe | Was er darf | Was er nicht darf |
+|---|---|---|---|
+| `rekruiter` | Neue Agenten „einstellen“: Bedarf klären, Steckbrief (Rolle, Fähigkeiten, Werkzeuge, Modell, Raum, Projekte) als Artefakt vorlegen | `registry_lesen`, `agent_vorschlagen`, `notiz_speichern` | Agenten selbst anlegen. `agent_speichern` bleibt Admin-Aktion; Timo übernimmt den Steckbrief oder lehnt ab. Später: eigene Freigabe-Art „agent_anlegen“ (inhaltsgebunden), dann legt der Workflow nach Freigabe an. |
+| `orchestrierer` | Aufgaben erkennen, zerlegen, an passende Agenten delegieren, bei Bedarf Teams bilden | `aufgaben_lesen`, `registry_lesen`, `auftrag_delegieren`, `notiz_speichern` | Selbst ausführen; über Projektgrenzen delegieren; externe Aktionen auslösen. |
+| `pa-assistent` | Termine im Blick, Postfächer lesen, Entscheidungsbedarf als Rückfrage oder Aufgabe auf Timos Tisch legen | `kalender_lesen`, `email_lesen`, `aufgaben_lesen`, `rueckfrage`, `notiz_speichern` | Mails beantworten, Termine ändern (nur mit Freigabe `email_senden` / `kalender_aendern`). |
+
+**Orchestrierung im Datenmodell (geplant, noch nicht gebaut).** Delegation braucht zwei kleine Erweiterungen, die in einer eigenen Sitzung kommen: `office_runs.eltern_run_id` (Teilaufträge zeigen auf den Auftrag des Orchestrierers) und `office_runs.team_id` (eine Teambildung = ein Team-Run mit mehreren Kind-Runs). Die Aktion `auftrag_delegieren` ist `auftrag_starten` mit `eltern_run_id`, nur erlaubt, wenn der Orchestrierer das Zielprojekt sehen darf und der Zielagent dem Projekt zugeordnet ist. Ein Team-Run ist erst „abgeschlossen“, wenn alle Kind-Runs beendet sind; die fachliche Abnahme bleibt beim Menschen.
+
+**Darstellung (geplant).** Der Orchestrierer sitzt im Büro in der Zentrale statt in einem Raum. Ein Team erscheint als Verbindung von der Zentrale zu den beteiligten Figuren; die Run-Zeitleiste des Team-Runs zeigt die Kind-Runs als eingerückte Zweige mit eigenem Status. Die Projektübersicht zählt Kind-Runs beim Projekt, nicht doppelt beim Orchestrierer.
+
+**PA-Assistent und Datenschutz.** Postfächer lesen ist eine neue Verarbeitung (Mails Dritter, ggf. Beschäftigtendaten). Vor dem ersten echten Lauf: Zweck und Rechtsgrundlage festhalten, betroffene Postfächer benennen, AV-Vertrag mit dem Mailanbieter prüfen, Datensparsamkeit (nur Betreff, Absender, Fristen und ein kurzer Entscheidungssatz landen im Office, nie der Mailinhalt). Siehe DATENSCHUTZ_AI_ACT.md, Anwendungsfall D.

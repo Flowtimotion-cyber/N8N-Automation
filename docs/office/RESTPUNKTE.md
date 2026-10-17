@@ -1,15 +1,15 @@
 # Restpunkte und Fragen an Timo
 
-Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md Abschnitt 7). Priorität: A = vor Inbetriebnahme, B = in den ersten Wochen, C = später.
+Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, TESTBERICHT.md Abschnitt 7, und nach dem ersten echten Ausführer, Abschnitt 9). Priorität: A = vor Inbetriebnahme, B = in den ersten Wochen, C = später.
 
 ## Fragen an Timo (bitte entscheiden)
 
 | # | Frage | Warum | Vorschlag |
 |---|---|---|---|
-| F1 | Darf der neue Workflow **„TEAM: Office-API“** importiert und aktiviert werden (`office/n8n/office-api.workflow.json`)? | Ohne ihn zeigt das Office „Keine Verbindung“; das Portal läuft unverändert | Ja, nach dem SQL (SETUP.md) |
-| F2 | Darf `supabase/team_office.sql` laufen? Es ersetzt `team_laden()` (wie bisher jede Erweiterung) und legt `office_*`-Tabellen an | Portal-API v2 bekommt dadurch mehr Daten im JSON, ignoriert sie aber nach Lesart des Codes | Ja; danach Portal einmal prüfen |
-| F3 | Welche **Räume** bekommen die bestehenden Projekte (`team_projekte.raum`)? | Büro und Raumfilter | SQL-Update je Projekt (SETUP.md Abschnitt 1.4) |
-| F4 | Stimmt die **Agenten-Registry** (`office/agenten.json`): zehn Rollen, Modellzuordnung, Projektzuordnung, Executor-Identität (agent-claude/-codex/-hermes)? | Projektgrenzen hängen daran | Durchsehen, per `agent_speichern` anpassen |
+| F1 | ✅ 17.10.2026 erledigt (angelegt per MCP, aktiv). Ursprünglich: Darf der neue Workflow **„TEAM: Office-API“** importiert und aktiviert werden (`office/n8n/office-api.workflow.json`)? | Ohne ihn zeigt das Office „Keine Verbindung“; das Portal läuft unverändert | Ja, nach dem SQL (SETUP.md) |
+| F2 | ✅ 17.10.2026 erledigt (Timo hat die SQL ausgeführt). Ursprünglich: Darf `supabase/team_office.sql` laufen? Es ersetzt `team_laden()` (wie bisher jede Erweiterung) und legt `office_*`-Tabellen an | Portal-API v2 bekommt dadurch mehr Daten im JSON, ignoriert sie aber nach Lesart des Codes | Ja; danach Portal einmal prüfen |
+| F3 | ✅ 17.10.2026 als KI-Vorschlag gesetzt (SETUP.md Abschnitt 7), bitte prüfen. Ursprünglich: Welche **Räume** bekommen die bestehenden Projekte (`team_projekte.raum`)? | Büro und Raumfilter | SQL-Update je Projekt (SETUP.md Abschnitt 1.4) |
+| F4 | ✅ 17.10.2026 Projektlisten als KI-Vorschlag gesetzt (SETUP.md Abschnitt 7), Modelle/Executor noch zu prüfen. Ursprünglich: Stimmt die **Agenten-Registry** (`office/agenten.json`): zehn Rollen, Modellzuordnung, Projektzuordnung, Executor-Identität (agent-claude/-codex/-hermes)? | Projektgrenzen hängen daran | Durchsehen, per `agent_speichern` anpassen |
 | F5 | Löschfristen laut LOESCHKONZEPT.md (180 Tage Runs, 30 Tage Idempotenz, 14 Tage n8n-Fehlerausführungen)? | Datenschutz | bestätigen oder ändern |
 | F6 | Sollen Menschen außer Admin/Dozent **alle** Projekte im Office sehen (wie im Portal) oder soll es eine Projektliste je Person geben? | Vorbereitet über `mitglieder.projekte`, nicht aktiviert | wie Portal lassen |
 | F7 | Wer darf **normale Freigaben** (E-Mail, Post, Termin) erteilen: jede Person im Team oder nur Admin/Dozent? | aktuell: jeder Mensch mit Projektsicht außer dem Anfordernden; kritische nur Admin | so lassen |
@@ -22,9 +22,14 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | Prio | Punkt | Bezug |
 |---|---|---|
 | A | Workflow importieren, Credentials setzen, SQL ausführen, erster echter `laden`-Aufruf (alles ungetestet mangels Zugang) | SETUP.md, TESTBERICHT.md Abschnitt 5 |
-| A | Prüfen, dass die Portal-API v2 mit dem größeren `team_laden()`-JSON weiter funktioniert (n8n-Payload-Grenzen) | TESTBERICHT.md |
+| A | Prüfen, dass die Portal-API v2 mit dem größeren `team_laden()`-JSON weiter funktioniert (n8n-Payload-Grenzen). Code-Prüfung 17.10.: Schlüssel unverändert, Office-Schlüssel werden nicht an den Browser weitergegeben (INBETRIEBNAHME.md) – Live-Test nach dem SQL steht aus | TESTBERICHT.md |
 | A | Echte Integrationstests gegen Supabase und n8n (PostgREST-409, Webhook-Pfad, Zeitplan) | TESTBERICHT.md |
-| B | Executoren bauen: n8n-Agentenworkflow (Webhook, Lebenszeichen, signierte Rückmeldung), Hermes-Polling, Claude-Code/Codex-Ablauf; Stubs ersetzen | `office/adapter/*.stub.js` |
+| B | Executoren bauen: ✅ 17.10.2026 **n8n-Ausführer für `verwaltung-status` läuft** (`office/n8n/ausfuehrer-verwaltung-status.workflow.js`, ARCHITEKTUR.md 10a). Offen: weitere n8n-Agenten (marketing-texter, social-planer) nach dem Muster, Hermes-Polling, Claude-Code/Codex-Ablauf; Stubs ersetzen | `office/adapter/*.stub.js` |
+| B | Office-API: Token zusätzlich per Header annehmen (z. B. `X-Office-Token`), damit Ausführer ein Header-Auth-Credential nutzen können statt den Token aus `team_mitglieder` zu lesen. Änderung am bestehenden Workflow, nur mit Timos Ja | `office/n8n/bauen.mjs` (Glue), ARCHITEKTUR.md 10a |
+| B | Office-API: `n8n_execution_id` bei Wiederholung (`run_wiederholen`, Auto-Wiederholung) zurücksetzen; sonst 409 beim zweiten Versuch. Bis dahin senden Ausführer die Execution-ID nur in Ereignis-Details | `office/lib/verarbeitung.js` |
+| B | n8n-Executions 20708, 20713, 20714, 20716, 20723 (Hilfs-Workflow und erster Ausführer-Lauf) enthalten den Agenten-Token in Knotenausgaben: in n8n löschen oder Token des Mitglieds `agent-claude` neu setzen | TESTBERICHT.md Abschnitt 9 |
+| C | Ausführer: `inhalt_hash` des Artefakts ist leer, weil `require('crypto')` im Code-Knoten gesperrt ist → Crypto-Knoten (SHA-256) einbauen | `office/n8n/ausfuehrer-verwaltung-status.workflow.js` |
+| C | Ausführer: Fehlerpfad, Abbruch und Glättung (gpt-5-mini) einmal gezielt testen; Testaufgaben „test“ (Kurs Modul 1) aufräumen, sie erscheinen im Wochenstand als überfällig | TESTBERICHT.md Abschnitt 9 |
 | B | Allowlist für `ausfuehrer_url`-Domains; Rate-Limit am Reverse-Proxy; n8n-Executions-Aufbewahrung | SICHERHEIT.md S6–S8 |
 | B | Lösch-Protokoll (wer, wann, wie viele) und Hilfsabfrage für Betroffenenanfragen | LOESCHKONZEPT.md |
 | B | Zeitplan für den regelmäßigen Löschlauf (erst nach F5) | LOESCHKONZEPT.md |
@@ -39,9 +44,12 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | C | `@n8n/workflow-sdk`-Datei gegen das SDK validieren | `office/n8n/office-api.workflow.js` |
 | B | Werkzeuganbindung der Agenten über n8n ausbauen (ARCHITEKTUR.md Abschnitt 10): n8n-Agentenworkflow als Ausführer mit Werkzeugknoten, MCP-Server-Trigger für Claude Code/Codex/Hermes, MCP-Client für fremde Werkzeuge; Werkzeuge nur aus der Registry-Allowlist | `office/adapter/n8n.js`, `office/agenten.json` |
 | C | Einbettung auf GitHub Pages einmal prüfen (Token-Teilung Portal/Office, iframe-Höhe) | `docs/team/index.html`, `docs/office/js/app.js` |
+| A | Orchestrierer: Datenmodell (`eltern_run_id`, `team_id`), Aktion `auftrag_delegieren`, Darstellung (Zentrale im Büro, Kind-Runs in der Zeitleiste) bauen; bis dahin kann der Orchestrierer nur Vorschläge als Artefakt liefern | ARCHITEKTUR.md Abschnitt 11 |
+| A | Rekruiter: Freigabe-Art `agent_anlegen` (inhaltsgebunden) und Ausführer, der nach Freigabe `agent_speichern` ausführt; bis dahin legt Timo den Steckbrief von Hand an | ARCHITEKTUR.md Abschnitt 11 |
+| A | PA-Assistent: Datenschutz-Punkte aus DATENSCHUTZ_AI_ACT.md (Anwendungsfall D) klären, dann Ausführer in n8n (Gmail/Outlook/Kalender-Knoten, Hermes-Polling) bauen | DATENSCHUTZ_AI_ACT.md |
 | B | Puppeteer-Ersatzpfad der Browsertests vervollständigen oder entfernen (4/7 ohne Playwright); bis dahin Playwright lokal installieren (TESTBERICHT.md Abschnitt 7) | `office/test/browser.mjs` |
 | B | Registry: Executor und Modell passen nicht überall zusammen (`kunden-entwickler` läuft über Codex, `kurs-waechter`/`server-waechter` über Hermes, tragen aber Claude-Modell-IDs). Bei F4 klären, welches Modell dort wirklich läuft, sonst „unbekannt“ eintragen | `office/agenten.json` |
-| B | Startbestand der Registry enthält „Kundenprojekt Müller GmbH“: vor dem SQL-Lauf prüfen, dass nichts Synthetisches in die Produktiv-Supabase gelangt | `supabase/team_office.sql` |
+| B | ~~Startbestand der Registry enthält „Kundenprojekt Müller GmbH“~~ – gelöst 17.10.: `supabase/team_office_produktiv.sql` ersetzt synthetische Projektnamen und setzt Räume (siehe INBETRIEBNAHME.md) | `supabase/team_office_produktiv.sql` |
 | C | Subagent `office-entwickler` darf `Bash(node *)`/`Bash(npm run *)`: auf die Testskripte einschränken | `.claude/agents/office-entwickler.md` |
 | B | Monitore: **Vorschaubilder für PDF** (und Office-Dateien). Heute nur Karte mit Link; Vorschau bräuchte ein serverseitiges Rendering (z. B. n8n-Knoten erzeugt PNG und legt es als eigenes Artefakt ab) | `docs/office/js/buero.js`, ARCHITEKTUR.md 9a |
 | B | Monitore: **Allowlist der Ablage-Domains** als CSP (`img-src`, `frame-src`) in `docs/office/index.html` oder am Hoster, sobald klar ist, wo Agenten Ergebnisse ablegen (Supabase Storage, Drive, Repo). Bis dahin lädt das Office jede `https://`-Adresse aus der rechtegefilterten API-Antwort | SICHERHEIT.md S20 |

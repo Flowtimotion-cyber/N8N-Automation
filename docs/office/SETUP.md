@@ -48,3 +48,47 @@ node office/dev/server.mjs --tempo 0       # eingefrorene Uhr (für manuelle Pr�
 npm run test:office                        # alle Tests inkl. Browser (Playwright global oder puppeteer-core + CHROME_PFAD)
 node office/n8n/bauen.mjs                  # n8n-Dateien neu erzeugen
 ```
+
+## 6. Stand 17.10.2026: was schon erledigt ist
+
+- Supabase: `supabase/team_office.sql` wurde von Timo im SQL Editor ausgeführt (Kontrollabfragen siehe Dateiende).
+- n8n: Der Workflow **„TEAM: Office-API“** wurde per MCP aus `office/n8n/office-api.workflow.js` angelegt (ID `NuK6m10yIGKMRWxC`, https://n8n.hm-storage.de/workflow/NuK6m10yIGKMRWxC), 19 Knoten, Webhook-Pfad `office-api`, Zeitplan alle 5 Minuten. Der Code-Knoten enthält `office/n8n/code/anfrage-pruefen.js` ohne Kommentarzeilen.
+- Noch offen, nur in der n8n-Oberfläche möglich: in **„Team-Daten laden“** und **„In Supabase schreiben“** das Credential „Supabase account“ auswählen (die Schnittstelle vergibt Credentials nicht an HTTP-Knoten), unter Einstellungen „Save successful executions“ auf „Do not save“ stellen, dann aktivieren.
+- Die SDK-Datei brauchte für die Schnittstelle drei Anpassungen: keine `.settings(...)`, Verzweigungen als `.add(x.output(n).to(y))`, Code-Knoten als eine Zeichenkette statt langer `+`-Kette. Die JSON-Importdatei bleibt der Weg für den manuellen Import.
+
+## 7. Stand 17.10.2026 (später): Office-API aktiv, Räume und Registry auf echte Projekte umgestellt
+
+- „TEAM: Office-API“ ist aktiv. Live-Test der Webhook-Adresse mit ungültigen Tokens: dreimal HTTP 401 mit korrekter Meldung (Supabase-Zugriff damit belegt). Einstellung „erfolgreiche Läufe nicht speichern“ und Zeitzone Europe/Berlin per Schnittstelle gesetzt.
+- Räume und Agenten-Projekte wurden per temporärem Hilfs-Workflow (archiviert) direkt in Supabase geschrieben. Das ist ein **KI-Vorschlag von Claude Code**, Timo kann ihn jederzeit ändern (Office-API `agent_speichern` als Admin oder SQL):
+
+| Raum | Projekte |
+|---|---|
+| Akademie | Kurs Modul 1, TEMP.Akademie, AZAV & GmbH |
+| Marketing | Webseite, Social Media, Hermetik Marketing |
+| Vertrieb | Vertrieb, KI-Agentur-Pipeline |
+| Kundenprojekte | Healthhack, TeamRebelMedia / Max Görtler, Technische Datenbasis …, AGOMED – Medtech, AWS GmbH, IFA GmbH, Spirit WoMen Zentrum, Wioletta Tuschnio, Yoga mit Seher |
+| Verwaltung | Systeme, Momentum Office, Firmenwissen, Sonstiges |
+
+| Agent | Projekte |
+|---|---|
+| akademie-redakteur | Kurs Modul 1, TEMP.Akademie |
+| kurs-waechter | Kurs Modul 1 |
+| marketing-texter | Webseite, Social Media, Hermetik Marketing |
+| social-planer | Social Media |
+| vertrieb-recherche | Vertrieb, KI-Agentur-Pipeline |
+| angebots-pruefer | Vertrieb, KI-Agentur-Pipeline und alle Kundenprojekte |
+| kunden-entwickler | alle Kundenprojekte |
+| architektur-review | alle Kundenprojekte, Systeme, Momentum Office, Webseite |
+| verwaltung-status | alle Projekte |
+| server-waechter | Systeme, Momentum Office |
+
+Hinweis zur Schnittstelle: `update_workflow` kann Credentials an HTTP-Knoten setzen (`setNodeCredential`), `create_workflow_from_code` nicht. Für künftige Anlagen per MCP also erst anlegen, dann Credential per Update setzen.
+
+## 8. Stand 17.10.2026 (abends): erster Ausführer „verwaltung-status“ aktiv
+
+- Workflow **„TEAM: Office-Ausführer verwaltung-status“** (ID `KwRsEDr743IGDPJ1`, https://n8n.hm-storage.de/workflow/KwRsEDr743IGDPJ1) ist aktiv. Quelle: `office/n8n/ausfuehrer-verwaltung-status.workflow.js`. Credentials: „Supabase account“ an „Zugang laden“, „Schlüssel prüfen“, „Notiz speichern“; „OpenAI account“ an „Glättung (gpt-5-mini)“ (per MCP `setNodeCredential`). Erfolgreiche Läufe werden nicht gespeichert.
+- `office_agenten.ausfuehrer_url` für `verwaltung-status` = `https://n8n.hm-storage.de/webhook/office-ausfuehrer-verwaltung` (gesetzt per temporärem Hilfs-Workflow, archiviert).
+- Ende-zu-Ende getestet: Auftrag → Warteschlange → in Arbeit → Ereignisse → Artefakt → abgeschlossen, Notiz im Team-Portal (TESTBERICHT.md Abschnitt 9).
+- **Einen Auftrag starten:** im KI Office beim Agenten „Verwaltungs-Status“ einen Auftrag anlegen (beliebiges Projekt aus seiner Liste, z. B. „Momentum Office“). Nach etwa 5 Sekunden steht der Run auf „abgeschlossen“, das Ergebnis liegt als Notiz „Wochenstand KW …/… – KI Office (Verwaltungs-Status)“ im gewählten Projekt.
+- **Glättung einschalten (kostet Geld):** im Workflow im Knoten „Einstellungen“ `glaettung` auf `true` setzen. Modell dort ebenfalls (`gpt-5-mini`). Standard ist AUS; die Antwort wird nur übernommen, wenn keine Zahl verändert wurde.
+- **Weiteren n8n-Ausführer anlegen:** Datei kopieren, Webhook-Pfad (`office-ausfuehrer-<agent>`), `mitglied_id`, Werkzeugknoten und Ereignisse anpassen; `validate_workflow` → `create_workflow_from_code` → `update_workflow` (Credentials, Einstellungen) → `publish_workflow`; dann `ausfuehrer_url` in der Registry setzen (als Admin per `agent_speichern` oder PATCH auf `office_agenten`). Für die SDK-Datei gilt: keine Pfeilfunktionen außerhalb der Code-Knoten-Strings, Verzweigungen als `.add(knoten.output(n).to(ziel))`.
