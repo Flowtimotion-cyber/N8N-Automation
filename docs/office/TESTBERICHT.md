@@ -150,7 +150,7 @@ Nicht getestet: die neuen Spalten gegen das echte Supabase (`alter table … add
 
 | Lauf | Ergebnis |
 |---|---|
-| `npm run test:office` (Playwright-Chromium 1.56, Windows 11, Node 24.18) | **63/63 bestanden** (vorher 55; neu: 6 Unit-Tests `unit.monitor.test.mjs`, Browsertest „Monitor“ Desktop und Mobil, Leerprüfung der fünf Monitore im Szenario „leer“) |
+| `npm run test:office` (Playwright-Chromium 1.56, Windows 11, Node 24.18) | **63/63 bestanden** vor dem Merge, **74/74** nach dem Merge mit main (Orchestrierung, erster Ausführer); (vorher 55; neu: 6 Unit-Tests `unit.monitor.test.mjs`, Browsertest „Monitor“ Desktop und Mobil, Leerprüfung der fünf Monitore im Szenario „leer“) |
 | Unit: `ladbareAdresse`, `artefaktTyp`, `raumArtefakte`, `raumMonitor` | nur `https://` oder relativ wird geladen; `http:`, `data:`, `javascript:` (auch mit eingestreutem Zeilenumbruch), `blob:`, `file:`, `notiz:`, `//…`, Backslash, Leerraum, Anführungszeichen werden abgelehnt; Typ aus Endung (png/jpg/jpeg/svg/webp/gif, html/htm, pdf) oder `art`; Bild/HTML ohne ladbare Adresse wird zur Karte; Artefakte nur aus Runs der Raumprojekte, neueste zuerst, höchstens n; Monitor bevorzugt Bild/HTML, dann PDF, dann das neueste überhaupt |
 | Browser „Monitor zeigt Bild“ | Akademie: `<image href="testbilder/akademie-quiz-modul-1-2.svg">`, Marke „geprüft“ (Run fachlich abgenommen); Bild in der Monitorwand geladen (`naturalWidth > 0`) |
 | Browser „Monitor zeigt ungeprüft“ | Vertrieb: Bild mit Marke „ungeprüft“ (Run abgeschlossen, keine Abnahme); Kundenprojekte: PDF-Karte ohne `image`/`iframe`, „ungeprüft“ |
