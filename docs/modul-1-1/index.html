@@ -175,7 +175,7 @@ textarea { min-height:70px; resize:vertical; }
 
 <header>
   <div class="hbar"><img class="hlogo" src="media/logo_mark.png" alt="Momentum KI Akademie"><div class="htitle">Automationen verstehen und planen</div><div class="badges" id="badges"></div><button class="btn sec dash" id="dashbtn" hidden>Auswertung</button><div class="xp" id="xp">0 XP</div></div>
-  <nav class="hlinks" aria-label="Kurs-Links"><a href="../">← Meine Kurse</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a><a href="../community/?modul=Modul%201.1">💬 Community</a><a href="../community/?tab=dozent&amp;modul=Modul%201.1">✉️ Dozent fragen</a></nav>
+  <nav class="hlinks" aria-label="Kurs-Links"><a href="../">← Meine Kurse</a><a href="#" id="pause" title="Fortschritt speichern und Pause machen">⏸ Für heute beenden</a><a class="n8n" href="https://momentumki.app.n8n.cloud/home/workflows" target="_blank" rel="noopener">n8n öffnen ↗</a><a href="../community/?modul=Modul%201.1">💬 Community</a><a href="../community/?tab=dozent&amp;modul=Modul%201.1">✉️ Dozent fragen</a></nav>
   <div class="prog"><i id="prog"></i></div>
 </header>
 <main id="main"></main>
@@ -489,7 +489,7 @@ function renderSummary(sc) {
   const ed = el("button", "btn sec", "Steckbrief bearbeiten"); ed.hidden = stIdx < 0; ed.onclick = () => go(stIdx);
   row.appendChild(p); row.appendChild(dl); row.appendChild(ed); row.appendChild(rs); c.appendChild(row);
   newsletterBox(sc);
-  setNext(false, "Ende");
+  setNext(true, "Weiter zu Teil 2 →", true);
 }
 
 // ---------- Klassen-Version: Lernstand an n8n, Ergebnis-Mail, Setup-Assistent ----------
@@ -697,7 +697,23 @@ function dzBox() {
 const _renderSummaryDz = renderSummary;
 renderSummary = function (sc) { _renderSummaryDz(sc); const c = el("div", "card"); c.appendChild(dzBox()); sc.appendChild(c); };
 
-$("#next").onclick = () => go(S.step + 1);
+// Pause / Kurs beenden: Fortschritt sofort speichern und senden, dann zurück zur Übersicht
+function fortschrittJetztSenden() {
+  try { save(); } catch (e) {}
+  try { if (typeof syncTimer !== "undefined" && syncTimer) clearTimeout(syncTimer); if (S.name && S.kurscode) post(payload()).catch(() => {}); } catch (e) {}
+}
+function fuerHeuteBeenden(fertig) {
+  fortschrittJetztSenden();
+  let o = document.getElementById("pauseBox");
+  if (!o) { o = document.createElement("div"); o.id = "pauseBox"; document.body.appendChild(o); }
+  o.setAttribute("style", "position:fixed;inset:0;z-index:200;background:rgba(20,18,58,.45);display:flex;align-items:center;justify-content:center;padding:16px");
+  o.innerHTML = '<div class="card" style="max-width:440px;width:100%;margin:0;text-align:center"><div style="font-size:40px;line-height:1">' + (fertig ? '🎉' : '✅') + '</div><h2 style="margin:10px 0 6px">' + (fertig ? 'Geschafft!' : 'Für heute gespeichert') + '</h2>' +
+    '<p class="muted">' + (fertig ? 'Du hast diesen Teil abgeschlossen. Dein Merkblatt findest du jederzeit wieder hier.' : 'Dein Fortschritt ist gespeichert. Wenn du den Kurs das nächste Mal öffnest, geht es genau an dieser Stelle weiter. Du kannst das Fenster jetzt einfach schließen.') + '</p>' +
+    '<div class="row" style="justify-content:center;margin-top:14px"><a class="btn" href="../" id="pauseKurse" style="text-decoration:none">Zu meinen Kursen</a><button class="btn sec" id="pauseWeiter">' + (fertig ? 'Hier bleiben' : 'Doch weiterlernen') + '</button></div></div>';
+  document.getElementById("pauseWeiter").onclick = () => o.remove();
+}
+$("#pause").onclick = e => { e.preventDefault(); fuerHeuteBeenden(false); };
+$("#next").onclick = () => { if (STEPS[S.step] && STEPS[S.step].k === "summary") { fortschrittJetztSenden(); location.href = '../modul-1-2/'; return; } go(S.step + 1); };
 $("#back").onclick = () => go(S.step - 1);
 if (S.step > 0 && !kurscodeOk(S.kurscode)) S.step = 0;
 render();
