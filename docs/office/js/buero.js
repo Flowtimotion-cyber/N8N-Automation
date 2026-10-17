@@ -84,32 +84,53 @@ function labelKarte(L, info, oben) {
           : '<text x="' + (x + 14) + '" y="' + (y + 56) + '" font-size="10.5" fill="#8E8DB0">' + (info.agenten.length ? 'alles ruhig' : 'kein Agent zugeordnet') + '</text>');
 }
 
-/** Monitor eines Raums: Rahmen, Standfuß, Inhalt (Bild / HTML-Sandbox / Karte / leer), Prüfmarke, Beschriftung. m = neuestes Artefakt oder null. */
+/** Text in Zeilen umbrechen (an Wortgrenzen, höchstens max Zeichen je Zeile, höchstens maxZeilen Zeilen; Rest wird mit … gekürzt). */
+export function umbruch(text, max, maxZeilen) {
+  const zeilen = []; let z = '';
+  for (const w of String(text || '').trim().split(/\s+/).filter(Boolean)) {
+    const k = z ? z + ' ' + w : w;
+    if (k.length <= max) z = k; else { if (z) zeilen.push(z); z = w.length > max ? w.slice(0, max - 1) + '…' : w; }
+  }
+  if (z) zeilen.push(z);
+  if (zeilen.length > maxZeilen) { zeilen.length = maxZeilen; zeilen[maxZeilen - 1] = zeilen[maxZeilen - 1].slice(0, max - 1).replace(/…$/, '') + '…'; }
+  return zeilen;
+}
+const tspans = (zeilen, x, y, dy) => zeilen.map((z, i) => '<tspan x="' + x + '" y="' + (y + i * dy) + '">' + esc(z) + '</tspan>').join('');
+const idSicher = s => String(s || '').replace(/[^A-Za-z0-9_-]/g, '_');
+
+/** Monitor eines Raums: Rahmen, Inhalt (Bild / HTML-Sandbox / Karte / leer), Prüfmarke. m = neuestes Artefakt oder null.
+ *  Alle Texte werden umbrochen und auf die Bildschirmfläche begrenzt; der Inhalt wird zusätzlich am Rahmen abgeschnitten (clipPath). */
 function monitor(L, raum, m) {
   const x = L.cx + MON.dx, y = L.cy + MON.dy, w = MON.w, h = MON.h, mx = x + w / 2;
+  const clip = 'monitor-clip-' + idSicher(raum);
   let s = '<a href="#/monitor/' + esc(raum) + '" class="monitor" data-raum="' + esc(raum) + '" data-typ="' + esc(m ? m.typ : 'leer') + '" aria-label="' + esc('Monitor ' + raum + ': ' + (m ? 'zeigt „' + m.titel + '“ (' + ARTEFAKT_TYP_TEXT[m.typ] + ', ' + PRUEFSTAND_TEXT[m.pruefstand] + ')' : 'noch kein Ergebnis') + '. Öffnet die Monitorwand mit den letzten Ergebnissen des Raums.') + '">' +
     '<title>' + esc('Monitor ' + raum + ' · ' + (m ? m.titel + ' · ' + ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + PRUEFSTAND_TEXT[m.pruefstand] : 'noch kein Ergebnis') + ' · Klick öffnet die Monitorwand') + '</title>';
   // Wandbildschirm hinter der Plattform, Lichtschein auf dem Boden
   s += '<ellipse cx="' + mx + '" cy="' + (L.cy - PH + 10) + '" rx="' + (w / 2 - 10) + '" ry="9" fill="' + L.akzent + '" opacity=".14"/>';
   // Rahmen und Bildschirm
   s += '<rect class="schirm" x="' + (x - 4) + '" y="' + (y - 4) + '" width="' + (w + 8) + '" height="' + (h + 8) + '" rx="7" fill="#0E0D22" stroke="' + L.akzent + '" stroke-width="2"/>';
+  s += '<clipPath id="' + clip + '"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="3"/></clipPath><g clip-path="url(#' + clip + ')">';
   if (!m) {
-    s += '<g class="leer"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1A1938"/><text x="' + mx + '" y="' + (y + h / 2 - 2) + '" text-anchor="middle" font-size="13" fill="#8E8DB0">noch kein Ergebnis</text><text x="' + mx + '" y="' + (y + h / 2 + 16) + '" text-anchor="middle" font-size="9.5" fill="#5F5E88">Der Monitor zeigt das neueste Ergebnis der Agenten</text></g>';
+    // Leer: zwei kurze Zeilen, mittig, bleiben sicher im Bildschirm (etwa 30 Zeichen je Zeile bei 9.5 px)
+    s += '<g class="leer"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1A1938"/><text x="' + mx + '" y="' + (y + h / 2 - 6) + '" text-anchor="middle" font-size="13" fill="#8E8DB0">noch kein Ergebnis</text>' +
+      '<text text-anchor="middle" font-size="9.5" fill="#5F5E88">' + tspans(umbruch('Hier erscheint das neueste Ergebnis der Agenten', 30, 2), mx, y + h / 2 + 12, 12) + '</text></g>';
   } else {
-    // Karte (Titel, Typ) liegt immer darunter: sichtbar bei PDF/Sonstigem und wenn ein Bild nicht geladen werden kann
+    // Karte (Titel, Typ) liegt immer darunter: sichtbar bei PDF/Sonstigem und wenn ein Bild nicht geladen werden kann. Alle Zeilen umbrochen.
+    const titel = umbruch(m.titel, 18, 2);
+    const hinweis = umbruch(m.typ === 'pdf' ? 'Keine Vorschau. Der Link steht in der Monitorwand.' : m.url ? 'Vorschau wird geladen …' : 'Ablage: ' + (m.ablageort || '–'), 32, 2);
     s += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#1E1D40"/>' +
       '<text x="' + (x + 10) + '" y="' + (y + 30) + '" font-size="22">' + TYP_ICON[m.typ] + '</text>' +
-      '<text x="' + (x + 40) + '" y="' + (y + 24) + '" font-size="11" font-weight="700" fill="#fff">' + esc(kurz(m.titel, 20)) + '</text>' +
-      '<text x="' + (x + 40) + '" y="' + (y + 38) + '" font-size="9.5" fill="#B9B8D6">' + esc(ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + kurz(m.projekt || '', 22)) + '</text>' +
-      '<text x="' + (x + 10) + '" y="' + (y + 60) + '" font-size="9" fill="#8E8DB0">' + esc(m.typ === 'pdf' ? 'Keine Vorschau · Link in der Monitorwand' : m.url ? 'Vorschau wird geladen …' : 'Ablage: ' + kurz(m.ablageort || '–', 30)) + '</text>' +
-      '<text x="' + (x + 10) + '" y="' + (y + 74) + '" font-size="9" fill="#8E8DB0">' + esc(relativ(m.erstellt)) + '</text>';
+      '<text font-size="11" font-weight="700" fill="#fff">' + tspans(titel, x + 40, y + 22, 13) + '</text>' +
+      '<text font-size="9.5" fill="#B9B8D6">' + tspans(umbruch(ARTEFAKT_TYP_TEXT[m.typ] + ' · ' + (m.projekt || ''), 30, 1), x + 10, y + 52, 12) + '</text>' +
+      '<text font-size="9" fill="#8E8DB0">' + tspans(hinweis, x + 10, y + 66, 11) + '</text>' +
+      '<text x="' + (x + 10) + '" y="' + (y + h - 8) + '" font-size="9" fill="#8E8DB0">' + esc(relativ(m.erstellt)) + '</text>';
     if (m.typ === 'bild') s += '<image href="' + esc(m.url) + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet"><title>' + esc(m.titel) + '</title></image>';
     else if (m.typ === 'html') s += '<foreignObject x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"><div xmlns="http://www.w3.org/1999/xhtml" class="mini"><iframe src="' + esc(m.url) + '" sandbox="" referrerpolicy="no-referrer" loading="lazy" tabindex="-1" aria-hidden="true" title="' + esc('Vorschau: ' + m.titel) + '"></iframe></div></foreignObject>';
     // Prüfmarke unten rechts im Bild
     const t = PRUEF_KURZ[m.pruefstand], bw = t.length * 6 + 14;
     s += '<rect class="marke" x="' + (x + w - bw - 5) + '" y="' + (y + h - 19) + '" width="' + bw + '" height="14" rx="7" fill="' + PRUEF_FARBE[m.pruefstand] + '"/><text x="' + (x + w - 5 - bw / 2) + '" y="' + (y + h - 8.5) + '" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">' + esc(t) + '</text>';
   }
-  s += '</a>';   // Titel steht im Tooltip, in der Liste unter der Szene und in der Monitorwand
+  s += '</g></a>';   // Titel steht im Tooltip, in der Liste unter der Szene und in der Monitorwand
   return s;
 }
 
