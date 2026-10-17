@@ -139,6 +139,16 @@ body.nur-buero nav.tabs{display:none}
 .szene > .card{align-self:start}
 @media(max-width:640px){.szene-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}.szene-scroll .buero{min-width:680px}}
 .legende{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:var(--mut);align-items:center}
+.legende .teamlinie{display:inline-block;width:22px;border-top:2px dashed #FF8FD8;vertical-align:middle;margin-right:4px}
+/* Orchestrierung: Teilaufträge als eingerückte Zweige, Team-Chips, fließende Teamlinien im Büro */
+.chip.team{background:#FCE4F4;color:#8A1C68}
+.zweig{margin-left:22px;border-left:2px solid var(--line);padding-left:6px}
+.zweige{list-style:none;margin:6px 0 0;padding:0 0 0 18px;border-left:2px solid #F1B9E0}
+.zweige li{position:relative;padding:5px 0 5px 10px;font-size:13.5px}
+.zweige li::before{content:"";position:absolute;left:-18px;top:16px;width:14px;border-top:2px solid #F1B9E0}
+.zweige .zweige{margin-top:2px}
+.buero .teamlinie{stroke:#FF8FD8;stroke-width:2;stroke-dasharray:3 6;opacity:.9}
+.buero a.agent.zentrale-agent:focus .figur rect,.buero a.agent.zentrale-agent:hover .figur rect{stroke:#fff;stroke-width:2}
 .legende i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px}
 .sr{position:absolute;left:-9999px}
 @media(max-width:900px){.szene{grid-template-columns:1fr}}

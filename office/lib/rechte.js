@@ -8,7 +8,7 @@ export const istDozent = ich => !!ich && (ich.rolle === 'admin' || ich.rolle ===
 export const istMensch = ich => !!ich && !istAgent(ich);
 
 // Was Agenten über die Office-API dürfen. Alles andere (Freigaben erteilen, Abnehmen, Abbrechen fremder Runs, Löschen, Registry) ist Menschen vorbehalten.
-export const AGENT_DARF = ['laden', 'auftrag_starten', 'lebenszeichen', 'ereignis', 'artefakt', 'rueckfrage', 'freigabe_anfordern', 'aktion_ausfuehren', 'run_beenden'];
+export const AGENT_DARF = ['laden', 'auftrag_starten', 'auftrag_delegieren', 'lebenszeichen', 'ereignis', 'artefakt', 'rueckfrage', 'freigabe_anfordern', 'aktion_ausfuehren', 'run_beenden'];
 // Was nur Admin darf.
 export const NUR_ADMIN = ['agent_speichern', 'loeschen', 'wartung'];
 // Aktionen ohne Token (Signatur statt Token): nur die Rückmeldung des Executors.
