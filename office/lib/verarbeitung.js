@@ -18,11 +18,11 @@ export const EREIGNIS_ARTEN = ['schritt', 'tool', 'quelle', 'fehler', 'wiederhol
 export const ARTEFAKT_ARTEN = ['text', 'datei', 'link', 'commit', 'notiz', 'bericht'];
 export const RUN_MARKER = id => '[run:' + id + ']';
 
-const SCHLUESSEL_MUSTER = [/sk-[A-Za-z0-9_-]{16,}/g, /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}(\.[A-Za-z0-9_-]{10,})?/g, /gh[pousr]_[A-Za-z0-9]{20,}/g, /\b[a-f0-9]{32,64}\b/g, /(Bearer\s+)[A-Za-z0-9._-]{16,}/gi, /(passwor[dt]|kennwort|api[_-]?key|secret)\s*[:=]\s*\S+/gi];
+const GEHEIMNIS_MUSTER = [/sk-[A-Za-z0-9_-]{16,}/g, /eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}(\.[A-Za-z0-9_-]{10,})?/g, /gh[pousr]_[A-Za-z0-9]{20,}/g, /\b[a-f0-9]{32,64}\b/g, /(Bearer\s+)[A-Za-z0-9._-]{16,}/gi, /(passwor[dt]|kennwort|api[_-]?key|secret)\s*[:=]\s*\S+/gi];
 /** Entfernt Zugangsdaten-Muster aus Freitext (Datensparsamkeit, Log-Hygiene). */
 export function bereinige(text) {
   let s = String(text ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '');
-  for (const m of SCHLUESSEL_MUSTER) s = s.replace(m, (ganz, p1) => (p1 && /bearer/i.test(ganz) ? p1 : '') + '[entfernt]');
+  for (const m of GEHEIMNIS_MUSTER) s = s.replace(m, (ganz, p1) => (p1 && /bearer/i.test(ganz) ? p1 : '') + '[entfernt]');
   return s;
 }
 const txt = (v, n) => bereinige(v).trim().slice(0, n);

@@ -11,5 +11,12 @@
     "hyperframes": "latest",
     "puppeteer-core": "^23.0.0",
     "simple-icons": "latest"
+  },
+  "scripts": {
+    "office": "node office/dev/server.mjs",
+    "office:bauen": "node office/n8n/bauen.mjs",
+    "test:office": "node --test office/test/",
+    "test:office:unit": "node --test office/test/unit.*.test.mjs",
+    "test:office:browser": "node --test office/test/browser.test.mjs"
   }
 }
