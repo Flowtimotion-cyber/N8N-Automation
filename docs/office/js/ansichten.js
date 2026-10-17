@@ -1,7 +1,7 @@
 // KI Office: Ansichten. HTML per String, jeder Datenwert durch esc().
 import { $, $$, esc, toast, fmtD, fmtDT, relativ, ueberfaellig, farbe, chip, kpi, kurz, opt, md } from './util.js';
 import { api, neuerSchluessel, PORTAL, ls } from './api.js';
-import { RAEUME, AKTIVE_RUN_STATUS, PROBLEM_RUN_STATUS, mitglied, agentReg, projektVon, projektById, runVon, ereignisseVon, artefakteVon, freigabenVon, letzteAktivitaetRun, raumVon, projektStand, agentZustand, ZUSTAND_TEXT, ZUSTAND_FARBE, verbrauchText, istOrchestrierer, kinderVon, elternVon, delegierteVon } from './modell.js';
+import { RAEUME, AKTIVE_RUN_STATUS, PROBLEM_RUN_STATUS, mitglied, agentReg, projektVon, projektById, runVon, ereignisseVon, artefakteVon, freigabenVon, letzteAktivitaetRun, raumVon, projektStand, agentZustand, ZUSTAND_TEXT, ZUSTAND_FARBE, verbrauchText, istOrchestrierer, kinderVon, elternVon, delegierteVon, istStartFreigabe, wartendeStarts, darfEntscheiden, startHinweis, KOSTENSTUFE_ANZEIGE } from './modell.js';
 
 export const F = Object.assign({ q: '', raum: '', zust: '', status: 'aktiv', zeitraum: 'alle', ansicht: 'liste', runStatus: '' }, JSON.parse(ls.get('ko-filter') || '{}'));
 const saveF = () => ls.set('ko-filter', JSON.stringify(F));
@@ -165,6 +165,7 @@ export function vRun(ctx, id) {
   const p = projektVon(D, r.projekt); const a = (D.aufgaben || []).find(x => x.aufgabe_id === r.aufgabe_id);
   const mensch = istMensch(D), admin = D.ich.rolle === 'admin', dozent = admin || D.ich.rolle === 'dozent';
   const darfSteuern = mensch && (dozent || r.auftraggeber === D.ich.mitglied_id);
+  const wartetAufStartFreigabe = r.status === 'wartet_freigabe' && Fr.some(f => istStartFreigabe(f) && f.status === 'offen');
   const quelleIds = new Set(((r.zusammenfassung_quelle || {}).ereignisse || []).map(String));
   // Orchestrierung: Eltern-Run als Breadcrumb, Kind-Runs als eingerückte Zweige (jeweils mit Status und Link)
   const eltern = elternVon(D, r); const K = kinderVon(D, r.run_id);
@@ -175,6 +176,7 @@ export function vRun(ctx, id) {
     '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:260px"><h1 style="font-size:22px">' + esc(r.auftrag) + '</h1><div class="meta">' + stChip(D, r.status) + (r.abgenommen === true ? chip('fachlich abgenommen', 'fs-erteilt') : r.abgenommen === false ? chip('fachlich zurückgewiesen', 'fs-abgelehnt') : r.status === 'abgeschlossen' ? chip('fachliche Abnahme offen', 'fs-offen') : '') + chip('Versuch ' + (r.versuche || 1) + ' von ' + (r.max_versuche || '?')) + (K.length ? chip('Team: ' + K.length + ' Teilaufträge' + (offeneKinder ? ', ' + offeneKinder + ' offen' : ''), 'team') : '') + (r.eltern_run_id ? chip('Teilauftrag', 'team') : '') + (r.team_id ? chip('Team ' + kurz(r.team_id, 24), 'team', 'team_id: ' + r.team_id) : '') + '<span class="hash">' + esc(r.run_id) + '</span></div></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap" id="runAktionen"></div></div>' +
     (r.status === 'unbekannt' ? '<div class="note warn" style="margin:10px 0">Dieser Run gilt als <b>unbekannt / veraltet</b>: ' + esc(r.grund || 'Timeout.') + ' Eine später eintreffende Rückmeldung wird protokolliert, macht den Run aber nicht nachträglich erfolgreich.</div>' : '') +
+    (wartetAufStartFreigabe ? (admin ? '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf deine Freigabe.</b> ' + name(D, r.auftraggeber) + ' hat diesen Auftrag angelegt. Er startet erst, wenn du ihn freigibst. Die Entscheidung triffst du unten bei „Freigaben“.</div>' : '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf Timo.</b> Dein Auftrag ist angelegt, der Agent startet aber erst, wenn Timo ihn freigibt. Du musst nichts tun.</div>') : '') +
     (r.status === 'fehlgeschlagen' ? '<div class="note warn" style="margin:10px 0"><b>Fehler:</b> ' + esc(r.fehler || 'ohne Beschreibung') + '</div>' : '') +
     '<div class="grid" style="margin-top:12px"><div class="card" style="margin:0"><h2>Auftrag</h2><dl class="kv"><dt>Projekt</dt><dd>' + (p ? '<a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>' : esc(r.projekt)) + '</dd><dt>Aufgabe</dt><dd>' + (a ? aufgabeLink(a) + ' ' + chip(a.status, 'st-' + String(a.status).replace(/\s/g, '-')) : r.aufgabe_id ? esc(r.aufgabe_id) : '–') + '</dd><dt>Auftraggeber</dt><dd>' + name(D, r.auftraggeber) + '</dd><dt>Agent</dt><dd><a href="#/agent/' + esc(r.agent_id) + '">' + esc(reg ? reg.name : r.agent_id) + '</a>' + (reg ? ' · ' + esc(reg.modell) : '') + '</dd><dt>Ausführer</dt><dd>' + esc(r.ausfuehrer || '–') + (r.workflow_version ? ' · Workflow ' + esc(r.workflow_version) : '') + (r.konfig_version ? ' · Konfig v' + esc(r.konfig_version) : '') + (r.n8n_execution_id ? ' · n8n-Ausführung ' + esc(r.n8n_execution_id) : '') + '</dd><dt>Angelegt</dt><dd>' + esc(fmtDT(r.erstellt)) + '</dd><dt>Gestartet</dt><dd>' + esc(fmtDT(r.gestartet)) + '</dd><dt>Letztes Lebenszeichen</dt><dd>' + esc(fmtDT(r.lebenszeichen)) + ' <span class="quelle">(Timeout ' + Math.round((Number(r.timeout_sek) || 0) / 60) + ' Min.)</span></dd><dt>Beendet</dt><dd>' + esc(fmtDT(r.beendet)) + '</dd><dt>Verbrauch</dt><dd>' + esc(verbrauchText(r.verbrauch)) + '</dd>' + (r.eingabe ? '<dt>Eingabe</dt><dd><details><summary class="small">anzeigen</summary><pre class="small" style="white-space:pre-wrap">' + esc(JSON.stringify(r.eingabe, null, 1)) + '</pre></details></dd>' : '') + '</dl></div>' +
     '<div class="card" style="margin:0"><h2>Zusammenfassung der Arbeit</h2>' + (r.zusammenfassung ? '<div class="md">' + md(r.zusammenfassung) + '</div><p class="quelle">Stand ' + esc(fmtDT(r.zusammenfassung_zeit)) + ' · von ' + name(D, (r.zusammenfassung_quelle || {}).von || r.agent_id) + ' · beruht auf ' + quelleIds.size + ' Ereignissen (in der Zeitleiste markiert).</p>' : leer('Noch keine Zusammenfassung. Sie entsteht erst, wenn der Agent den Run beendet.')) +
@@ -194,23 +196,38 @@ export function vRun(ctx, id) {
   }
   $$('[data-freigabe]').forEach(b => b.onclick = () => freigabeDialog(ctx, b.dataset.freigabe, b.dataset.entscheidung));
 }
+/** Kurzblock zu einer Startfreigabe: Agent, Kostenstufe, Auftraggeber (und der Auftragstext, wenn gewünscht). */
+function startDetails(D, f, r, mitText) {
+  const reg = r ? agentReg(D, r.agent_id) : null;
+  return '<dl class="kv" style="margin:6px 0"><dt>Agent</dt><dd>' + esc(reg ? reg.name : (r ? r.agent_id : '–')) + (reg ? ' · ' + esc(reg.modell) : '') + '</dd>' +
+    '<dt>Kostenstufe</dt><dd>' + (reg ? chip(KOSTENSTUFE_ANZEIGE[reg.kostenstufe] || reg.kostenstufe, 'ks-' + esc(reg.kostenstufe)) + (reg.freigabe_noetig === true ? ' <span class="small muted">(in der Registry: immer Freigabe)</span>' : '') : '–') + '</dd>' +
+    '<dt>Auftraggeber</dt><dd>' + name(D, f.angefordert_von) + '</dd><dt>Projekt</dt><dd>' + esc(r ? r.projekt : '–') + '</dd>' +
+    (r && r.budget_eur != null ? '<dt>Kostenlimit</dt><dd>' + esc(Number(r.budget_eur).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })) + '</dd>' : '') + '</dl>' +
+    (mitText ? '<div class="small" style="margin:4px 0;white-space:pre-wrap">' + esc((r && r.auftrag) || f.inhalt_vorschau || '') + '</div>' : '');
+}
 function freigabeKarte(D, f, r, mensch, imRun) {
+  const start = istStartFreigabe(f);
   const ext = (D.externe_aktionen || {})[f.aktion] || { text: f.aktion, stufe: 'extern' };
-  const darf = mensch && f.status === 'offen' && (ext.stufe !== 'kritisch' || D.ich.rolle === 'admin') && f.angefordert_von !== D.ich.mitglied_id;
-  return '<div style="border-top:1px solid var(--line);padding:10px 0"><div><b>' + esc(ext.text) + '</b> ' + fChip(f.status) + (ext.stufe === 'kritisch' ? chip('kritisch: nur Admin', 'p1') : '') + '</div>' +
-    '<div class="small" style="margin:4px 0;white-space:pre-wrap">' + esc(f.inhalt_vorschau || '') + '</div>' +
+  const darf = mensch && darfEntscheiden(D, f);
+  const wartetAufTimo = mensch && start && f.status === 'offen' && !darf;
+  return '<div style="border-top:1px solid var(--line);padding:10px 0"' + (start ? ' data-startfreigabe="' + esc(f.freigabe_id) + '"' : '') + '><div><b>' + esc(start ? 'Auftrag starten' : ext.text) + '</b> ' + fChip(f.status) + (ext.stufe === 'kritisch' ? chip('kritisch: nur Admin', 'p1') : '') + '</div>' +
+    (start ? startDetails(D, f, r, true) : '<div class="small" style="margin:4px 0;white-space:pre-wrap">' + esc(f.inhalt_vorschau || '') + '</div>') +
     '<div class="quelle">Inhalts-Hash <span class="hash">' + esc(String(f.inhalt_hash || '').slice(0, 16)) + '…</span> · angefordert ' + esc(fmtDT(f.angefordert_am)) + ' von ' + name(D, f.angefordert_von) + (f.entschieden_am ? ' · entschieden ' + esc(fmtDT(f.entschieden_am)) + ' von ' + name(D, f.entschieden_von) + (f.begruendung ? ': ' + esc(f.begruendung) : '') : '') + (f.gueltig_bis && f.status === 'erteilt' ? ' · gültig bis ' + esc(fmtDT(f.gueltig_bis)) : '') + (f.verwendet_am ? ' · verwendet ' + esc(fmtDT(f.verwendet_am)) : '') + (!imRun ? ' · <a href="#/run/' + esc(f.run_id) + '">Run: ' + esc(kurz(r ? r.auftrag : f.run_id, 60)) + '</a>' : '') + '</div>' +
-    '<p class="small muted" style="margin:4px 0">Die Freigabe gilt nur für genau diesen Inhalt. Ändert der Agent den Inhalt, wird sie ungültig und muss neu angefordert werden.</p>' +
-    (darf ? '<div class="act" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ok" style="padding:6px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="erteilt">Freigeben</button><button class="btn danger" style="padding:6px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="abgelehnt">Ablehnen</button></div>' : (mensch && f.status === 'offen' ? '<div class="small muted">' + (f.angefordert_von === D.ich.mitglied_id ? 'Du hast diese Freigabe angefordert; entscheiden muss jemand anderes (Vier-Augen-Prinzip).' : 'Diese Freigabe darf nur Timo (Admin) erteilen.') + '</div>' : '')) + '</div>';
+    '<p class="small muted" style="margin:4px 0">' + (start ? 'Die Freigabe gilt nur für genau diesen Agenten, dieses Projekt und diesen Auftragstext. Wird der Text danach geändert, startet nichts und es braucht eine neue Freigabe.' : 'Die Freigabe gilt nur für genau diesen Inhalt. Ändert der Agent den Inhalt, wird sie ungültig und muss neu angefordert werden.') + '</p>' +
+    (darf ? '<div class="act" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ok" style="padding:6px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="erteilt">' + (start ? 'Start freigeben' : 'Freigeben') + '</button><button class="btn danger" style="padding:6px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="abgelehnt">Ablehnen</button></div>'
+      : wartetAufTimo ? '<div class="small muted"><b>Wartet auf Timo.</b> Der Agent startet, sobald Timo den Auftrag freigibt.</div>'
+      : (mensch && f.status === 'offen' ? '<div class="small muted">' + (f.angefordert_von === D.ich.mitglied_id ? 'Du hast diese Freigabe angefordert; entscheiden muss jemand anderes (Vier-Augen-Prinzip).' : 'Diese Freigabe darf nur Timo (Admin) erteilen.') + '</div>' : '')) + '</div>';
 }
 
 // ---------- Freigaben ----------
 export function vFreigaben(ctx) {
-  const D = ctx.D; const mensch = istMensch(D);
+  const D = ctx.D; const mensch = istMensch(D); const admin = D.ich.rolle === 'admin';
   const alle = (D.freigaben || []).slice().sort((a, b) => String(b.angefordert_am).localeCompare(String(a.angefordert_am)));
   const offen = alle.filter(f => f.status === 'offen'), rest = alle.filter(f => f.status !== 'offen');
-  $('#main').innerHTML = '<h1>Freigaben</h1><p class="sub">Externe Aktionen (E-Mail, Veröffentlichung, Zahlung, Löschung, Vertrag, Termine) laufen nur mit einer Freigabe, die an den exakten Inhalt gebunden ist. Agenten können keine Freigaben erteilen.</p>' +
-    '<div class="card"><h2>Offen (' + offen.length + ')</h2>' + (offen.length ? offen.map(f => freigabeKarte(D, f, runVon(D, f.run_id), mensch, false)).join('') : leer('Keine offenen Freigaben. Gut so.')) + '</div>' +
+  const starts = offen.filter(istStartFreigabe), extern = offen.filter(f => !istStartFreigabe(f));
+  $('#main').innerHTML = '<h1>Freigaben</h1><p class="sub">Aufträge von Teammitgliedern an teure oder große Agenten starten erst nach Timos Freigabe. Externe Aktionen (E-Mail, Veröffentlichung, Zahlung, Löschung, Vertrag, Termine) laufen nur mit einer Freigabe, die an den exakten Inhalt gebunden ist. Agenten können keine Freigaben erteilen.</p>' +
+    '<div class="card" id="startFreigaben"><h2>' + (admin ? 'Wartet auf deine Freigabe' : 'Aufträge, die auf Timo warten') + ' (' + starts.length + ')</h2>' + (starts.length ? starts.map(f => freigabeKarte(D, f, runVon(D, f.run_id), mensch, false)).join('') : leer(admin ? 'Kein Auftrag wartet auf deinen Start.' : 'Keiner deiner Aufträge wartet auf Timo.')) + '</div>' +
+    '<div class="card"><h2>Externe Aktionen offen (' + extern.length + ')</h2>' + (extern.length ? extern.map(f => freigabeKarte(D, f, runVon(D, f.run_id), mensch, false)).join('') : leer('Keine offenen Freigaben. Gut so.')) + '</div>' +
     '<div class="card"><details' + (offen.length ? '' : ' open') + '><summary><b>Entschieden, verfallen oder ungültig (' + rest.length + ')</b></summary>' + (rest.length ? rest.slice(0, 50).map(f => freigabeKarte(D, f, runVon(D, f.run_id), mensch, false)).join('') : leer('Noch nichts.')) + '</details></div>';
   $$('[data-freigabe]').forEach(b => b.onclick = () => freigabeDialog(ctx, b.dataset.freigabe, b.dataset.entscheidung));
 }
@@ -239,16 +256,24 @@ export function auftragDialog(ctx, vor) {
       '<div class="f"><label for="f_p">Projekt</label><select id="f_p">' + (P.length ? P.map(p => '<option value="' + esc(p.name) + '"' + (p.name === projekt ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') : '<option value="">Dieser Agent ist keinem Projekt zugeordnet</option>') + '</select></div>' +
       '<div class="f"><label for="f_t">Aufgabe (optional)</label><select id="f_t"><option value="">– ohne Aufgabe –</option>' + T.map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === vor.aufgabe_id ? ' selected' : '') + '>' + esc(a.titel) + ' (' + esc(a.status) + ')</option>').join('') + '</select></div>' +
       '<div class="f"><label for="f_x">Auftrag</label><textarea id="f_x" required minlength="3" maxlength="2000" placeholder="Was soll der Agent tun? Keine Zugangsdaten, keine Kundendaten, die nicht nötig sind.">' + esc($('#f_x') ? $('#f_x').value : '') + '</textarea></div>' +
+      '<div id="f_hint" class="note" aria-live="polite"></div>' +
       '<p class="small muted">Externe Aktionen (E-Mail, Veröffentlichung, Zahlung) braucht der Agent später eine Freigabe. Doppelte Klicks starten nichts doppelt (Idempotenzschlüssel <span class="hash">' + esc(key.slice(0, 18)) + '…</span>).</p>';
   };
   const dlg = dialog(ctx, 'Auftrag an einen Agenten', render(), async () => {
     const daten = { agent_id: $('#f_a').value, projekt: $('#f_p').value, aufgabe_id: $('#f_t').value || null, auftrag: $('#f_x').value, idempotenzschluessel: key };
     const r = await api('auftrag_starten', daten).catch(e => { toast(e.message); throw e; });
-    toast(r.wiederholt ? 'Dieser Auftrag war schon angelegt.' : 'Auftrag angelegt'); await ctx.laden(true); location.hash = '#/run/' + r.run_id;
+    toast(r.wiederholt ? 'Dieser Auftrag war schon angelegt.' : r.status === 'wartet_freigabe' ? 'Auftrag angelegt – er wartet auf Timos Freigabe' : 'Auftrag angelegt'); await ctx.laden(true); location.hash = '#/run/' + r.run_id;
   });
-  const neu = () => { agentId = $('#f_a').value; $('#dlgForm').querySelectorAll('.f, p').forEach(e => e.remove()); $('#dlgForm').insertAdjacentHTML('afterbegin', render()); bind(); };
-  const bind = () => { $('#f_a').onchange = neu; $('#f_p').onchange = neu; };
-  bind(); $('#dlgOk').textContent = 'Auftrag starten';
+  const neu = () => { agentId = $('#f_a').value; $('#dlgForm').querySelectorAll('.f, p, #f_hint').forEach(e => e.remove()); $('#dlgForm').insertAdjacentHTML('afterbegin', render()); bind(); };
+  // Vorab-Hinweis: startet der Auftrag sofort oder wartet er auf Timo? (Der Server entscheidet endgültig.)
+  const hinweis = () => {
+    const reg = A.find(x => x.agent_id === $('#f_a').value); const h = startHinweis(D, reg, $('#f_x') ? $('#f_x').value : '');
+    $('#f_hint').className = 'note' + (h.sofort ? '' : ' warn');
+    $('#f_hint').innerHTML = h.sofort ? '<b>Startet sofort</b> ' + (reg ? '(' + esc(reg.name) + ', Kostenstufe ' + esc(KOSTENSTUFE_ANZEIGE[reg.kostenstufe] || reg.kostenstufe || '–') + ').' : '') : '<b>Wartet auf Timo.</b> Dein Auftrag wird angelegt, der Agent startet erst nach Timos Freigabe. Grund: ' + h.gruende.map(esc).join(' ');
+    $('#dlgOk').textContent = h.sofort ? 'Auftrag starten' : 'Zur Freigabe vorlegen';
+  };
+  const bind = () => { $('#f_a').onchange = neu; $('#f_p').onchange = neu; $('#f_x').oninput = hinweis; hinweis(); };
+  bind();
   return dlg;
 }
 function antwortDialog(ctx, r) {
@@ -264,8 +289,13 @@ function abnahmeDialog(ctx, r, ok) {
   $('#dlgOk').textContent = ok ? 'Abnehmen' : 'Zurückweisen';
 }
 export function freigabeDialog(ctx, freigabe_id, entscheidung) {
-  const f = (ctx.D.freigaben || []).find(x => x.freigabe_id === freigabe_id); if (!f) return;
-  const ext = (ctx.D.externe_aktionen || {})[f.aktion] || { text: f.aktion };
-  dialog(ctx, entscheidung === 'erteilt' ? 'Freigabe erteilen' : 'Freigabe ablehnen', '<div class="note" style="margin-bottom:10px"><b>' + esc(ext.text) + '</b><div style="white-space:pre-wrap;margin-top:4px">' + esc(f.inhalt_vorschau || '') + '</div><div class="quelle">Hash ' + esc(f.inhalt_hash) + '</div></div>' + (entscheidung === 'erteilt' ? '<p class="small">Die Freigabe gilt 24 Stunden und genau einmal, nur für diesen Inhalt.</p>' : '') + '<div class="f"><label for="f_b">Begründung' + (entscheidung === 'erteilt' ? ' (optional)' : '') + '</label><input id="f_b" maxlength="600" ' + (entscheidung === 'erteilt' ? '' : 'required') + '></div>', () => aktion(ctx, 'freigabe_entscheiden', { freigabe_id, entscheidung, begruendung: $('#f_b').value }, entscheidung === 'erteilt' ? 'Freigabe erteilt' : 'Freigabe abgelehnt'));
-  $('#dlgOk').textContent = entscheidung === 'erteilt' ? 'Freigeben' : 'Ablehnen';
+  const D = ctx.D; const f = (D.freigaben || []).find(x => x.freigabe_id === freigabe_id); if (!f) return;
+  const ext = (D.externe_aktionen || {})[f.aktion] || { text: f.aktion };
+  const start = istStartFreigabe(f), erteilen = entscheidung === 'erteilt';
+  const inhalt = start ? '<div class="note" style="margin-bottom:10px"><b>Auftrag starten</b>' + startDetails(D, f, runVon(D, f.run_id), true) + '<div class="quelle">Hash ' + esc(f.inhalt_hash) + '</div></div>'
+    : '<div class="note" style="margin-bottom:10px"><b>' + esc(ext.text) + '</b><div style="white-space:pre-wrap;margin-top:4px">' + esc(f.inhalt_vorschau || '') + '</div><div class="quelle">Hash ' + esc(f.inhalt_hash) + '</div></div>';
+  const hinweis = start ? (erteilen ? '<p class="small">Der Agent startet sofort. Die Freigabe gilt genau einmal und nur für diesen Auftragstext.</p>' : '<p class="small">Der Auftrag wird abgebrochen. ' + name(D, f.angefordert_von) + ' sieht deine Begründung.</p>') : (erteilen ? '<p class="small">Die Freigabe gilt 24 Stunden und genau einmal, nur für diesen Inhalt.</p>' : '');
+  dialog(ctx, start ? (erteilen ? 'Start freigeben' : 'Start ablehnen') : (erteilen ? 'Freigabe erteilen' : 'Freigabe ablehnen'), inhalt + hinweis + '<div class="f"><label for="f_b">Begründung' + (erteilen ? ' (optional)' : '') + '</label><input id="f_b" maxlength="600" ' + (erteilen ? '' : 'required') + '></div>',
+    () => aktion(ctx, 'freigabe_entscheiden', { freigabe_id, entscheidung, begruendung: $('#f_b').value }, start ? (erteilen ? 'Start freigegeben' : 'Start abgelehnt') : (erteilen ? 'Freigabe erteilt' : 'Freigabe abgelehnt')));
+  $('#dlgOk').textContent = erteilen ? (start ? 'Start freigeben' : 'Freigeben') : 'Ablehnen';
 }

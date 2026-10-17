@@ -8,7 +8,7 @@
 // (Bild oder HTML; gibt es keins, das neueste Ergebnis überhaupt als Karte) – Bilder direkt, HTML nur in einem iframe mit sandbox=""
 // (keine Skripte, keine gleiche Herkunft), alles andere als Karte. Klick → Monitorwand (#/monitor/<Raum>) mit den letzten 12 Ergebnissen.
 import { $, $$, esc, relativ, fmtZeit, fmtDT, chip, kurz } from './util.js';
-import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied, istOrchestrierer, laufendeTeams, raumArtefakte, raumMonitor, ARTEFAKT_TYP_TEXT, PRUEFSTAND_TEXT } from './modell.js';
+import { RAEUME, agentZustand, projektStand, raumVon, ZUSTAND_TEXT, ZUSTAND_FARBE, letzteAktivitaetRun, runVon, agentReg, mitglied, darfEntscheiden, istOrchestrierer, laufendeTeams, raumArtefakte, raumMonitor, ARTEFAKT_TYP_TEXT, PRUEFSTAND_TEXT } from './modell.js';
 import { freigabeDialog } from './ansichten.js';
 import { PORTAL } from './api.js';
 
@@ -235,7 +235,7 @@ export function vBuero(ctx) {
   const ich = D.ich || {}; const mensch = ich.typ !== 'agent';
   const ereignisse = (D.ereignisse || []).slice().sort((a, b) => String(b.zeit).localeCompare(String(a.zeit))).slice(0, 10);
   const feed = ereignisse.map(e => { const r = runVon(D, e.run_id); const reg = r ? agentReg(D, r.agent_id) : null; return '<li class="e-' + esc(e.art) + '"><span class="zt">' + esc(fmtZeit(e.zeit)) + ' · ' + esc(reg ? reg.name : (r ? r.agent_id : '–')) + '</span><br>' + (EREIGNIS_ICON[e.art] || '•') + ' <a href="#/run/' + esc(e.run_id) + '">' + esc(kurz(e.titel, 70)) + '</a></li>'; }).join('');
-  const frei = freigabenOffen.map(f => { const r = runVon(D, f.run_id); const ext = (D.externe_aktionen || {})[f.aktion] || { text: f.aktion }; const darf = mensch && f.angefordert_von !== ich.mitglied_id && (!f.kritisch || ich.rolle === 'admin');
+  const frei = freigabenOffen.map(f => { const r = runVon(D, f.run_id); const ext = (D.externe_aktionen || {})[f.aktion] || { text: f.aktion }; const darf = mensch && darfEntscheiden(D, f);
     return '<div class="small" style="border-top:1px solid var(--line);padding:8px 0"><b>' + esc(ext.text) + '</b> <span class="chip fs-offen">offen</span><div class="muted">' + esc(kurz(f.inhalt_vorschau || '', 90)) + '</div><div class="quelle">' + esc(relativ(f.angefordert)) + ' · <a href="#/run/' + esc(f.run_id) + '">' + esc(kurz(r ? r.auftrag : f.run_id, 40)) + '</a></div>' +
       (darf ? '<div style="display:flex;gap:6px;margin-top:6px"><button class="btn ok" style="padding:5px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="erteilt">Freigeben</button><button class="btn danger" style="padding:5px 10px" data-freigabe="' + esc(f.freigabe_id) + '" data-entscheidung="abgelehnt">Ablehnen</button></div>' : '') + '</div>'; }).join('');
   const zaehler = Object.keys(ZUSTAND_TEXT).map(k => { const n = infos.reduce((s, i) => s + i.agenten.filter(x => x.z.zustand === k).length, 0) + zentraleAgenten.filter(x => x.z.zustand === k).length; return '<span><i style="background:' + esc(ZUSTAND_FARBE[k]) + '"></i>' + n + ' ' + esc(ZUSTAND_TEXT[k]) + '</span>'; }).join('');

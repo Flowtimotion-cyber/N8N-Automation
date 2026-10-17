@@ -93,7 +93,13 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const ad = new TestAdapter({ speicher: sp, uhr, tokenVon: tokenVonAgent });
   if (szenario === 'leer') { uhr.vor(56 * 60); return { speicher: sp, adapter: ad, uhr }; }
   const mensch = (wer, aktion, daten) => sp.aufruf({ token: TOKENS[wer], aktion, daten });
-  const start1 = (wer, agent, projekt, aufgabe_id, auftrag, key) => mensch(wer, 'auftrag_starten', { agent_id: agent, projekt, aufgabe_id, auftrag, idempotenzschluessel: 'testdaten-' + key }).antwort.run_id;
+  // Teammitglieder brauchen für teure/normale Agenten Timos Startfreigabe (office/lib/kosten.js). Die Szenario-Runs sollen wie bisher laufen, darum gibt Timo hier gleich frei;
+  // die Fälle „wartet auf Timo“ und „Start abgelehnt“ stehen weiter unten bewusst offen (Runs 14 und 15).
+  const start1 = (wer, agent, projekt, aufgabe_id, auftrag, key, offen) => {
+    const r = mensch(wer, 'auftrag_starten', { agent_id: agent, projekt, aufgabe_id, auftrag, idempotenzschluessel: 'testdaten-' + key }).antwort;
+    if (r.freigabe_id && !offen) mensch('m_timo', 'freigabe_entscheiden', { freigabe_id: r.freigabe_id, entscheidung: 'erteilt', begruendung: 'Testdaten: Start freigegeben.' });
+    return r.run_id;
+  };
   const tick = sek => { uhr.vor(sek); ad.laufen(); };
   // Ein Agent legt ein Ergebnis ab (wie über die Office-API), eine Sekunde nach dem letzten Tick, damit die Reihenfolge eindeutig ist
   const ergebnis = (agent, run_id, daten) => { uhr.vor(1); return sp.aufruf({ token: tokenVonAgent(agent), aktion: 'artefakt', daten: { run_id, ...daten } }); };
@@ -116,7 +122,7 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   // 6) Freigabe erteilt und Aktion ausgeführt (Social, Veröffentlichung)
   const r6 = start1('m_lillien', 'marketing-texter', 'Social Media', 'a_s1', 'LinkedIn-Beitrag KW 43 entwerfen und nach Freigabe veröffentlichen', 'td-r6');
   tick(10);
-  const fr6 = sp.T.office_freigaben.find(f => f.run_id === r6);
+  const fr6 = sp.T.office_freigaben.find(f => f.run_id === r6 && f.aktion !== 'auftrag_start');
   if (fr6) mensch('m_timo', 'freigabe_entscheiden', { freigabe_id: fr6.freigabe_id, entscheidung: 'erteilt', begruendung: 'Text geprüft.' });
   for (let i = 0; i < 3; i++) tick(10);
   // Marketing: Reichweiten-Diagramm (Bild) und danach die Beitragsvorschau als HTML (Monitor zeigt das neueste: HTML in der Sandbox)
@@ -144,8 +150,13 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   // 12) Frischer Lauf in Arbeit mit Ereignissen (für die Zeitleiste)
   const r12 = start1('m_kurt', 'akademie-redakteur', 'Akademie-Kurs', 'a_k2', 'Zehn Quizfragen für Modul 1.2 formulieren', 'td-r12');
   tick(10); tick(25);
+  // 14) Wartet auf Timos Startfreigabe: Lillien (Team) beauftragt einen normalen Agenten (Sonnet)
+  const r14 = start1('m_lillien', 'marketing-texter', 'Webseite', null, 'Newsletter zum Herbstangebot entwerfen, drei Betreffzeilen zur Auswahl', 'td-r14', true);
+  // 15) Start abgelehnt: Murat (Vertrieb) wollte den Angebots-Prüfer (Opus) für eine Kleinigkeit; Timo lehnt ab
+  const r15 = start1('m_murat', 'angebots-pruefer', 'Vertrieb Herbst', null, 'Rechtschreibung in einer Mail prüfen', 'td-r15', true);
+  mensch('m_timo', 'freigabe_entscheiden', { freigabe_id: sp.T.office_freigaben.find(f => f.run_id === r15 && f.aktion === 'auftrag_start').freigabe_id, entscheidung: 'abgelehnt', begruendung: 'Dafür reicht der Kurs-Wächter, bitte kleiner beauftragen.' });
   // Uhr auf „jetzt“ bringen (restliche Zeit), ohne weitere Wartung, damit r7/r12 je nach Dauer sichtbar bleiben
   const rest = Math.max(0, (jetzt ? new Date(jetzt).getTime() : Date.now()) - uhr.ms);
   uhr.vor(rest / 1000);
-  return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, kinder13 } };
+  return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, kinder13 } };
 }

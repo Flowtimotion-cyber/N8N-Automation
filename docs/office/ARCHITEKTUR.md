@@ -87,7 +87,8 @@ Diese Tabelle wird aus `office/lib/zustand.js` erzeugt (`uebergangsTabelleMarkdo
 | wartet auf Rückmeldung | fehlgeschlagen | agent, system | Executor meldet Fehler |
 | wartet auf Rückmeldung | unbekannt / veraltet | system | Wartefrist für Menschen überschritten |
 | wartet auf Freigabe | in Arbeit | mensch | Freigabe erteilt oder abgelehnt (Agent entscheidet dann, wie es weitergeht) |
-| wartet auf Freigabe | abgebrochen | mensch | Mensch bricht ab |
+| wartet auf Freigabe | Warteschlange | mensch | Timo (Admin) gibt den Start eines Auftrags frei, den ein Teammitglied angelegt hat |
+| wartet auf Freigabe | abgebrochen | mensch | Mensch bricht ab, oder Timo lehnt den Start eines Auftrags ab |
 | wartet auf Freigabe | fehlgeschlagen | agent, system | Executor meldet Fehler |
 | wartet auf Freigabe | unbekannt / veraltet | system | Wartefrist für Menschen überschritten |
 | fehlgeschlagen | Warteschlange | mensch, system | Wiederholung, nur solange versuche < max_versuche |
@@ -248,3 +249,37 @@ Drei weitere Registry-Einträge, auf Timos Wunsch angelegt. Der Orchestrierer ha
 Der zentrale Speicher bleibt Supabase. Obsidian bekommt einen **Lesespiegel der Artefakte**: `agenten/office.py obsidian` ruft `laden` auf (rollengefilterte Antwort, kein zusätzlicher Endpunkt, keine Änderung an n8n oder Supabase), vergleicht die Artefakte mit einer Zustandsdatei neben dem Skript (`office.obsidian.json`: Zeitstempel des neuesten gespiegelten Artefakts, Liste der IDs) und schreibt pro Run eine Notiz in `01 Inbox/KI Office/` des Vaults. Idempotenz dreifach: ID-Liste, Zeitstempel mit 24 h Spielraum, Marker `<!-- artefakt:ID -->` in der Notiz. Textteile werden nur angehängt; im Frontmatter ändert das Skript ausschließlich `status`, `pruefstand`, `aktualisiert` seiner eigenen Notizen (`typ: ki-office-run`). Freitext (Titel, Zusammenfassung, Auftrag) wird vor dem Schreiben maskiert (E-Mail, Telefon, schlüsselartige Zeichenketten). Nie in den Vault: Token, Freigaben, Ereignisse, Rückfragen, Mitgliederdaten.
 
 Das Skript läuft dort, wo der Vault liegt (Hermes auf Timos Rechner oder Aufgabenplanung). Die Sichtgrenze ist die des verwendeten Tokens: Mit dem Hermes-Token sind es die Runs in Hermes’ Registry-Projekten, nicht das ganze Office. Konzept, Format und Ausschlüsse: `docs/office/OBSIDIAN.md`; Tests: `agenten/test_office_obsidian.py` gegen `office/dev/server.mjs` und einen Wegwerf-Vault.
+
+## 13. Startfreigabe für Aufträge von Teammitgliedern (ergänzt 18.10.2026, KI-erstellt: Claude Code)
+
+**Regel (Timo, 18.10.2026).** Teammitglieder (Rollen dozent, vertrieb, team) dürfen Aufträge an Agenten anlegen; ob der Agent sofort losläuft, hängt von Kosten und Größe ab. Timo (Rolle admin) startet immer sofort. Agenten legen Aufträge nur für sich selbst an und unterliegen der Regel nicht.
+
+Ein Auftrag eines Teammitglieds startet **sofort**, wenn alle vier Bedingungen gelten, sonst wartet er auf Timo:
+
+| Bedingung | Standard | Stelle im Code |
+|---|---|---|
+| Agent ist „günstig“ | Modell `deepseek-v4-flash`, `gpt-5-mini` oder `claude-haiku-5-5` | `START_REGELN.guenstige_modelle` |
+| Auftragstext ist kurz | höchstens 600 Zeichen | `START_REGELN.klein_max_zeichen` |
+| Kostenlimit des Runs ist klein | höchstens 0,05 € (`budget_eur` im Run, Standard 0,05; ein höheres Limit beim Anlegen macht den Auftrag „nicht klein“) | `START_REGELN.klein_budget_eur` |
+| Tagesbudget der Person reicht | Summe der Run-Kosten des Tages plus Limit dieses Runs höchstens 1 € | `START_REGELN.tagesbudget_eur` |
+
+Alle Werte stehen als Konstanten mit Kommentar oben in `office/lib/kosten.js`. Nach einer Änderung `node office/n8n/bauen.mjs` und das Bündel in „Anfrage prüfen“ einspielen (SETUP.md Abschnitt 13).
+
+**Kostenstufe je Agent** (`kostenstufe()`): günstig (die drei Modelle oben), teuer (`claude-opus-5-5`), alles andere normal (auch unbekannte Modelle). Das optionale Registry-Feld `freigabe_noetig` überschreibt die Stufe für den Sofortstart: `true` = Teammitglieder brauchen für diesen Agenten immer Timos Freigabe (im Startbestand: `server-waechter`), `false` = nie wegen des Agenten, leer = nach Modell. Die übrigen Bedingungen (Länge, Limit, Tagesbudget) gelten weiter. Pflege über `agent_speichern` oder SQL; `laden` liefert je Agent `kostenstufe`, `freigabe_noetig` und `sofort_ok`. `deepseek-v4-flash` ist jetzt auch als Modell in der Registry zulässig.
+
+**Tagesbudget.** Zählt alle Runs, die die Person am selben Kalendertag (Europe/Berlin) angelegt hat: gemessene Kosten (`verbrauch.kosten_eur`), sonst das Kostenlimit des Runs als Obergrenze. Nie gestartete Runs (wartend auf Freigabe, abgelehnt, abgebrochen) kosten nichts. Die Regel prüft, ob Verbrauch plus Limit des neuen Runs das Tagesbudget übersteigt; ein Run, der schon läuft, reserviert also sein Limit.
+
+**Ablauf bei `auftrag_starten` und `auftrag_delegieren` durch einen Menschen ohne Admin-Rolle, der die Bedingungen nicht erfüllt:**
+
+1. Der Run entsteht mit Status `wartet_freigabe` (nie gestartet: `gestartet = null`), dazu der Rückmelde-Schlüssel (liegt in `office_run_schluessel`, wird aber nicht herausgegeben) und eine Freigabe `aktion = 'auftrag_start'` (Status `offen`). Ihr Hash ist `inhaltsHash('auftrag_start', { agent_id, projekt, auftrag })` (Muster aus `office/lib/freigabe.js`). Es geht **kein Start** an den Ausführer (`extern = null`). Die Antwort enthält `status: 'wartet_freigabe'`, `wartet_auf: 'Timo'`, die Gründe (`gruende`) und die Kostenstufe.
+2. Solange der Run wartet, lehnt die API Aktionen des Agenten auf diesem Run mit 409 ab (`lebenszeichen`, `ereignis`, `artefakt`, `run_beenden` …). Ein Eltern-Run kann nicht abgeschlossen werden, solange ein Teilauftrag auf Timo wartet.
+3. **Freigabe** (`freigabe_entscheiden`, nur Admin; Dozent, Auftraggeber und Agenten bekommen 403): Der Server prüft den Hash gegen die aktuellen Felder des Runs. Stimmt er: Freigabe `verwendet`, Run → `warteschlange`, Ausführer wird angestoßen (`extern.art = 'start'`, genau wie beim Sofortstart). Die Wartezeit der Warteschlange (30 Minuten) zählt ab der Freigabe, nicht ab dem Anlegen (`fristPruefen` nutzt `lebenszeichen`).
+4. **Ablehnung:** Freigabe `abgelehnt`, Run → `abgebrochen` mit `grund` („Start von Timo abgelehnt: …“) und `abgebrochen_von`. Nichts startet. Die Entscheidung gilt endgültig.
+5. **Text nachträglich geändert** (Hash passt nicht mehr; nur durch Eingriff in die Datenbank möglich): 409, die alte Freigabe wird `ungueltig`, eine neue offene Freigabe für den geänderten Text wird angelegt, nichts startet. Timo sieht den neuen Text und entscheidet neu. Gebunden sind Agent, Projekt und Auftragstext.
+6. **Zurückziehen:** Der Auftraggeber (oder ein Dozent/Admin) bricht den wartenden Run ab; die offene Startfreigabe wird `verfallen`, es geht kein Abbruchsignal an einen Ausführer. Unbeantwortet verfällt die Freigabe mit dem Run nach 7 Tagen (Wartefrist für Menschen).
+
+**Oberfläche.** Im Kopf erscheint für Timo „n Aufträge warten auf deine Freigabe“ (Link zum Register „Freigaben“), für Teammitglieder „n deiner Aufträge warten auf Timo“. Im Register „Freigaben“ steht oben die Karte „Wartet auf deine Freigabe“ mit Agent, Kostenstufe, Auftraggeber, Projekt, Kostenlimit und dem vollen Auftragstext; „Start freigeben“ öffnet den Dialog (Begründung optional), „Ablehnen“ verlangt eine Begründung. Auf der Run-Seite steht für Teammitglieder „Wartet auf Timo“. Im Auftragsdialog zeigt ein Hinweis schon beim Tippen, ob der Auftrag sofort startet oder auf Timo wartet (nur Anzeige, der Server entscheidet).
+
+**Datenmodell (additiv, `supabase/team_office.sql` Abschnitt 2b):** `office_runs.budget_eur numeric`, `office_agenten.freigabe_noetig boolean`. Die Freigabe nutzt `office_freigaben` unverändert. **Reihenfolge beim Einspielen: erst das SQL, dann der Code-Knoten**, sonst scheitert jedes Anlegen eines Runs an der fehlenden Spalte.
+
+**Grenzen:** `budget_eur` ist heute Angabe und Grundlage der Regel; kein Ausführer bricht bei Überschreitung ab (RESTPUNKTE.md). Das Tagesbudget beruht auf gemeldetem Verbrauch; wo ein Ausführer keinen Verbrauch meldet, zählt das Run-Limit als Obergrenze. Delegierte Teilaufträge von Menschen ohne Admin-Rolle unterliegen derselben Regel, Teilaufträge eines Orchestrierer-Agenten nicht (der Eltern-Run wurde bereits freigegeben oder war ein Sofortstart).

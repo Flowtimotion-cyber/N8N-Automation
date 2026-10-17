@@ -45,7 +45,8 @@ export const UEBERGAENGE = [
   { von: 'wartet_rueckmeldung', nach: 'fehlgeschlagen', wer: ['agent', 'system'], anlass: 'Executor meldet Fehler' },
   { von: 'wartet_rueckmeldung', nach: 'unbekannt', wer: ['system'], anlass: 'Wartefrist für Menschen überschritten' },
   { von: 'wartet_freigabe', nach: 'in_arbeit', wer: ['mensch'], anlass: 'Freigabe erteilt oder abgelehnt (Agent entscheidet dann, wie es weitergeht)' },
-  { von: 'wartet_freigabe', nach: 'abgebrochen', wer: ['mensch'], anlass: 'Mensch bricht ab' },
+  { von: 'wartet_freigabe', nach: 'warteschlange', wer: ['mensch'], anlass: 'Timo (Admin) gibt den Start eines Auftrags frei, den ein Teammitglied angelegt hat' },
+  { von: 'wartet_freigabe', nach: 'abgebrochen', wer: ['mensch'], anlass: 'Mensch bricht ab, oder Timo lehnt den Start eines Auftrags ab' },
   { von: 'wartet_freigabe', nach: 'fehlgeschlagen', wer: ['agent', 'system'], anlass: 'Executor meldet Fehler' },
   { von: 'wartet_freigabe', nach: 'unbekannt', wer: ['system'], anlass: 'Wartefrist für Menschen überschritten' },
   { von: 'fehlgeschlagen', nach: 'warteschlange', wer: ['mensch', 'system'], anlass: 'Wiederholung, nur solange versuche < max_versuche' },
@@ -80,7 +81,8 @@ export function fristPruefen(run, jetztMs) {
   const alter = s => (jetztMs - t(s)) / 1000;
   const timeout = Number(run.timeout_sek) || FRISTEN.timeout_sek;
   if (run.status === 'warteschlange') {
-    const a = alter(run.erstellt);
+    // Ab der letzten Zustandsänderung zählen (lebenszeichen), nicht ab dem Anlegen: ein Auftrag, der erst nach Timos Freigabe startet, hat sonst die Wartezeit schon verbraucht.
+    const a = alter(run.lebenszeichen || run.erstellt);
     if (a > FRISTEN.wartezeit_warteschlange) return { nach: 'unbekannt', grund: 'Kein Executor hat den Auftrag innerhalb von ' + Math.round(FRISTEN.wartezeit_warteschlange / 60) + ' Minuten übernommen.' };
   }
   if (run.status === 'in_arbeit') {

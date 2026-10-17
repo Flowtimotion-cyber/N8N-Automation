@@ -155,3 +155,30 @@ export function raumMonitor(D, raum) {
   const A = raumArtefakte(D, raum, 50);
   return A.find(a => a.typ === 'bild' || a.typ === 'html') || A.find(a => a.typ === 'pdf') || A[0] || null;
 }
+
+// ---------- Startfreigabe für Aufträge (Server: office/lib/kosten.js; hier nur Anzeige und Vorab-Hinweis) ----------
+export const START_AKTION = 'auftrag_start';
+export const istStartFreigabe = f => !!f && f.aktion === START_AKTION;
+/** Offene Startfreigaben, deren Run wirklich noch wartet. */
+export const wartendeStarts = D => (D.freigaben || []).filter(f => istStartFreigabe(f) && f.status === 'offen' && (runVon(D, f.run_id) || {}).status === 'wartet_freigabe');
+/** Darf die angemeldete Person diese Freigabe entscheiden? Starts nur Admin; externe Aktionen nach Stufe und Vier-Augen-Prinzip (der Server prüft zusätzlich). */
+export function darfEntscheiden(D, f) {
+  const ich = D.ich;
+  if (!ich || ich.typ === 'agent' || f.status !== 'offen') return false;
+  if (istStartFreigabe(f)) return ich.rolle === 'admin';
+  const ext = (D.externe_aktionen || {})[f.aktion] || {};
+  return (ext.stufe !== 'kritisch' || ich.rolle === 'admin') && f.angefordert_von !== ich.mitglied_id;
+}
+export const KOSTENSTUFE_ANZEIGE = { guenstig: 'günstig', normal: 'normal', teuer: 'teuer' };
+const euroText = x => (Number(x) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+/** Wird dieser Auftrag sofort starten oder auf Timo warten? Gleiche Regeln wie der Server, nur für den Hinweis im Auftragsdialog. */
+export function startHinweis(D, reg, auftragsText) {
+  const R = D.start_regeln || {};
+  if (R.startet_sofort) return { sofort: true, gruende: [] };
+  const g = [];
+  if (reg && !reg.sofort_ok) g.push(reg.freigabe_noetig === true ? 'Für diesen Agenten ist immer eine Freigabe eingestellt.' : 'Der Agent „' + reg.name + '“ gehört zur Kostenstufe „' + (KOSTENSTUFE_ANZEIGE[reg.kostenstufe] || reg.kostenstufe) + '“.');
+  const n = String(auftragsText || '').trim().length;
+  if (n > R.klein_max_zeichen) g.push('Der Auftrag ist mit ' + n + ' Zeichen länger als ' + R.klein_max_zeichen + '.');
+  if ((Number(R.heute_verbraucht_eur) || 0) + (Number(R.klein_budget_eur) || 0) > (Number(R.tagesbudget_eur) || 0)) g.push('Dein Tagesbudget von ' + euroText(R.tagesbudget_eur) + ' ist fast oder ganz verbraucht (heute ' + euroText(R.heute_verbraucht_eur) + ').');
+  return { sofort: g.length === 0, gruende: g };
+}

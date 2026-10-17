@@ -72,6 +72,12 @@ alter table office_runs add column if not exists eltern_run_id text references o
 alter table office_runs add column if not exists team_id text;
 create index if not exists office_runs_eltern on office_runs (eltern_run_id) where eltern_run_id is not null;
 create index if not exists office_runs_team on office_runs (team_id) where team_id is not null;
+-- 2b) Startfreigabe (ergänzt 18.10.2026, additiv): Teammitglieder starten nur günstige Agenten mit kleinen Aufträgen sofort, alles andere erst nach Timos Freigabe.
+--     budget_eur = Kostenlimit dieses Runs in Euro (Standard 0,05; höher = kein „kleiner“ Auftrag). Die Grenzwerte stehen als Konstanten in office/lib/kosten.js.
+--     freigabe_noetig (Registry) = optional: true = für Teammitglieder immer Freigabe, false = nie wegen des Agenten, leer = nach Modell (günstig: deepseek-v4-flash, gpt-5-mini, claude-haiku-5-5).
+--     Die Freigabe selbst nutzt die vorhandene Tabelle office_freigaben mit aktion = 'auftrag_start'; der Run wartet im Status wartet_freigabe.
+alter table office_runs    add column if not exists budget_eur numeric;
+alter table office_agenten add column if not exists freigabe_noetig boolean;
 create unique index if not exists office_runs_idem on office_runs (idempotenzschluessel);
 create unique index if not exists office_runs_n8n on office_runs (n8n_execution_id) where n8n_execution_id is not null;
 create index if not exists office_runs_projekt on office_runs (projekt, status);
@@ -210,6 +216,9 @@ insert into office_agenten (agent_id, name, rolle, raum, faehigkeiten, erlaubte_
   ('pa-assistent', 'PA-Assistent', 'Persönlicher Assistent für Timo: hält Termine im Blick, liest die Postfächer und legt alles, was Timos Entscheidung braucht, als Rückfrage oder Aufgabe auf den Tisch. Antwortet nie selbst nach außen.', 'Verwaltung', array['Terminübersicht','Postfach-Triage','Entscheidungsvorlagen','Fristen erkennen']::text[], array['kalender_lesen','email_lesen','aufgaben_lesen','rueckfrage','notiz_speichern']::text[], 'claude-sonnet-5-5', 'Triage mit Kontext und Urteil, ob eine Entscheidung nötig ist; Haiku wäre für reine Klassifikation günstiger, verfehlt aber Zwischentöne in Mails.', 'hermes', 'agent-hermes', array['Verwaltung & Finanzen']::text[], 900, 3, true)
 on conflict (agent_id) do nothing;
 update office_agenten set beschreibung = rolle where beschreibung is null;
+
+-- 9a) Server-Wächter berührt Server und Backups: Teammitglieder brauchen für ihn immer Timos Freigabe, auch wenn das Modell günstig ist. Nur setzen, wo noch nichts eingetragen ist.
+update office_agenten set freigabe_noetig = true where agent_id = 'server-waechter' and freigabe_noetig is null;
 
 -- 10) Räume für bestehende Projekte (nur, wo noch keiner gesetzt ist; Namen bitte anpassen)
 update team_projekte set raum = 'Marketing'  where raum is null and name in ('Webseite', 'Social Media');

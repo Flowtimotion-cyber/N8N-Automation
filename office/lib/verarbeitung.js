@@ -5,6 +5,7 @@
 // Keine Gedankengänge, keine Prompts, keine Zugangsdaten werden gespeichert: Freitext wird gekürzt und von Schlüsselmustern bereinigt.
 import { inhaltsHash } from './hash.js';
 import { STATUS, STATUS_TEXT, ALLE_STATUS, UEBERGAENGE, FRISTEN, darfWechseln, istEndzustand, fristPruefen } from './zustand.js';
+import { START_REGELN, FREIGABE_START, kostenstufe, KOSTENSTUFE_TEXT, agentSofortOk, tagesverbrauchEur, startPruefung } from './kosten.js';
 import { EXTERNE_AKTIONEN, brauchtFreigabe, freigabeAnfordern, freigabeGueltig, freigabeEntscheiden } from './freigabe.js';
 import { istAgent, istAdmin, istDozent, istMensch, darfAktion, darfProjekt, darfRunSehen, darfRunSteuern, darfFreigeben, darfTool, sichtbareProjekte, fuehrtAus, OHNE_TOKEN } from './rechte.js';
 import { pruefeSignatur } from './signatur.js';
@@ -12,7 +13,7 @@ import { schluesselGueltig, frueherGesehen, merken } from './idempotenz.js';
 import { neu, aend, weg } from './postgrest.js';
 
 export const RAEUME = ['Akademie', 'Marketing', 'Vertrieb', 'Kundenprojekte', 'Verwaltung'];
-export const MODELLE = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'gpt-5-mini'];
+export const MODELLE = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'gpt-5-mini', 'deepseek-v4-flash'];
 export const AUSFUEHRER = ['n8n', 'claude-code', 'codex', 'hermes'];
 export const EREIGNIS_ARTEN = ['schritt', 'tool', 'quelle', 'fehler', 'wiederholung', 'hinweis', 'status', 'rueckfrage', 'antwort', 'freigabe', 'artefakt', 'abnahme', 'entscheidung'];
 export const ARTEFAKT_ARTEN = ['text', 'datei', 'link', 'commit', 'notiz', 'bericht'];
@@ -37,6 +38,8 @@ const klein = (obj, maxZeichen) => {
   if (s.length > maxZeichen) return { gekuerzt: true, text: s.slice(0, maxZeichen) };
   return o;
 };
+/** Woran die Startfreigabe gebunden ist: Agent, Projekt und Auftragstext des Runs (Hash über kanonisches JSON, siehe hash.js). */
+const startInhalt = run => ({ agent_id: run.agent_id, projekt: run.projekt, auftrag: run.auftrag });
 const istUrl = s => /^https?:\/\/[^\s]+$/i.test(String(s || ''));
 
 export function verarbeiten(ctx) {
@@ -145,15 +148,22 @@ export function verarbeiten(ctx) {
       if (aufgabe_id) { const a = aufgaben.find(x => x.aufgabe_id === aufgabe_id); if (!a) return raus(404, 'Diese Aufgabe gibt es nicht.'); if (a.projekt !== projekt) return raus(400, 'Die Aufgabe gehört zu einem anderen Projekt.'); }
       const auftrag = txt(d.auftrag, 2000);
       if (auftrag.length < 3) return raus(400, 'Bitte beschreib den Auftrag (mindestens 3 Zeichen).');
+      // Kostenlimit dieses Runs (Euro). Ohne Angabe gilt der Standard; ein höheres Limit macht den Auftrag „nicht klein“ und braucht für Teammitglieder Timos Freigabe.
+      const budgetWunsch = d.budget_eur == null || d.budget_eur === '' ? START_REGELN.klein_budget_eur : Number(d.budget_eur);
+      if (!Number.isFinite(budgetWunsch) || budgetWunsch < 0 || budgetWunsch > 100) return raus(400, 'budget_eur muss eine Zahl zwischen 0 und 100 sein (Euro).');
+      const budget_eur = Math.round(budgetWunsch * 10000) / 10000;
+      // Startregel (ARCHITEKTUR.md Abschnitt 13): Menschen ohne Admin-Rolle starten nur günstige Agenten mit kleinen Aufträgen und freiem Tagesbudget sofort, alles andere erst nach Timos Freigabe.
+      // Agenten (sie legen Aufträge nur für sich selbst an) und Admin starten immer sofort.
+      const pruefung = startPruefung({ mensch_ohne_admin: istMensch(ich) && !istAdmin(ich), agent: reg, auftrag, budget_eur, runs, mitglied_id: ich.mitglied_id, jetztMs });
       const run_id = neueId('run');
       const schluessel = zufall(48);
       const timeout_sek = Math.min(86400, Math.max(60, Number(d.timeout_sek) || Number(reg.timeout_sek) || FRISTEN.timeout_sek));
       const max_versuche = Math.min(5, Math.max(1, Number(d.max_versuche) || Number(reg.max_versuche) || FRISTEN.max_versuche));
       const run = { run_id, projekt, aufgabe_id, auftraggeber: ich.mitglied_id, agent_id: reg.agent_id, ausfuehrer: reg.ausfuehrer || 'n8n', workflow_version: String(reg.workflow_version || ''), konfig_version: String(reg.konfig_version || ''),
-        status: STATUS.WARTESCHLANGE, auftrag, eingabe: d.eingabe == null ? null : klein(d.eingabe, 4000), idempotenzschluessel: key, n8n_execution_id: null, externe_id: null,
+        status: pruefung.sofort ? STATUS.WARTESCHLANGE : STATUS.WARTET_FREIGABE, auftrag, eingabe: d.eingabe == null ? null : klein(d.eingabe, 4000), idempotenzschluessel: key, n8n_execution_id: null, externe_id: null,
         erstellt: jetzt, gestartet: null, lebenszeichen: null, beendet: null, timeout_sek, versuche: 1, max_versuche, fehler: null,
         zusammenfassung: null, zusammenfassung_zeit: null, zusammenfassung_quelle: null, verbrauch: null, abgenommen: null, abgenommen_von: null, abgenommen_am: null, abnahme_kommentar: null, grund: null,
-        eltern_run_id: eltern ? eltern.run_id : null, team_id };
+        eltern_run_id: eltern ? eltern.run_id : null, team_id, budget_eur };
       const antwort = { run_id, status: run.status, wiederholt: false, eltern_run_id: run.eltern_run_id, team_id };
       const ops = [neu('office_runs', run), neu('office_run_schluessel', { run_id, schluessel, erstellt: jetzt }),
         ereignis(run_id, 'status', (eltern ? 'Teilauftrag angelegt für ' : 'Auftrag angelegt für ') + reg.name + ' (Versuch 1 von ' + max_versuche + ')', { projekt, aufgabe_id, auftraggeber: ich.mitglied_id, eltern_run_id: run.eltern_run_id, team_id }),
@@ -164,6 +174,14 @@ export function verarbeiten(ctx) {
         ops.push(ereignis(eltern.run_id, 'tool', 'Teilauftrag delegiert an ' + reg.name + ': ' + auftrag.slice(0, 120), { kind_run_id: run_id, agent_id: reg.agent_id, projekt, team_id }, { tool: 'auftrag_delegieren' }));
         const elternRow = { lebenszeichen: jetzt }; if (team_id && !eltern.team_id) elternRow.team_id = team_id;
         ops.push(aend('office_runs', 'run_id', eltern.run_id, elternRow));
+      }
+      if (!pruefung.sofort) {
+        // Wartet auf Timo: Freigabe „auftrag_start“ gebunden an den Hash von Agent, Projekt und Auftragstext. Den Ausführer anstoßen wir erst nach der Freigabe.
+        const fr = freigabeAnfordern({ freigabe_id: neueId('frg'), run_id, aktion: FREIGABE_START.aktion, inhalt: startInhalt(run), vorschau: auftrag, jetzt, angefordert_von: ich.mitglied_id });
+        ops.splice(1, 0, neu('office_freigaben', fr));   // nach dem Run (Fremdschlüssel), vor den Ereignissen
+        ops.push(ereignis(run_id, 'freigabe', 'Start wartet auf Freigabe durch Timo: ' + pruefung.gruende.map(g => g.text).join(' '), { freigabe_id: fr.freigabe_id, inhalt_hash: fr.inhalt_hash, gruende: pruefung.gruende.map(g => g.code), kostenstufe: pruefung.stufe, budget_eur }));
+        ops.push(...verlaufEintrag(run, 'kommentar', (eltern ? 'Teilauftrag an ' : 'Auftrag an ') + reg.name + ' angelegt, wartet auf Timos Freigabe: ' + auftrag.slice(0, 300)));
+        return schreiben(ops, Object.assign({ freigabe_id: fr.freigabe_id, wartet_auf: 'Timo', gruende: pruefung.gruende, kostenstufe: pruefung.stufe, hinweis: 'Dein Auftrag ist angelegt und startet, sobald Timo ihn freigibt.' }, antwort), null);
       }
       ops.push(...verlaufEintrag(run, 'kommentar', (eltern ? 'Teilauftrag an ' : 'Auftrag an ') + reg.name + ' gestartet: ' + auftrag.slice(0, 300)));
       return schreiben(ops, Object.assign({ rueckmelde_schluessel: schluessel }, antwort), { art: 'start', run_id, agent_id: reg.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: reg.ausfuehrer_url || null, schluessel, eltern_run_id: run.eltern_run_id, team_id });
@@ -240,6 +258,7 @@ export function verarbeiten(ctx) {
     case 'freigabe_entscheiden': {
       const fr = freigaben.find(f => f.freigabe_id === String(d.freigabe_id || '')); if (!fr) return raus(404, 'Diese Freigabe gibt es nicht.');
       const run = runVon(fr.run_id); if (!run) return raus(404, 'Der zugehörige Run existiert nicht mehr.');
+      if (fr.aktion === FREIGABE_START.aktion) return startEntscheiden(fr, run);
       const stufe = (EXTERNE_AKTIONEN[fr.aktion] || {}).stufe || 'extern';
       const r = darfFreigeben(ich, fr, run, stufe, agenten); if (!r.ok) return raus(403, r.grund);
       const e = freigabeEntscheiden(fr, String(d.entscheidung || ''), ich.mitglied_id, d.begruendung, jetzt); if (e.fehler) return raus(409, e.fehler);
@@ -280,8 +299,10 @@ export function verarbeiten(ctx) {
       const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
       if (!darfRunSteuern(ich, run, agenten)) return raus(403, 'Abbrechen kann die auftraggebende Person, Timo, Kurt oder Murat.');
       const grund = txt(d.grund, 600);
+      const ungestartet = wartetAufStart(run);   // nie angestoßen: keine Abbruchmeldung an den Ausführer, offene Startfreigabe schließen
       const w = wechsel(run, STATUS.ABGEBROCHEN, 'mensch', grund || 'ohne Angabe'); if (w.fehler) return raus(409, w.fehler);
-      return schreiben([...w.ops, aend('office_runs', 'run_id', run.run_id, { grund: grund || 'abgebrochen von ' + ich.name, abgebrochen_von: ich.mitglied_id }), ...verlaufEintrag(run, 'status', 'Run abgebrochen' + (grund ? ': ' + grund : ''))], { run_id: run.run_id, status: STATUS.ABGEBROCHEN }, { art: 'abbruch', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer_url: (agentVon(run) || {}).ausfuehrer_url || null });
+      const startFr = freigaben.filter(f => f.run_id === run.run_id && f.aktion === FREIGABE_START.aktion && f.status === 'offen').map(f => aend('office_freigaben', 'freigabe_id', f.freigabe_id, { status: 'verfallen', begruendung: 'Auftrag zurückgezogen.' }));
+      return schreiben([...w.ops, ...startFr, aend('office_runs', 'run_id', run.run_id, { grund: grund || 'abgebrochen von ' + ich.name, abgebrochen_von: ich.mitglied_id }), ...verlaufEintrag(run, 'status', 'Run abgebrochen' + (grund ? ': ' + grund : ''))], { run_id: run.run_id, status: STATUS.ABGEBROCHEN }, ungestartet ? null : { art: 'abbruch', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer_url: (agentVon(run) || {}).ausfuehrer_url || null });
     }
     case 'run_wiederholen': {
       const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
@@ -345,7 +366,7 @@ export function verarbeiten(ctx) {
       const row = { agent_id: id, name, rolle: txt(d.rolle || (alt && alt.rolle), 120), raum, beschreibung: txt(d.beschreibung || (alt && alt.beschreibung), 1000), faehigkeiten: liste(d.faehigkeiten || (alt && alt.faehigkeiten), 80, 30), erlaubte_tools: liste(d.erlaubte_tools || (alt && alt.erlaubte_tools), 60, 40),
         modell, modell_grund: txt(d.modell_grund || (alt && alt.modell_grund), 300), ausfuehrer: ausf, ausfuehrer_url: url || null, mitglied_id, projekte: proj, aktiv: d.aktiv !== false,
         timeout_sek: Math.min(86400, Math.max(60, Number(d.timeout_sek) || (alt && alt.timeout_sek) || FRISTEN.timeout_sek)), max_versuche: Math.min(5, Math.max(1, Number(d.max_versuche) || (alt && alt.max_versuche) || FRISTEN.max_versuche)),
-        auto_wiederholen: d.auto_wiederholen === true, workflow_version: txt(d.workflow_version || (alt && alt.workflow_version), 40), konfig_version: String((Number(alt && alt.konfig_version) || 0) + 1), geaendert: jetzt, geaendert_von: ich.mitglied_id };
+        auto_wiederholen: d.auto_wiederholen === true, freigabe_noetig: typeof d.freigabe_noetig === 'boolean' ? d.freigabe_noetig : (d.freigabe_noetig === null ? null : (alt && alt.freigabe_noetig != null ? alt.freigabe_noetig : null)), workflow_version: txt(d.workflow_version || (alt && alt.workflow_version), 40), konfig_version: String((Number(alt && alt.konfig_version) || 0) + 1), geaendert: jetzt, geaendert_von: ich.mitglied_id };
       return schreiben([alt ? aend('office_agenten', 'agent_id', id, row) : neu('office_agenten', row)], { agent_id: id, konfig_version: row.konfig_version });
     }
     case 'loeschen': {
@@ -374,7 +395,44 @@ export function verarbeiten(ctx) {
   }
 
   // ---- Hilfsfunktionen mit Zugriff auf den Kontext ----
+  function wartetAufStart(run) {
+    return run.status === STATUS.WARTET_FREIGABE && !run.gestartet && freigaben.some(f => f.run_id === run.run_id && f.aktion === FREIGABE_START.aktion && f.status === 'offen');
+  }
+  /** Timo (Admin) entscheidet über den Start eines Auftrags, den ein Teammitglied angelegt hat. Freigabe: Run → Warteschlange und Ausführer anstoßen; Ablehnung: Run → abgebrochen. */
+  function startEntscheiden(fr, run) {
+    if (!istAdmin(ich)) return raus(403, 'Den Start von Aufträgen gibt nur Timo (Admin) frei.');
+    if (fr.status !== 'offen') return raus(409, 'Diese Freigabe ist nicht mehr offen (' + fr.status + ').');
+    const entscheidung = String(d.entscheidung || '');
+    if (!['erteilt', 'abgelehnt'].includes(entscheidung)) return raus(409, 'Entscheidung muss „erteilt“ oder „abgelehnt“ sein.');
+    if (run.status !== STATUS.WARTET_FREIGABE || run.gestartet) return raus(409, 'Der Auftrag wartet nicht mehr auf den Start (' + STATUS_TEXT[run.status] + ').');
+    const reg = agentVon(run);
+    const begruendung = txt(d.begruendung, 600);
+    if (entscheidung === 'abgelehnt') {
+      const grund = 'Start von ' + ich.name + ' abgelehnt' + (begruendung ? ': ' + begruendung : '.');
+      const w = wechsel(run, STATUS.ABGEBROCHEN, 'mensch', grund); if (w.fehler) return raus(409, w.fehler);
+      return schreiben([aend('office_freigaben', 'freigabe_id', fr.freigabe_id, { status: 'abgelehnt', entschieden_von: ich.mitglied_id, entschieden_am: jetzt, begruendung, gueltig_bis: null }),
+        ereignis(run.run_id, 'freigabe', 'Start abgelehnt von ' + ich.name + (begruendung ? ': ' + begruendung : ''), { freigabe_id: fr.freigabe_id, begruendung }),
+        ...w.ops, aend('office_runs', 'run_id', run.run_id, { grund, abgebrochen_von: ich.mitglied_id }),
+        ...verlaufEintrag(run, 'status', 'Start des Auftrags abgelehnt' + (begruendung ? ': ' + begruendung : ''))], { freigabe_id: fr.freigabe_id, status: 'abgelehnt', run_id: run.run_id, run_status: STATUS.ABGEBROCHEN });
+    }
+    // Erteilen nur, wenn der Auftrag noch genau dem entspricht, was angefragt wurde. Sonst: alte Freigabe ungültig, neue Anfrage für den geänderten Text, nichts startet.
+    const g = freigabeGueltig(Object.assign({}, fr, { status: 'erteilt' }), FREIGABE_START.aktion, startInhalt(run), jetztMs);
+    if (!g.ok) {
+      const neuFr = freigabeAnfordern({ freigabe_id: neueId('frg'), run_id: run.run_id, aktion: FREIGABE_START.aktion, inhalt: startInhalt(run), vorschau: run.auftrag, jetzt, angefordert_von: fr.angefordert_von });
+      return { weiter: 2, code: 409, ich: ichKurz, antwort: { ok: false, fehler: 'Der Auftrag wurde nach der Anfrage geändert. Die Freigabe ist ungültig, bitte prüf den neuen Text und gib neu frei.', neue_freigabe_noetig: true, neue_freigabe_id: neuFr.freigabe_id }, extern: null,
+        ops: [aend('office_freigaben', 'freigabe_id', fr.freigabe_id, { status: 'ungueltig', begruendung: 'Auftragstext nach der Anfrage geändert.' }), neu('office_freigaben', neuFr),
+          ereignis(run.run_id, 'freigabe', 'Startfreigabe ungültig: Auftragstext wurde nach der Anfrage geändert. Neue Anfrage angelegt.', { freigabe_id: fr.freigabe_id, neue_freigabe_id: neuFr.freigabe_id })] };
+    }
+    const w = wechsel(run, STATUS.WARTESCHLANGE, 'mensch', 'Start von ' + ich.name + ' freigegeben'); if (w.fehler) return raus(409, w.fehler);
+    const schluesselRow = schluesselListe.find(x => x.run_id === run.run_id);
+    return schreiben([aend('office_freigaben', 'freigabe_id', fr.freigabe_id, { status: 'verwendet', entschieden_von: ich.mitglied_id, entschieden_am: jetzt, begruendung, gueltig_bis: null, verwendet_am: jetzt }),
+      ereignis(run.run_id, 'freigabe', 'Start freigegeben von ' + ich.name + (begruendung ? ': ' + begruendung : ''), { freigabe_id: fr.freigabe_id, inhalt_hash: fr.inhalt_hash, begruendung }),
+      ...w.ops, ...verlaufEintrag(run, 'kommentar', 'Start freigegeben von ' + ich.name + ' – der Agent legt los.')],
+    { freigabe_id: fr.freigabe_id, status: 'erteilt', run_id: run.run_id, run_status: STATUS.WARTESCHLANGE },
+    { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: schluesselRow ? schluesselRow.schluessel : null, eltern_run_id: run.eltern_run_id || null, team_id: run.team_id || null });
+  }
   function zugriffAufRun(run) {
+    if (wartetAufStart(run)) return raus(409, 'Dieser Auftrag wartet auf Timos Freigabe und ist noch nicht gestartet.', { status: run.status });
     if (istAgent(ich)) { if (!fuehrtAus(ich, run.agent_id, agenten)) return raus(403, 'Dieser Run gehört einem anderen Agenten.'); return null; }
     if (!darfRunSteuern(ich, run, agenten)) return raus(403, 'Diesen Run darfst du nicht steuern.');
     return null;
@@ -465,12 +523,14 @@ export function antwortBauen(ich, D, opts) {
   const ereignisse = (D.office_ereignisse || []).filter(e => e && runIds.has(e.run_id)).sort((a, b) => String(a.zeit).localeCompare(String(b.zeit)) || (Number(a.sequenz) || 0) - (Number(b.sequenz) || 0));
   const artefakte = (D.office_artefakte || []).filter(a => a && runIds.has(a.run_id));
   const freigaben = (D.office_freigaben || []).filter(f => f && runIds.has(f.run_id));
-  const regs = agenten.map(a => { const x = { ...a }; if (!admin) delete x.ausfuehrer_url; delete x.geaendert_von; return x; });
+  const regs = agenten.map(a => { const x = { ...a, kostenstufe: kostenstufe(a), freigabe_noetig: a.freigabe_noetig == null ? null : a.freigabe_noetig, sofort_ok: agentSofortOk(a) }; if (!admin) delete x.ausfuehrer_url; delete x.geaendert_von; return x; });
   const mitglieder = (D.mitglieder || []).filter(m => m && m.mitglied_id).map(m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ || 'mensch', funktion: m.funktion || '', status: m.status }));
   return {
     ich: { mitglied_id: ich.mitglied_id, name: ich.name, rolle: ich.rolle, typ: ich.typ || 'mensch', funktion: ich.funktion || '' },
     mitglieder, projekte, aufgaben, verlauf, notizen, agenten: regs, runs, ereignisse, artefakte, freigaben,
-    sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: EXTERNE_AKTIONEN,
+    sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: Object.assign({}, EXTERNE_AKTIONEN, { [FREIGABE_START.aktion]: FREIGABE_START }),
+    // Startregeln für Hinweise in der Oberfläche; entschieden wird serverseitig (kosten.js, startPruefung).
+    start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) }),
     quelle: o.quelle || 'n8n', stand: o.jetzt || new Date().toISOString()
   };
 }

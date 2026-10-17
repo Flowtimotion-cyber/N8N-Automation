@@ -76,3 +76,11 @@ Lokal mit dem Testserver zeigen die Monitore selbst gezeichnete Diagramme aus `d
 Alles, was Agenten als Ergebnis ablegen, kann als Notiz im Obsidian-Vault landen: Ordner `01 Inbox/KI Office/`, eine Notiz je Run, je Ergebnis ein Abschnitt mit Titel, Zusammenfassung, Ablageort, Hash und Prüfstand (geprüft / ungeprüft / zurückgewiesen). Oben in jeder Notiz steht der Link zurück in den Run im Office und der Herkunftsvermerk „KI-erstellt“.
 
 Das macht nicht das Office selbst, sondern `python agenten/office.py obsidian` auf dem Rechner, auf dem der Vault liegt (Hermes oder eine geplante Aufgabe). Vault-Pfad per `--vault` oder Umgebungsvariable `OBSIDIAN_VAULT`. Jeder Lauf holt nur Neues seit dem letzten Lauf und hängt jedes Ergebnis genau einmal an; `--trocken` zeigt, was passieren würde. Nicht in den Vault kommen Freigaben, Zeitleisten, Rückfragen, Kontaktdaten und Zugangsdaten. Konzept und Grenzen: `docs/office/OBSIDIAN.md`.
+
+## Aufträge an Agenten: wann sie sofort starten und wann Timo freigibt (ab 18.10.2026, sobald eingespielt)
+
+- **Timo** startet jeden Auftrag sofort.
+- **Alle anderen** (Dozent, Vertrieb, Team): Ein Auftrag startet sofort, wenn der Agent günstig ist (z. B. Verwaltungs-Status, Social-Planer, Kurs-Wächter), der Text höchstens 600 Zeichen hat und dein Tagesbudget von 1 € nicht ausgeschöpft ist. Alles andere legst du genauso an, er wartet dann aber auf Timos Freigabe.
+- Im Auftragsdialog steht unter dem Textfeld schon vorab, ob dein Auftrag sofort startet oder auf Timo wartet, und warum.
+- Wartet dein Auftrag, siehst du oben „deine Aufträge warten auf Timo“. Du musst nichts tun. Du kannst ihn auf der Run-Seite zurückziehen („Abbrechen“).
+- **Timo** sieht oben „n Aufträge warten auf deine Freigabe“ und entscheidet im Register „Freigaben“ (Agent, Kostenstufe, voller Text, Auftraggeber). Freigeben startet den Agenten sofort, Ablehnen bricht den Auftrag mit seiner Begründung ab.

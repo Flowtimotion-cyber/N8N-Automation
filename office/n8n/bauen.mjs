@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const LIB = join(hier, '..', 'lib');
-export const MODULE = ['hash.js', 'zustand.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'verarbeitung.js'];
+export const MODULE = ['hash.js', 'zustand.js', 'kosten.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'verarbeitung.js'];
 
 export function buendel() {
   const teile = [], namen = new Map();

@@ -13,9 +13,17 @@ function welt() {
   const sp = new Speicher({ tabellen: basisTabellen(uhr.iso()), uhr, zufall: zufallsQuelle(3) });
   const ad = new TestAdapter({ speicher: sp, uhr, tokenVon: tokenVonAgent });
   const als = (wer, aktion, daten) => sp.aufruf({ token: TOKENS[wer], aktion, daten });
-  const start = (wer, agent, projekt, auftrag, key, extra) => als(wer, 'auftrag_starten', Object.assign({ agent_id: agent, projekt, auftrag, idempotenzschluessel: key }, extra || {}));
+  const startRoh = (wer, agent, projekt, auftrag, key, extra) => als(wer, 'auftrag_starten', Object.assign({ agent_id: agent, projekt, auftrag, idempotenzschluessel: key }, extra || {}));
+  // Wie früher: der Auftrag läuft an. Muss Timo erst freigeben (Teammitglied, nicht günstig/klein), gibt er hier sofort frei. Die Freigabelogik selbst prüft unit.auftrag-freigabe.test.mjs.
+  const start = (wer, agent, projekt, auftrag, key, extra) => {
+    const r = startRoh(wer, agent, projekt, auftrag, key, extra);
+    if (r.code !== 200 || !r.antwort.freigabe_id || r.antwort.wiederholt) return r;
+    const e = als('m_timo', 'freigabe_entscheiden', { freigabe_id: r.antwort.freigabe_id, entscheidung: 'erteilt' });
+    if (e.code !== 200) throw new Error('Testhilfe: Startfreigabe nicht möglich: ' + JSON.stringify(e.antwort));
+    return { code: r.code, antwort: Object.assign({}, r.antwort, { status: 'warteschlange', rueckmelde_schluessel: (sp.T.office_run_schluessel.find(x => x.run_id === r.antwort.run_id) || {}).schluessel }) };
+  };
   const run = id => sp.T.office_runs.find(r => r.run_id === id);
-  return { uhr, sp, ad, als, start, run };
+  return { uhr, sp, ad, als, start, startRoh, run };
 }
 
 test('Pflichtprüfung 1: fremdes Projekt ist per direktem API-Aufruf nicht lesbar und nicht beauftragbar', () => {
@@ -57,7 +65,7 @@ test('Pflichtprüfung 2: doppelte Aufrufe lösen keine doppelte externe Aktion a
   const inhalt = { an: 'kunde@example.invalid', text: 'Nachfrage' };
   const fr = w.als('agent-claude', 'freigabe_anfordern', { run_id: id, aktion: 'email_senden', inhalt });
   const fr2 = w.als('agent-claude', 'freigabe_anfordern', { run_id: id, aktion: 'email_senden', inhalt });
-  assert.equal(fr2.antwort.wiederholt, true); assert.equal(w.sp.T.office_freigaben.length, 1);
+  assert.equal(fr2.antwort.wiederholt, true); assert.equal(w.sp.T.office_freigaben.filter(f => f.aktion === 'email_senden').length, 1);
   assert.equal(w.als('m_timo', 'freigabe_entscheiden', { freigabe_id: fr.antwort.freigabe_id, entscheidung: 'erteilt' }).code, 200);
   const x1 = w.als('agent-claude', 'aktion_ausfuehren', { run_id: id, aktion: 'email_senden', inhalt, freigabe_id: fr.antwort.freigabe_id, idempotenzschluessel: 'p2-aktion-001' });
   const x2 = w.als('agent-claude', 'aktion_ausfuehren', { run_id: id, aktion: 'email_senden', inhalt, freigabe_id: fr.antwort.freigabe_id, idempotenzschluessel: 'p2-aktion-001' });

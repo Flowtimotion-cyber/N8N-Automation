@@ -158,3 +158,20 @@ Betrifft die Agenten mit Ausführer `claude-code`: `akademie-redakteur`, `vertri
 3. Ein Auftrag testen: im KI Office beim Agenten „Akademie-Redakteur“ einen Auftrag anlegen. Spätestens nach 30 Minuten steht der Run auf „abgeschlossen“ (sofort: in der App „Jetzt ausführen“). Nach Ablauf von `timeout_sek` (20 bis 30 Minuten) würde die Wartung einen liegengebliebenen Auftrag als „unbekannt/veraltet“ markieren: der Takt von 30 Minuten gilt nur für die Warteschlange, die Frist läuft erst ab „in Arbeit“.
 
 **Grenzen:** Läuft nur, solange der Rechner an ist und die App offen. Wer das nicht will: Hermes (Hetzner-Server) könnte denselben Ablauf übernehmen (`claude -p` mit derselben Anleitung), das ist ein eigener Schritt.
+
+## 13. Startfreigabe für Aufträge von Teammitgliedern einspielen (Branch `feature/ki-office-auftrag-freigabe`, 18.10.2026, KI-erstellt: Claude Code)
+
+**Nichts davon ist live.** Der Branch ändert das Office-API-Bündel, das SQL und die Oberfläche; die Office-API (n8n `NuK6m10yIGKMRWxC`) wurde nicht angefasst. Was sich ändert und warum: ARCHITEKTUR.md Abschnitt 13.
+
+**Gesichert (18.10.2026):** Live-Stand vor der Änderung = Version `194265d8-3a63-4956-ae90-86beb39559b0` der Office-API (aktiv). Der Code-Knoten „Anfrage prüfen“ dieser Version ist zeichengleich mit `office/n8n/code/anfrage-pruefen.js` auf `main` (Commit 85fd1aa) und liegt zusätzlich als Datei `Projekt-Manager/22_Momentum/_sicherung/office-api_anfrage-pruefen_live_194265d8.js`. Rückweg: n8n → Workflow → Versionsverlauf → Version `194265d8` wiederherstellen, oder die Datei in den Code-Knoten einfügen. Das SQL ist additiv und muss für den Rückweg nicht zurückgenommen werden.
+
+**Einspielen in dieser Reihenfolge (nach Timos Ja):**
+
+1. `supabase/team_office.sql` im Supabase SQL Editor ausführen (idempotent). Neu: `office_runs.budget_eur`, `office_agenten.freigabe_noetig`, `freigabe_noetig = true` für `server-waechter`.
+2. In n8n im Workflow „TEAM: Office-API“ den Code-Knoten **„Anfrage prüfen“** durch den Inhalt von `office/n8n/code/anfrage-pruefen.js` ersetzen (nur diesen Knoten), speichern, Version benennen (z. B. „Startfreigabe für Teammitglieder“).
+3. Oberfläche: Der Branch muss auf `main` (GitHub Pages baut `docs/office/` automatisch).
+4. Prüfen: Als Teammitglied im KI Office einen Auftrag an „Akademie-Redakteur“ (Sonnet) anlegen → „Wartet auf Timo“; als Timo im Register „Freigaben“ freigeben → der Run startet; ein kleiner Auftrag an „Verwaltungs-Status“ (Haiku) startet ohne Freigabe.
+
+**Werte ändern:** Grenzen (600 Zeichen, 0,05 € je Run, 1 € je Tag, Modelllisten) stehen oben in `office/lib/kosten.js`. Danach `node office/n8n/bauen.mjs`, Tests (`npm run test:office:unit`), Bündel wie in Schritt 2 einspielen. Einzelne Agenten gezielt: Registry-Feld `freigabe_noetig`, z. B. im SQL Editor `update office_agenten set freigabe_noetig = true where agent_id = 'pa-assistent';` (`false` = nie, `null` = nach Modell).
+
+**Vorsicht beim Einspielen:** Wird der Code-Knoten vor dem SQL ersetzt, scheitert jedes neue `auftrag_starten` (unbekannte Spalte `budget_eur`). Laufende Aufträge stört der Wechsel nicht (der Zustand liegt in Supabase).
