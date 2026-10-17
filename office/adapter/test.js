@@ -18,6 +18,8 @@ export class TestAdapter {
 
   startRun(ext) {
     const run = this.run(ext.run_id); if (!run) return;
+    // Für Tests des echten Abholers (agenten/office.py): Ausführer in OFFICE_TEST_OHNE_SIMULATION (kommagetrennt, z. B. claude-code) bleiben unsimuliert in der Warteschlange.
+    if (String(process.env.OFFICE_TEST_OHNE_SIMULATION || '').split(',').includes(run.ausfuehrer)) return;
     const a = run.auftrag;
     // Agenten mit dem Werkzeug auftrag_delegieren (Orchestrierer) arbeiten nicht selbst, sondern zerlegen und delegieren (Skript „team“).
     const orchestriert = (this.agent(run.agent_id).erlaubte_tools || []).includes('auftrag_delegieren') && !run.eltern_run_id;

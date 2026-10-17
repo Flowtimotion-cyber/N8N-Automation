@@ -204,3 +204,22 @@ Prüfung „auf Herz und Nieren“ gegen `main` nach dem Merge von PR #2 (Commit
 Befund beim ersten Test: Für alle Aufträge seit 17.10.2026 16:06 Uhr fehlte der Eintrag in `office_run_schluessel`. Ursache war das gleichzeitige Schreiben in der Office-API (siehe SETUP.md Abschnitt 10). Nach der Korrektur hat die Office-API den Social-Planer eine Sekunde nach dem Anlegen angestoßen.
 
 Nicht getestet: Wiederholung nach Fehlschlag über die Office-API, Abbruch eines laufenden Text-Runs, sehr lange Antworten über `max_tokens`.
+
+## 14. Nachtrag 18.10.2026: Abholer für Claude-Code-Agenten (Branch `feature/ki-office-claude-code-ausfuehrer`, KI-erstellt: Claude Code)
+
+**Wichtig: Live-Test offen, wartet auf `TEAM_PORTAL_TOKEN`.** Auf dem Rechner ist die Variable nicht gesetzt; ein Agenten-Token wurde bewusst nicht aus Supabase geholt. Getestet wurde gegen den **Testadapter** (synthetische Daten), nicht gegen die Produktion.
+
+**Aufbau des Tests:** `OFFICE_TEST_OHNE_SIMULATION=claude-code node office/dev/server.mjs --port 8799 --szenario leer` (neue Umgebungsvariable im Testadapter: Aufträge an diese Ausführer werden nicht von der Simulation übernommen und bleiben in der Warteschlange). Drei Aufträge als `m_timo` angelegt: `akademie-redakteur` (claude-code), `rekruiter` (claude-code), `marketing-texter` (n8n). Token des Abholers: synthetischer `agent-claude`-Wert des Testservers (`TEAM_OFFICE_API=http://127.0.0.1:8799/api/office`).
+
+| Prüfung | Ergebnis |
+|---|---|
+| `office.py offen` zeigt nur Claude-Code-Aufträge in der Warteschlange | ✅ 2 von 3 (der n8n-Auftrag fehlt wie gewollt); `office.py meine` zeigt dagegen alle 3, weil alle Claude-Agenten die Identität `agent-claude` teilen |
+| Durchlauf nach `agenten/OFFICE_ABARBEITER.md` durch einen Sonnet-Agenten (start → schritt → ergebnis → fertig) | ✅ beide Runs „abgeschlossen (technisch)“, Zeitleiste mit Übernahme, Schritt, Ergebnis (Art `bericht`), Abschluss; danach `offen` leer |
+| Werkzeug-Allowlist | ✅ `--tool registry_lesen` (erlaubt) ging durch; ohne `--tool` ebenfalls |
+| Unit-Tests `npm run test:office:unit` | ✅ 59/59 (die Änderung am Testadapter ist ohne die neue Variable wirkungslos) |
+
+**Nicht getestet:** (1) die geplante Aufgabe selbst (Claude-App „Geplante Aufgaben“); ein Probelauf über `claude -p` in einem Kindprozess scheiterte an der Anmeldung („OAuth session expired“), das ist eine Eigenschaft des Testrechners, kein Befund zum Ablauf. (2) Produktion: Supabase, Office-API in n8n, `team.py notiz-speichern`. (3) Der Subagent-Start (`office-texter` usw.) per Agent-Werkzeug: der Testlauf war selbst ein Subagent und konnte keine weiteren starten, er hat deshalb nach den Regeln der Subagent-Datei selbst geschrieben.
+
+**Aus dem Test in die Anleitung übernommen:** Ergebnis-Zusammenfassung wird nach 1000 Zeichen abgeschnitten, längere Texte als Notiz; Steckbrief des Rekruiters als Notiz statt Datei (dem Agenten fehlt `repo_schreiben`, und `office.py` kennt keinen Befehl für `agent_vorschlagen`); „angenommen“ in der Antwort von `fertig` heißt nur „Meldung angekommen“, nicht fachlich abgenommen; Fallback, wenn ein Subagent nicht startbar ist; `--tool` nur bei echtem Werkzeug.
+
+**Noch zu tun nach dem Setzen des Tokens (Live-Test):** Auftrag an „Akademie-Redakteur“ im KI Office anlegen, geplante Aufgabe „Jetzt ausführen“, Run springt auf „abgeschlossen“, Notiz erscheint im Projekt „Akademie-Kurs“; Ergebnis hier eintragen.
