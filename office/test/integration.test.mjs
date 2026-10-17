@@ -25,6 +25,7 @@ test('ungültige Zugänge und ungültiges JSON', async () => {
   assert.equal((await office(TOKENS.m_neu, 'laden')).status, 403);
   const r = await fetch(S.base + '/api/office', { method: 'POST', body: '{kaputt' }); assert.equal(r.status, 400);
   assert.equal((await fetch(S.base + '/api/office')).status, 405);
+  assert.equal((await post(S.base, '/api/office', { aktion: 'wartung', intern: true })).status, 401, 'intern von außen wirkungslos');
 });
 test('Auftrag über HTTP: Idempotenz, Lebenszeichen, Timeout per Zeitsprung, Neustart (Pflichtprüfungen 2 und 3)', async () => {
   const d = { agent_id: 'akademie-redakteur', projekt: 'Akademie-Kurs', auftrag: 'HTTP-Test: langsam, dann Stille', idempotenzschluessel: 'http-test-00001' };

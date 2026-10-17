@@ -21,9 +21,10 @@ export function buendel() {
   }
   const glue = `// ===== n8n-Anbindung (TEAM: Office-API, Knoten „Anfrage prüfen“) =====
 // Eingang: Webhook „Office-API“ (Body { token, aktion, daten }) oder Zeitplan (Wartung). Daten: HTTP-Knoten „Team-Daten laden“ (rpc/team_laden).
-let b;
-try { b = $('Office-API').first().json.body || {}; } catch (e) { b = { aktion: 'wartung', intern: true }; }
+let b, ueberWebhook = true;
+try { b = $('Office-API').first().json.body || {}; } catch (e) { b = { aktion: 'wartung', intern: true }; ueberWebhook = false; }
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
+if (ueberWebhook && b && typeof b === 'object') delete b.intern;   // „intern“ gilt nur für den Zeitplan-Pfad, nie von außen
 const D = $('Team-Daten laden').first().json || {};
 const r = verarbeiten({ body: b, D, jetzt: new Date().toISOString(), quelle: 'n8n' });
 return [{ json: { weiter: r.weiter, code: r.code || 200, antwort: r.antwort || { ok: false, fehler: 'Keine Antwort' }, ops: r.ops || [], extern: r.extern || null, ich: r.ich || null, intern: b.intern === true } }];

@@ -24,6 +24,9 @@ test('Bündel läuft in einer n8n-ähnlichen Sandbox (Webhook-Pfad und Wartungs-
   const ctx2 = { $: name => { if (name === 'Office-API') throw new Error('Referenced node is unexecuted'); return { first: () => ({ json: D }) }; } };
   const out2 = vm.runInNewContext('(function(){' + code + '})()', ctx2);
   assert.equal(out2[0].json.intern, true); assert.equal(typeof out2[0].json.antwort.geprueft, 'number');
+  const ctx4 = { $: name => ({ first: () => ({ json: name === 'Office-API' ? { body: { aktion: 'wartung', intern: true } } : D }) }) };
+  const out4 = vm.runInNewContext('(function(){' + code + '})()', ctx4);
+  assert.equal(out4[0].json.code, 401, 'intern über den Webhook ist wirkungslos');
   const ctx3 = { $: name => ({ first: () => ({ json: name === 'Office-API' ? { body: { token: 'x'.repeat(32), aktion: 'laden' } } : D }) }) };
   const out3 = vm.runInNewContext('(function(){' + code + '})()', ctx3);
   assert.equal(out3[0].json.weiter, 0); assert.equal(out3[0].json.code, 401);

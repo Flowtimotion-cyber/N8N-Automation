@@ -1,0 +1,50 @@
+# Setup: KI Office in Betrieb nehmen
+
+Ohne Zugangsdaten in diesem Dokument. Credentials legt Timo selbst in n8n an. Reihenfolge einhalten.
+
+## 0. Was schon läuft, ohne dass du etwas tust
+
+- Nach dem Merge liefert GitHub Pages das KI Office unter `https://flowtimotion-cyber.github.io/N8N-Automation/office/` aus und das Portal zeigt das Register „KI Office“.
+- Solange der Workflow „TEAM: Office-API“ nicht aktiv ist, zeigt das Office die Meldung „Keine Verbindung zur Office-API“ und das Portal-Register den Hinweis, dass der Workflow fehlt. Nichts anderes im Portal ändert sich.
+- Lokal kannst du alles sofort ansehen: `node office/dev/server.mjs`, dann die Adresse aus der Konsole öffnen (TESTADAPTER, synthetische Daten).
+
+## 1. Supabase: SQL ausführen
+
+1. Supabase → SQL Editor → Inhalt von `supabase/team_office.sql` einfügen → Run.
+2. Die Datei ist idempotent (mehrfach ausführbar). Sie legt die `office_*`-Tabellen mit RLS an, ergänzt `team_projekte.raum`, ersetzt `team_laden()` um die Office-Daten und trägt die zehn Agenten aus `office/agenten.json` ein (bestehende Einträge bleiben).
+3. Kontrolle am Ende der Ausgabe: `jsonb_object_keys(team_laden())` muss `office_runs`, `office_agenten` usw. enthalten; die zweite Abfrage zeigt die Agenten.
+4. Räume: `update team_projekte set raum = 'Vertrieb' where name = '…';` für Projekte, die noch keinen Raum haben (das Office zeigt sie sonst unter „Ohne Raum“).
+
+Hinweis: `team_laden()` liefert jetzt mehr Daten. Die Portal-API v2 ignoriert die neuen Schlüssel; getestet werden konnte das in dieser Sitzung nicht (kein Zugang), siehe RESTPUNKTE.md.
+
+## 2. n8n: Workflow importieren
+
+1. n8n → Workflows → „Import from File“ → `office/n8n/office-api.workflow.json`.
+2. In den Knoten **„Team-Daten laden“** und **„In Supabase schreiben“** das vorhandene Supabase-Credential (Typ „Supabase API“, service_role, dasselbe wie in der Portal-API v2) auswählen. Die Datei enthält absichtlich keine Credential-IDs.
+3. Webhook prüfen: Produktions-URL muss `https://n8n.hm-storage.de/webhook/office-api` lauten (Pfad `office-api`). Erlaubter Origin ist `https://flowtimotion-cyber.github.io`.
+4. Workflow aktivieren. Der Zeitplan „Wartung alle 5 Minuten“ läuft dann mit (markiert veraltete Runs, lässt Freigaben verfallen, räumt Idempotenzschlüssel auf).
+5. Test: Office öffnen, anmelden wie im Portal. Es müssen Projekte und die zehn Agenten erscheinen. In n8n erscheinen nur Fehlerausführungen (saveDataSuccessExecution: none).
+6. Optional: Im Knoten „Externe Aktion ausführen (Platzhalter)“ echte Knoten anschließen (E-Mail, Social). Bis dahin passiert bei `aktion_ausfuehren` nach außen nichts; die Freigabe wird trotzdem als verwendet markiert und der Run bekommt ein Ereignis.
+
+Der Code im Knoten „Anfrage prüfen“ wird aus `office/lib/*.js` erzeugt. Nach Änderungen an der Bibliothek: `node office/n8n/bauen.mjs`, dann den Workflow erneut importieren (oder den Knoteninhalt aus `office/n8n/code/anfrage-pruefen.js` einfügen). Die SDK-Fassung `office/n8n/office-api.workflow.js` beschreibt denselben Workflow für `@n8n/workflow-sdk`; sie wurde ohne n8n-Zugang nicht ausgeführt.
+
+## 3. Token und Rollen
+
+- Es gibt keine neuen Tokens. Jedes Teammitglied nutzt seinen Portal-Link; der Browser teilt den Token (`localStorage` `mt-token`) zwischen `/team/` und `/office/`.
+- Agenten nutzen ihren Agenten-Code (`TEAM_PORTAL_TOKEN`) auch für die Office-API. Welche Registry-Agenten ein Teammitglied vom Typ `agent` ausführt, steht in `office_agenten.mitglied_id`.
+- Rollen: `admin` darf alles (Registry, Löschen, kritische Freigaben). `dozent` und Auftraggeber steuern Runs und erteilen normale Freigaben. `team`/`vertrieb` sehen alles, steuern eigene Aufträge. Agenten: nur Arbeitsaktionen, nie Freigaben, nie Löschen.
+
+## 4. Executor anbinden (später)
+
+- n8n-Agenten: einen Workflow je Agent mit Webhook bauen und dessen URL in `office_agenten.ausfuehrer_url` eintragen (`agent_speichern` als Admin oder direkt in Supabase). Die Office-API ruft ihn bei `auftrag_starten` mit `run_id` und `rueckmelde_schluessel` auf. Der Executor meldet sich mit `lebenszeichen`, `ereignis`, `artefakt` (Token des Agenten) und am Ende per signierter `rueckmeldung` (siehe `office/adapter/n8n.js`, `office/lib/signatur.js`).
+- Claude Code / Codex / Hermes: nutzen die Office-API mit ihrem Token (`run_beenden` statt Signatur). Stubs und Pflichten in `office/adapter/*.stub.js`, Subagenten in `.claude/agents/`.
+
+## 5. Lokal entwickeln
+
+```
+node office/dev/server.mjs                 # Testserver (Port 8787), Tokens in der Konsole
+node office/dev/server.mjs --szenario leer # Leerzustände
+node office/dev/server.mjs --tempo 0       # eingefrorene Uhr (für manuelle Prüfungen)
+npm run test:office                        # alle Tests inkl. Browser (Playwright global oder puppeteer-core + CHROME_PFAD)
+node office/n8n/bauen.mjs                  # n8n-Dateien neu erzeugen
+```

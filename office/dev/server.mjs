@@ -61,6 +61,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/api/office' && req.method === 'POST') {
       const b = await body(req);
       if (b._ungueltig) return json(res, 400, { ok: false, fehler: 'Ungültiges JSON.' });
+      if (b && typeof b === 'object') delete b.intern;   // „intern“ nur für den Zeitplan-Pfad, nie von außen
       const r = welt.speicher.aufruf(b);
       welt.adapter.laufen();
       return json(res, r.code, r.antwort);

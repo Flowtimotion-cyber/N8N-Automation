@@ -25,6 +25,24 @@ Interaktive Lerneinheiten zum Thema **Automationen bauen mit n8n und Claude Code
 
 Nicht im Repository (zu groß bzw. Rohmaterial): `node_modules/`, Avatar-Rohvideos, Renders, Trailer-Clips. Setup: `npm install --ignore-scripts`.
 
+## Team-Portal und KI Office
+
+Neben den Kursmodulen enthält das Repo das interne **Team-Portal** der Momentum KI Akademie (`docs/team/index.html`, GitHub Pages unter `/team/`) und das **KI Office** (`docs/office/`, unter `/office/`): eine gemeinsame Übersicht über Projekte, Aufgaben, Agenten und ihre tatsächlich ausgeführte Arbeit, mit Agenten-Register, Run-Zeitleisten, Freigaben für externe Aktionen und einem virtuellen Büro.
+
+| Was | Wo |
+|---|---|
+| Oberfläche KI Office | `docs/office/index.html`, `docs/office/js/` |
+| Gemeinsame Logik (Zustandsmaschine, Rechte, Freigaben, Signatur, Idempotenz) | `office/lib/` – läuft wortgleich im n8n-Code-Knoten, im Testserver und in den Tests |
+| Backend-Vertrag als n8n-Workflow „TEAM: Office-API“ | `office/n8n/office-api.workflow.json` (Import), `office/n8n/office-api.workflow.js` (SDK), `node office/n8n/bauen.mjs` |
+| Datenbank | `supabase/team_office.sql` (idempotent) |
+| Agenten-Registry und Claude-Code-Subagenten | `office/agenten.json`, `.claude/agents/` |
+| Lokaler Testserver (TESTADAPTER, synthetische Daten) | `node office/dev/server.mjs` |
+| Tests | `npm run test:office` |
+| Dokumentation (Architektur, Setup, Tests, Sicherheit, Datenschutz/AI Act, Lizenzen, Skills, Betrieb, Bedienung, Löschkonzept, Restpunkte) | `docs/office/*.md` |
+| Anleitung für Agenten am Portal | `agenten/ANLEITUNG.md`, `agenten/team.py` |
+
+Regeln: keine Zugangsdaten im Repo; n8n-Workflows werden nicht direkt verändert, sondern als importierbare Dateien geliefert; „Erledigt“ und Freigaben setzen nur Menschen.
+
 ## Stand
 
 - [x] Modul 1.1 – Automationen verstehen und planen

@@ -832,7 +832,7 @@ function antwortBauen(ich, D, opts) {
   const sicht = sichtbareProjekte(ich, agenten);
   const projektOk = name => sicht === null || sicht.includes(name);
   const admin = istAdmin(ich);
-  const projekte = (D.projekte || []).filter(p => p && p.projekt_id && projektOk(p.name)).map(p => ({ projekt_id: p.projekt_id, name: p.name, beschreibung: p.beschreibung || '', status: p.status || 'aktiv', farbe: p.farbe || '', verantwortlich: p.verantwortlich || '', reihenfolge: Number(p.reihenfolge) || 0, links: Array.isArray(p.links) ? p.links.filter(l => l && istUrl(l.url)).map(l => ({ titel: String(l.titel || '').slice(0, 80), url: String(l.url).slice(0, 500) })) : [], geaendert: p.geaendert || '' }));
+  const projekte = (D.projekte || []).filter(p => p && p.projekt_id && projektOk(p.name)).map(p => ({ projekt_id: p.projekt_id, name: p.name, beschreibung: p.beschreibung || '', status: p.status || 'aktiv', farbe: /^#[0-9a-f]{3,8}$/i.test(String(p.farbe || '')) ? p.farbe : '', verantwortlich: p.verantwortlich || '', reihenfolge: Number(p.reihenfolge) || 0, links: Array.isArray(p.links) ? p.links.filter(l => l && istUrl(l.url)).map(l => ({ titel: String(l.titel || '').slice(0, 80), url: String(l.url).slice(0, 500) })) : [], geaendert: p.geaendert || '' }));
   const aufgaben = (D.aufgaben || []).filter(a => a && a.aufgabe_id && projektOk(a.projekt)).map(a => ({ aufgabe_id: a.aufgabe_id, titel: a.titel, beschreibung: istAgent(ich) ? String(a.beschreibung || '').slice(0, 4000) : (a.beschreibung || ''), status: a.status, prio: Number(a.prio) || 2, label: a.label || '', projekt: a.projekt || '', verantwortlich: a.verantwortlich || '', erstellt_von: a.erstellt_von || '', deadline: a.deadline || '', agent_geeignet: a.agent_geeignet === true, erstellt: a.erstellt || '', geaendert: a.geaendert || '', erledigt_am: a.erledigt_am || '' }));
   const aufgabenIds = new Set(aufgaben.map(a => a.aufgabe_id));
   const verlauf = (D.verlauf || []).filter(v => v && aufgabenIds.has(v.aufgabe_id)).map(v => ({ id: v.id, aufgabe_id: v.aufgabe_id, autor: v.autor, art: v.art, text: v.text, erstellt: v.erstellt }));
@@ -854,9 +854,10 @@ function antwortBauen(ich, D, opts) {
 
 // ===== n8n-Anbindung (TEAM: Office-API, Knoten „Anfrage prüfen“) =====
 // Eingang: Webhook „Office-API“ (Body { token, aktion, daten }) oder Zeitplan (Wartung). Daten: HTTP-Knoten „Team-Daten laden“ (rpc/team_laden).
-let b;
-try { b = $('Office-API').first().json.body || {}; } catch (e) { b = { aktion: 'wartung', intern: true }; }
+let b, ueberWebhook = true;
+try { b = $('Office-API').first().json.body || {}; } catch (e) { b = { aktion: 'wartung', intern: true }; ueberWebhook = false; }
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
+if (ueberWebhook && b && typeof b === 'object') delete b.intern;   // „intern“ gilt nur für den Zeitplan-Pfad, nie von außen
 const D = $('Team-Daten laden').first().json || {};
 const r = verarbeiten({ body: b, D, jetzt: new Date().toISOString(), quelle: 'n8n' });
 return [{ json: { weiter: r.weiter, code: r.code || 200, antwort: r.antwort || { ok: false, fehler: 'Keine Antwort' }, ops: r.ops || [], extern: r.extern || null, ich: r.ich || null, intern: b.intern === true } }];

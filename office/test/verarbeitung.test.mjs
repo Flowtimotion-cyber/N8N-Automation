@@ -236,6 +236,8 @@ test('Datensparsamkeit: Zugangsdaten-Muster werden aus Freitext entfernt', () =>
 
 test('Validierung und Rollen: Eingaben, gesperrte und nicht eingerichtete Nutzer', () => {
   const w = welt();
+  w.sp.T.team_projekte[0].farbe = 'red;background:url(x)';
+  assert.equal(w.als('m_timo', 'laden', {}).antwort.projekte.find(p => p.projekt_id === 'p_kurs').farbe, '', 'nur Hex-Farben erreichen den Browser');
   assert.equal(w.als('m_gesperrt', 'laden', {}).code, 401);
   assert.equal(w.als('m_neu', 'laden', {}).code, 403);
   assert.equal(w.sp.aufruf({ token: 'zu-kurz', aktion: 'laden' }).code, 401);
