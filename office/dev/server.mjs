@@ -82,6 +82,7 @@ const server = createServer(async (req, res) => {
       if (was === 'reset') { szenario = b.szenario === 'leer' ? 'leer' : 'standard'; welt = testSpeicher({ szenario }); naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000; return json(res, 200, { ok: true, szenario }); }
       return json(res, 404, { ok: false });
     }
+    if (url.pathname.startsWith('/api/')) return json(res, 405, { ok: false, fehler: 'Methode nicht erlaubt oder unbekannter Pfad.' });
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { ok: false, fehler: 'Methode nicht erlaubt.' });
     // Statische Dateien aus docs/ (wie GitHub Pages: /N8N-Automation/ entspricht hier /)
     let pfad = decodeURIComponent(url.pathname.replace(/^\/N8N-Automation/, ''));
