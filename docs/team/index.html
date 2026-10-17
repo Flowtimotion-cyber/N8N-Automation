@@ -180,6 +180,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .md .kasten{border-radius:10px;padding:10px 14px;margin:0 0 10px;border:1px solid rgba(20,18,58,.08)}.md .kasten .kt{font-weight:700;margin-bottom:4px}.md .kasten p:last-child,.md .kasten ul:last-child{margin-bottom:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
+.plinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.plinks a{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--acc);background:#F4F1FD;border-radius:999px;padding:3px 10px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plinks a:hover{background:#E9E2FB}
+.lkrow{display:grid;grid-template-columns:minmax(110px,32%) 1fr auto;gap:6px;margin-bottom:6px}
+.lkrow input{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;min-width:0}
+@media(max-width:600px){.lkrow{grid-template-columns:1fr auto}.lkrow .lu{grid-column:1/-1;order:3}}
 .vs{display:grid;grid-template-columns:64px 1fr;gap:14px;padding:14px 0;border-top:1px solid var(--line)}
 .vs:first-child{border-top:0}
 .vote{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;padding:8px 4px;font:inherit;color:var(--ink);height:64px}
@@ -924,6 +930,10 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const projektNamen = (alle) => (D.projekte || []).filter(p => alle || p.status !== 'abgeschlossen').map(p => p.name);
   const projektFarbe = name => ((D.projekte || []).find(p => p.name === name) || {}).farbe || '#8E8BAA';
   const PSTATUS = ['aktiv', 'geplant', 'pausiert', 'abgeschlossen'];
+  const hatLinkSpalte = () => (D.projekte || []).some(p => p && Array.isArray(p.links));
+  const linksVon = p => (Array.isArray(p.links) ? p.links : []).filter(l => l && /^https?:\/\//i.test(l.url || ''));
+  const linkChips = (p, max) => { const L = linksVon(p); if (!L.length) return ''; const zeig = max ? L.slice(0, max) : L;
+    return '<div class="plinks">' + zeig.map(l => '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" title="' + esc(l.url) + '">↗ ' + esc(l.titel || l.url) + '</a>').join('') + (max && L.length > max ? '<a href="#" data-mehrlinks>+' + (L.length - max) + ' weitere</a>' : '') + '</div>'; };
   function vProjekte() {
     const P = (D.projekte || []).slice();
     const Z = D.zeiten || [];
@@ -938,14 +948,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         return '<div class="card proj" data-j="' + esc(p.projekt_id) + '" style="border-top:5px solid ' + esc(p.farbe) + ';cursor:pointer;margin:0">' +
           '<div style="display:flex;justify-content:space-between;gap:8px"><h2 style="margin:0 0 4px">' + esc(p.name) + '</h2>' + av(p.verantwortlich) + '</div>' +
           '<div class="meta" style="margin-bottom:8px"><span class="chip">' + esc(p.status) + '</span></div>' +
-          (p.beschreibung ? '<div class="md small">' + md(p.beschreibung) + '</div>' : '') +
+          (p.beschreibung ? '<div class="md small">' + md(p.beschreibung) + '</div>' : '') + linkChips(p, 8) +
           '<div class="pstats"><div><b>' + offen.length + '</b><span>offen</span></div><div><b>' + (A.length - offen.length) + '</b><span>erledigt</span></div><div><b>' + offen.filter(ueberfaellig).length + '</b><span>überfällig</span></div>' +
           '<div><b>' + std(min).replace(' Std', '') + '</b><span>' + (istAdmin() ? 'Std (Team)' : 'Std (du)') + '</span></div><div><b>' + nz + '</b><span>Notizen</span></div></div>' +
           '<div class="dlgbtns" style="justify-content:flex-start;margin-top:10px"><button class="btn ghost" data-jg="' + esc(p.name) + '" data-ziel="aufgaben">Aufgaben →</button><button class="btn ghost" data-jg="' + esc(p.name) + '" data-ziel="notizen">Notizen →</button></div></div>';
       }).join('') + '</div>';
     $('#neuj').onclick = () => projektDialog(null);
     $('#pa').onchange = e => { F.projAlle = e.target.checked; saveF(); vProjekte(); };
-    document.querySelectorAll('[data-j]').forEach(e => e.onclick = ev => { if (ev.target.closest('[data-jg]') || ev.target.closest('a')) return; projektDialog(P.find(p => p.projekt_id === e.dataset.j)); });
+    document.querySelectorAll('[data-j]').forEach(e => e.onclick = ev => { if (ev.target.closest('[data-mehrlinks]')) { ev.preventDefault(); return projektDialog(P.find(p => p.projekt_id === e.dataset.j)); } if (ev.target.closest('[data-jg]') || ev.target.closest('a')) return; projektDialog(P.find(p => p.projekt_id === e.dataset.j)); });
     document.querySelectorAll('[data-jg]').forEach(b => b.onclick = () => {
       if (b.dataset.ziel === 'aufgaben') { F.projekt = b.dataset.jg; F.person = ''; } else { F.notizProjekt = b.dataset.jg; }
       saveF(); tab = b.dataset.ziel; ls.set('mt-tab', tab); render();
@@ -961,10 +971,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f"><label for="j_s">Status</label><select id="j_s">' + opt(PSTATUS, p.status) + '</select></div>' +
       '<div class="f"><label for="j_f">Farbe</label><input id="j_f" type="color" value="' + esc(p.farbe || '#7B3FE4') + '" style="height:42px;padding:4px"></div></div>' +
       editorHtml('j_b', p.beschreibung, 'Beschreibung', { rows: 6, max: 2000 }) +
+      (hatLinkSpalte() ? '<div class="f"><label>Links (Webseite, Server, n8n, CRM, Drive …)</label><div id="j_links"></div><button type="button" class="btn sec" id="j_lk" style="padding:6px 12px">+ Link</button><p class="small muted" style="margin:6px 0 0">Nur Adressen, keine Passwörter oder Tokens. Zugangsdaten gehören in den Passwort-Manager.</p></div>' : '') +
       (!neu ? '<p class="small muted">Den Namen kannst du ändern, solange noch keine Aufgaben, Zeiten oder Notizen daran hängen.</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="j_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="j_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('j_b');
     if (!neu) dialogAdresse('#/projekt/' + p.projekt_id, p.name);
+    const lkBox = $('#j_links');
+    const lkZeile = (l) => { const r = document.createElement('div'); r.className = 'lkrow'; r.innerHTML = '<input class="lt" maxlength="80" placeholder="Titel, z. B. n8n" value="' + esc(l.titel || '') + '"><input class="lu" type="url" maxlength="500" placeholder="https://…" value="' + esc(l.url || '') + '"><button type="button" class="btn ghost" title="Link entfernen" aria-label="Link entfernen">✕</button>'; r.querySelector('button').onclick = () => r.remove(); lkBox.appendChild(r); return r; };
+    if (lkBox) { linksVon(p).forEach(lkZeile); $('#j_lk').onclick = () => lkZeile({}).querySelector('.lt').focus(); }
     $('#j_c').onclick = () => dlg.close();
     if (darfLoeschen) $('#j_del').onclick = async () => {
       if (!$('#j_del').dataset.sicher) { $('#j_del').dataset.sicher = '1'; $('#j_del').textContent = 'Wirklich löschen?'; return; }
@@ -972,7 +986,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     };
     $('#jf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-      try { await api('projekt_speichern', { projekt_id: p.projekt_id, name: $('#j_n').value, beschreibung: $('#j_b').value, status: $('#j_s').value, farbe: $('#j_f').value, verantwortlich: $('#j_v').value }); dlg.close(); toast('Gespeichert'); await laden(true); }
+      const daten = { projekt_id: p.projekt_id, name: $('#j_n').value, beschreibung: $('#j_b').value, status: $('#j_s').value, farbe: $('#j_f').value, verantwortlich: $('#j_v').value };
+      if (lkBox) daten.links = [...lkBox.querySelectorAll('.lkrow')].map(r => ({ titel: r.querySelector('.lt').value.trim(), url: r.querySelector('.lu').value.trim() })).filter(l => l.url);
+      try { await api('projekt_speichern', daten); dlg.close(); toast('Gespeichert'); await laden(true); }
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
