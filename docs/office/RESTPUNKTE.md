@@ -22,7 +22,7 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | Prio | Punkt | Bezug |
 |---|---|---|
 | A | Workflow importieren, Credentials setzen, SQL ausführen, erster echter `laden`-Aufruf (alles ungetestet mangels Zugang) | SETUP.md, TESTBERICHT.md Abschnitt 5 |
-| A | Prüfen, dass die Portal-API v2 mit dem größeren `team_laden()`-JSON weiter funktioniert (n8n-Payload-Grenzen) | TESTBERICHT.md |
+| A | Prüfen, dass die Portal-API v2 mit dem größeren `team_laden()`-JSON weiter funktioniert (n8n-Payload-Grenzen). Code-Prüfung 17.10.: Schlüssel unverändert, Office-Schlüssel werden nicht an den Browser weitergegeben (INBETRIEBNAHME.md) – Live-Test nach dem SQL steht aus | TESTBERICHT.md |
 | A | Echte Integrationstests gegen Supabase und n8n (PostgREST-409, Webhook-Pfad, Zeitplan) | TESTBERICHT.md |
 | B | Executoren bauen: n8n-Agentenworkflow (Webhook, Lebenszeichen, signierte Rückmeldung), Hermes-Polling, Claude-Code/Codex-Ablauf; Stubs ersetzen | `office/adapter/*.stub.js` |
 | B | Allowlist für `ausfuehrer_url`-Domains; Rate-Limit am Reverse-Proxy; n8n-Executions-Aufbewahrung | SICHERHEIT.md S6–S8 |
@@ -41,7 +41,7 @@ Stand: 17.10.2026 (ergänzt nach Nachprüfung auf Windows, siehe TESTBERICHT.md 
 | C | Einbettung auf GitHub Pages einmal prüfen (Token-Teilung Portal/Office, iframe-Höhe) | `docs/team/index.html`, `docs/office/js/app.js` |
 | B | Puppeteer-Ersatzpfad der Browsertests vervollständigen oder entfernen (4/7 ohne Playwright); bis dahin Playwright lokal installieren (TESTBERICHT.md Abschnitt 7) | `office/test/browser.mjs` |
 | B | Registry: Executor und Modell passen nicht überall zusammen (`kunden-entwickler` läuft über Codex, `kurs-waechter`/`server-waechter` über Hermes, tragen aber Claude-Modell-IDs). Bei F4 klären, welches Modell dort wirklich läuft, sonst „unbekannt“ eintragen | `office/agenten.json` |
-| B | Startbestand der Registry enthält „Kundenprojekt Müller GmbH“: vor dem SQL-Lauf prüfen, dass nichts Synthetisches in die Produktiv-Supabase gelangt | `supabase/team_office.sql` |
+| B | ~~Startbestand der Registry enthält „Kundenprojekt Müller GmbH“~~ – gelöst 17.10.: `supabase/team_office_produktiv.sql` ersetzt synthetische Projektnamen und setzt Räume (siehe INBETRIEBNAHME.md) | `supabase/team_office_produktiv.sql` |
 | C | Subagent `office-entwickler` darf `Bash(node *)`/`Bash(npm run *)`: auf die Testskripte einschränken | `.claude/agents/office-entwickler.md` |
 
 ## Hinweis zum Branch
