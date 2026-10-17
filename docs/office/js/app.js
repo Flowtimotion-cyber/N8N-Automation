@@ -67,6 +67,7 @@ async function laden(still) {
   } catch (e) {
     if (e.status === 401) { tokenSetzen(null); return ohneZugang(e.message); }
     if (e.status === 403) return ohneZugang(e.message);
+    if (!D && EINGEBETTET) { $('#app').innerHTML = '<div class="note warn" style="margin:4px 0"><b>KI Office ist noch nicht angebunden.</b> Der n8n-Workflow „TEAM: Office-API“ muss importiert und aktiviert sein (docs/office/SETUP.md). Bis dahin läuft das Team-Portal wie gewohnt weiter. <span class="muted">(' + esc(e.message) + ')</span></div>'; requestAnimationFrame(hoeheMelden); return; }
     if (!D) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung zur Office-API</h2><p class="muted">' + esc(e.message) + '</p><p class="small muted">Produktiv antwortet der n8n-Workflow „TEAM: Office-API“. Ist er noch nicht importiert, siehe docs/office/SETUP.md.</p><button class="btn" id="retry">Erneut versuchen</button></div>'; 
     else toast(e.message);
     const r = $('#retry'); if (r) r.onclick = () => { $('#app').innerHTML = '<div class="loading">Lade KI Office …</div>'; laden(); };
