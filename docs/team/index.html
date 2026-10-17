@@ -1178,7 +1178,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // Säulendiagramm (eine Reihe), Hover-Tooltip über <title>
   function saeulen(daten, einheit, alt) {
     if (!daten.length) return '<p class="empty small">Noch keine Daten.</p>';
-    const B = 400, H = 150, unten = 20, oben = 16, max = Math.max(1, ...daten.map(d => d.wert));
+    const B = Math.max(400, daten.length * 26), H = 150, unten = 20, oben = 16, max = Math.max(1, ...daten.map(d => d.wert));
+    const jedes = Math.ceil(daten.length / 12), werteZeigen = daten.length <= 14;
     const bw = B / daten.length, w = Math.max(6, Math.min(36, bw - 8));
     const y = v => H - unten - (v / max) * (H - unten - oben);
     let s = '<svg class="cchart" viewBox="0 0 ' + B + ' ' + H + '" role="img"><line class="grid" x1="0" x2="' + B + '" y1="' + (H - unten) + '" y2="' + (H - unten) + '"/>';
@@ -1186,8 +1187,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const x = i * bw + (bw - w) / 2, yy = y(d.wert), h = Math.max(d.wert ? 3 : 0, H - unten - yy);
       s += '<g><title>' + esc(d.tip || (d.label + ': ' + d.wert + ' ' + einheit)) + '</title><rect x="' + (i * bw) + '" y="0" width="' + bw + '" height="' + H + '" fill="transparent"/>' +
         (h ? '<path class="bar' + (alt ? ' alt' : '') + '" d="M' + x + ',' + (H - unten) + 'V' + (H - unten - h + 4) + 'q0,-4 4,-4h' + (w - 8) + 'q4,0 4,4V' + (H - unten) + 'Z"/>' : '') +
-        (d.wert ? '<text class="val" x="' + (x + w / 2) + '" y="' + (H - unten - h - 4) + '" text-anchor="middle">' + d.wert + '</text>' : '') +
-        ((daten.length <= 12 || i % 2 === daten.length % 2) ? '<text x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(d.label) + '</text>' : '') + '</g>';
+        (d.wert && (werteZeigen || d.wert === max) ? '<text class="val" x="' + (x + w / 2) + '" y="' + (H - unten - h - 4) + '" text-anchor="middle">' + d.wert + '</text>' : '') +
+        ((daten.length - 1 - i) % jedes === 0 ? '<text x="' + (x + w / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(d.label) + '</text>' : '') + '</g>';
     });
     return s + '</svg>';
   }
@@ -1278,13 +1279,47 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="dgrid">' + karte('Beiträge je Woche (nach Datum)', saeulen(proWoche(S, p => p.datum, 10), 'Beiträge')) + karte('Je Kanal', bars(Object.entries(kanal).sort((a, b) => b[1] - a[1]))) + karte('Nach Status', bars(Object.entries(status).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) +
       karte('Newsletter', '<p class="empty small">Kommt mit dem neuen Newsletter über info@momentum-ki-akademie.de: Empfänger, Öffnungen, Klicks, Abmeldungen.</p>') + '</div>';
   }
+  // Webseiten-Statistik: Lovable Analytics (Besucher) + Google Search Console, täglich in n8n-Data-Table Web_Statistik
+  const WEB_API = API.replace('team-api-v2', 'team-web');
+  const WEB = { d: null, laedt: false, fehler: '' };
+  async function webLaden() {
+    if (WEB.laedt) return; WEB.laedt = true;
+    try {
+      const r = await fetch(WEB_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Webseiten-Statistik ist gerade nicht erreichbar.');
+      WEB.d = j;
+    } catch (e) { WEB.fehler = e.message; }
+    WEB.laedt = false;
+    if (tab === 'start' && DB.tab === 'web' && $('#dbody')) dashSetzen();
+  }
+  const ddmm = d => d.slice(8, 10) + '.' + d.slice(5, 7) + '.';
+  const dauerTxt = s => s >= 60 ? Math.floor(s / 60) + ' min ' + Math.round(s % 60) + ' s' : Math.round(s || 0) + ' s';
   function dashWeb() {
+    if (!WEB.d && !WEB.laedt && !WEB.fehler) setTimeout(webLaden, 0);
     const L = (D.aufgaben || []).filter(a => a.projekt === 'Webseite' || a.projekt === 'Hermetik Marketing');
     const offen = n => L.filter(a => a.projekt === n && a.status !== 'Erledigt').length;
-    const seite = (name, url, proj) => '<div class="card"><h2>' + name + '</h2><p class="small"><a href="' + url + '" target="_blank" rel="noopener">' + url.replace('https://', '') + ' ↗</a></p>' +
-      '<div class="dmini">' + kpi(offen(proj), 'offene Punkte') + kpi('–', 'Besucher (30 Tage)') + kpi('–', 'Anfragen über die Seite') + '</div>' +
-      '<p class="empty small">Besucherzahlen, Herkunft und Google-Suche erscheinen hier, sobald die Statistik-Quelle angebunden ist.</p></div>';
-    return '<div class="dgrid">' + seite('Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>';
+    const seite = (key, name, url, proj) => {
+      const S = WEB.d && WEB.d.seiten ? WEB.d.seiten[key] : null;
+      const li = S && S.listen, T = (S && S.tage || []).slice(-30), G = (S && S.gsc_tage || []).slice(-28);
+      const gK = G.reduce((a, x) => a + (x.klicks || 0), 0), gI = G.reduce((a, x) => a + (x.impressionen || 0), 0);
+      const gP = gI ? Math.round(G.reduce((a, x) => a + (x.position || 0) * (x.impressionen || 0), 0) / gI * 10) / 10 : null;
+      let h = '<div class="card"><h2>' + name + '</h2><p class="small"><a href="' + url + '" target="_blank" rel="noopener">' + url.replace('https://', '') + ' ↗</a></p>' +
+        '<div class="dmini">' + kpi(li ? li.besucher : '–', 'Besucher (30 Tage)') + kpi(li ? li.aufrufe : '–', 'Seitenaufrufe') + kpi(li ? li.absprung + ' %' : '–', 'Absprungrate') + kpi(li ? dauerTxt(li.dauer_s) : '–', 'Ø Besuchsdauer') +
+        (G.length ? kpi(gK, 'Google-Klicks (28 T.)') + kpi(gI, 'Google-Impressionen') + kpi(gP == null ? '–' : gP, 'Ø Google-Position') : '') + kpi(offen(proj), 'offene Punkte') + '</div>';
+      if (!WEB.d) return h + '<p class="muted small">' + (WEB.fehler ? esc(WEB.fehler) : 'Lade Statistik …') + '</p></div>';
+      h += '<h3>Besucher je Tag</h3>' + saeulen(T.map(x => ({ label: ddmm(x.datum), wert: x.besucher, tip: ddmm(x.datum) + ': ' + x.besucher + ' Besucher, ' + x.aufrufe + ' Aufrufe' })), 'Besucher');
+      if (li) h += '<div class="grid" style="margin-top:10px"><div><h3>Woher</h3>' + bars(li.quellen || [], 'var(--acc2)') + '</div><div><h3>Meistbesuchte Seiten</h3>' + bars((li.seiten || []).slice(0, 8), 'var(--teal)') + '</div></div>';
+      if (G.length) {
+        h += '<h3 style="margin-top:12px">Google-Suche: Impressionen je Tag</h3>' + saeulen(G.map(x => ({ label: ddmm(x.datum), wert: x.impressionen, tip: ddmm(x.datum) + ': ' + x.impressionen + ' Impressionen, ' + x.klicks + ' Klicks, Position ' + x.position })), 'Impressionen', true);
+        const g = S.gsc || {};
+        if ((g.suchanfragen || []).length) h += '<h3 style="margin-top:10px">Suchbegriffe (' + esc(g.zeitraum || '') + ')</h3><div class="tablewrap"><table class="small"><tr><th>Suchbegriff</th><th>Klicks</th><th>Impr.</th><th>Position</th></tr>' + g.suchanfragen.map(q => '<tr><td>' + esc(q[0]) + '</td><td>' + q[1] + '</td><td>' + q[2] + '</td><td>' + q[3] + '</td></tr>').join('') + '</table></div>';
+        if ((g.seiten || []).length) h += '<h3 style="margin-top:10px">Seiten in der Google-Suche</h3><div class="tablewrap"><table class="small"><tr><th>Seite</th><th>Klicks</th><th>Impr.</th><th>Position</th></tr>' + g.seiten.map(q => '<tr><td>' + esc(q[0]) + '</td><td>' + q[1] + '</td><td>' + q[2] + '</td><td>' + q[3] + '</td></tr>').join('') + '</table></div>';
+      } else h += '<p class="dhint">Noch nicht in der Google Search Console angemeldet – Google-Zahlen erscheinen nach der Einrichtung.</p>';
+      return h + '</div>';
+    };
+    return '<div class="dgrid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))">' + seite('momentum', 'Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('hermetik', 'Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>' +
+      '<p class="dhint">Besucher aus der Lovable-Statistik, Google-Zahlen aus der Search Console (2–3 Tage Verzug). Täglich aktualisiert' + (WEB.d && WEB.d.stand ? ', Stand ' + fmtDT(WEB.d.stand) : '') + '.</p>';
   }
 
   // ---------- Klassenbuch (TEMP-Kurs, aus Notion) ----------
