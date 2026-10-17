@@ -162,3 +162,27 @@ Nicht getestet: die neuen Spalten gegen das echte Supabase (`alter table … add
 | `npm run test:office` unter Windows | Vorher fand der Befehl 0 Tests, weil cmd.exe die einfachen Anführungszeichen des Globs nicht auflöst (der Lauf aus Abschnitt 7 nutzte den Glob direkt). Jetzt doppelte Anführungszeichen in `package.json`; Node löst den Glob selbst auf, in Bash und cmd |
 
 Weiterhin ungetestet: alles aus Abschnitt 5. Produktiv hängt die Monitor-Anzeige davon ab, dass Executoren Ablageorte als `https://`-Adressen melden, die der Browser der angemeldeten Person laden darf (RESTPUNKTE.md).
+
+## 12. Nachtrag 17.10.2026: Prüfung des gemergten Stands, große Wandbildschirme, Gehirn-Zentrale (Branch `feature/ki-office-monitor-gross`)
+
+Prüfung „auf Herz und Nieren“ gegen `main` nach dem Merge von PR #2 (Commit cbfaf59), Windows 11, Node 24.18, Playwright-Chromium 1.56:
+
+| Lauf | Ergebnis |
+|---|---|
+| `npm run test:office` auf main (cbfaf59) | 74/74 bestanden |
+| Angriffsproben (eigenes Playwright-Skript gegen den Testserver): sechs feindliche Artefakte per API (`<img onerror>` im Titel, `<script>` in der Zusammenfassung, Ablageorte `javascript:`, `https://…" onload=…`, `data:image/svg+xml…`, Backslash-UNC, `http://`, `//`) | keine XSS-Variable gesetzt, kein eingeschleustes Element, keine Anfrage an fremde Hosts, alles als Text bzw. Karte; Akademie-Monitor zeigt weiter das Diagramm; nicht ladbares Bild (`testbilder/gibtsnicht.png`) lässt die Titelkarte sichtbar |
+| Sandbox (HTML-Artefakt): `top.location`, Formular-Submit an fremden Host, Cookies | wirkt nicht, nichts gesendet, `window.origin === "null"`, keine Cookies |
+| Rechte (Token des Hermes-Agenten): API `laden`, Büro, Monitorwand | sichtbare Projekte nur Akademie-Kurs und Verwaltung & Finanzen; keine Artefakte fremder Räume; Monitore Marketing/Vertrieb/Kundenprojekte leer; fremde Testbilder werden nicht geladen |
+| Tastatur, Einbettung, Mobil | Tab vom Raum erreicht den Monitor, Enter öffnet die Wand; nur-Büro-Einbettung zeigt fünf Monitore; kein horizontaler Seitenscroll bei 390 px |
+| Live (GitHub Pages, Office-API): `buero.js`/`modell.js` mit Monitorcode ausgeliefert, Testbilder abrufbar; Office-API antwortet ohne Token und mit falschem Token mit 401 | ok, nur lesend geprüft |
+| Deckel 12 Kacheln | ok (14 zusätzliche Notizen → 12 Kacheln) |
+
+**Befunde und Behebung (in diesem Branch):**
+
+1. Monitorwand verlinkte `http://`-Ablageorte („Öffnen ↗“). Jetzt bekommen nur ladbare Adressen (`https://` oder relativ) einen Link. Niedrig, behoben.
+2. In der nur-Büro-Einbettung fehlte der Rücksprung „← Zurück zum Büro“ auf allen Unteransichten (Raum, Agent, Run, Monitorwand): `app.js` fügte ihn vor dem Aufbau der Ansicht ein, die Ansicht überschrieb ihn mit `innerHTML`. Jetzt wird er nach dem Aufbau eingefügt. Bestand seit der Einbettung (PR #1), behoben.
+3. Kein Befund, aber Hinweis: In der Monitorwand verdrängen viele neue Textnotizen die Grafiken aus den 12 Kacheln (Restpunkt: Filter).
+
+**Umbau auf Timos Wunsch:** Monitore als große Wandbildschirme (160×100 statt 84×52 im Raster, fast viermal so groß) hinter jeder Plattform, Raumkarten vor allen Plattformen, Zentrale als Gehirn mit Synapsen (leuchten bei laufenden Aufträgen/Teams, `prefers-reduced-motion` stoppt sie). Tests nach dem Umbau: siehe Zeile unten.
+
+| `npm run test:office` nach dem Umbau (Wandbildschirme, Gehirn, Befunde 1 und 2) | 74/74 bestanden; Screenshots `*-buero.png`, `*-leer-buero.png`, `*-monitorwand*.png`, `*-portal-register-ki-office.png`, `*-run-team.png` neu |
