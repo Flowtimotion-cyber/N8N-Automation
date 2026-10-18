@@ -89,3 +89,9 @@ Das macht nicht das Office selbst, sondern `python agenten/office.py obsidian` a
 
 Auf der Übersicht des Team-Portals steht direkt unter den Kennzahlen die Karte **„Wartet auf deine Freigabe“**. Timo sieht dort alle offenen Freigaben (Aufträge von Teammitgliedern und externe Aktionen der Agenten) und kann sie gleich freigeben oder ablehnen, ohne ins KI Office zu wechseln. Alle anderen sehen die offenen Freigaben nur als Liste, freigeben kann nur Timo.
 
+## Team-Portal: Vorschläge filtern, Pfad-Links, Arbeitszeit-Dialog (ab 18.10.2026, Vorschläge von Kurt)
+
+- **Vorschläge:** oben Suche, Bereichsfilter und „Nach Bereich ordnen“. Schlagworte schreibst du als `#Wort` in Titel oder Text (zum Beispiel `#Arbeitszeit`); ein Klick auf ein Schlagwort zeigt alle Vorschläge dazu. Neu: Bereiche „Vorschläge“ und „KI Office“.
+- **Links auf Laufwerke und Ordner in Notizen:** `[Projektordner](\Server\Freigabe\Projekt)` oder `[Datei](C:\Daten\Datei.docx)`; auch `file:///C:/…` und einfache Pfade werden erkannt. Ein Klick kopiert den Pfad, im Explorer mit Strg+L einfügen (Browser dürfen lokale Dateien nicht selbst öffnen). Pfade mit Leerzeichen in die eckigen Klammern setzen.
+- **Zeit eintragen:** das Formular lässt sich wie bei Aufgaben und Notizen über den Griff am Rand verbreitern.
+

@@ -52,7 +52,7 @@ function portalLaden(tok) {
   if (!ich || ich.status === 'gesperrt') return [401, { ok: false, fehler: 'Dein Zugang ist ungültig (Testadapter).' }];
   const ohneToken = m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ, funktion: m.funktion || '', status: m.status, email: '', telefon: '', whatsapp_ok: false, zuletzt_aktiv: '' });
   return [200, { ok: true, ich: { ...ohneToken(ich), email: 'test@example.invalid', stunden_sicht: false }, mitglieder: D.mitglieder.map(ohneToken), projekte: D.projekte, aufgaben: D.aufgaben, verlauf: D.verlauf, notizen: D.notizen,
-    social: [], systeme: [], vorschlaege: [], zeiten: [], abrechnung: [], community: [], kurs: { teilnehmende: 0, fragen_7_tage: 0 }, anfragen: [], stand: welt.uhr.iso(), testadapter: true }];
+    social: [], systeme: [], vorschlaege: welt.speicher.T.team_vorschlaege || [], zeiten: [], abrechnung: [], community: [], kurs: { teilnehmende: 0, fragen_7_tage: 0 }, anfragen: [], stand: welt.uhr.iso(), testadapter: true }];
 }
 
 const server = createServer(async (req, res) => {

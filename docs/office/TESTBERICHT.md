@@ -330,3 +330,17 @@ Neuer Browsertest „Portal-Übersicht“ (Desktop und Mobil, Portal-API und Off
 
 **Nicht geprüft:** das echte Portal gegen die echte Office-API (nur Testadapter); die Karte lädt bei jedem Aufbau der Übersicht neu (alle 2 Minuten, solange niemand tippt).
 
+## 19. Nachtrag 18.10.2026: Vorschläge aus dem Team umgesetzt (Branch `feature/vorschlaege-umsetzen`, KI-erstellt: Claude Code)
+
+Sieben Vorschläge von Kurt (Register „Vorschläge“ im Team-Portal) waren offen. Gelesen über einen kurzen, rein lesenden Hilfs-Workflow (Agenten dürfen Vorschläge nicht über die Portal-API lesen, nur anlegen); der Hilfs-Workflow wurde danach archiviert. Umgesetzt in `docs/team/index.html`:
+
+| Vorschlag | Umsetzung |
+|---|---|
+| Notizen: Link auf lokale Laufwerke | Pfade werden erkannt und als „📁“-Link angezeigt: `[Text](\Server\Freigabe\Ordner)`, `[Text](C:\Ordner\Datei)`, `file:///C:/…` sowie bare `C:\…` und `\Server\…`. Browser dürfen lokale Dateien aus Webseiten nicht öffnen, darum kopiert ein Klick den Windows-Pfad (Hinweis „Im Explorer mit Strg+L einfügen“). Hilfe-Tabelle des Editors ergänzt |
+| Arbeitszeit: Formular verbreiterbar | Der Dialog „Zeit eintragen“ hat jetzt wie Aufgaben und Notizen den Ziehgriff zum Verbreitern (Breite wird gemerkt) |
+| Vorschläge: Ordnerstruktur, Filter, Schlagworte, Bereich „Vorschläge“ | Suche in Titel und Text, Bereichsfilter, Schlagworte aus `#Wort` (Klick auf ein Schlagwort filtert), Schalter „Nach Bereich ordnen“; Bereichsliste um „Vorschläge“ und „KI Office“ erweitert |
+
+Nicht ins Portal gehören die vier Vorschläge zum **FracEncoder** (Kommandozeilenvariante für Linux, Sprachen, Benutzerstufen, Fehlermeldung ohne akzeptiertes Passwort): sie wurden als Aufgaben für Kurt angelegt und beantwortet.
+
+Neuer Browsertest „Portal: Vorschläge …“ (Desktop und Mobil; Suche, Bereich, Schlagwort, Gruppierung, Pfad-Links inklusive Klick/Kopieren, Dialog-Ziehgriff). `npm run test:office` mit Playwright 109/109. Testdaten: vier synthetische Vorschläge und eine Notiz mit Pfaden.
+
