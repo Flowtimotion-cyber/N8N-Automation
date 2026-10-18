@@ -84,3 +84,8 @@ Das macht nicht das Office selbst, sondern `python agenten/office.py obsidian` a
 - Im Auftragsdialog steht unter dem Textfeld schon vorab, ob dein Auftrag sofort startet oder auf Timo wartet, und warum.
 - Wartet dein Auftrag, siehst du oben „deine Aufträge warten auf Timo“. Du musst nichts tun. Du kannst ihn auf der Run-Seite zurückziehen („Abbrechen“).
 - **Timo** sieht oben „n Aufträge warten auf deine Freigabe“ und entscheidet im Register „Freigaben“ (Agent, Kostenstufe, voller Text, Auftraggeber). Freigeben startet den Agenten sofort, Ablehnen bricht den Auftrag mit seiner Begründung ab.
+
+## Freigaben auf der Portal-Übersicht (ab 18.10.2026)
+
+Auf der Übersicht des Team-Portals steht direkt unter den Kennzahlen die Karte **„Wartet auf deine Freigabe“**. Timo sieht dort alle offenen Freigaben (Aufträge von Teammitgliedern und externe Aktionen der Agenten) und kann sie gleich freigeben oder ablehnen, ohne ins KI Office zu wechseln. Alle anderen sehen die offenen Freigaben nur als Liste, freigeben kann nur Timo.
+

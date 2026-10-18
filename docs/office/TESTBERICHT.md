@@ -322,3 +322,11 @@ Office-API Version `bc375407` veröffentlicht, gespeicherter Code-Knoten zeichen
 
 **Live seit 18.10.2026 abends:** Office-API Version `c72cf85f-2f27-4e43-90a8-a7eadf7c90ff` (Vorversion `bc375407`), gespeicherter Code zeichengleich mit dem Repo-Bündel (89015 Zeichen). Live geprüft: `laden` liefert `wartezeit_je_ausfuehrer` (claude-code 50400 s, hermes 10800 s); ein Probeauftrag an `verwaltung-status` lief durch.
 
+## 18. Nachtrag 18.10.2026: Freigaben auf der Team-Portal-Übersicht (Branch `feature/ki-office-freigaben-uebersicht`, KI-erstellt: Claude Code)
+
+Neue Karte „✅ Wartet auf deine Freigabe (n)“ auf der Übersicht des Team-Portals (`docs/team/index.html`, Funktion `freigabenKarte`), unter den Kennzahlen. Sie holt die offenen Freigaben über die Office-API (`laden`), zeigt Art (Auftrag starten oder externe Aktion), Agent, Kostenstufe, Text, Auftraggeber, Zeit und einen Link zum Run. **Freigeben und Ablehnen erscheinen nur für Timo (Admin)** und rufen `freigabe_entscheiden` auf; der Server prüft die Rolle zusätzlich. Andere sehen die Liste („Offene Freigaben“, Hinweis „Freigeben kann nur Timo“), solange sie überhaupt etwas sehen dürfen; ist nichts offen, erscheint die Karte nur für Timo.
+
+Neuer Browsertest „Portal-Übersicht“ (Desktop und Mobil, Portal-API und Office-API lokal umgeleitet): Timo sieht 2 Zeilen mit Knöpfen, gibt über den Dialog eine frei (Toast, danach 1 Zeile); Lillien sieht die Liste ohne Knöpfe. Ergebnis `npm run test:office` mit Playwright 108/108.
+
+**Nicht geprüft:** das echte Portal gegen die echte Office-API (nur Testadapter); die Karte lädt bei jedem Aufbau der Übersicht neu (alle 2 Minuten, solange niemand tippt).
+

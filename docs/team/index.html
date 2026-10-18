@@ -418,6 +418,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (!V[tab] || (tab === 'vertrieb' && !darfVertrieb())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
+    if (tab === 'start') freigabenKarte();
     kiAufbauen();
     if (ziel) {
       const z = ziel; ziel = null;
@@ -571,6 +572,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      '<div id="freiKarte"></div>' +
       dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
@@ -2153,6 +2155,56 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   // Das eingebettete Office meldet seine Höhe (gleiche Herkunft; andere Absender werden ignoriert)
   window.addEventListener('message', e => { if (e.origin !== location.origin || !e.data || e.data.typ !== 'ko-hoehe') return; document.querySelectorAll('iframe.offFrame').forEach(f => { if (f.contentWindow === e.source) f.style.height = Math.min(Math.max(Number(e.data.hoehe) || 0, 320), 4000) + 'px'; }); });
   const OFFICE_API = 'https://n8n.hm-storage.de/webhook/office-api';
+  // ---------- Freigaben auf der Übersicht (Daten aus der Office-API) ----------
+  // Alle offenen Freigaben auf einen Blick: Start von Aufträgen (Teammitglieder → Agenten) und externe Aktionen (E-Mail, Post …).
+  // Sehen dürfen alle, was ihnen die Office-API liefert; Freigeben und Ablehnen zeigt nur der Admin (der Server prüft zusätzlich).
+  function officeApi(aktion, daten) {
+    return fetch(OFFICE_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) })
+      .then(r => r.json().then(j => { if (!j || j.ok === false) throw new Error((j && j.fehler) || 'Keine Antwort'); return j; }));
+  }
+  function freigabenKarte() {
+    const el = $('#freiKarte'); if (!el) return;
+    officeApi('laden').then(j => {
+      const admin = istAdmin();
+      const offen = (j.freigaben || []).filter(f => f.status === 'offen').sort((a, b) => String(a.angefordert_am).localeCompare(String(b.angefordert_am)));
+      const name = id => { const m = (j.mitglieder || []).find(x => x.mitglied_id === id); return m ? m.name : (id || '–'); };
+      if (!offen.length && !admin) { el.innerHTML = ''; return; }
+      const zeile = f => {
+        const r = (j.runs || []).find(x => x.run_id === f.run_id) || {};
+        const reg = (j.agenten || []).find(x => x.agent_id === r.agent_id) || {};
+        const ext = (j.externe_aktionen || {})[f.aktion] || { text: f.aktion };
+        const start = f.aktion === 'auftrag_start';
+        const stufe = { guenstig: 'günstig', normal: 'normal', teuer: 'teuer' }[reg.kostenstufe] || '';
+        return '<div style="padding:10px 0;border-top:1px solid var(--line)"><div><b>' + esc(start ? 'Auftrag starten' : ext.text) + '</b> <span class="chip">' + esc(reg.name || r.agent_id || '–') + '</span>' + (start && stufe ? ' <span class="chip">' + esc(stufe) + '</span>' : '') + '</div>' +
+          '<div class="small" style="margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere">' + esc(String(f.inhalt_vorschau || r.auftrag || '').slice(0, 280)) + '</div>' +
+          '<div class="small muted">von ' + esc(name(f.angefordert_von)) + ' · ' + fmtDT(f.angefordert_am) + ' · <a href="' + OFFICE + '#/run/' + esc(f.run_id) + '">Details im KI Office</a></div>' +
+          (admin ? '<div class="act" style="margin-top:6px"><button class="btn" style="padding:6px 10px" data-frg="' + esc(f.freigabe_id) + '" data-ent="erteilt">' + (start ? 'Start freigeben' : 'Freigeben') + '</button> <button class="btn sec" style="padding:6px 10px" data-frg="' + esc(f.freigabe_id) + '" data-ent="abgelehnt">Ablehnen</button></div>' : '') + '</div>';
+      };
+      el.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">✅ ' + (admin ? 'Wartet auf deine Freigabe' : 'Offene Freigaben') + ' (' + offen.length + ')</h2><a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Alle im KI Office →</a></div>' +
+        (offen.length ? offen.map(zeile).join('') : '<p class="empty">Nichts offen. Gut so.</p>') +
+        (admin ? '' : '<p class="small muted" style="margin-top:8px">Freigeben kann nur Timo.</p>') + '</div>';
+      el.querySelectorAll('[data-frg]').forEach(b => b.onclick = () => {
+        const f = offen.find(x => x.freigabe_id === b.dataset.frg); if (!f) return;
+        const erteilen = b.dataset.ent === 'erteilt', start = f.aktion === 'auftrag_start';
+        const r = (j.runs || []).find(x => x.run_id === f.run_id) || {};
+        const reg = (j.agenten || []).find(x => x.agent_id === r.agent_id) || {};
+        $('#dlgInner').innerHTML = '<h2>' + (start ? (erteilen ? 'Start freigeben' : 'Start ablehnen') : (erteilen ? 'Freigabe erteilen' : 'Freigabe ablehnen')) + '</h2>' +
+          '<div class="note" style="margin-bottom:10px"><b>' + esc(start ? 'Auftrag starten' : (((j.externe_aktionen || {})[f.aktion] || {}).text || f.aktion)) + '</b>' + (reg.name ? ' · ' + esc(reg.name) : '') + '<div class="small" style="white-space:pre-wrap;margin-top:4px;overflow-wrap:anywhere">' + esc(String(r.auftrag && start ? r.auftrag : f.inhalt_vorschau || '')) + '</div><div class="small muted" style="margin-top:4px">von ' + esc(name(f.angefordert_von)) + '</div></div>' +
+          '<p class="small">' + (start ? (erteilen ? 'Der Agent startet sofort. Die Freigabe gilt genau einmal und nur für diesen Auftragstext.' : 'Der Auftrag wird abgebrochen, ' + esc(name(f.angefordert_von)) + ' sieht deine Begründung.') : (erteilen ? 'Die Freigabe gilt 24 Stunden und genau einmal, nur für diesen Inhalt.' : '')) + '</p>' +
+          '<form id="frgf"><div class="f"><label for="frg_b">Begründung' + (erteilen ? ' (optional)' : '') + '</label><input id="frg_b" maxlength="600" ' + (erteilen ? '' : 'required') + '></div>' +
+          '<div class="dlgbtns"><button type="button" class="btn sec" id="frg_x">Abbrechen</button><button class="btn" type="submit" id="frg_ok">' + (erteilen ? (start ? 'Start freigeben' : 'Freigeben') : 'Ablehnen') + '</button></div></form>';
+        openDlg(false);
+        $('#frg_x').onclick = () => $('#dlg').close();
+        $('#frgf').onsubmit = ev => {
+          ev.preventDefault(); const ok = $('#frg_ok'); ok.disabled = true;
+          officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: b.dataset.ent, begruendung: $('#frg_b').value })
+            .then(() => { $('#dlg').close(); toast(erteilen ? (start ? 'Start freigegeben' : 'Freigabe erteilt') : 'Abgelehnt'); freigabenKarte(); })
+            .catch(e => { ok.disabled = false; toast(e.message); });
+        };
+      });
+    }).catch(() => { el.innerHTML = ''; });
+  }
+
   function vOffice() {
     const agenten = (D.mitglieder || []).filter(p => p.typ === 'agent');
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>KI Office</h1><p class="sub">Gemeinsame Übersicht über Projekte, Aufgaben, Agenten und ihre tatsächlich ausgeführte Arbeit. Dieselben Projekte und Aufgaben wie hier im Portal, dazu Agentenläufe, Freigaben und das virtuelle Büro.</p></div><a class="btn" href="' + OFFICE + '#/tab/projekte">KI Office öffnen →</a></div>' +
