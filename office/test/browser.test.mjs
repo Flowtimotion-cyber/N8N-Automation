@@ -167,7 +167,8 @@ test('Leerzustände (Szenario leer) und Freigabe-Entscheidung im Browser', async
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
   const p = await neueSeite(DESKTOP, { name: 'freigabe' });
   await oeffne(p, '#/tab/freigaben');
-  await p.locator('[data-freigabe][data-entscheidung="erteilt"]').first().click(); await p.waitForTimeout(150);
+  // Die Startfreigaben stehen oben in eigener Karte (Test „Startfreigabe“); hier die externe Aktion (E-Mail) freigeben
+  await p.locator('#startFreigaben ~ .card [data-freigabe][data-entscheidung="erteilt"]').first().click(); await p.waitForTimeout(150);
   assert.ok(await p.evaluate(() => document.querySelector('#dlg').open)); await shot(p, 'dialog-freigabe', DESKTOP);
   await p.locator('#f_b').fill('Im Browsertest geprüft'); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
   assert.ok((await text(p, '#toast')).includes('Freigabe erteilt'));
@@ -186,6 +187,51 @@ test('Team-Portal: Register „KI Office“ (Portal-API lokal umgeleitet)', asyn
     assert.match(await text(p, 'h1'), /KI Office/); assert.ok((await text(p, '#main')).includes('laufende Agentenaufträge')); assert.ok((await text(p, '#offStand')).includes('Office-API erreichbar'));
     await shot(p, 'portal-register-ki-office', vp);
     await p.close();
+  }
+});
+
+test('Startfreigabe: Admin sieht Zähler und Dialog, Teammitglied sieht „wartet auf Timo“ und den Vorab-Hinweis im Auftragsdialog', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  for (const vp of [DESKTOP, MOBIL]) {
+    // Timo (Admin): Zähler im Kopf, Karte mit Agent, Kostenstufe, Auftragstext, Auftraggeber; Freigabe-Dialog; Ablehnen verlangt eine Begründung
+    const a = await neueSeite(vp, { name: 'startfreigabe-admin' });
+    await oeffne(a, '#/tab/projekte');
+    assert.match(await text(a, '#startZaehler'), /1 Auftrag wartet auf deine Freigabe/);
+    await oeffne(a, '#/tab/freigaben');
+    const karte = await text(a, '#startFreigaben');
+    for (const s of ['Wartet auf deine Freigabe (1)', 'Marketing-Texter', 'normal', 'Newsletter zum Herbstangebot', 'Lillien (Test)']) assert.ok(karte.includes(s), 'Startkarte nennt ' + s);
+    await shot(a, 'startfreigabe-admin', vp);
+    await a.locator('#startFreigaben [data-freigabe][data-entscheidung="erteilt"]').first().click(); await a.waitForTimeout(150);
+    const dlg = await text(a, '#dlgInner');
+    for (const s of ['Start freigeben', 'Marketing-Texter', 'Kostenstufe', 'Newsletter zum Herbstangebot', 'Lillien (Test)', 'genau einmal']) assert.ok(dlg.includes(s), 'Dialog nennt ' + s);
+    await shot(a, 'startfreigabe-dialog', vp);
+    await a.evaluate(() => document.querySelector('#dlg').close());
+    await a.close();
+    // Lillien (Team): Hinweis auf der Run-Seite und im Kopf, keine Entscheidungsknöpfe
+    const l = await neueSeite(vp, { name: 'startfreigabe-team' });
+    await oeffne(l, '#/tab/projekte', TOKENS.m_lillien);
+    assert.match(await text(l, '#startZaehler'), /1 deiner Aufträge wartet auf Timo/);
+    await oeffne(l, '#/tab/freigaben', TOKENS.m_lillien);
+    assert.equal(await l.locator('#startFreigaben [data-freigabe]').count(), 0, 'Teammitglieder können keinen Start freigeben');
+    assert.ok((await text(l, '#startFreigaben')).includes('Wartet auf Timo'));
+    await l.locator('#startFreigaben a[href^="#/run/"]').first().click(); await l.waitForTimeout(250);
+    assert.ok((await text(l, '#startHinweis')).includes('Wartet auf Timo'));
+    await shot(l, 'startfreigabe-team-run', vp);
+    // Auftragsdialog: günstiger Agent und kurzer Text starten sofort, ein normaler Agent wartet auf Timo
+    await oeffne(l, '#/agent/social-planer', TOKENS.m_lillien);
+    await l.locator('#neuAuftrag').first().click(); await l.waitForTimeout(150);
+    assert.ok((await text(l, '#f_hint')).includes('Startet sofort'), 'günstiger Agent, kurzer Text');
+    await l.locator('#f_x').fill('Lang. '.repeat(120));
+    assert.ok((await text(l, '#f_hint')).includes('Wartet auf Timo') && (await text(l, '#f_hint')).includes('länger als 600'), 'langer Text braucht Freigabe');
+    assert.equal((await text(l, '#dlgOk')).trim(), 'Zur Freigabe vorlegen');
+    await l.locator('#f_x').fill('Kurz');
+    await l.evaluate(() => { const sel = document.querySelector('#f_a'); sel.value = 'marketing-texter'; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+    await l.waitForTimeout(100);
+    assert.ok((await text(l, '#f_hint')).includes('Wartet auf Timo') && (await text(l, '#f_hint')).includes('Kostenstufe'), 'normaler Agent braucht Freigabe');
+    await shot(l, 'startfreigabe-auftragsdialog', vp);
+    await l.evaluate(() => document.querySelector('#dlg').close());
+    await l.close();
   }
 });
 

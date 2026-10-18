@@ -3,6 +3,7 @@ import { $, $$, esc, toast } from './util.js';
 import { api, tokenLesen, tokenSetzen, TOKEN, PORTAL, ls } from './api.js';
 import { vProjekte, vProjekt, vAgenten, vAgent, vRun, vFreigaben, av } from './ansichten.js';
 import { vBuero, vMonitorwand } from './buero.js';
+import { wartendeStarts } from './modell.js';
 
 const TABS = [['projekte', 'Projekte'], ['agenten', 'KI Office'], ['buero', 'Virtuelles Büro'], ['freigaben', 'Freigaben']];
 // Eingebettet im Team-Portal (iframe, gleiche Herkunft): ?einbetten=1 blendet Kopf/Fuß aus, ?nur=buero zeigt nur die Szene.
@@ -30,6 +31,16 @@ function leseHash() {
 
 const ctx = { get D() { return D; }, render, laden, get route() { return route; }, nur: NUR, eingebettet: EINGEBETTET };
 
+/** Zähler für Startfreigaben: Admin sieht „wartet auf deine Freigabe“, Teammitglieder sehen „wartet auf Timo“ für ihre eigenen Aufträge. */
+function startZaehler() {
+  const offen = wartendeStarts(D); if (!offen.length) return '';
+  const admin = D.ich.rolle === 'admin';
+  const eigene = offen.filter(f => f.angefordert_von === D.ich.mitglied_id);
+  const n = admin ? offen.length : eigene.length; if (!n) return '';
+  const text = admin ? (n === 1 ? '1 Auftrag wartet auf deine Freigabe' : n + ' Aufträge warten auf deine Freigabe') : (n === 1 ? '1 deiner Aufträge wartet auf Timo' : n + ' deiner Aufträge warten auf Timo');
+  return '<div class="wrap" style="margin-top:12px"><a class="note warn" id="startZaehler" href="#/tab/freigaben" style="display:block;text-decoration:none;color:inherit"><b>' + esc(text) + '</b>' + (admin ? ' – jetzt prüfen →' : ' – du musst nichts tun.') + '</a></div>';
+}
+
 function render() {
   if (!D) return;
   const i = D.ich;
@@ -37,6 +48,7 @@ function render() {
     '<div class="who">' + av(D, i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc({ admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team', agent: 'KI-Agent' }[i.rolle] || i.rolle) + '</span></span><a href="' + PORTAL + '" class="btn sec" style="padding:6px 10px">Team-Portal ↗</a></div></div>' +
     '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<a role="tab" href="#/tab/' + k + '" aria-selected="' + (k === route.tab) + '" class="' + (k === route.tab ? 'on' : '') + '">' + l + ((k === 'freigaben' && (D.freigaben || []).some(f => f.status === 'offen')) ? ' <span class="chip fs-offen" style="padding:0 6px">' + (D.freigaben || []).filter(f => f.status === 'offen').length + '</span>' : '') + '</a>').join('') + '</nav></div><div class="bar"></div></header>' +
     (D.quelle === 'testadapter' ? '<div class="wrap" style="margin-top:12px"><div class="note test"><b>TESTADAPTER:</b> Diese Daten sind synthetisch (lokaler Testserver). Nichts hiervon ist echt oder produktiv getestet.</div></div>' : '') +
+    startZaehler() +
     '<main class="wrap" id="main"></main>' +
     '<footer class="wrap small muted" style="padding-bottom:30px">KI Office · Stand der Daten: ' + esc(new Date(D.stand).toLocaleString('de-DE')) + ' · Daten alle 5 Minuten aktualisiert · <a href="#" id="logout">Auf diesem Gerät abmelden</a> (gilt auch fürs Team-Portal) · <a href="' + PORTAL + '">Team-Portal</a></footer>';
   $('#logout').onclick = ev => { ev.preventDefault(); tokenSetzen(null); D = null; ohneZugang('Du bist abgemeldet.'); };

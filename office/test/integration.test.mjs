@@ -29,7 +29,7 @@ test('ungültige Zugänge und ungültiges JSON', async () => {
 });
 test('Auftrag über HTTP: Idempotenz, Lebenszeichen, Timeout per Zeitsprung, Neustart (Pflichtprüfungen 2 und 3)', async () => {
   const d = { agent_id: 'akademie-redakteur', projekt: 'Akademie-Kurs', auftrag: 'HTTP-Test: langsam, dann Stille', idempotenzschluessel: 'http-test-00001' };
-  const r1 = await office(TOKENS.m_kurt, 'auftrag_starten', d); const r2 = await office(TOKENS.m_kurt, 'auftrag_starten', d);
+  const r1 = await office(TOKENS.m_timo, 'auftrag_starten', d); const r2 = await office(TOKENS.m_timo, 'auftrag_starten', d);
   assert.equal(r1.status, 200); assert.equal(r2.j.wiederholt, true); assert.equal(r1.j.run_id, r2.j.run_id);
   // Testadapter hat übernommen (lebenszeichen) und ein Ereignis gemeldet
   let z = (await fetch(S.base + '/api/test/zustand').then(r => r.json()));
@@ -48,9 +48,14 @@ test('Auftrag über HTTP: Idempotenz, Lebenszeichen, Timeout per Zeitsprung, Neu
 });
 test('Freigabe über HTTP: Entscheidung durch Mensch, Ausführung genau einmal (Pflichtprüfung 2/4)', async () => {
   const r = await office(TOKENS.m_murat, 'auftrag_starten', { agent_id: 'angebots-pruefer', projekt: 'Vertrieb Herbst', auftrag: 'HTTP: Nachfrage per E-Mail an Kunden', idempotenzschluessel: 'http-frei-00001' });
-  await post(S.base, '/api/test/zeit', { sek: 10 });
+  // Murat ist kein Admin und der Angebots-Prüfer ein teures Modell: der Auftrag wartet zuerst auf Timos Startfreigabe, danach arbeitet der Agent wie gewohnt
+  assert.equal(r.j.status, 'wartet_freigabe');
   let z = await fetch(S.base + '/api/test/zustand').then(r => r.json());
-  const fr = z.tabellen.office_freigaben.find(f => f.run_id === r.j.run_id);
+  const startFr = z.tabellen.office_freigaben.find(f => f.run_id === r.j.run_id && f.aktion === 'auftrag_start');
+  assert.equal((await office(TOKENS.m_timo, 'freigabe_entscheiden', { freigabe_id: startFr.freigabe_id, entscheidung: 'erteilt' })).status, 200);
+  await post(S.base, '/api/test/zeit', { sek: 10 });
+  z = await fetch(S.base + '/api/test/zustand').then(r => r.json());
+  const fr = z.tabellen.office_freigaben.find(f => f.run_id === r.j.run_id && f.aktion === 'email_senden');
   assert.ok(fr && fr.status === 'offen');
   assert.equal((await office(TOKENS['agent-claude'], 'freigabe_entscheiden', { freigabe_id: fr.freigabe_id, entscheidung: 'erteilt' })).status, 403);
   assert.equal((await office(TOKENS.m_timo, 'freigabe_entscheiden', { freigabe_id: fr.freigabe_id, entscheidung: 'erteilt', begruendung: 'ok' })).status, 200);
@@ -95,4 +100,18 @@ test('Orchestrierung über HTTP: Team-Run delegiert Teilaufträge, Eltern-Run er
   z = await fetch(S.base + '/api/test/zustand').then(x => x.json());
   assert.ok(kinder().every(k => k.status === 'abgeschlossen'), JSON.stringify(kinder().map(k => k.status)));
   assert.equal(z.tabellen.office_runs.find(x => x.run_id === r.j.run_id).status, 'abgeschlossen');
+});
+
+test('Startfreigabe über HTTP: Teammitglied legt an, Timo lehnt ab, danach startet nichts', async () => {
+  const r = await office(TOKENS.m_lillien, 'auftrag_starten', { agent_id: 'marketing-texter', projekt: 'Social Media', auftrag: 'HTTP: Beitrag entwerfen', idempotenzschluessel: 'http-start-0001' });
+  assert.equal(r.status, 200); assert.equal(r.j.status, 'wartet_freigabe'); assert.equal(r.j.wartet_auf, 'Timo');
+  const vorher = (await fetch(S.base + '/api/test/zustand').then(x => x.json())).externe.filter(e => e.art === 'start').length;
+  const ladenTimo = await office(TOKENS.m_timo, 'laden');
+  const fr = ladenTimo.j.freigaben.find(f => f.run_id === r.j.run_id && f.aktion === 'auftrag_start'); assert.equal(fr.status, 'offen');
+  assert.equal((await office(TOKENS.m_kurt, 'freigabe_entscheiden', { freigabe_id: fr.freigabe_id, entscheidung: 'erteilt' })).status, 403, 'Dozent darf Starts nicht freigeben');
+  assert.equal((await office(TOKENS.m_timo, 'freigabe_entscheiden', { freigabe_id: fr.freigabe_id, entscheidung: 'abgelehnt', begruendung: 'Später' })).status, 200);
+  await post(S.base, '/api/test/zeit', { sek: 60 });
+  const z = await fetch(S.base + '/api/test/zustand').then(x => x.json());
+  assert.equal(z.tabellen.office_runs.find(x => x.run_id === r.j.run_id).status, 'abgebrochen');
+  assert.equal(z.externe.filter(e => e.art === 'start').length, vorher, 'kein Ausführer angestoßen');
 });

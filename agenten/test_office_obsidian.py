@@ -212,6 +212,8 @@ class ObsidianTests(unittest.TestCase):
         self.assertGreater(len(d['freigaben']), 0, 'Testdaten enthalten Freigaben')
         for f in d['freigaben']:
             self.assertNotIn(f['freigabe_id'], text)
+            # Startfreigaben (auftrag_start) tragen den Auftragstext als Vorschau; der steht ohnehin als Titel im Run-Spiegel. Geprüft wird nur, dass Freigaben externer Aktionen nicht durchsickern.
+            if f.get('aktion') == 'auftrag_start': continue
             for k in ('inhalt_vorschau', 'vorschau'):
                 if f.get(k): self.assertNotIn(str(f[k])[:40], text)
         for e in d['ereignisse']:

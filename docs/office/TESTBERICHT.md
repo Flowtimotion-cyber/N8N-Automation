@@ -263,3 +263,51 @@ Ablauf nach `agenten/OFFICE_ABARBEITER.md`, durchgeführt von einer Claude-Code-
 Die Produktions-Registry weicht vom Testadapter ab (Projektnamen, z. B. rekruiter → „Momentum Office“; Werkzeuge `registry_lesen`, `agent_vorschlagen`, `notiz_speichern`). Die Anleitung nennt keine festen Projekte, es war nichts anzupassen.
 
 **Noch offen:** Die **geplante Aufgabe** `office-claude-code-abholen` ist nicht angelegt: Das Anlegen per Werkzeug hat der Berechtigungsprüfer der Sitzung abgelehnt (es wurde kein Umweg gesucht). Prompt und Einstellungen stehen in SETUP.md Abschnitt 12; ein Mensch legt sie in der Claude-App an. Erst danach ist „ohne manuellen Eingriff“ belegt (Aufgabe läuft von selbst, Run springt auf „abgeschlossen“); das Ergebnis bitte hier nachtragen.
+
+## 16. Nachtrag 18.10.2026: Startfreigabe für Aufträge von Teammitgliedern (Branch `feature/ki-office-auftrag-freigabe`, KI-erstellt: Claude Code)
+
+Getestet gegen den **Testadapter** (synthetische Daten, `office/dev/`), nicht gegen Supabase oder n8n. Das neue Bündel ist **nicht live**.
+
+**Ergebnis:** `npm run test:office:unit` → 84/84 (davon neu: 18 in `office/test/unit.auftrag-freigabe.test.mjs`); `npm run test:office` mit Playwright (Chromium) → 103/103, darunter 1 neuer Browsertest (Desktop und Mobil) und 1 neuer Integrationstest über HTTP; `python agenten/test_office_obsidian.py` → 14/14.
+
+| Fall | Erwartung | Ergebnis |
+|---|---|---|
+| Hauptschalter `START_REGELN.aktiv = false` | alle Teammitglieder starten sofort, keine Freigabe | ✅ |
+| Admin, teurer Agent, 1500 Zeichen, Limit 5 € | startet sofort, keine Freigabe | ✅ |
+| Teammitglied (team, vertrieb, dozent), günstiger Agent, kurzer Auftrag | startet sofort, `budget_eur` = 0,05 | ✅ |
+| Genau 600 Zeichen / 601 Zeichen | sofort / wartet auf Timo | ✅ |
+| Modell `deepseek-v4-flash` | günstig, per `agent_speichern` setzbar | ✅ |
+| Teammitglied, teurer (Opus) oder normaler (Sonnet) Agent | `wartet_freigabe`, Freigabe `auftrag_start` offen, **kein Start nach außen**, kein Rückmelde-Schlüssel in der Antwort | ✅ |
+| Registry `freigabe_noetig` true / false / null | überschreibt die Stufe, Länge und Limit gelten weiter | ✅ |
+| Günstiger Agent, aber langer Text oder Limit 0,20 € | wartet auf Timo (Grund `laenge` bzw. `budget`); Limit −1 oder „viel“ → 400 | ✅ |
+| Tagesbudget erschöpft (0,98 € gemessen) | wartet auf Timo (Grund `tagesbudget`); andere Person und Admin unberührt; am nächsten Tag wieder frei | ✅ |
+| 20 kleine Aufträge à 0,05 € laufen | der 21. wartet; ein abgelehnter wartender Run reserviert nichts | ✅ |
+| Freigabe durch Admin (nach 3 Stunden) | Run → Warteschlange, Ausführer genau einmal mit dem richtigen Schlüssel angestoßen, Freigabe `verwendet`, Wartung setzt ihn nicht auf „unbekannt“, zweite Entscheidung → 409 | ✅ |
+| Freigabe durch Auftraggeber, Dozent, Team, Agent | 403 | ✅ |
+| Agent greift vor der Freigabe auf den Run zu | 409 (`lebenszeichen`, `run_beenden`) | ✅ |
+| Ablehnung | Run `abgebrochen` mit Grund und `abgebrochen_von`, nichts startet, danach nicht mehr freigebbar | ✅ |
+| Text (oder Agent) nach der Anfrage geändert | 409, alte Freigabe `ungueltig`, neue offene Freigabe mit neuem Hash, nichts startet; alte Freigabe nicht mehr nutzbar, die neue schon | ✅ |
+| Auftraggeber zieht zurück | `abgebrochen`, Freigabe `verfallen`, kein Abbruchsignal | ✅ |
+| Doppelter Aufruf mit gleichem Schlüssel | keine zweite Freigabe | ✅ |
+| Agent legt Auftrag für sich selbst an; Teilauftrag eines Dozenten an Sonnet-Agent | sofort / wartet; Eltern-Run kann nicht abschließen (`offene_kind_runs`) | ✅ |
+| `laden` | Teammitglied sieht seinen wartenden Run, die Freigabe und `start_regeln`; Admin sieht die offene Freigabe; Registry zeigt `kostenstufe`, `sofort_ok` | ✅ |
+| Wartung | offene Startfreigabe bleibt 2 Tage offen, verfällt nach 7 Tagen mit dem Run | ✅ |
+| HTTP: Murat legt an, Kurt (Dozent) darf nicht freigeben (403), Timo lehnt ab | Run `abgebrochen`, kein Ausführer angestoßen | ✅ |
+| Browser: Timo sieht „1 Auftrag wartet auf deine Freigabe“, Karte mit Agent, Kostenstufe, Auftragstext, Auftraggeber, Dialog; Lillien sieht „wartet auf Timo“ ohne Entscheidungsknöpfe und im Auftragsdialog den Vorab-Hinweis (sofort / Länge / Kostenstufe) | wie beschrieben, Desktop und Mobil | ✅ |
+
+**Anpassungen an bestehenden Tests:** Tests, in denen Teammitglieder normale oder teure Agenten beauftragten, geben den Start jetzt in der Testhilfe (`start`) als Timo frei; die Testdaten des Testservers (Runs 1 bis 13) tun dasselbe, damit alle bisherigen Zustände erhalten bleiben. Neu in den Testdaten: Run 14 (wartet auf Timo: Lillien, Marketing-Texter) und Run 15 (Start abgelehnt: Murat, Angebots-Prüfer). Zwei Integrationstests starten als Timo bzw. geben die Startfreigabe zuerst frei. Der Obsidian-Test überspringt Startfreigaben beim Geheimnis-Check (ihre Vorschau ist der Auftragstext, der als Run-Titel ohnehin im Spiegel steht).
+
+**Nebenbefund (behoben):** Die Warteschlangen-Frist (30 Minuten) zählte ab dem Anlegen. Ein Auftrag, den Timo erst Stunden später freigibt, wäre sofort „unbekannt“ geworden; `fristPruefen` zählt jetzt ab der letzten Zustandsänderung (`lebenszeichen`), das gilt auch für Wiederholungen.
+
+**Nicht getestet:** Lauf gegen Supabase und die echte Office-API (SQL und Bündel noch nicht eingespielt); `toLocaleDateString` mit `Europe/Berlin` im n8n-Code-Knoten (läuft in Node ≥ 18 mit voller ICU, mit Rückfall auf UTC, aber nicht in n8n ausprobiert); Verhalten bei sehr vielen Runs pro Tag.
+
+### Live-Test nach dem Einspielen (18.10.2026, KI-erstellt: Claude Code)
+
+Office-API Version `bc375407` veröffentlicht, gespeicherter Code-Knoten zeichengleich mit dem Repo-Bündel (88521 Zeichen). Geprüft mit dem Agenten-Token von Claude (Wert nie ausgegeben):
+
+| Prüfung | Ergebnis |
+|---|---|
+| `laden` | ✅ 200, `start_regeln` vorhanden (aktiv, 600 Zeichen, 0,05 €, 1 €); Registry zeigt Kostenstufen: Deepseek/Haiku günstig, Sonnet normal, Opus teuer; `server-waechter` mit `freigabe_noetig = true` (belegt, dass das SQL gelaufen ist) |
+| Probeauftrag des Agenten an `verwaltung-status` (Run `run_mve8d15wa664b7`) | ✅ startet sofort (Agenten unterliegen der Regel nicht), `budget_eur = 0,05` gespeichert (Spalte vorhanden), Ausführer lief, Run „abgeschlossen (technisch)“, keine Freigabe angelegt |
+
+**Nicht live getestet:** der Weg „Teammitglied, wartet auf Timo, Timo gibt frei oder lehnt ab“. Dafür fehlt ein Mitglieds-Zugang in dieser Sitzung; er ist im Testadapter vollständig geprüft (Abschnitt 16). Bitte einmal von Hand: als Teammitglied einen Auftrag an „Akademie-Redakteur“ anlegen → „Wartet auf Timo“, als Timo im Register „Freigaben“ freigeben → der Run startet.
