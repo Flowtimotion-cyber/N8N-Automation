@@ -154,6 +154,9 @@ function uebergangsTabelleMarkdown() {
 // Standardfristen (Sekunden). Können je Run überschrieben werden (timeout_sek) und je Agent in der Registry.
 const FRISTEN = {
   wartezeit_warteschlange: 30 * 60,        // bis ein Executor übernehmen muss
+  // Wartezeit je Ausführer: Wer selbst abholt (Claude-Code-Abholer stündlich 8–20 Uhr, Hermes per Zeitplan), darf nicht nach 30 Minuten als „unbekannt“ gelten,
+  // sonst gehen Aufträge über Nacht verloren (der Abholer holt nur Runs in der Warteschlange). n8n antwortet sofort und behält die kurze Frist.
+  wartezeit_je_ausfuehrer: { 'claude-code': 14 * 3600, hermes: 3 * 3600 },
   timeout_sek: 15 * 60,                    // ohne Lebenszeichen in „in Arbeit“
   wartefrist_mensch: 7 * 24 * 3600,        // Rückfragen und Freigaben warten auf Menschen
   freigabe_gueltig: 24 * 3600,             // erteilte Freigabe verfällt, wenn sie nicht genutzt wird
@@ -171,7 +174,8 @@ function fristPruefen(run, jetztMs) {
   if (run.status === 'warteschlange') {
     // Ab der letzten Zustandsänderung zählen (lebenszeichen), nicht ab dem Anlegen: ein Auftrag, der erst nach Timos Freigabe startet, hat sonst die Wartezeit schon verbraucht.
     const a = alter(run.lebenszeichen || run.erstellt);
-    if (a > FRISTEN.wartezeit_warteschlange) return { nach: 'unbekannt', grund: 'Kein Executor hat den Auftrag innerhalb von ' + Math.round(FRISTEN.wartezeit_warteschlange / 60) + ' Minuten übernommen.' };
+    const frist = FRISTEN.wartezeit_je_ausfuehrer[run.ausfuehrer] || FRISTEN.wartezeit_warteschlange;
+    if (a > frist) return { nach: 'unbekannt', grund: 'Kein Executor hat den Auftrag innerhalb von ' + (frist >= 7200 ? Math.round(frist / 3600) + ' Stunden' : Math.round(frist / 60) + ' Minuten') + ' übernommen.' };
   }
   if (run.status === 'in_arbeit') {
     const a = alter(run.lebenszeichen || run.gestartet || run.erstellt);

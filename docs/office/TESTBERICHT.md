@@ -311,3 +311,12 @@ Office-API Version `bc375407` veröffentlicht, gespeicherter Code-Knoten zeichen
 | Probeauftrag des Agenten an `verwaltung-status` (Run `run_mve8d15wa664b7`) | ✅ startet sofort (Agenten unterliegen der Regel nicht), `budget_eur = 0,05` gespeichert (Spalte vorhanden), Ausführer lief, Run „abgeschlossen (technisch)“, keine Freigabe angelegt |
 
 **Nicht live getestet:** der Weg „Teammitglied, wartet auf Timo, Timo gibt frei oder lehnt ab“. Dafür fehlt ein Mitglieds-Zugang in dieser Sitzung; er ist im Testadapter vollständig geprüft (Abschnitt 16). Bitte einmal von Hand: als Teammitglied einen Auftrag an „Akademie-Redakteur“ anlegen → „Wartet auf Timo“, als Timo im Register „Freigaben“ freigeben → der Run startet.
+
+## 17. Nachtrag 18.10.2026: Wartezeit in der Warteschlange je Ausführer (Branch `fix/warteschlange-frist-je-ausfuehrer`, KI-erstellt: Claude Code)
+
+**Befund (Prüfung nach dem Einspielen der Startfreigabe):** Die Warteschlange galt für alle Ausführer nur 30 Minuten. Der Claude-Code-Abholer läuft aber nur stündlich von 8 bis 20 Uhr (geplante Aufgabe `ki-office-abarbeiter`, nächster Lauf am Montag um 8 Uhr). Ein Auftrag an einen Claude-Code-Agenten hätte also nach 30 Minuten den Status „unbekannt“ bekommen, und der Abholer holt nur Runs in der Warteschlange: der Auftrag wäre verloren gewesen. Aus dem Bestand: fünf Runs vom 17.10. endeten so, damals aber noch ohne Ausführer.
+
+**Änderung:** `FRISTEN.wartezeit_je_ausfuehrer` (claude-code 14 Stunden, hermes 3 Stunden; n8n und Codex bleiben bei 30 Minuten). Neue Tests `office/test/unit.wartezeit.test.mjs` (4). Ergebnis: `npm run test:office:unit` 88/88, `npm run test:office` mit Playwright 107/107.
+
+**Live-Smoketests derselben Sitzung (18.10.2026):** `social-planer` (Haiku, Kosten 0,0021 €) und `marketing-texter` (0,0038 €) bekamen je einen kleinen Auftrag und lieferten Ergebnis plus Notiz ab; `verwaltung-status` lief schon beim Einspielen durch. Claude-Code- und Hermes-Agenten wurden bewusst nicht beauftragt (kein Abholer bis Montag 8 Uhr; Hermes-Token nicht vorhanden).
+
