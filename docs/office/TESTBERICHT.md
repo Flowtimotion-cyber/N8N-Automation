@@ -300,3 +300,14 @@ Getestet gegen den **Testadapter** (synthetische Daten, `office/dev/`), nicht ge
 **Nebenbefund (behoben):** Die Warteschlangen-Frist (30 Minuten) zählte ab dem Anlegen. Ein Auftrag, den Timo erst Stunden später freigibt, wäre sofort „unbekannt“ geworden; `fristPruefen` zählt jetzt ab der letzten Zustandsänderung (`lebenszeichen`), das gilt auch für Wiederholungen.
 
 **Nicht getestet:** Lauf gegen Supabase und die echte Office-API (SQL und Bündel noch nicht eingespielt); `toLocaleDateString` mit `Europe/Berlin` im n8n-Code-Knoten (läuft in Node ≥ 18 mit voller ICU, mit Rückfall auf UTC, aber nicht in n8n ausprobiert); Verhalten bei sehr vielen Runs pro Tag.
+
+### Live-Test nach dem Einspielen (18.10.2026, KI-erstellt: Claude Code)
+
+Office-API Version `bc375407` veröffentlicht, gespeicherter Code-Knoten zeichengleich mit dem Repo-Bündel (88521 Zeichen). Geprüft mit dem Agenten-Token von Claude (Wert nie ausgegeben):
+
+| Prüfung | Ergebnis |
+|---|---|
+| `laden` | ✅ 200, `start_regeln` vorhanden (aktiv, 600 Zeichen, 0,05 €, 1 €); Registry zeigt Kostenstufen: Deepseek/Haiku günstig, Sonnet normal, Opus teuer; `server-waechter` mit `freigabe_noetig = true` (belegt, dass das SQL gelaufen ist) |
+| Probeauftrag des Agenten an `verwaltung-status` (Run `run_mve8d15wa664b7`) | ✅ startet sofort (Agenten unterliegen der Regel nicht), `budget_eur = 0,05` gespeichert (Spalte vorhanden), Ausführer lief, Run „abgeschlossen (technisch)“, keine Freigabe angelegt |
+
+**Nicht live getestet:** der Weg „Teammitglied, wartet auf Timo, Timo gibt frei oder lehnt ab“. Dafür fehlt ein Mitglieds-Zugang in dieser Sitzung; er ist im Testadapter vollständig geprüft (Abschnitt 16). Bitte einmal von Hand: als Teammitglied einen Auftrag an „Akademie-Redakteur“ anlegen → „Wartet auf Timo“, als Timo im Register „Freigaben“ freigeben → der Run startet.

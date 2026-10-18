@@ -161,11 +161,11 @@ Betrifft die Agenten mit Ausführer `claude-code`: `akademie-redakteur`, `vertri
 
 ## 13. Startfreigabe für Aufträge von Teammitgliedern einspielen (Branch `feature/ki-office-auftrag-freigabe`, 18.10.2026, KI-erstellt: Claude Code)
 
-**Nichts davon ist live, und es wird vorerst nichts eingespielt:** Timo hat am 18.10.2026 nachts entschieden, dass die anderen zunächst weiter direkt Aufträge anlegen; das Verfahren ist noch offen (Optionen: RESTPUNKTE.md F11 bis F16). Die Schritte unten gelten, sobald er sich entschieden hat. Wer die Regel zunächst ausgeschaltet einspielen will: `aktiv: false` in `office/lib/kosten.js`. Der Branch ändert das Office-API-Bündel, das SQL und die Oberfläche; die Office-API (n8n `NuK6m10yIGKMRWxC`) wurde nicht angefasst. Was sich ändert und warum: ARCHITEKTUR.md Abschnitt 13.
+**Live seit 18.10.2026 (Timo: „Ja, spiel die Startfreigabe ein“).** Reihenfolge war: SQL von Timo im Supabase SQL Editor (Abschnitt 2b der `team_office.sql`), danach Code-Knoten „Anfrage prüfen“ der Office-API ersetzt und veröffentlicht (Version `bc375407-4c7a-4051-b5cd-4fbcc6c19e29`, Vorversion `194265d8`; gespeicherter Code zeichengleich mit `office/n8n/code/anfrage-pruefen.js`), danach PR #14 gemergt. Die Regel ist **an** (`START_REGELN.aktiv = true`). Timo hatte nachts geschrieben, die anderen sollten vorerst direkt starten dürfen, und das Einspielen dann ausdrücklich beauftragt; wer das ausschalten will, setzt `aktiv: false` in `office/lib/kosten.js` und spielt das Bündel wie unten ein. Die Schritte unten sind das Verfahren für spätere Änderungen der Grenzwerte.
 
 **Gesichert (18.10.2026):** Live-Stand vor der Änderung = Version `194265d8-3a63-4956-ae90-86beb39559b0` der Office-API (aktiv). Der Code-Knoten „Anfrage prüfen“ dieser Version ist zeichengleich mit `office/n8n/code/anfrage-pruefen.js` auf `main` (Commit 85fd1aa) und liegt zusätzlich als Datei `Projekt-Manager/22_Momentum/_sicherung/office-api_anfrage-pruefen_live_194265d8.js`. Rückweg: n8n → Workflow → Versionsverlauf → Version `194265d8` wiederherstellen, oder die Datei in den Code-Knoten einfügen. Das SQL ist additiv und muss für den Rückweg nicht zurückgenommen werden.
 
-**Einspielen in dieser Reihenfolge (nach Timos Ja):**
+**Verfahren (bei jeder Änderung der Regel, in dieser Reihenfolge):**
 
 1. `supabase/team_office.sql` im Supabase SQL Editor ausführen (idempotent). Neu: `office_runs.budget_eur`, `office_agenten.freigabe_noetig`, `freigabe_noetig = true` für `server-waechter`.
 2. In n8n im Workflow „TEAM: Office-API“ den Code-Knoten **„Anfrage prüfen“** durch den Inhalt von `office/n8n/code/anfrage-pruefen.js` ersetzen (nur diesen Knoten), speichern, Version benennen (z. B. „Startfreigabe für Teammitglieder“).
