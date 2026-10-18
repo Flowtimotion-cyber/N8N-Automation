@@ -235,4 +235,39 @@ test('Startfreigabe: Admin sieht Zähler und Dialog, Teammitglied sieht „warte
   }
 });
 
+test('Portal-Übersicht: Karte „Wartet auf deine Freigabe“ für Timo mit Knöpfen, für andere nur Liste ohne Knöpfe', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const portal = async (vp, tok, name) => {
+    const p = await neueSeite(vp, { name });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => { const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + tok + '#/tab/start', { waitUntil: 'networkidle' }); await p.waitForTimeout(1800);
+    return p;
+  };
+  for (const vp of [DESKTOP, MOBIL]) {
+    await post(S.base, '/api/test/reset', { szenario: 'standard' });
+    const a = await portal(vp, TOKENS.m_timo, 'portal-freigaben-admin');
+    const karte = await text(a, '#freiKarte');
+    for (const s of ['Wartet auf deine Freigabe (2)', 'Auftrag starten', 'Marketing-Texter', 'Newsletter zum Herbstangebot', 'Lillien (Test)', 'E-Mail senden']) assert.ok(karte.includes(s), 'Karte nennt ' + s);
+    assert.ok((await a.locator('#freiKarte [data-frg]').count()) >= 4, 'Timo hat Freigeben und Ablehnen je Zeile');
+    await shot(a, 'portal-freigaben-admin', vp);
+    if (vp === DESKTOP) {
+      await a.locator('#freiKarte [data-frg][data-ent="erteilt"]').first().click(); await a.waitForTimeout(200);
+      assert.ok((await text(a, '#dlgInner')).includes('Start freigeben') || (await text(a, '#dlgInner')).includes('Freigabe erteilen'));
+      await a.locator('#frg_ok').click(); await a.waitForTimeout(900);
+      assert.ok((await text(a, '#toast')).match(/freigegeben|erteilt/), 'Toast nach Freigabe');
+      assert.match(await text(a, '#freiKarte'), /Wartet auf deine Freigabe \(1\)/, 'eine Zeile weniger');
+    }
+    await a.close();
+    const l = await portal(vp, TOKENS.m_lillien, 'portal-freigaben-team');
+    const k2 = await text(l, '#freiKarte');
+    assert.ok(k2.includes('Offene Freigaben') && k2.includes('Freigeben kann nur Timo'), 'Teammitglied sieht die Liste mit Hinweis');
+    assert.equal(await l.locator('#freiKarte [data-frg]').count(), 0, 'keine Knöpfe für andere');
+    await shot(l, 'portal-freigaben-team', vp);
+    await l.close();
+  }
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });
