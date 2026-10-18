@@ -270,4 +270,59 @@ test('Portal-Übersicht: Karte „Wartet auf deine Freigabe“ für Timo mit Kn�
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
 });
 
+test('Portal: Vorschläge mit Suche, Bereich, Schlagworten und Gruppierung; Notizen mit Pfad-Links; Arbeitszeit-Dialog verbreiterbar', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const umleiten = async p => {
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => { const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+  };
+  const clipboardStub = p => p.evaluate(() => { window.__kopiert = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: v => { window.__kopiert.push(v); return Promise.resolve(); } } }); });
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-vorschlaege' });
+    await umleiten(p);
+    const anzahl = () => p.evaluate(() => document.querySelectorAll('#vListe .vs').length);
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/tab/vorschlaege', { waitUntil: 'networkidle' }); await p.waitForTimeout(900);
+    assert.equal(await anzahl(), 3, 'offen: drei Vorschläge (einer ist umgesetzt)');
+    await p.locator('#v_such').fill('arbeitszeit'); await p.waitForTimeout(150); assert.equal(await anzahl(), 1, 'Suche nach Arbeitszeit');
+    await p.locator('#v_such').fill(''); await p.waitForTimeout(100); assert.equal(await anzahl(), 3);
+    await p.evaluate(() => { const s = document.querySelector('#v_ber'); s.value = 'Notizen'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(150);
+    assert.equal(await anzahl(), 1, 'Bereich Notizen');
+    await p.evaluate(() => { const s = document.querySelector('#v_ber'); s.value = ''; s.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(100);
+    await p.evaluate(() => document.querySelector('.meta[aria-label="Schlagworte"] [data-vtag="pfade"]').click()); await p.waitForTimeout(200);
+    assert.equal(await anzahl(), 1, 'Schlagwort #pfade (offen)');
+    await p.evaluate(() => document.querySelector('[data-vf="alle"]').click()); await p.waitForTimeout(200);
+    assert.equal(await anzahl(), 2, 'Schlagwort #pfade über alle Status');
+    await p.evaluate(() => document.querySelector('.meta[aria-label="Schlagworte"] [data-vtag=""]').click()); await p.waitForTimeout(150);
+    await p.evaluate(() => { const c = document.querySelector('#v_grp'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await p.waitForTimeout(150);
+    assert.equal(await p.evaluate(() => document.querySelectorAll('#vListe h3').length), 4, 'vier Bereiche als Überschriften');
+    assert.ok((await text(p, '#vListe')).includes('Vorschläge'), 'Bereich „Vorschläge“ ist vorhanden');
+    await shot(p, 'portal-vorschlaege', vp);
+    await p.evaluate(() => { document.querySelector('#neuv').click(); }); await p.waitForTimeout(200);
+    const bereiche = await p.evaluate(() => Array.from(document.querySelectorAll('#v_b option')).map(o => o.value));
+    assert.ok(bereiche.includes('Vorschläge') && bereiche.includes('KI Office'), 'Bereiche: ' + bereiche.join(','));
+    await p.evaluate(() => document.querySelector('#dlg').close());
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/notiz/n_4', { waitUntil: 'networkidle' }); await p.waitForTimeout(900);
+    await clipboardStub(p);
+    assert.equal(await p.evaluate(() => document.querySelectorAll('.nview a.pfad').length), 4, 'vier Pfad-Links in der Notiz');
+    const werte = await p.evaluate(() => Array.from(document.querySelectorAll('.nview a.pfad')).map(a => a.dataset.pfad));
+    assert.ok(werte.includes('\\\\server\\freigabe\\Projekt Müller\\Angebot.pdf'), 'Klammer-Pfad mit Leerzeichen: ' + JSON.stringify(werte));
+    assert.ok(werte.includes('C:\\Daten\\Kurs\\Modul1.docx') && werte.includes('file:///C:/Daten/Kurs/Folien.pptx'), JSON.stringify(werte));
+    await p.evaluate(() => { Array.from(document.querySelectorAll('.nview a.pfad')).find(x => x.dataset.pfad.startsWith('file:')).click(); }); await p.waitForTimeout(150);
+    const kopiert = await p.evaluate(() => window.__kopiert);
+    assert.equal(kopiert[0], 'C:\\Daten\\Kurs\\Folien.pptx', 'file:///C:/… wird zum Windows-Pfad: ' + JSON.stringify(kopiert));
+    assert.equal(await p.evaluate(() => location.hash), '#/notiz/n_4', 'Klick auf einen Pfad verlässt die Notiz nicht');
+    assert.equal(await p.evaluate(() => document.querySelectorAll('.nview a[href^="https://example.com"]').length), 1, 'normaler Link bleibt');
+    await shot(p, 'portal-notiz-pfade', vp);
+    await p.close();
+  }
+  const z = await neueSeite(DESKTOP, { name: 'portal-zeit' });
+  await umleiten(z);
+  await z.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/tab/zeit', { waitUntil: 'networkidle' }); await z.waitForTimeout(900);
+  const knopf = await z.evaluate(() => { const b = Array.from(document.querySelectorAll('button')).find(x => /Zeit eintragen|Neuer Eintrag|\+ Zeit|\+ Eintrag/.test(x.textContent)); if (b) b.click(); return !!b; });
+  assert.ok(knopf, 'Knopf zum Eintragen der Zeit gefunden'); await z.waitForTimeout(250);
+  assert.ok(await z.evaluate(() => document.querySelector('#dlg').classList.contains('breit') && !!document.querySelector('#dlg .zieh')), 'Arbeitszeit-Dialog hat den Ziehgriff zum Verbreitern');
+  await z.close();
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });

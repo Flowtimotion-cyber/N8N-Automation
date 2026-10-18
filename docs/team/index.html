@@ -430,43 +430,75 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 
   // ---------- Vorschläge (Änderungswünsche am Portal) ----------
   const VSTATUS = ['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];
-  const VBEREICHE = ['Übersicht', 'Aufgaben', 'Projekte', 'Arbeitszeit', 'Notizen', 'Social Media', 'Kurs & Teilnehmer', 'Systeme', 'Webseite', 'Team', 'Assistent', 'Sonstiges'];
+  const VBEREICHE = ['Übersicht', 'Aufgaben', 'Projekte', 'Arbeitszeit', 'Notizen', 'Social Media', 'Kurs & Teilnehmer', 'Systeme', 'Webseite', 'Team', 'Assistent', 'KI Office', 'Vorschläge', 'Sonstiges'];
   let vFilter = ls.get('mt-vfilter') || 'offen';
+  let vSuche = '', vBereich = '', vTag = '', vGruppe = !!ls.get('mt-vgruppe');
   const vChip = st => '<span class="chip vs-' + esc(String(st).replace(/\s/g, '-')) + '">' + esc(st) + '</span>';
   function vVorschlaege() {
     const ich = D.ich.mitglied_id, admin = istAdmin();
     const alleV = (D.vorschlaege || []).slice();
     const offen = v => ['neu', 'geplant', 'in Arbeit'].includes(v.status);
-    const L = alleV.filter(v => vFilter === 'alle' ? true : vFilter === 'offen' ? offen(v) : v.status === vFilter)
-      .sort((a, b) => (b.stimmen || []).length - (a.stimmen || []).length || String(b.erstellt).localeCompare(String(a.erstellt)));
     const n = st => alleV.filter(v => v.status === st).length;
+    // Schlagworte: #Wort im Titel oder Text (Unicode-Buchstaben, Ziffern, _ und -), z. B. #Arbeitszeit oder #FracEncoder
+    const tagsVon = v => { const s = new Set(); String((v.titel || '') + ' ' + (v.text || '')).replace(/(^|[\s(,;])#([\p{L}\d][\p{L}\d_-]{1,29})/gu, (m, a, t) => { s.add(t.toLowerCase()); return m; }); return [...s]; };
+    const nachStatus = v => vFilter === 'alle' ? true : vFilter === 'offen' ? offen(v) : v.status === vFilter;
+    const tagListe = (() => { const z = {}; alleV.filter(nachStatus).forEach(v => tagsVon(v).forEach(t => { z[t] = (z[t] || 0) + 1; })); return Object.entries(z).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24); })();
+    const bereicheVorhanden = [...new Set(alleV.filter(nachStatus).map(v => v.bereich || 'Sonstiges'))].sort((a, b) => VBEREICHE.indexOf(a) - VBEREICHE.indexOf(b));
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Timo entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
       '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu'), 'neu') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
-      '<div class="card"><div class="tools"><div class="seg">' + [['offen', 'Offen'], ['alle', 'Alle'], ['umgesetzt', 'Umgesetzt'], ['abgelehnt', 'Abgelehnt']].map(([k, l]) => '<button data-vf="' + k + '" class="' + (vFilter === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div></div>' +
-      (L.length ? L.map(v => {
-        const st = Array.isArray(v.stimmen) ? v.stimmen : [], meine = st.includes(ich);
-        const a = v.aufgabe_id ? (D.aufgaben || []).find(x => x.aufgabe_id === v.aufgabe_id) : null;
-        return '<div class="vs"><button class="vote' + (meine ? ' on' : '') + '" data-vote="' + esc(v.vorschlag_id) + '" title="' + (meine ? 'Stimme zurücknehmen' : 'Finde ich gut') + '"><b>' + st.length + '</b><span>' + (meine ? '✓ dabei' : '👍 gut') + '</span></button>' +
-          '<div style="min-width:0"><div class="t" data-v="' + esc(v.vorschlag_id) + '">' + esc(v.titel) + '</div>' +
-          (v.text ? '<div class="small md" style="margin-top:4px">' + md(String(v.text).slice(0, 600)) + '</div>' : '') +
-          '<div class="meta">' + vChip(v.status) + '<span class="chip">' + esc(v.bereich || 'Sonstiges') + '</span>' + av(v.autor) + '<span>' + esc(mitglied(v.autor).name) + ' · ' + fmtD(String(v.erstellt || '').slice(0, 10)) + '</span>' +
-          (st.length ? '<span title="' + esc(st.map(id => mitglied(id).name).join(', ')) + '">· gut finden: ' + esc(st.map(id => mitglied(id).name).join(', ')) + '</span>' : '') +
-          (a ? '<a href="#/aufgabe/' + esc(a.aufgabe_id) + '" class="chip" style="text-decoration:none">✓ Aufgabe: ' + esc(a.titel) + ' (' + esc(a.status) + ')</a>' : '') + '</div>' +
-          (v.antwort ? '<div class="antw"><b>' + esc(mitglied(v.antwort_von || 'm_timo').name) + ':</b> ' + esc(v.antwort) + '</div>' : '') + '</div></div>';
-      }).join('') : '<p class="empty">' + (vFilter === 'offen' ? 'Keine offenen Vorschläge. Hast du eine Idee? Oben auf „+ Vorschlag“.' : 'Nichts in dieser Ansicht.') + '</p>') + '</div>';
+      '<div class="card"><div class="tools"><div class="seg">' + [['offen', 'Offen'], ['alle', 'Alle'], ['umgesetzt', 'Umgesetzt'], ['abgelehnt', 'Abgelehnt']].map(([k, l]) => '<button data-vf="' + k + '" class="' + (vFilter === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div>' +
+      '<input id="v_such" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(vSuche) + '" aria-label="Vorschläge durchsuchen" style="flex:1;min-width:160px;max-width:280px">' +
+      '<select id="v_ber" aria-label="Bereich"><option value="">Alle Bereiche</option>' + bereicheVorhanden.map(b => '<option value="' + esc(b) + '"' + (b === vBereich ? ' selected' : '') + '>' + esc(b) + '</option>').join('') + '</select>' +
+      '<label class="check" style="margin:0"><input type="checkbox" id="v_grp"' + (vGruppe ? ' checked' : '') + '><span>Nach Bereich ordnen</span></label></div>' +
+      (tagListe.length ? '<div class="meta" style="margin:2px 0 8px" aria-label="Schlagworte">' + tagListe.map(([t, z]) => '<button type="button" class="chip' + (t === vTag ? ' ki' : '') + '" data-vtag="' + esc(t) + '" style="cursor:pointer;border:0">#' + esc(t) + ' ' + z + '</button>').join('') + (vTag ? '<button type="button" class="chip" data-vtag="" style="cursor:pointer;border:0">✕ Schlagwort entfernen</button>' : '') + '</div>' : '') +
+      '<p class="small muted" style="margin:0 0 6px">Schlagworte entstehen aus <code>#Wort</code> im Titel oder Text, zum Beispiel <code>#Arbeitszeit</code>. Klick auf ein Schlagwort zeigt alle Vorschläge dazu.</p>' +
+      '<div id="vListe"></div></div>';
+    const zeile = v => {
+      const st = Array.isArray(v.stimmen) ? v.stimmen : [], meine = st.includes(ich);
+      const a = v.aufgabe_id ? (D.aufgaben || []).find(x => x.aufgabe_id === v.aufgabe_id) : null;
+      const tags = tagsVon(v);
+      return '<div class="vs"><button class="vote' + (meine ? ' on' : '') + '" data-vote="' + esc(v.vorschlag_id) + '" title="' + (meine ? 'Stimme zurücknehmen' : 'Finde ich gut') + '"><b>' + st.length + '</b><span>' + (meine ? '✓ dabei' : '👍 gut') + '</span></button>' +
+        '<div style="min-width:0"><div class="t" data-v="' + esc(v.vorschlag_id) + '">' + esc(v.titel) + '</div>' +
+        (v.text ? '<div class="small md" style="margin-top:4px">' + md(String(v.text).slice(0, 600)) + '</div>' : '') +
+        '<div class="meta">' + vChip(v.status) + '<span class="chip">' + esc(v.bereich || 'Sonstiges') + '</span>' + tags.map(t => '<button type="button" class="chip" data-vtag="' + esc(t) + '" style="cursor:pointer;border:0">#' + esc(t) + '</button>').join('') + av(v.autor) + '<span>' + esc(mitglied(v.autor).name) + ' · ' + fmtD(String(v.erstellt || '').slice(0, 10)) + '</span>' +
+        (st.length ? '<span title="' + esc(st.map(id => mitglied(id).name).join(', ')) + '">· gut finden: ' + esc(st.map(id => mitglied(id).name).join(', ')) + '</span>' : '') +
+        (a ? '<a href="#/aufgabe/' + esc(a.aufgabe_id) + '" class="chip" style="text-decoration:none">✓ Aufgabe: ' + esc(a.titel) + ' (' + esc(a.status) + ')</a>' : '') + '</div>' +
+        (v.antwort ? '<div class="antw"><b>' + esc(mitglied(v.antwort_von || 'm_timo').name) + ':</b> ' + esc(v.antwort) + '</div>' : '') + '</div></div>';
+    };
+    const liste = () => {
+      const q = vSuche.trim().toLowerCase();
+      const L = alleV.filter(nachStatus)
+        .filter(v => !q || (String(v.titel || '') + ' ' + String(v.text || '') + ' ' + String(v.bereich || '')).toLowerCase().includes(q))
+        .filter(v => !vBereich || (v.bereich || 'Sonstiges') === vBereich)
+        .filter(v => !vTag || tagsVon(v).includes(vTag))
+        .sort((a, b) => (b.stimmen || []).length - (a.stimmen || []).length || String(b.erstellt).localeCompare(String(a.erstellt)));
+      let html;
+      if (!L.length) html = '<p class="empty">' + (alleV.filter(nachStatus).length === 0 && vFilter === 'offen' ? 'Keine offenen Vorschläge. Hast du eine Idee? Oben auf „+ Vorschlag“.' : 'Nichts in dieser Ansicht.') + '</p>';
+      else if (vGruppe) {
+        const gruppen = {}; L.forEach(v => { (gruppen[v.bereich || 'Sonstiges'] = gruppen[v.bereich || 'Sonstiges'] || []).push(v); });
+        html = Object.keys(gruppen).sort((a, b) => VBEREICHE.indexOf(a) - VBEREICHE.indexOf(b)).map(b => '<h3 style="margin:14px 0 4px">' + esc(b) + ' <span class="muted small">(' + gruppen[b].length + ')</span></h3>' + gruppen[b].map(zeile).join('')).join('');
+      } else html = L.map(zeile).join('');
+      $('#vListe').innerHTML = (q || vBereich || vTag ? '<p class="small muted" style="margin:0 0 4px">' + L.length + ' von ' + alleV.filter(nachStatus).length + ' Vorschlägen</p>' : '') + html;
+      document.querySelectorAll('#vListe [data-v]').forEach(e => e.onclick = () => vorschlagDialog(alleV.find(v => v.vorschlag_id === e.dataset.v)));
+      document.querySelectorAll('#vListe [data-vtag]').forEach(b => b.onclick = () => { vTag = vTag === b.dataset.vtag ? '' : b.dataset.vtag; vVorschlaege(); });
+      document.querySelectorAll('#vListe [data-vote]').forEach(b => b.onclick = async () => {
+        const v = alleV.find(x => x.vorschlag_id === b.dataset.vote); if (!v) return;
+        b.disabled = true;
+        try {
+          await api('vorschlag_stimme', { vorschlag_id: v.vorschlag_id });
+          const st = Array.isArray(v.stimmen) ? v.stimmen : (v.stimmen = []);
+          const i = st.indexOf(ich); if (i >= 0) st.splice(i, 1); else st.push(ich);
+          vVorschlaege(); laden(true);
+        } catch (e) { toast(e.message); b.disabled = false; }
+      });
+    };
+    liste();
     $('#neuv').onclick = () => vorschlagDialog(null);
     document.querySelectorAll('[data-vf]').forEach(b => b.onclick = () => { vFilter = b.dataset.vf; ls.set('mt-vfilter', vFilter); vVorschlaege(); });
-    document.querySelectorAll('[data-v]').forEach(e => e.onclick = () => vorschlagDialog(alleV.find(v => v.vorschlag_id === e.dataset.v)));
-    document.querySelectorAll('[data-vote]').forEach(b => b.onclick = async () => {
-      const v = alleV.find(x => x.vorschlag_id === b.dataset.vote); if (!v) return;
-      b.disabled = true;
-      try {
-        await api('vorschlag_stimme', { vorschlag_id: v.vorschlag_id });
-        const st = Array.isArray(v.stimmen) ? v.stimmen : (v.stimmen = []);
-        const i = st.indexOf(ich); if (i >= 0) st.splice(i, 1); else st.push(ich);
-        vVorschlaege(); laden(true);
-      } catch (e) { toast(e.message); b.disabled = false; }
-    });
+    document.querySelectorAll('.tools [data-vtag], .meta[aria-label="Schlagworte"] [data-vtag]').forEach(b => b.onclick = () => { vTag = vTag === b.dataset.vtag ? '' : b.dataset.vtag; vVorschlaege(); });
+    $('#v_such').oninput = ev => { vSuche = ev.target.value; liste(); };
+    $('#v_ber').onchange = ev => { vBereich = ev.target.value; liste(); };
+    $('#v_grp').onchange = ev => { vGruppe = ev.target.checked; ls.set('mt-vgruppe', vGruppe ? '1' : ''); liste(); };
   }
   function vorschlagDialog(v) {
     const neu = !v, admin = istAdmin();
@@ -721,6 +753,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     s = s.replace(/\[([^\]\n]+)\]\((#\/[\w\/-]+)\)/g, (m, t, u) => keep('<a href="' + u + '">' + t + '</a>'));
     s = s.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (m, t, u) => keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + t + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>'));
     s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+[^\s<.,;:!?)])/g, (m, a, u) => a + keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + portalLinkText(u.slice(PORTAL.length)) + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'));
+    // Lokale Laufwerke und Netzpfade: Browser dürfen file:-Adressen aus Webseiten nicht öffnen, darum kopiert ein Klick den Pfad (Strg+L im Explorer, einfügen)
+    s = s.replace(/\[([^\]\n]+)\]\((file:\/\/\/[^\s)]+|\\\\[^)\n]+|[A-Za-z]:\\[^)\n]+)\)/g, (m, t, u) => keep('<a href="#" class="pfad" data-pfad="' + u + '" title="Klicken: Pfad kopieren">📁 ' + t + '</a>'));
+    s = s.replace(/(^|[\s(])(file:\/\/\/[^\s<]+[^\s<.,;:!?)]|\\\\[\w.$-]+\\[^\s<]*[^\s<.,;:!?)]|[A-Za-z]:\\[^\s<]*[^\s<.,;:!?)])/g, (m, a, u) => a + keep('<a href="#" class="pfad" data-pfad="' + u + '" title="Klicken: Pfad kopieren">📁 ' + u + '</a>'));
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
     s = s.replace(/__([^_\n]+?)__/g, '<u>$1</u>');
     s = s.replace(/~~([^~\n]+?)~~/g, '<s>$1</s>');
@@ -828,7 +863,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     [['**fett**', '<strong>fett</strong>'], ['*kursiv*', '<em>kursiv</em>'], ['__unterstrichen__', '<u>unterstrichen</u>'], ['~~durchgestrichen~~', '<s>durchgestrichen</s>'],
      ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
      ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
-     ['[Linktext](https://…)', '<a>Linktext</a>'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
+     ['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
      ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
       .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
@@ -1952,7 +1987,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f" id="t_j_w"><label for="t_j">Projekt</label>' + projSelect('t_j', z.projekt || 'Sonstiges') + '</div>' +
       (z.status === 'abgelehnt' && z.kommentar ? '<div class="note warn" style="margin-bottom:10px">Timo: „' + esc(z.kommentar) + '“</div>' : '') +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="t_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
-    const dlg = openDlg(false);
+    const dlg = openDlg(true);
     const upd = () => {
       const m = t => /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null;
       const v = m($('#t_v').value), b = m($('#t_b').value), p = Number($('#t_p').value) || 0;
@@ -2337,6 +2372,15 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA|IFRAME)$/.test(a.tagName);
     if (D && !D.setup && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
   }, 120000);
+  // Pfad-Links (Notizen, Aufgaben, Vorschläge): file:///C:/Ordner/Datei, \\Server\Freigabe oder C:\Ordner → Windows-Pfad in die Zwischenablage
+  document.addEventListener('click', ev => {
+    const a = ev.target.closest && ev.target.closest('a.pfad'); if (!a) return;
+    ev.preventDefault();
+    let pfad = a.dataset.pfad || '';
+    if (/^file:\/\/\//i.test(pfad)) { try { pfad = decodeURI(pfad.slice(8)); } catch (e) { pfad = pfad.slice(8); } if (/^[A-Za-z]:/.test(pfad)) pfad = pfad.replace(/\//g, '\\'); else pfad = '/' + pfad; }
+    const fertig = () => toast('Pfad kopiert. Im Explorer mit Strg+L einfügen.');
+    (navigator.clipboard ? navigator.clipboard.writeText(pfad).then(fertig) : Promise.reject()).catch(() => { window.prompt('Pfad kopieren (Strg+C):', pfad); });
+  });
   leseHash();
   laden();
 })();

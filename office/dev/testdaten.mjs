@@ -76,10 +76,19 @@ export function basisTabellen(jetztIso) {
   const notizen = [
     { notiz_id: 'n_1', titel: 'Agenten-Akte: Claude', inhalt: 'Rolle, Stärken, Regeln.', projekt: '', autor: 'm_timo', erstellt: vor(30), geaendert: vor(30) },
     { notiz_id: 'n_2', titel: 'Entscheidung: Tonalität Kurs', inhalt: 'Du-Form, kurze Sätze, keine Anglizismen ohne Erklärung. Entschieden am Kickoff.', projekt: 'Akademie-Kurs', autor: 'm_kurt', erstellt: vor(20), geaendert: vor(20) },
+    { notiz_id: 'n_4', titel: 'Laufwerke und Ordner (Testnotiz)', inhalt: 'Projektordner: [Projektordner](\\\\server\\freigabe\\Projekt Müller\\Angebot.pdf)\n\nBare Pfade: C:\\Daten\\Kurs\\Modul1.docx und \\\\server\\freigabe\\Kurs und file:///C:/Daten/Kurs/Folien.pptx\n\nNormaler Link: https://example.com/x', projekt: '', autor: 'm_kurt', erstellt: vor(2), geaendert: vor(2) },
     { notiz_id: 'n_3', titel: 'Kundenprofil Müller GmbH', inhalt: 'Synthetisches Beispiel. 40 Mitarbeitende, Handwerk.', projekt: 'Kundenprojekt Müller GmbH', autor: 'm_timo', erstellt: vor(15), geaendert: vor(4) }
   ];
+  // Vorschläge für das Register „Vorschläge“ des Portals (synthetisch; Schlagworte als #Wort, Bereiche wie im Portal)
+  const V = (id, titel, text, bereich, status, tage) => ({ vorschlag_id: id, titel, text, bereich, status, autor: 'm_kurt', stimmen: ['m_kurt'], antwort: '', antwort_von: null, aufgabe_id: null, erstellt: vor(tage), geaendert: vor(tage) });
+  const vorschlaege = [
+    V('v_t1', 'Arbeitszeit-Formular verbreitern #Arbeitszeit', 'Das Formular ist recht schmal.', 'Arbeitszeit', 'neu', 3),
+    V('v_t2', 'Notizen: Links auf Laufwerke #Notizen #Pfade', 'Link-Format für lokale Dateien.', 'Notizen', 'neu', 2),
+    V('v_t3', 'Vorschläge nach Schlagworten filtern #Vorschläge #Pfade', 'Filter und Suche.', 'Vorschläge', 'umgesetzt', 5),
+    V('v_t4', 'Dunkelmodus für das Portal', 'Abends angenehmer.', 'Sonstiges', 'neu', 1)
+  ];
   const office_agenten = REG.agenten.map(a => ({ ...a, beschreibung: a.rolle, workflow_version: a.ausfuehrer === 'n8n' ? 'v1' : '', konfig_version: '1', aktiv: true, ausfuehrer_url: a.ausfuehrer === 'n8n' ? 'https://n8n.example.invalid/webhook/agent-' + a.agent_id : null, geaendert: vor(7), geaendert_von: 'm_timo' }));
-  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [] };
+  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_vorschlaege: vorschlaege, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [] };
 }
 
 /**
