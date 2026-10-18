@@ -320,3 +320,5 @@ Office-API Version `bc375407` veröffentlicht, gespeicherter Code-Knoten zeichen
 
 **Live-Smoketests derselben Sitzung (18.10.2026):** `social-planer` (Haiku, Kosten 0,0021 €) und `marketing-texter` (0,0038 €) bekamen je einen kleinen Auftrag und lieferten Ergebnis plus Notiz ab; `verwaltung-status` lief schon beim Einspielen durch. Claude-Code- und Hermes-Agenten wurden bewusst nicht beauftragt (kein Abholer bis Montag 8 Uhr; Hermes-Token nicht vorhanden).
 
+**Live seit 18.10.2026 abends:** Office-API Version `c72cf85f-2f27-4e43-90a8-a7eadf7c90ff` (Vorversion `bc375407`), gespeicherter Code zeichengleich mit dem Repo-Bündel (89015 Zeichen). Live geprüft: `laden` liefert `wartezeit_je_ausfuehrer` (claude-code 50400 s, hermes 10800 s); ein Probeauftrag an `verwaltung-status` lief durch.
+
