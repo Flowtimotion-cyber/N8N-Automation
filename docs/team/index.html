@@ -305,7 +305,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['tresor', 'Tresor'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -431,7 +431,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { vertrieb: vVertrieb, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
+    const V = { vertrieb: vVertrieb, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
     if (!V[tab] || (tab === 'vertrieb' && !darfVertrieb())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
@@ -2159,6 +2159,71 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       document.querySelectorAll('[data-s]').forEach(e => e.onclick = () => systemDialog(D.systeme.find(s => s.system_id === e.dataset.s)));
     }
   }
+  // ---------- Tresor: vertrauliche Texte mit Schlüssel ver- und entschlüsseln, nur im Browser ----------
+  // Verfahren: AES-256-GCM, Schlüssel per PBKDF2-SHA-256 (600.000 Runden, 16 Byte Salz) aus dem Schlüsselwort. Format: MKT1.<base64url(Salz | IV | Geheimtext)>.
+  // Nichts wird gesendet oder gespeichert. Kurts FracEncoder kann als zweites Verfahren dazukommen, sobald es eine Kommandozeilen-Version gibt.
+  const TRESOR = { kopf: 'MKT1.', runden: 600000, minLaenge: 10, leerenNach: 5 * 60 * 1000 };
+  const b64uAn = u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+  const b64uAb = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  async function tresorSchluessel(wort, salz) {
+    const basis = await crypto.subtle.importKey('raw', new TextEncoder().encode(wort), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: salz, iterations: TRESOR.runden }, basis, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function tresorVer(text, wort) {
+    const salz = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await tresorSchluessel(wort, salz), new TextEncoder().encode(text)));
+    const alles = new Uint8Array(28 + ct.length); alles.set(salz, 0); alles.set(iv, 16); alles.set(ct, 28);
+    return TRESOR.kopf + b64uAn(alles);
+  }
+  async function tresorEnt(paket, wort) {
+    const s = String(paket || '').replace(/\s+/g, '');
+    if (!s.startsWith(TRESOR.kopf)) throw new Error('Das ist kein Tresor-Text. Er beginnt immer mit ' + TRESOR.kopf);
+    let u = null; try { u = b64uAb(s.slice(TRESOR.kopf.length)); } catch (e) { u = null; }
+    if (!u || u.length < 28 + 16) throw new Error('Der Tresor-Text ist unvollständig. Bitte komplett kopieren.');
+    try { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.subarray(16, 28) }, await tresorSchluessel(wort, u.subarray(0, 16)), u.subarray(28))); }
+    catch (e) { throw new Error('Entschlüsseln hat nicht geklappt: Schlüssel falsch oder Text verändert.'); }
+  }
+  function vTresor() {
+    clearTimeout(vTresor.t);
+    const ok = !!(window.crypto && crypto.subtle);
+    $('#main').innerHTML = '<h1>Tresor</h1><p class="sub">Passwörter und andere vertrauliche Texte verschlüsselt austauschen. Alles passiert in deinem Browser: Text und Schlüssel verlassen dieses Gerät nicht und werden nirgends gespeichert.</p>' +
+      (ok ? '' : '<div class="note warn">Dein Browser kann hier nicht verschlüsseln. Bitte das Portal über https öffnen oder einen aktuellen Browser nehmen.</div>') +
+      '<div class="card"><div class="f"><label for="tr_ein">Eingabe</label><textarea id="tr_ein" rows="5" maxlength="60000" spellcheck="false" autocomplete="off" placeholder="Zum Verschlüsseln: Passwort oder Text. Zum Entschlüsseln: den Tresor-Text (beginnt mit ' + TRESOR.kopf + ')"></textarea></div>' +
+      '<div class="f"><label for="tr_key">Schlüssel</label><div style="display:flex;gap:6px"><input id="tr_key" type="password" autocomplete="off" spellcheck="false" placeholder="Vorher abgesprochen, mindestens ' + TRESOR.minLaenge + ' Zeichen"><button class="btn sec" id="tr_zeigen" type="button" aria-pressed="false">Anzeigen</button></div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="tr_enc"' + (ok ? '' : ' disabled') + '>Verschlüsseln</button><button class="btn sec" id="tr_dec"' + (ok ? '' : ' disabled') + '>Entschlüsseln</button></div>' +
+      '<div class="f"><label for="tr_aus">Ausgabe</label><textarea id="tr_aus" rows="5" readonly spellcheck="false"></textarea></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn sec" id="tr_kopie">Ausgabe kopieren</button><button class="btn ghost" id="tr_leer">Alles leeren</button><span class="small muted" id="tr_msg" role="status" aria-live="polite"></span></div></div>' +
+      '<div class="card"><h2>So tauschst du ein Passwort sicher aus</h2><ol class="small" style="margin:0;padding-left:20px;line-height:1.6">' +
+      '<li>Den Schlüssel vorher auf einem <b>anderen Weg</b> absprechen, z. B. am Telefon oder persönlich. Nie im selben Kanal schicken wie den verschlüsselten Text.</li>' +
+      '<li>Passwort oben eingeben, Schlüssel eintragen, <b>Verschlüsseln</b>. Den Tresor-Text (beginnt mit ' + TRESOR.kopf + ') per Mail, Messenger oder Portal-Kommentar schicken.</li>' +
+      '<li>Die andere Person fügt ihn hier ein, gibt denselben Schlüssel ein und klickt <b>Entschlüsseln</b>.</li></ol>' +
+      '<p class="small muted" style="margin:10px 0 0">Gut sind vier zufällige Wörter oder mindestens ' + TRESOR.minLaenge + ' Zeichen. Die Felder leeren sich nach 5 Minuten ohne Eingabe von selbst. Ein kopierter Text bleibt in der Zwischenablage, bis du etwas anderes kopierst. Verfahren: AES-256-GCM, Schlüssel per PBKDF2 mit 600.000 Runden.</p></div>' +
+      '<div class="card"><h2>FracEncoder</h2><p class="small muted" style="margin:0">Kurts FracEncoder lässt sich bisher nur über seine Bedienoberfläche nutzen. Sobald es eine Kommandozeilen-Version gibt, kann er hier als zweites Verfahren dazukommen, über ein kleines Hilfsprogramm auf dem jeweiligen Rechner.</p></div>';
+    const ein = $('#tr_ein'), key = $('#tr_key'), aus = $('#tr_aus'), knoepfe = [$('#tr_enc'), $('#tr_dec')];
+    const msg = t => { $('#tr_msg').textContent = t; };
+    const leeren = () => { ein.value = ''; key.value = ''; aus.value = ''; };
+    const wecker = () => { clearTimeout(vTresor.t); vTresor.t = setTimeout(() => { if ($('#tr_ein') === ein) { leeren(); msg('Felder nach 5 Minuten geleert.'); } }, TRESOR.leerenNach); };
+    [ein, key].forEach(e => e.addEventListener('input', wecker));
+    $('#tr_zeigen').onclick = ev => { const an = key.type === 'password'; key.type = an ? 'text' : 'password'; ev.currentTarget.textContent = an ? 'Verbergen' : 'Anzeigen'; ev.currentTarget.setAttribute('aria-pressed', String(an)); };
+    const lauf = async (warte, fn) => { knoepfe.forEach(b => b.disabled = true); msg(warte); try { await fn(); } finally { knoepfe.forEach(b => b.disabled = false); wecker(); } };
+    $('#tr_enc').onclick = () => {
+      if (!ein.value) return msg('Bitte erst den Text eingeben, der verschlüsselt werden soll.');
+      if (ein.value.trim().startsWith(TRESOR.kopf)) return msg('Das ist schon ein Tresor-Text. Zum Lesen auf „Entschlüsseln“ klicken.');
+      if (key.value.length < TRESOR.minLaenge) return msg('Der Schlüssel braucht mindestens ' + TRESOR.minLaenge + ' Zeichen.');
+      lauf('Verschlüssele …', async () => { aus.value = await tresorVer(ein.value, key.value); msg('Fertig. Ausgabe kopieren und verschicken, den Schlüssel auf anderem Weg.'); });
+    };
+    $('#tr_dec').onclick = () => {
+      if (!ein.value.trim()) return msg('Bitte erst den Tresor-Text einfügen.');
+      if (!key.value) return msg('Bitte den Schlüssel eingeben.');
+      lauf('Entschlüssele …', async () => { try { aus.value = await tresorEnt(ein.value, key.value); msg('Entschlüsselt.'); } catch (e) { aus.value = ''; msg(e.message); } });
+    };
+    $('#tr_kopie').onclick = async () => {
+      if (!aus.value) return msg('Die Ausgabe ist noch leer.');
+      try { await navigator.clipboard.writeText(aus.value); toast('Ausgabe kopiert'); }
+      catch (e) { aus.focus(); aus.select(); msg('Kopieren ging nicht automatisch. Der Text ist markiert, bitte mit Strg+C kopieren.'); }
+    };
+    $('#tr_leer').onclick = () => { leeren(); clearTimeout(vTresor.t); msg('Alles geleert.'); };
+  }
   function systemDialog(s) {
     const neu = !s;
     s = s || { name: '', beschreibung: '', bereich: 'Intern', status: 'geplant', werkzeug: '', link: '', verantwortlich: D.ich.mitglied_id };
@@ -2541,7 +2606,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     // Nicht neu aufbauen, solange jemand tippt oder im eingebetteten KI Office arbeitet (Fokus im iframe): render() würde das iframe neu laden
     // und einen dort offenen Dialog (z. B. „Auftrag an Agent“) schließen.
     const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA|IFRAME)$/.test(a.tagName);
-    if (D && !D.setup && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
+    // Im Tresor nie neu aufbauen: Das würde Eingabe, Schlüssel und Ausgabe löschen (die Seite braucht keine Daten).
+    if (D && !D.setup && tab !== 'tresor' && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
   }, 120000);
   // Pfad-Links (Notizen, Aufgaben, Vorschläge): file:///C:/Ordner/Datei, \\Server\Freigabe oder C:\Ordner → Windows-Pfad in die Zwischenablage
   document.addEventListener('click', ev => {

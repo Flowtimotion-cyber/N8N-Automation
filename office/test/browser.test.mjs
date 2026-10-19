@@ -333,4 +333,36 @@ test('Portal: Vorschläge mit Suche, Bereich, Schlagworten und Gruppierung; Noti
   await z.close();
 });
 
+test('Portal: Tresor verschlüsselt und entschlüsselt im Browser, falscher Schlüssel und kurzer Schlüssel werden abgefangen', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-tresor' });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => { const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    const gesendet = []; p.on('request', r => { if (r.method() === 'POST' && (r.postData() || '').includes('Geheim')) gesendet.push(r.url()); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/tab/tresor', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+    await p.evaluate(() => { window.__kopiert = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: v => { window.__kopiert.push(v); return Promise.resolve(); } } }); });
+    assert.match(await text(p, 'h1'), /Tresor/);
+    const msg = () => text(p, '#tr_msg'), warte = () => p.waitForFunction(() => !document.querySelector('#tr_enc').disabled && !/…/.test(document.querySelector('#tr_msg').textContent), null, { timeout: 15000 });
+    const geheim = 'Geheim-Passwort 123 äöü ß €';
+    await p.locator('#tr_ein').fill(geheim); await p.locator('#tr_key').fill('kurz');
+    await p.locator('#tr_enc').click(); assert.match(await msg(), /mindestens 10 Zeichen/);
+    await p.locator('#tr_key').fill('vier zufällige wörter hier'); await p.locator('#tr_enc').click(); await warte();
+    const paket = await p.locator('#tr_aus').inputValue(); assert.match(paket, /^MKT1\.[A-Za-z0-9_-]{40,}$/); assert.ok(!paket.includes('Geheim'));
+    await p.locator('#tr_enc').click(); await warte(); assert.notEqual(await p.locator('#tr_aus').inputValue(), paket, 'jedes Mal anderes Ergebnis (Salz und IV zufällig)');
+    await p.locator('#tr_ein').fill(paket); await p.locator('#tr_key').fill('falscher schlüssel 99'); await p.locator('#tr_dec').click(); await warte();
+    assert.match(await msg(), /Schlüssel falsch/); assert.equal(await p.locator('#tr_aus').inputValue(), '');
+    await p.locator('#tr_ein').fill(paket.slice(0, 20)); await p.locator('#tr_dec').click(); await warte(); assert.match(await msg(), /unvollständig/);
+    await p.locator('#tr_ein').fill(paket.slice(0, 30) + '\n' + paket.slice(30)); await p.locator('#tr_key').fill('vier zufällige wörter hier'); await p.locator('#tr_dec').click(); await warte();
+    assert.equal(await p.locator('#tr_aus').inputValue(), geheim, 'Zeilenumbruch beim Kopieren schadet nicht'); assert.equal(await msg(), 'Entschlüsselt.');
+    await p.locator('#tr_kopie').click(); await p.waitForTimeout(100); assert.deepEqual(await p.evaluate(() => window.__kopiert), [geheim]);
+    assert.equal(await p.locator('#tr_key').getAttribute('type'), 'password'); await p.locator('#tr_zeigen').click(); assert.equal(await p.locator('#tr_key').getAttribute('type'), 'text');
+    await shot(p, 'portal-tresor', vp);
+    await p.locator('#tr_leer').click(); for (const id of ['#tr_ein', '#tr_key', '#tr_aus']) assert.equal(await p.locator(id).inputValue(), '', id + ' geleert');
+    assert.deepEqual(gesendet, [], 'Klartext wird nirgendwohin gesendet');
+    await p.close();
+  }
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });
