@@ -362,3 +362,25 @@ Neue Karte im Team-Portal (`docs/team/index.html`, Funktionen `fuerDichPunkte`, 
 | `npm run test:office` (mit Playwright) | 109 von 109 |
 
 Screenshots: `screenshots/portal-fuer-dich-desktop.png`, `screenshots/portal-fuer-dich-mobil.png`. Grenzen: „Zuletzt gesehen“ liegt nur im Browser (localStorage), auf einem zweiten Gerät erscheint Neues dort erneut. Es gibt keine Push- oder WhatsApp-Benachrichtigung für Erwähnungen.
+
+## 21. Nachtrag 19.10.2026: Freigaben vereint, Prüfen-Dialog (KI-erstellt: Claude Code)
+
+Timos Befund: Der SEO-Beitrag stand in „Für dich“, ein Klick öffnete aber nur die Aufgabe, und darunter stand „Wartet auf deine Freigabe (0)“, obwohl das System auf ihn wartete. Ursache: „Freigabe“ gab es in vier Formen, und nur die formellen Office-Freigaben wurden gezählt.
+
+Jetzt sammelt der Abschnitt „✅ Wartet auf deine Freigabe“ in „Für dich“ alle vier Formen:
+1. Formelle Freigaben im KI Office, also externe Aktionen und Auftragsstarts. Entscheiden darf nur der Admin, Teammitglieder sehen ihre eigenen mit dem Hinweis.
+2. Agenten-Ergebnisse ohne Abnahme.
+3. Aufgaben im Status „Wird getestet“.
+4. Offene Aufgaben, die ein Agent der Person zugewiesen hat, zum Beispiel „SEO-Beitrag prüfen“ oder Wächter-Freigaben.
+
+Die separate Karte „Wartet auf deine Freigabe“ ist entfallen.
+
+Ein Klick öffnet einen **Prüfen-Dialog**. Er zeigt den Knopf „Vorschau öffnen“ für den ersten Link, die Beschreibung, mit `[[Titel]]` oder „Notiz „…““ verknüpfte Notizen im Volltext, den Verlauf und je Fall „Freigeben“ oder „Änderungen wünschen“. Bei Agenten-Aufgaben bedeutet Freigeben „Erledigt“, ein Änderungswunsch geht als Kommentar an den Agenten. Bei „Wird getestet“ setzt ein Änderungswunsch die Aufgabe zurück auf „In Arbeit“. Beim Run führt Freigeben zur Abnahme, ein Änderungswunsch zur Zurückweisung. Bei formellen Freigaben heißt es Freigeben oder Ablehnen. Rückfragen von Agenten lassen sich direkt beantworten.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Browsertest neu: Freigabe-Abschnitt bündelt Auftragsstart und E-Mail-Freigabe, Prüfen-Dialog, Ablehnen ohne Begründung bleibt offen, Freigeben entfernt den Eintrag, Lillien sieht nur ihren Auftrag ohne Knöpfe (Desktop und Handy) | bestanden |
+| SEO-Fall (Agenten-Aufgabe mit Vorschau-Link und `[[Notiz]]`): Vorschau-Knopf mit richtiger Adresse, Notiztext sichtbar, Freigeben- und Änderungs-Knopf, Handy ohne waagerechtes Scrollen | bestanden |
+| `npm run test:office` (mit Playwright) | 109 von 109 |
+
+Screenshots: `screenshots/portal-pruefen-dialog-desktop.png`, `screenshots/portal-pruefen-dialog-mobil.png`.
