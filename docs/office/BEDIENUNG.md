@@ -89,6 +89,8 @@ Das macht nicht das Office selbst, sondern `python agenten/office.py obsidian` a
 
 Auf der Übersicht des Team-Portals steht direkt unter den Kennzahlen die Karte **„Wartet auf deine Freigabe“**. Timo sieht dort alle offenen Freigaben (Aufträge von Teammitgliedern und externe Aktionen der Agenten) und kann sie gleich freigeben oder ablehnen, ohne ins KI Office zu wechseln. Alle anderen sehen die offenen Freigaben nur als Liste, freigeben kann nur Timo.
 
+Auch die Prüfaufgaben des SEO-Agenten stehen dort: Aufgaben mit dem Titel „SEO-Beitrag prüfen: …“ (neue Ratgeber-Beiträge, Regionsseiten, Optimierungsvorschläge) mit den Knöpfen **Freigeben** (setzt die Aufgabe auf Erledigt, der SEO-Agent veröffentlicht beim nächsten Lauf) und **Öffnen / Änderung kommentieren**. Die täglichen Tagesberichte („SEO-Beitrag prüfen: Tagesbericht …“) haben stattdessen **Gelesen**; das löst nichts aus.
+
 ## Team-Portal: Vorschläge filtern, Pfad-Links, Arbeitszeit-Dialog (ab 18.10.2026, Vorschläge von Kurt)
 
 - **Vorschläge:** oben Suche, Bereichsfilter und „Nach Bereich ordnen“. Schlagworte schreibst du als `#Wort` in Titel oder Text (zum Beispiel `#Arbeitszeit`); ein Klick auf ein Schlagwort zeigt alle Vorschläge dazu. Neu: Bereiche „Vorschläge“ und „KI Office“.
