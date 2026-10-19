@@ -270,6 +270,51 @@ test('Portal-Übersicht: Karte „Wartet auf deine Freigabe“ für Timo mit Kn�
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
 });
 
+test('Portal-Übersicht: SEO-Prüfaufgaben und Tagesberichte erscheinen in „Wartet auf deine Freigabe“; Freigeben setzt Erledigt', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const SEO = [
+    { aufgabe_id: 'a_seo1', titel: 'SEO-Beitrag prüfen: KI-Kompetenz-Pflicht für Arbeitgeber', beschreibung: 'Vorschau-Link und Begründung', status: 'Offen', prio: 2, projekt: 'Webseite', verantwortlich: 'm_timo', erstellt_von: 'agent-claude', erstellt: '2026-10-17T17:00:00Z', label: '', deadline: '' },
+    { aufgabe_id: 'a_seo2', titel: 'SEO-Beitrag prüfen: Tagesbericht 19.10.2026', beschreibung: 'Veröffentlicht: nichts.', status: 'Offen', prio: 2, projekt: 'Webseite', verantwortlich: 'm_timo', erstellt_von: 'agent-claude', erstellt: '2026-10-19T09:00:00Z', label: '', deadline: '' },
+    { aufgabe_id: 'a_seo3', titel: 'SEO-Beitrag prüfen: Schon erledigt', beschreibung: '', status: 'Erledigt', prio: 2, projekt: 'Webseite', verantwortlich: 'm_timo', erstellt_von: 'agent-claude', erstellt: '2026-10-10T09:00:00Z', label: '', deadline: '' }
+  ];
+  const gespeichert = [];
+  const portal = async (vp, tok, name) => {
+    const p = await neueSeite(vp, { name });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const b = JSON.parse(r.request().postData() || '{}');
+      if (b.aktion === 'aufgabe_speichern') { gespeichert.push(b.daten); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) }); }
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() });
+      const j = await res.json();
+      if (j && j.aufgaben) j.aufgaben = j.aufgaben.concat(SEO.map(a => ({ ...a, status: gespeichert.some(g => g.aufgabe_id === a.aufgabe_id) ? 'Erledigt' : a.status })));
+      r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + tok + '#/tab/start', { waitUntil: 'networkidle' }); await p.waitForTimeout(1800);
+    return p;
+  };
+  const a = await portal(DESKTOP, TOKENS.m_timo, 'portal-seo-admin');
+  const karte = await text(a, '#freiKarte');
+  for (const s of ['Wartet auf deine Freigabe (4)', 'KI-Kompetenz-Pflicht für Arbeitgeber', 'SEO-Prüfung', 'Tagesbericht 19.10.2026', 'SEO-Tagesbericht']) assert.ok(karte.includes(s), 'Karte nennt ' + s);
+  assert.ok(!karte.includes('Schon erledigt'), 'erledigte SEO-Aufgaben fehlen');
+  await shot(a, 'portal-freigaben-seo', DESKTOP);
+  await a.locator('[data-seo="a_seo2"][data-seoakt="ok"]').click(); await a.waitForTimeout(900);
+  assert.equal(gespeichert.at(-1).aufgabe_id, 'a_seo2'); assert.equal(gespeichert.at(-1).status, 'Erledigt');
+  assert.match(await text(a, '#freiKarte'), /Wartet auf deine Freigabe \(3\)/, 'Bericht verschwindet nach „Gelesen“');
+  await a.locator('[data-seo="a_seo1"][data-seoakt="ok"]').click(); await a.waitForTimeout(200);
+  assert.ok((await text(a, '#dlgInner')).includes('SEO-Inhalt freigeben'), 'Freigabe fragt nach');
+  await a.locator('#seo_ok').click(); await a.waitForTimeout(900);
+  assert.equal(gespeichert.at(-1).aufgabe_id, 'a_seo1'); assert.equal(gespeichert.at(-1).status, 'Erledigt'); assert.equal(gespeichert.at(-1).titel, SEO[0].titel, 'Titel bleibt unverändert');
+  assert.match(await text(a, '#freiKarte'), /Wartet auf deine Freigabe \(2\)/);
+  await a.close();
+  gespeichert.length = 0;
+  const l = await portal(DESKTOP, TOKENS.m_lillien, 'portal-seo-team');
+  assert.ok((await text(l, '#freiKarte')).includes('KI-Kompetenz-Pflicht'), 'Team sieht SEO-Prüfungen');
+  assert.equal(await l.locator('#freiKarte [data-seoakt="ok"]').count(), 0, 'nur Timo kann freigeben');
+  await l.close();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+});
+
 test('Portal: Vorschläge mit Suche, Bereich, Schlagworten und Gruppierung; Notizen mit Pfad-Links; Arbeitszeit-Dialog verbreiterbar', async t => {
   if (!B) return t.skip();
   await post(S.base, '/api/test/reset', { szenario: 'standard' });

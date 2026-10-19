@@ -2197,13 +2197,47 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     return fetch(OFFICE_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) })
       .then(r => r.json().then(j => { if (!j || j.ok === false) throw new Error((j && j.fehler) || 'Keine Antwort'); return j; }));
   }
+  // SEO-Agent: Prüfaufgaben („SEO-Beitrag prüfen: …“) erscheinen ebenfalls hier. Freigeben = Aufgabe auf Erledigt setzen
+  // (der SEO-Agent veröffentlicht dann beim nächsten Lauf), Tagesberichte nur „Gelesen“ (lösen nichts aus).
+  const SEO_PRAEFIX = /^SEO-Beitrag prüfen:\s*/;
+  const istSeoBericht = a => /^SEO-Beitrag prüfen:\s*Tagesbericht/.test(a.titel || '');
+  const seoPruefungen = () => (D && D.aufgaben || []).filter(a => a.status !== 'Erledigt' && SEO_PRAEFIX.test(a.titel || '')).sort((a, b) => String(a.erstellt || '').localeCompare(String(b.erstellt || '')));
+  function seoZeile(a, admin) {
+    const bericht = istSeoBericht(a);
+    return '<div style="padding:10px 0;border-top:1px solid var(--line)"><div><b>' + esc(String(a.titel).replace(SEO_PRAEFIX, '')) + '</b> <span class="chip">' + (bericht ? 'SEO-Tagesbericht' : 'SEO-Prüfung') + '</span></div>' +
+      '<div class="small" style="margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere">' + esc(klartext(a.beschreibung).slice(0, 280)) + '</div>' +
+      '<div class="small muted">von ' + esc(mitglied(a.erstellt_von).name || 'SEO-Agent') + (a.erstellt ? ' · ' + fmtD(a.erstellt) : '') + '</div>' +
+      '<div class="act" style="margin-top:6px">' + (admin ? '<button class="btn" style="padding:6px 10px" data-seo="' + esc(a.aufgabe_id) + '" data-seoakt="ok">' + (bericht ? 'Gelesen' : 'Freigeben') + '</button> ' : '') +
+      '<button class="btn sec" style="padding:6px 10px" data-seo="' + esc(a.aufgabe_id) + '" data-seoakt="auf">' + (admin && !bericht ? 'Öffnen / Änderung kommentieren' : 'Öffnen') + '</button></div></div>';
+  }
+  function seoErledigt(a) {
+    return api('aufgabe_speichern', { aufgabe_id: a.aufgabe_id, titel: a.titel, beschreibung: a.beschreibung || '', verantwortlich: a.verantwortlich, deadline: a.deadline || '',
+      prio: Number(a.prio) || 2, status: 'Erledigt', projekt: a.projekt, label: a.label || '', agent_geeignet: a.agent_geeignet === true, kommentar: '' });
+  }
+  function seoBinden(el, seo) {
+    el.querySelectorAll('[data-seo]').forEach(b => b.onclick = () => {
+      const a = seo.find(x => x.aufgabe_id === b.dataset.seo); if (!a) return;
+      if (b.dataset.seoakt === 'auf') return aufgabeDialog(a);
+      if (istSeoBericht(a)) { b.disabled = true; return seoErledigt(a).then(() => { toast('Als gelesen markiert'); return laden(true); }).catch(e => { b.disabled = false; toast(e.message); }); }
+      $('#dlgInner').innerHTML = '<h2>SEO-Inhalt freigeben</h2><div class="note" style="margin-bottom:10px"><b>' + esc(String(a.titel).replace(SEO_PRAEFIX, '')) + '</b><div class="small" style="white-space:pre-wrap;margin-top:4px;overflow-wrap:anywhere">' + esc(klartext(a.beschreibung).slice(0, 600)) + '</div></div>' +
+        '<p class="small">Die Aufgabe wird auf Erledigt gesetzt. Der SEO-Agent veröffentlicht den Inhalt beim nächsten Lauf (morgens), sobald keine andere SEO-Prüfung mehr offen ist. Änderungswünsche stattdessen über „Öffnen“ als Kommentar.</p>' +
+        '<div class="dlgbtns"><button type="button" class="btn sec" id="seo_x">Abbrechen</button><button type="button" class="btn" id="seo_ok">Freigeben</button></div>';
+      openDlg(false);
+      $('#seo_x').onclick = () => $('#dlg').close();
+      $('#seo_ok').onclick = () => { const ok = $('#seo_ok'); ok.disabled = true; seoErledigt(a).then(() => { $('#dlg').close(); toast('Freigegeben'); return laden(true); }).catch(e => { ok.disabled = false; toast(e.message); }); };
+    });
+  }
   function freigabenKarte() {
     const el = $('#freiKarte'); if (!el) return;
-    officeApi('laden').then(j => {
+    const seo = seoPruefungen();
+    const zeichnen = j => {
       const admin = istAdmin();
+      const officeFehlt = !j;
+      j = j || {};
       const offen = (j.freigaben || []).filter(f => f.status === 'offen').sort((a, b) => String(a.angefordert_am).localeCompare(String(b.angefordert_am)));
       const name = id => { const m = (j.mitglieder || []).find(x => x.mitglied_id === id); return m ? m.name : (id || '–'); };
-      if (!offen.length && !admin) { el.innerHTML = ''; return; }
+      if (officeFehlt && !seo.length) { el.innerHTML = ''; return; }
+      if (!offen.length && !seo.length && !admin) { el.innerHTML = ''; return; }
       const zeile = f => {
         const r = (j.runs || []).find(x => x.run_id === f.run_id) || {};
         const reg = (j.agenten || []).find(x => x.agent_id === r.agent_id) || {};
@@ -2215,9 +2249,11 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
           '<div class="small muted">von ' + esc(name(f.angefordert_von)) + ' · ' + fmtDT(f.angefordert_am) + ' · <a href="' + OFFICE + '#/run/' + esc(f.run_id) + '">Details im KI Office</a></div>' +
           (admin ? '<div class="act" style="margin-top:6px"><button class="btn" style="padding:6px 10px" data-frg="' + esc(f.freigabe_id) + '" data-ent="erteilt">' + (start ? 'Start freigeben' : 'Freigeben') + '</button> <button class="btn sec" style="padding:6px 10px" data-frg="' + esc(f.freigabe_id) + '" data-ent="abgelehnt">Ablehnen</button></div>' : '') + '</div>';
       };
-      el.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">✅ ' + (admin ? 'Wartet auf deine Freigabe' : 'Offene Freigaben') + ' (' + offen.length + ')</h2><a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Alle im KI Office →</a></div>' +
-        (offen.length ? offen.map(zeile).join('') : '<p class="empty">Nichts offen. Gut so.</p>') +
+      el.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">✅ ' + (admin ? 'Wartet auf deine Freigabe' : 'Offene Freigaben') + ' (' + (offen.length + seo.length) + ')</h2><a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Alle im KI Office →</a></div>' +
+        (offen.length || seo.length ? offen.map(zeile).join('') + seo.map(a => seoZeile(a, admin)).join('') : '<p class="empty">Nichts offen. Gut so.</p>') +
+        (officeFehlt ? '<p class="small muted" style="margin-top:8px">Freigaben aus dem KI Office konnten gerade nicht geladen werden.</p>' : '') +
         (admin ? '' : '<p class="small muted" style="margin-top:8px">Freigeben kann nur Timo.</p>') + '</div>';
+      seoBinden(el, seo);
       el.querySelectorAll('[data-frg]').forEach(b => b.onclick = () => {
         const f = offen.find(x => x.freigabe_id === b.dataset.frg); if (!f) return;
         const erteilen = b.dataset.ent === 'erteilt', start = f.aktion === 'auftrag_start';
@@ -2237,7 +2273,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
             .catch(e => { ok.disabled = false; toast(e.message); });
         };
       });
-    }).catch(() => { el.innerHTML = ''; });
+    };
+    officeApi('laden').then(zeichnen).catch(() => zeichnen(null));
   }
 
   function vOffice() {
