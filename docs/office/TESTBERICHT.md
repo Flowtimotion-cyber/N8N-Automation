@@ -404,3 +404,22 @@ Jetzt gilt:
 | `npm run test:office` | 109 von 109 |
 
 Screenshots: `screenshots/portal-fuer-dich-ordnung.png`, `screenshots/portal-bericht-dialog.png`.
+
+## 23. Nachtrag 19.10.2026: Register „Tresor“ für Passwörter (Branch `feature/tresor`, KI-erstellt: Claude Code)
+
+Timos Wunsch: eine Seite im Portal mit Eingabe, Ausgabe und Schlüssel, um geschützte Passwörter auszutauschen, am liebsten über Kurts FracEncoder.
+
+- **FracEncoder:** Das installierte Programm (`FracEncoder.rel.exe` 1.0.0.4, Qt) hat eine Bedienoberfläche und eine Hilfe für Kommandozeilen-Schalter (`/enc /src= /dst= /key=`). Kurt sagt aber, es ist bisher nur über die Bedienoberfläche nutzbar. Ein Browser kann ein Programm auf dem Rechner nicht direkt aufrufen. Dafür bräuchte jeder Rechner ein kleines Hilfsprogramm, und das geht erst mit einer Kommandozeilen-Version. Das Register zeigt dazu einen Hinweis.
+- **Jetzt umgesetzt:** Verschlüsselung direkt im Browser (Web Crypto): AES-256-GCM, Schlüssel per PBKDF2-SHA-256 mit 600.000 Runden, zufälliges Salz (16 Byte) und IV (12 Byte) bei jedem Durchlauf. Ausgabe als `MKT1.<base64url>`. Text und Schlüssel werden weder gesendet noch gespeichert. Die Felder leeren sich nach 5 Minuten ohne Eingabe, und das Auffrischen im Hintergrund baut das Register nicht neu auf.
+- **Abgefangen:** Schlüssel unter 10 Zeichen, ein falscher Schlüssel, ein abgeschnittener Text und ein schon verschlüsselter Text beim Verschlüsseln. Zeilenumbrüche, die beim Kopieren entstehen, schaden nicht.
+
+| Prüfung (Playwright, Testserver, Desktop und Handy) | Ergebnis |
+|---|---|
+| Ver- und Entschlüsseln mit Umlauten, ß und € ergibt den Originaltext | bestanden |
+| Zwei Verschlüsselungen desselben Textes ergeben unterschiedliche Ausgaben | bestanden |
+| Falscher Schlüssel, abgeschnittener Text, zu kurzer Schlüssel ergeben klare Meldungen | bestanden |
+| Kopieren, Schlüssel anzeigen/verbergen, „Alles leeren“ | bestanden |
+| Kein Request enthält den Klartext | bestanden |
+| `npm run test:office` | 110 von 110 |
+
+Screenshots: `screenshots/desktop-portal-tresor.png`, `screenshots/mobil-portal-tresor.png`.
