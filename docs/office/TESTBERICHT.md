@@ -344,3 +344,21 @@ Nicht ins Portal gehören die vier Vorschläge zum **FracEncoder** (Kommandozeil
 
 Neuer Browsertest „Portal: Vorschläge …“ (Desktop und Mobil; Suche, Bereich, Schlagwort, Gruppierung, Pfad-Links inklusive Klick/Kopieren, Dialog-Ziehgriff). `npm run test:office` mit Playwright 109/109. Testdaten: vier synthetische Vorschläge und eine Notiz mit Pfaden.
 
+
+## 20. Nachtrag 19.10.2026: Box „Für dich“ auf der Portal-Übersicht (KI-erstellt: Claude Code)
+
+Neue Karte im Team-Portal (`docs/team/index.html`, Funktionen `fuerDichPunkte`, `fuerDichKarte`). Sie zeigt je Person: Rückfragen von Agenten, Erwähnungen (`@Vorname`, `@alle`, `@team`), neu zugewiesene Aufgaben, Aufgaben im Status „Wird getestet“ zum Prüfen, Agenten-Ergebnisse zum Abnehmen und Änderungen an eigenen Aufgaben seit dem letzten „Alles gesehen“. Die Office-Daten werden einmal geladen und mit der Freigabe-Karte geteilt (`officeLaden`).
+
+| Prüfung (Playwright gegen den Testserver, eingespielte Beispieldaten) | Ergebnis |
+|---|---|
+| Rückfrage eines Agenten (`wartet_rueckmeldung`) erscheint mit Fragetext | bestanden |
+| Erwähnung `@Timo` in einem Kommentar erscheint; `timo@example.org` gilt nicht als Erwähnung | bestanden |
+| Neu zugewiesene Aufgabe, Aufgabe „Wird getestet“, Ergebnis ohne Abnahme | bestanden |
+| Mehrere Einträge je Aufgabe werden zusammengefasst; interne `[run:…]`-Kennungen ausgeblendet | bestanden |
+| Klick öffnet die Aufgabe; „Alles gesehen“ blendet Neues aus, Prüfpunkte bleiben | bestanden |
+| Pro Abschnitt 3 Einträge, Knopf „weitere anzeigen“ | bestanden |
+| Handy 390 px: kein waagerechtes Scrollen | bestanden |
+| Office-API-Aufrufe beim Laden der Übersicht | 1 (geteilt mit der Freigabe-Karte) |
+| `npm run test:office` (mit Playwright) | 109 von 109 |
+
+Screenshots: `screenshots/portal-fuer-dich-desktop.png`, `screenshots/portal-fuer-dich-mobil.png`. Grenzen: „Zuletzt gesehen“ liegt nur im Browser (localStorage), auf einem zweiten Gerät erscheint Neues dort erneut. Es gibt keine Push- oder WhatsApp-Benachrichtigung für Erwähnungen.
