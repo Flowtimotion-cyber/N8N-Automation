@@ -198,6 +198,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .fd-links .btn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fd-inhalt{max-height:55vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#FCFCFE}
 .fd-notiz{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.fd-genannt{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 10px}
+.fd-genannt .btn{white-space:normal;text-align:left;max-width:100%}
 .fd-notiz summary{cursor:pointer;font-weight:600}
 .lkrow{display:grid;grid-template-columns:minmax(110px,32%) 1fr auto;gap:6px;margin-bottom:6px}
 .lkrow input{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;min-width:0}
@@ -2235,11 +2237,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const n = vor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp('(^|[^0-9A-Za-zÄÖÜäöüß_])@(' + n + '|alle|team)(?![0-9A-Za-zÄÖÜäöüß_])', 'i').test(String(text || ''));
   }
+  const fdIstBericht = t => /tagesbericht|wochenbericht|lagebericht|monatsbericht/i.test(String(t || '')) && !/frage|freigeb|entscheid/i.test(String(t || ''));
   function fuerDichPunkte(off) {
     const ich = D.ich.mitglied_id, admin = istAdmin(), seit = fdSeit().getTime(), grenze = Date.now() - FD_FENSTER_TAGE * 864e5;
     const A = D.aufgaben || [], V = D.verlauf || [], N = D.notizen || [];
     const aufgabe = id => A.find(a => a.aufgabe_id === id);
-    const P = { freigabe: [], frage: [], erwaehnt: [], neu: [], geaendert: [] };
+    const P = { freigabe: [], frage: [], erwaehnt: [], neu: [], bericht: [], abnahme: [], geaendert: [] };
     const inFreigabe = new Set(), gesehen = new Set();
     // 1) Freigaben aus dem Portal
     for (const a of A) {
@@ -2249,7 +2252,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       } else if (a.status !== 'Erledigt' && a.verantwortlich === ich && a.erstellt_von && !fdMensch(a.erstellt_von) && (D.mitglieder || []).some(m => m.mitglied_id === a.erstellt_von)) {
         inFreigabe.add(a.aufgabe_id);
         const hatLink = /https?:\/\//.test(String(a.beschreibung || ''));
-        P.freigabe.push({ typ: 'agent', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (hatLink ? ' · mit Vorschau-Link' : ''), aufgabe: a });
+        // Reine Berichte („Tagesbericht“, „Wochenbericht“ … ohne Frage oder Freigabe im Titel) nur zur Kenntnis, nicht als Freigabe
+        if (fdIstBericht(a.titel)) P.bericht.push({ typ: 'bericht', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + ' · zur Kenntnis', aufgabe: a });
+        else P.freigabe.push({ typ: 'agent', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (hatLink ? ' · mit Vorschau-Link' : ''), aufgabe: a, wichtig: /prüfen|freigeb|frage|entscheid/i.test(a.titel) });
       }
     }
     // 2) Freigaben und Rückfragen aus dem KI Office
@@ -2270,8 +2275,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
           const f = (off.ereignisse || []).filter(e => e.run_id === r.run_id && e.art === 'rueckfrage').pop();
           P.frage.push({ typ: 'frage', zeit: f ? f.zeit : (r.lebenszeichen || r.erstellt), titel: (reg(r.agent_id).name || r.agent_id) + ' fragt', text: f ? f.titel : fdKurz(r.auftrag), run: r, frage: f ? f.titel : '' });
         }
-        if (r.status === 'abgeschlossen' && r.abgenommen == null && fdZeit(r.beendet || r.erstellt) >= grenze)
-          P.freigabe.push({ typ: 'run', zeit: r.beendet || r.erstellt, titel: (reg(r.agent_id).name || r.agent_id) + ': ' + fdKurz(r.auftrag).slice(0, 80), text: 'Ergebnis abnehmen · ' + (fdKurz(r.zusammenfassung || '') || 'Ergebnis liegt vor'), run: r });
+        // Teilaufträge eines Teams werden über den Eltern-Run abgenommen, nicht einzeln
+        if (r.status === 'abgeschlossen' && r.abgenommen == null && !r.eltern_run_id && fdZeit(r.beendet || r.erstellt) >= grenze)
+          P.abnahme.push({ typ: 'run', zeit: r.beendet || r.erstellt, titel: (reg(r.agent_id).name || r.agent_id) + ': ' + fdKurz(r.auftrag).slice(0, 80), text: 'Ergebnis abnehmen · ' + (fdKurz(r.zusammenfassung || '') || 'Ergebnis liegt vor'), run: r });
       }
     }
     // 3) Erwähnungen (ohne Aufgaben, die schon unter Freigabe stehen)
@@ -2298,6 +2304,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     }
     for (const x of Object.values(proA)) P.geaendert.push({ typ: 'aufgabe', zeit: x.zeit, titel: x.a.titel, text: (x.n > 1 ? x.n + ' neue Einträge, zuletzt ' : '') + mitglied(x.letzt.autor).name + ': ' + fdKurz(x.letzt.text), aufgabe: x.a });
     for (const k of Object.keys(P)) { P[k].sort((x, y) => fdZeit(y.zeit) - fdZeit(x.zeit)); P[k].forEach(p => { p.neu = fdZeit(p.zeit) >= seit; }); }
+    // Freigaben: formelle Office-Freigaben und Agenten-Aufgaben mit „prüfen/freigeben/Frage“ zuerst, „Wird getestet“ danach
+    const rang = p => p.typ === 'formal' ? 0 : (p.typ === 'agent' && p.wichtig) ? 1 : p.typ === 'agent' ? 2 : 3;
+    P.freigabe.sort((x, y) => rang(x) - rang(y) || fdZeit(y.zeit) - fdZeit(x.zeit));
     return P;
   }
   function fuerDichKarte() {
@@ -2306,11 +2315,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const zeigen = off => {
       if (!$('#fuerDich')) return;
       const P = fuerDichPunkte(off);
-      const T = [['freigabe', '✅ Wartet auf deine Freigabe'], ['frage', '🤖 Agenten fragen dich'], ['erwaehnt', '💬 Du wurdest erwähnt'], ['neu', '📥 Neu für dich'], ['geaendert', '✏️ Geändert seit deinem letzten Besuch']];
+      const T = [['freigabe', '✅ Wartet auf deine Freigabe'], ['frage', '🤖 Agenten fragen dich'], ['erwaehnt', '💬 Du wurdest erwähnt'], ['neu', '📥 Neu für dich'], ['bericht', '📋 Berichte zur Kenntnis'], ['abnahme', '📄 Agenten-Ergebnisse abnehmen'], ['geaendert', '✏️ Geändert seit deinem letzten Besuch']];
+      // Die Zahl oben zählt, was wirklich auf dich wartet: Freigaben, Rückfragen und Neues. Berichte und Ergebnis-Abnahmen stehen darunter, ohne die Zahl aufzublähen.
       const offenAnz = P.freigabe.length + P.frage.length + [...P.erwaehnt, ...P.neu, ...P.geaendert].filter(p => p.neu).length;
       punkte = {};
       let nr = 0;
-      const zeile = (p, k) => { const id = 'p' + (nr++); punkte[id] = p; return '<button class="fd-z" data-fd="' + id + '"><span class="fd-t">' + (p.neu && (k !== 'freigabe' && k !== 'frage') ? '<span class="chip fd-neu">neu</span> ' : '') + esc(p.titel) + '</span><span class="small muted">' + esc(p.text) + ' · ' + fmtDT(p.zeit) + '</span></button>'; };
+      const zeile = (p, k) => { const id = 'p' + (nr++); punkte[id] = p; return '<button class="fd-z" data-fd="' + id + '"><span class="fd-t">' + (p.neu && ['erwaehnt', 'neu', 'geaendert'].includes(k) ? '<span class="chip fd-neu">neu</span> ' : '') + esc(p.titel) + '</span><span class="small muted">' + esc(p.text) + ' · ' + fmtDT(p.zeit) + '</span></button>'; };
       const teile = T.filter(([k]) => P[k].length).map(([k, l]) => { const alle = fdAufgeklappt.has(k); return '<div class="fd-g' + (k === 'freigabe' ? ' fd-frei' : '') + '"><div class="fd-h">' + l + ' <span class="muted">(' + P[k].length + ')</span></div>' + (alle ? P[k] : P[k].slice(0, FD_MAX)).map(p => zeile(p, k)).join('') + (P[k].length > FD_MAX ? '<button class="btn ghost" style="padding:4px 8px;font-size:12.5px" data-fdmehr="' + k + '">' + (alle ? 'Weniger anzeigen' : (P[k].length - FD_MAX) + ' weitere anzeigen') + '</button>' : '') + '</div>'; });
       $('#fuerDich').innerHTML = '<div class="card fd"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🔔 Für dich' + (offenAnz ? ' <span class="chip fd-neu">' + offenAnz + '</span>' : '') + '</h2>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (teile.length ? '<button class="btn ghost" id="fdGesehen" title="Markiert Erwähnungen, neue Aufgaben und Änderungen als gesehen. Freigaben und Rückfragen bleiben, bis sie erledigt sind.">Alles gesehen ✓</button>' : '') + '<a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Freigaben im KI Office →</a></div></div>' +
@@ -2341,7 +2351,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     for (const m of quellen.matchAll(/\[\[([^\]]+)\]\]/g)) titel.add(m[1].trim().toLowerCase());
     for (const m of quellen.matchAll(/Notiz [„"]([^“”"]+)[“”"]/g)) titel.add(m[1].trim().toLowerCase());
     const notizen = (D.notizen || []).filter(n => titel.has(String(n.titel).trim().toLowerCase())).slice(0, 3);
-    const art = { test: 'Aufgabe zum Prüfen', agent: 'Aufgabe von einem Agenten', run: 'Agenten-Ergebnis zum Abnehmen', formal: 'Freigabe im KI Office', frage: 'Rückfrage eines Agenten' }[p.typ] || '';
+    const art = { test: 'Aufgabe zum Prüfen', agent: 'Aufgabe von einem Agenten', bericht: 'Bericht eines Agenten (zur Kenntnis)', run: 'Agenten-Ergebnis zum Abnehmen', formal: 'Freigabe im KI Office', frage: 'Rückfrage eines Agenten' }[p.typ] || '';
     let inhalt = '';
     if (a) inhalt += '<div class="md">' + md(a.beschreibung || '_(keine Beschreibung)_') + '</div>';
     if (p.typ === 'run') inhalt += '<p class="small muted" style="margin:0">Auftrag</p><div class="md">' + md(r.auftrag || '') + '</div><p class="small muted" style="margin:10px 0 0">Zusammenfassung des Agenten</p><div class="md">' + md(r.zusammenfassung || '_(keine)_') + '</div>' +
@@ -2349,23 +2359,34 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (p.typ === 'formal') inhalt += '<div class="md">' + md(f.inhalt_vorschau || r.auftrag || '') + '</div>';
     if (p.typ === 'frage') inhalt += '<div class="note"><b>Frage:</b> ' + esc(p.frage || '–') + '</div><p class="small muted" style="margin:10px 0 0">Ursprünglicher Auftrag</p><div class="md">' + md(r.auftrag || '') + '</div>';
     const linkHtml = links.length ? '<div class="fd-links">' + links.map((u, i) => '<a class="btn' + (i ? ' sec' : '') + '" href="' + esc(u) + '" target="_blank" rel="noopener" title="' + esc(u) + '">' + (i ? '↗ ' + esc(u.replace(/^https?:\/\//, '').slice(0, 40)) : '↗ Vorschau öffnen') + (/id-preview--[^/]*\.lovable\.app/i.test(u) ? ' (Lovable-Login nötig)' : '') + '</a>').join('') + '</div>' + (links.some(u => /id-preview--[^/]*\.lovable\.app/i.test(u)) && !notizen.length ? '<p class="small muted" style="margin:-4px 0 8px">Die Lovable-Vorschau öffnet sich nur, wenn du bei Lovable angemeldet bist. Den Text zum Gegenlesen findest du unten in der Beschreibung oder in einer verknüpften Notiz.</p>' : '') : '';
+    const genannt = (D.aufgaben || []).filter(x => (!a || x.aufgabe_id !== a.aufgabe_id) && x.status !== 'Erledigt' && String(x.titel || '').length >= 12 && quellen.includes(x.titel)).slice(0, 6);
+    const genanntHtml = genannt.length ? '<div class="fd-genannt"><p class="small muted" style="margin:0 0 4px">Genannte Aufgaben</p>' + genannt.map(x => '<button type="button" class="btn sec" data-fdgen="' + esc(x.aufgabe_id) + '">→ ' + esc(x.titel) + '</button>').join('') + '</div>' : '';
     const notizHtml = notizen.map(n => '<details class="fd-notiz" open><summary>📄 Notiz: ' + esc(n.titel) + '</summary><div class="md">' + md(n.inhalt) + '</div></details>').join('');
     const verlaufHtml = V.length ? '<p class="small muted" style="margin:12px 0 2px">Verlauf</p>' + V.map(v => '<div class="small" style="padding:4px 0;border-top:1px solid var(--line)"><b>' + esc(mitglied(v.autor).name) + '</b> · ' + fmtDT(v.erstellt) + '<br>' + esc(fdKurz(v.text)) + '</div>').join('') : '';
     // Knöpfe je Fall
     let ja = '', nein = '', hinweis = '';
-    if (p.typ === 'test' || p.typ === 'agent') { ja = '✅ Freigeben (Erledigt)'; nein = '↩ Änderungen wünschen'; hinweis = p.typ === 'agent' ? 'Freigeben setzt die Aufgabe auf „Erledigt“. Der Agent macht dann weiter, zum Beispiel veröffentlicht er. Änderungswünsche gehen als Kommentar an den Agenten.' : 'Freigeben setzt die Aufgabe auf „Erledigt“. Änderungswünsche setzen sie zurück auf „In Arbeit“.'; }
+    if (p.typ === 'bericht') { ja = '✓ Gelesen (Erledigt)'; hinweis = 'Der Bericht wird als gelesen abgehakt. Wenn er Aufgaben nennt, öffnest du sie oben über „Genannte Aufgaben“.'; }
+    else if (p.typ === 'test' || p.typ === 'agent') { ja = '✅ Freigeben (Erledigt)'; nein = '↩ Änderungen wünschen'; hinweis = p.typ === 'agent' ? 'Freigeben setzt die Aufgabe auf „Erledigt“. Der Agent macht dann weiter, zum Beispiel veröffentlicht er. Änderungswünsche gehen als Kommentar an den Agenten.' : 'Freigeben setzt die Aufgabe auf „Erledigt“. Änderungswünsche setzen sie zurück auf „In Arbeit“.'; }
     else if (p.typ === 'run') { ja = '✅ Abnehmen'; nein = '↩ Zurückweisen'; hinweis = 'Die Abnahme wird im KI Office beim Run vermerkt.'; }
     else if (p.typ === 'formal') { if (admin) { ja = f.aktion === 'auftrag_start' ? '✅ Start freigeben' : '✅ Freigeben'; nein = 'Ablehnen'; hinweis = f.aktion === 'auftrag_start' ? 'Der Agent startet sofort. Die Freigabe gilt genau einmal und nur für diesen Text.' : 'Die Freigabe gilt 24 Stunden und genau einmal, nur für diesen Inhalt.'; } else hinweis = 'Freigeben kann nur Timo.'; }
     else if (p.typ === 'frage') { ja = '➤ Antwort senden'; hinweis = 'Der Agent arbeitet mit deiner Antwort weiter.'; }
     const ziel = a ? '<button type="button" class="btn ghost" id="fd_auf">Ganze Aufgabe öffnen</button>' : (r.run_id ? '<a class="btn ghost" href="' + OFFICE + '#/run/' + encodeURIComponent(r.run_id) + '">Im KI Office öffnen</a>' : '');
     $('#dlgInner').innerHTML = '<p class="small muted" style="margin:0">' + esc(art) + (r.agent_id ? ' · ' + esc(reg(r.agent_id).name || r.agent_id) : '') + (a && a.projekt ? ' · ' + esc(a.projekt) : '') + '</p><h2 style="margin-top:2px">' + esc(p.titel) + '</h2>' +
-      linkHtml + '<div class="fd-inhalt">' + inhalt + notizHtml + verlaufHtml + '</div>' +
+      linkHtml + genanntHtml + '<div class="fd-inhalt">' + inhalt + notizHtml + verlaufHtml + '</div>' +
       '<form id="fdf" style="margin-top:12px">' + (ja || nein ? '<div class="f"><label for="fd_k">' + (p.typ === 'frage' ? 'Deine Antwort' : 'Kommentar (bei Änderungswunsch oder Ablehnung Pflicht)') + '</label><textarea id="fd_k" rows="3" maxlength="2000"></textarea></div>' : '') +
       '<p class="small muted">' + esc(hinweis) + '</p>' +
       '<div class="dlgbtns" style="flex-wrap:wrap">' + ziel + '<button type="button" class="btn sec" id="fd_x">Schließen</button>' + (nein ? '<button type="button" class="btn sec" id="fd_nein">' + nein + '</button>' : '') + (ja ? '<button type="submit" class="btn" id="fd_ja">' + ja + '</button>' : '') + '</div></form>';
     openDlg(true);
     $('#fd_x').onclick = () => $('#dlg').close();
     const fa = $('#fd_auf'); if (fa) fa.onclick = () => { $('#dlg').close(); aufgabeDialog(a); };
+    $('#dlgInner').querySelectorAll('[data-fdgen]').forEach(b => b.onclick = () => {
+      const x = (D.aufgaben || []).find(y => y.aufgabe_id === b.dataset.fdgen); if (!x) return;
+      $('#dlg').close();
+      const vonAgent = x.erstellt_von && !fdMensch(x.erstellt_von) && (D.mitglieder || []).some(m => m.mitglied_id === x.erstellt_von);
+      if (x.status === 'Wird getestet') fdPruefen({ typ: 'test', titel: x.titel, aufgabe: x }, off);
+      else if (vonAgent && x.verantwortlich === D.ich.mitglied_id) fdPruefen({ typ: fdIstBericht(x.titel) ? 'bericht' : 'agent', titel: x.titel, aufgabe: x }, off);
+      else aufgabeDialog(x);
+    });
     const fertig = async (msg, fn) => {
       const k = ($('#fd_k') ? $('#fd_k').value : '').trim();
       const knoepfe = $('#fdf').querySelectorAll('button'); knoepfe.forEach(b => b.disabled = true);
@@ -2375,7 +2396,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const pflicht = () => { const k = ($('#fd_k') ? $('#fd_k').value : '').trim(); if (!k) { toast('Bitte schreib kurz, was geändert werden soll.'); $('#fd_k').focus(); return false; } return true; };
     $('#fdf').onsubmit = ev => {
       ev.preventDefault();
-      if (p.typ === 'test' || p.typ === 'agent') fertig('Freigegeben', k => api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', kommentar: 'Freigegeben' + (k ? ': ' + k : '') })));
+      if (p.typ === 'bericht') fertig('Als gelesen abgehakt', k => api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', kommentar: 'Gelesen' + (k ? ': ' + k : '') })));
+      else if (p.typ === 'test' || p.typ === 'agent') fertig('Freigegeben', k => api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', kommentar: 'Freigegeben' + (k ? ': ' + k : '') })));
       else if (p.typ === 'run') fertig('Abgenommen', k => officeApi('run_abnehmen', { run_id: r.run_id, abgenommen: true, kommentar: k }));
       else if (p.typ === 'formal') fertig(f.aktion === 'auftrag_start' ? 'Start freigegeben' : 'Freigabe erteilt', k => officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: 'erteilt', begruendung: k }));
       else if (p.typ === 'frage') { if (pflicht()) fertig('Antwort gesendet', k => officeApi('antwort', { run_id: r.run_id, text: k })); }

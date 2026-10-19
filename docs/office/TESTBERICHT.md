@@ -384,3 +384,23 @@ Ein Klick öffnet einen **Prüfen-Dialog**. Er zeigt den Knopf „Vorschau öffn
 | `npm run test:office` (mit Playwright) | 109 von 109 |
 
 Screenshots: `screenshots/portal-pruefen-dialog-desktop.png`, `screenshots/portal-pruefen-dialog-mobil.png`.
+
+## 22. Nachtrag 19.10.2026: Ordnung in „Für dich“, Berichte und genannte Aufgaben (KI-erstellt: Claude Code)
+
+Timos Befund: Im Tagesbericht des SEO-Agenten fand er keinen Link zum Text. Der Bericht nannte die Beiträge nur beim Titel. Die eigentlichen Prüfaufgaben steckten hinter „24 weitere anzeigen“, weil 27 Einträge unter Freigabe standen: 7 Agenten-Aufgaben, 4 „Wird getestet“ und 16 Agenten-Ergebnisse, die meisten davon aus Testläufen.
+
+Jetzt gilt:
+- **Freigabe:** Hier stehen nur noch echte Entscheidungen, sortiert nach Wichtigkeit: formelle Office-Freigaben, dann Agenten-Aufgaben mit „prüfen“, „freigeben“, „Frage“ oder „entscheiden“ im Titel, dann sonstige Agenten-Aufgaben, dann „Wird getestet“.
+- **Berichte:** Tagesberichte, Wochenberichte und Ähnliches ohne Frage stehen unter „📋 Berichte zur Kenntnis“. Der Dialog bietet „Gelesen (Erledigt)“ an.
+- **Ergebnisse:** Agenten-Ergebnisse ohne Abnahme stehen unter „📄 Agenten-Ergebnisse abnehmen“. Teilaufträge eines Teams erscheinen dort nicht einzeln. Beides zählt nicht mehr in die Zahl oben.
+- **Genannte Aufgaben:** Im Prüfen-Dialog werden offene Aufgaben, die im Text vorkommen, als Knöpfe angeboten. Ein Klick öffnet direkt deren Prüfen-Dialog.
+
+| Prüfung (Playwright, Testserver, Szenario wie bei Timo) | Ergebnis |
+|---|---|
+| Tagesbericht nicht unter Freigabe, sondern unter „Berichte zur Kenntnis“ | bestanden |
+| Bericht-Dialog zeigt beide SEO-Aufgaben als „Genannte Aufgaben“ und „Gelesen (Erledigt)“ | bestanden |
+| Klick auf eine genannte Aufgabe öffnet den SEO-Beitrag mit Notiztext und Lovable-Hinweis | bestanden |
+| Desktop und Handy ohne waagerechtes Scrollen | bestanden |
+| `npm run test:office` | 109 von 109 |
+
+Screenshots: `screenshots/portal-fuer-dich-ordnung.png`, `screenshots/portal-bericht-dialog.png`.
