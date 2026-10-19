@@ -345,7 +345,7 @@ Nicht ins Portal gehören die vier Vorschläge zum **FracEncoder** (Kommandozeil
 Neuer Browsertest „Portal: Vorschläge …“ (Desktop und Mobil; Suche, Bereich, Schlagwort, Gruppierung, Pfad-Links inklusive Klick/Kopieren, Dialog-Ziehgriff). `npm run test:office` mit Playwright 109/109. Testdaten: vier synthetische Vorschläge und eine Notiz mit Pfaden.
 
 
-## 16. Nachtrag 19.10.2026: Box „Für dich“ auf der Portal-Übersicht (KI-erstellt: Claude Code)
+## 20. Nachtrag 19.10.2026: Box „Für dich“ auf der Portal-Übersicht (KI-erstellt: Claude Code)
 
 Neue Karte im Team-Portal (`docs/team/index.html`, Funktionen `fuerDichPunkte`, `fuerDichKarte`). Sie zeigt je Person: Rückfragen von Agenten, Erwähnungen (`@Vorname`, `@alle`, `@team`), neu zugewiesene Aufgaben, Aufgaben im Status „Wird getestet“ zum Prüfen, Agenten-Ergebnisse zum Abnehmen und Änderungen an eigenen Aufgaben seit dem letzten „Alles gesehen“. Die Office-Daten werden einmal geladen und mit der Freigabe-Karte geteilt (`officeLaden`).
 
