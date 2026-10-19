@@ -2506,7 +2506,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const admin = istAdmin();
     const L = (D.mitglieder || []).slice().sort((a, b) => (a.status === 'gesperrt') - (b.status === 'gesperrt') || a.name.localeCompare(b.name));
     const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div>' + (admin ? '<button class="btn" id="neum">+ Mitglied</button>' : '') + '</div>' +
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div>' + (admin ? '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="neua">+ KI-Agent</button><button class="btn" id="neum">+ Mitglied</button></div>' : '') + '</div>' +
       '<div class="grid">' + L.map(p => '<div class="member">' + av(p.mitglied_id) + '<div style="min-width:0;flex:1"><b>' + esc(p.name) + '</b>' + (p.mitglied_id === D.ich.mitglied_id ? ' <span class="chip">Du</span>' : '') +
         (p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') +
         '<div class="small muted">' + esc(p.funktion || ROLLE_TXT(p.rolle)) + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
@@ -2523,7 +2523,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
     $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
     if (admin) {
-      $('#neum').onclick = () => mitgliedDialog(null);
+      $('#neum').onclick = () => mitgliedDialog(null); $('#neua').onclick = () => mitgliedDialog(null, true);
       document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));
       document.querySelectorAll('[data-link]').forEach(b => b.onclick = async () => {
         const p = mitglied(b.dataset.link); const url = p.typ === 'agent' ? p.token : PORTAL + '?z=' + p.token;
@@ -2577,17 +2577,19 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
-  function mitgliedDialog(p) {
+  function mitgliedDialog(p, alsAgent) {
     const neu = !p;
-    p = p || { name: '', funktion: '', rolle: 'team', status: 'eingeladen' };
-    const selbst = p.mitglied_id === D.ich.mitglied_id;
-    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neues Teammitglied' : esc(p.name) + ' verwalten') + '</h2><form id="tf">' +
-      '<div class="f2"><div class="f"><label for="t_n">Name</label><input id="t_n" required maxlength="60" value="' + esc(p.name) + '"></div>' +
-      '<div class="f"><label for="t_f">Aufgabe im Team</label><input id="t_f" maxlength="60" value="' + esc(p.funktion) + '" placeholder="z. B. Vertrieb"></div>' +
+    p = p || (alsAgent ? { name: '', funktion: '', rolle: 'agent', typ: 'agent', status: 'aktiv' } : { name: '', funktion: '', rolle: 'team', status: 'eingeladen' });
+    const selbst = p.mitglied_id === D.ich.mitglied_id, agent = p.typ === 'agent';
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? (agent ? 'Neuer KI-Agent' : 'Neues Teammitglied') : esc(p.name) + ' verwalten') + '</h2><form id="tf">' +
+      '<div class="f2"><div class="f"><label for="t_n">Name</label><input id="t_n" required maxlength="60" value="' + esc(p.name) + '"' + (agent ? ' placeholder="z. B. Kurts Claude Code"' : '') + '></div>' +
+      '<div class="f"><label for="t_f">' + (agent ? 'Wofür / bei wem' : 'Aufgabe im Team') + '</label><input id="t_f" maxlength="60" value="' + esc(p.funktion) + '" placeholder="' + (agent ? 'z. B. KI-Agent (Claude Code bei Kurt)' : 'z. B. Vertrieb') + '"></div>' +
       (p.typ === 'agent' ? '<div class="f"><label>Rolle</label><input disabled value="KI-Agent"></div>' : '<div class="f"><label for="t_r">Rolle</label><select id="t_r"' + (selbst ? ' disabled' : '') + '>' + opt(Object.keys(ROLLEN), p.rolle, v => ROLLEN[v]) + '</select></div>') +
       (!neu && !selbst ? '<div class="f"><label for="t_s">Zugang</label><select id="t_s">' + opt(['aktiv', 'eingeladen', 'gesperrt'], p.status, v => ({ aktiv: 'aktiv', eingeladen: 'eingeladen (noch nicht angemeldet)', gesperrt: 'gesperrt' }[v])) + '</select></div>' : '') + '</div>' +
-      '<p class="small muted">Rollen: Admin verwaltet das Team. Dozent / Technik sieht Teilnehmer mit Namen und pflegt Systeme. Vertrieb und Team sehen Kursdaten nur zusammengefasst. Alle können Aufgaben und Social-Beiträge anlegen.</p>' +
-      (!neu ? '<label class="check" style="margin-bottom:10px"><input type="checkbox" id="t_l"><span>Neuen Zugangslink erzeugen (der alte Link funktioniert dann nicht mehr)</span></label>' : '<p class="small muted">Nach dem Speichern kopierst du unter „Team“ den persönlichen Link und schickst ihn der Person.</p>') +
+      (agent ? '<p class="small muted">Ein KI-Agent arbeitet mit einem Agenten-Code über die Werkzeuge <code>agenten/team.py</code> und <code>office.py</code>. Er darf Aufgaben und Notizen lesen, kommentieren und anlegen und eine Aufgabe höchstens auf „Wird getestet“ setzen. „Erledigt“ setzt immer ein Mensch. Was er schreibt, steht unter seinem Namen.</p>'
+        : '<p class="small muted">Rollen: Admin verwaltet das Team. Dozent / Technik sieht Teilnehmer mit Namen und pflegt Systeme. Vertrieb und Team sehen Kursdaten nur zusammengefasst. Alle können Aufgaben und Social-Beiträge anlegen.</p>') +
+      (!neu ? '<label class="check" style="margin-bottom:10px"><input type="checkbox" id="t_l"><span>' + (agent ? 'Neuen Agenten-Code erzeugen (der alte Code funktioniert dann nicht mehr)' : 'Neuen Zugangslink erzeugen (der alte Link funktioniert dann nicht mehr)') + '</span></label>'
+        : '<p class="small muted">' + (agent ? 'Nach dem Speichern kopierst du unter „Team“ den Agenten-Code und schickst ihn über das Register „Tresor“. Den Schlüssel sagst du am Telefon. Der Code kommt beim Empfänger in die Umgebungsvariable TEAM_PORTAL_TOKEN, nie in eine Datei oder einen Chat.' : 'Nach dem Speichern kopierst du unter „Team“ den persönlichen Link und schickst ihn der Person.') + '</p>') +
       '<div class="dlgbtns"><button type="button" class="btn sec" id="t_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(false);
     $('#t_c').onclick = () => dlg.close();
@@ -2595,8 +2597,8 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       try {
         await api('mitglied_speichern', { mitglied_id: p.mitglied_id, name: $('#t_n').value, funktion: $('#t_f').value, rolle: selbst ? 'admin' : ($('#t_r') ? $('#t_r').value : p.rolle),
-          status: $('#t_s') ? $('#t_s').value : undefined, neuer_link: !!($('#t_l') && $('#t_l').checked) });
-        dlg.close(); toast('Gespeichert'); await laden(true);
+          status: $('#t_s') ? $('#t_s').value : undefined, neuer_link: !!($('#t_l') && $('#t_l').checked), typ: neu && agent ? 'agent' : undefined });
+        dlg.close(); toast(neu && agent ? 'KI-Agent angelegt. Agenten-Code jetzt unter „Team“ kopieren.' : 'Gespeichert'); await laden(true);
       } catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
