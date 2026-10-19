@@ -184,6 +184,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .plinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
 .plinks a{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--acc);background:#F4F1FD;border-radius:999px;padding:3px 10px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plinks a:hover{background:#E9E2FB}
+.fd{border-left:4px solid var(--acc)}
+.fd-g{margin-top:12px}
+.fd-h{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.fd-z{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 2px;cursor:pointer;font:inherit;color:inherit;min-width:0}
+.fd-z:hover{background:var(--soft)}
+.fd-z .fd-t{font-weight:600;overflow-wrap:anywhere}
+.fd-z .small{overflow-wrap:anywhere}
+.chip.fd-neu{background:var(--acc);color:#fff}
 .lkrow{display:grid;grid-template-columns:minmax(110px,32%) 1fr auto;gap:6px;margin-bottom:6px}
 .lkrow input{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;min-width:0}
 @media(max-width:600px){.lkrow{grid-template-columns:1fr auto}.lkrow .lu{grid-column:1/-1;order:3}}
@@ -418,7 +426,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (!V[tab] || (tab === 'vertrieb' && !darfVertrieb())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     V[tab]();
-    if (tab === 'start') freigabenKarte();
+    if (tab === 'start') { officeCache = null; fuerDichKarte(); freigabenKarte(); }
     kiAufbauen();
     if (ziel) {
       const z = ziel; ziel = null;
@@ -604,7 +612,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
-      '<div id="freiKarte"></div>' +
+      '<div id="fuerDich"></div><div id="freiKarte"></div>' +
       dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
       '<div class="grid"><div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Meine Aufgaben</h2><button class="btn sec" data-neu>+ Aufgabe</button></div>' +
@@ -2199,7 +2207,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   function freigabenKarte() {
     const el = $('#freiKarte'); if (!el) return;
-    officeApi('laden').then(j => {
+    officeLaden().then(j => {
       const admin = istAdmin();
       const offen = (j.freigaben || []).filter(f => f.status === 'offen').sort((a, b) => String(a.angefordert_am).localeCompare(String(b.angefordert_am)));
       const name = id => { const m = (j.mitglieder || []).find(x => x.mitglied_id === id); return m ? m.name : (id || '–'); };
@@ -2233,11 +2241,106 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         $('#frgf').onsubmit = ev => {
           ev.preventDefault(); const ok = $('#frg_ok'); ok.disabled = true;
           officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: b.dataset.ent, begruendung: $('#frg_b').value })
-            .then(() => { $('#dlg').close(); toast(erteilen ? (start ? 'Start freigegeben' : 'Freigabe erteilt') : 'Abgelehnt'); freigabenKarte(); })
+            .then(() => { $('#dlg').close(); toast(erteilen ? (start ? 'Start freigegeben' : 'Freigabe erteilt') : 'Abgelehnt'); officeCache = null; freigabenKarte(); fuerDichKarte(); })
             .catch(e => { ok.disabled = false; toast(e.message); });
         };
       });
     }).catch(() => { el.innerHTML = ''; });
+  }
+
+  // Office-Daten einmal je Aufbau der Übersicht laden und zwischen den Karten teilen (Supabase-Datenverkehr sparen).
+  let officeCache = null;
+  function officeLaden() { if (!officeCache) officeCache = officeApi('laden').catch(e => { officeCache = null; throw e; }); return officeCache; }
+
+  // ---------- „Für dich“ auf der Übersicht ----------
+  // Was die angemeldete Person angeht: Erwähnungen (@Vorname, @alle, @team), neu zugewiesene Aufgaben, Aufgaben zum Prüfen,
+  // Änderungen an eigenen Aufgaben seit dem letzten „Alles gesehen“, dazu aus dem KI Office Rückfragen der Agenten und Ergebnisse zum Abnehmen.
+  // „Zuletzt gesehen“ liegt nur im Browser (localStorage); ohne Eintrag gelten die letzten 3 Tage als neu.
+  const FD_FENSTER_TAGE = 14, FD_NEU_TAGE = 3, FD_MAX = 3;
+  const fdAufgeklappt = new Set();
+  const fdSeit = () => { const s = ls.get('mt-fd-gesehen'); const d = s ? new Date(s) : null; return d && !isNaN(d) ? d : new Date(Date.now() - FD_NEU_TAGE * 864e5); };
+  const fdZeit = s => { const d = new Date(s || 0); return isNaN(d) ? 0 : d.getTime(); };
+  function fdErwaehnt(text, ich) {
+    const vor = String(mitglied(ich).name || '').trim().split(/\s+/)[0];
+    if (!vor || vor === '–') return false;
+    const n = vor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(^|[^0-9A-Za-zÄÖÜäöüß_])@(' + n + '|alle|team)(?![0-9A-Za-zÄÖÜäöüß_])', 'i').test(String(text || ''));
+  }
+  function fuerDichPunkte(off) {
+    const ich = D.ich.mitglied_id, admin = istAdmin(), seit = fdSeit().getTime(), grenze = Date.now() - FD_FENSTER_TAGE * 864e5;
+    const A = D.aufgaben || [], V = D.verlauf || [], N = D.notizen || [];
+    const aufgabe = id => A.find(a => a.aufgabe_id === id);
+    const istMensch = id => { const m = (D.mitglieder || []).find(x => x.mitglied_id === id); return !!m && m.typ !== 'agent'; };
+    const kurz = t => klartext(t).replace(/\[run:[^\]]*\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    const P = { erwaehnt: [], neu: [], pruefen: [], agent: [], abnehmen: [], geaendert: [] };
+    const gesehen = new Set();
+    // Erwähnungen in Kommentaren und Berichten
+    for (const v of V) {
+      if (v.art === 'status' || v.autor === ich || fdZeit(v.erstellt) < grenze || !fdErwaehnt(v.text, ich)) continue;
+      const a = aufgabe(v.aufgabe_id); if (!a) continue;
+      gesehen.add(v.aufgabe_id + '|' + v.erstellt);
+      P.erwaehnt.push({ zeit: v.erstellt, titel: a.titel, text: mitglied(v.autor).name + ': ' + kurz(v.text), ziel: { art: 'aufgabe', id: a.aufgabe_id } });
+    }
+    // … in Aufgabenbeschreibungen und Notizen
+    for (const a of A) if (a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.geaendert) >= grenze && fdErwaehnt(a.beschreibung, ich))
+      P.erwaehnt.push({ zeit: a.geaendert, titel: a.titel, text: 'in der Beschreibung (' + mitglied(a.erstellt_von).name + ')', ziel: { art: 'aufgabe', id: a.aufgabe_id } });
+    for (const n of N) if ((n.geaendert_von || n.autor) !== ich && fdZeit(n.geaendert) >= grenze && fdErwaehnt(n.inhalt, ich))
+      P.erwaehnt.push({ zeit: n.geaendert, titel: n.titel, text: 'Notiz von ' + mitglied(n.geaendert_von || n.autor).name, ziel: { art: 'notiz', id: n.notiz_id } });
+    // Neu zugewiesen
+    for (const a of A) if (a.verantwortlich === ich && a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.erstellt) >= seit)
+      P.neu.push({ zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (a.deadline ? ', bis ' + fmtD(a.deadline) : ''), ziel: { art: 'aufgabe', id: a.aufgabe_id } });
+    // Zu prüfen: „Wird getestet“ bei eigenen Aufgaben; Admin zusätzlich alles, was ein Agent bearbeitet hat
+    for (const a of A) if (a.status === 'Wird getestet' && (a.erstellt_von === ich || (admin && !istMensch(a.verantwortlich))))
+      P.pruefen.push({ zeit: a.geaendert, titel: a.titel, text: mitglied(a.verantwortlich).name + ' meldet „Wird getestet“', ziel: { art: 'aufgabe', id: a.aufgabe_id }, dauer: true });
+    // Änderungen an eigenen Aufgaben seit dem letzten Besuch (je Aufgabe zusammengefasst)
+    const proA = {};
+    for (const v of V) {
+      if (v.autor === ich || fdZeit(v.erstellt) < seit || gesehen.has(v.aufgabe_id + '|' + v.erstellt)) continue;
+      const a = aufgabe(v.aufgabe_id); if (!a || (a.verantwortlich !== ich && a.erstellt_von !== ich)) continue;
+      const x = proA[a.aufgabe_id] || (proA[a.aufgabe_id] = { zeit: v.erstellt, titel: a.titel, n: 0, letzt: v, ziel: { art: 'aufgabe', id: a.aufgabe_id } });
+      x.n++; if (fdZeit(v.erstellt) >= fdZeit(x.zeit)) { x.zeit = v.erstellt; x.letzt = v; }
+    }
+    for (const x of Object.values(proA)) P.geaendert.push({ zeit: x.zeit, titel: x.titel, text: (x.n > 1 ? x.n + ' neue Einträge, zuletzt ' : '') + mitglied(x.letzt.autor).name + ': ' + kurz(x.letzt.text), ziel: x.ziel });
+    // Aus dem KI Office
+    if (off) {
+      const reg = id => (off.agenten || []).find(g => g.agent_id === id) || {};
+      for (const r of (off.runs || [])) {
+        const meins = r.auftraggeber === ich || (admin && !istMensch(r.auftraggeber));
+        if (r.status === 'wartet_rueckmeldung' && meins) {
+          const f = (off.ereignisse || []).filter(e => e.run_id === r.run_id && e.art === 'rueckfrage').pop();
+          P.agent.push({ zeit: f ? f.zeit : (r.lebenszeichen || r.erstellt), titel: (reg(r.agent_id).name || r.agent_id) + ' fragt', text: f ? f.titel : kurz(r.auftrag), ziel: { art: 'run', id: r.run_id }, dauer: true });
+        }
+        if (r.status === 'abgeschlossen' && r.abgenommen == null && meins && fdZeit(r.beendet || r.erstellt) >= grenze)
+          P.abnehmen.push({ zeit: r.beendet || r.erstellt, titel: (reg(r.agent_id).name || r.agent_id) + ': ' + kurz(r.auftrag).slice(0, 80), text: kurz(r.zusammenfassung || '') || 'Ergebnis liegt vor', ziel: { art: 'run', id: r.run_id }, dauer: true });
+      }
+    }
+    for (const k of Object.keys(P)) { P[k].sort((x, y) => fdZeit(y.zeit) - fdZeit(x.zeit)); P[k].forEach(p => { p.neu = fdZeit(p.zeit) >= seit; }); }
+    return P;
+  }
+  function fuerDichKarte() {
+    const el = $('#fuerDich'); if (!el || !D || !D.ich || D.ich.rolle === 'agent') return;
+    const zeigen = off => {
+      if (!$('#fuerDich')) return;
+      const P = fuerDichPunkte(off);
+      const T = [['agent', '🤖 Agenten warten auf deine Antwort'], ['erwaehnt', '💬 Du wurdest erwähnt'], ['neu', '📥 Neu für dich'], ['pruefen', '🔍 Zu prüfen'], ['abnehmen', '📄 Agenten-Ergebnisse zum Abnehmen'], ['geaendert', '✏️ Geändert seit deinem letzten Besuch']];
+      const offenAnz = P.agent.length + P.pruefen.length + P.abnehmen.length + [...P.erwaehnt, ...P.neu, ...P.geaendert].filter(p => p.neu).length;
+      const zeile = p => '<button class="fd-z" data-fd="' + esc(p.ziel.art + ':' + p.ziel.id) + '"><span class="fd-t">' + (p.neu && !p.dauer ? '<span class="chip fd-neu">neu</span> ' : '') + esc(p.titel) + '</span><span class="small muted">' + esc(p.text) + ' · ' + fmtDT(p.zeit) + '</span></button>';
+      const teile = T.filter(([k]) => P[k].length).map(([k, l]) => { const alle = fdAufgeklappt.has(k); return '<div class="fd-g"><div class="fd-h">' + l + ' <span class="muted">(' + P[k].length + ')</span></div>' + (alle ? P[k] : P[k].slice(0, FD_MAX)).map(zeile).join('') + (P[k].length > FD_MAX ? '<button class="btn ghost" style="padding:4px 8px;font-size:12.5px" data-fdmehr="' + k + '">' + (alle ? 'Weniger anzeigen' : (P[k].length - FD_MAX) + ' weitere anzeigen') + '</button>' : '') + '</div>'; });
+      $('#fuerDich').innerHTML = '<div class="card fd"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🔔 Für dich' + (offenAnz ? ' <span class="chip fd-neu">' + offenAnz + '</span>' : '') + '</h2>' +
+        (teile.length ? '<button class="btn ghost" id="fdGesehen" title="Markiert Erwähnungen, neue Aufgaben und Änderungen als gesehen. Zu prüfende Punkte bleiben, bis sie erledigt sind.">Alles gesehen ✓</button>' : '') + '</div>' +
+        (teile.length ? teile.join('') : '<p class="empty">Nichts Neues für dich. Schreib @Vorname in einen Kommentar, damit jemand es hier sieht.</p>') +
+        (off ? '' : '<p class="small muted" style="margin-top:6px">KI Office wird geladen …</p>') + '</div>';
+      $('#fuerDich').querySelectorAll('[data-fd]').forEach(b => b.onclick = () => {
+        const [art, id] = b.dataset.fd.split(/:(.+)/);
+        if (art === 'aufgabe') { const a = D.aufgaben.find(x => x.aufgabe_id === id); if (a) aufgabeDialog(a); else toast('Diese Aufgabe gibt es nicht mehr.'); }
+        else if (art === 'notiz') { offeneNotiz = id; tab = 'notizen'; ls.set('mt-tab', tab); render(); window.scrollTo(0, 0); }
+        else if (art === 'run') location.href = OFFICE + '#/run/' + encodeURIComponent(id);
+      });
+      $('#fuerDich').querySelectorAll('[data-fdmehr]').forEach(b => b.onclick = () => { const k = b.dataset.fdmehr; if (fdAufgeklappt.has(k)) fdAufgeklappt.delete(k); else fdAufgeklappt.add(k); zeigen(off); });
+      const g = $('#fdGesehen'); if (g) g.onclick = () => { ls.set('mt-fd-gesehen', new Date().toISOString()); zeigen(off); toast('Als gesehen markiert'); };
+    };
+    zeigen(null);
+    officeLaden().then(j => zeigen(j)).catch(() => zeigen({ runs: [], ereignisse: [], agenten: [] }));
   }
 
   function vOffice() {
