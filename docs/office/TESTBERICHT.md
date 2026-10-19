@@ -423,3 +423,21 @@ Timos Wunsch: eine Seite im Portal mit Eingabe, Ausgabe und Schlüssel, um gesch
 | `npm run test:office` | 110 von 110 |
 
 Screenshots: `screenshots/desktop-portal-tresor.png`, `screenshots/mobil-portal-tresor.png`.
+
+## 24. Nachtrag 19.10.2026: KI-Agenten im Portal selbst anlegen (Branch `feature/agenten-anlegen`, KI-erstellt: Claude Code)
+
+Timos Wunsch: Er will KI-Agenten, zum Beispiel „Kurts Claude Code“, selbst im Portal anlegen. Bisher ging das nur direkt in der Datenbank.
+
+- **Portal-API (n8n `kMuDaDmT9rCN5Vs2`, Knoten „Anfrage prüfen“):** `mitglied_speichern` mit `typ: 'agent'` legt einen KI-Agenten an. Das geht nur für Admins und nur bei neuen Einträgen. Der Agent bekommt die ID `agent-<name>` (Umlaute umgeschrieben, bei Doppelung ein Zufallsanhang), die Rolle `agent` und den Status `aktiv` sowie einen Agenten-Code mit 32 Zeichen. Die Rolle `agent` erlaubt weiterhin nur, was in `AGENT_DARF` steht. Ein bestehender Mensch wird nicht zum Agenten. Version „Claude: Timo kann KI-Agenten anlegen“ ist veröffentlicht (2d550020). Die Vorversion 7731e467 liegt gesichert in `Team-Portal/_archiv/2026-10-19_Portal-API-v2_vor-Agenten-anlegen_7731e467.json`.
+- **Team-Seite:** Neuer Knopf „+ KI-Agent“ neben „+ Mitglied“, nur für Admins. Im Dialog gibt es keine Rollenwahl, dafür erklärt ein Hinweis, was ein Agent darf und wie der Agenten-Code verschickt wird (über den Tresor, den Schlüssel am Telefon). Bei bestehenden Agenten heißt die Option jetzt „Neuen Agenten-Code erzeugen“.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Logik der Portal-API lokal getestet: Agent anlegen, ID-Doppelung, Umlaute, Mensch weiterhin mit Rolle, Kurt und Agent bekommen 403, kein Umbau bestehender Menschen | bestanden |
+| Code in n8n Zeichen für Zeichen mit der geprüften Datei verglichen | identisch |
+| Live: Laden über `team.py meine` | funktioniert |
+| Live: Agent versucht `mitglied_speichern` | 403 „Das dürfen Agenten nicht“ |
+| Browser (Desktop und Handy): „+ KI-Agent“ sendet `typ: agent`, „+ Mitglied“ bleibt mit Rollenwahl, bei bestehendem Agenten „Neuen Agenten-Code erzeugen“, Kurt sieht den Knopf nicht | bestanden |
+| `npm run test:office` | 111 von 111 |
+
+Screenshots: `screenshots/desktop-portal-agent-anlegen.png`, `screenshots/mobil-portal-agent-anlegen.png`.

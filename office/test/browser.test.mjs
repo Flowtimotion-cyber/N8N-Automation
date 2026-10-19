@@ -365,4 +365,33 @@ test('Portal: Tresor verschlüsselt und entschlüsselt im Browser, falscher Schl
   }
 });
 
+test('Portal: Timo legt unter „Team“ einen KI-Agenten an; Teammitglieder sehen den Knopf nicht', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-agent-anlegen' });
+    const gespeichert = [];
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const b = JSON.parse(r.request().postData() || '{}');
+      if (b.aktion === 'mitglied_speichern') { gespeichert.push(b.daten); return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, id: 'agent-kurts-claude-code' }) }); }
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/team', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+    await p.locator('#neua').click(); await p.waitForTimeout(150);
+    assert.match(await text(p, '#dlgInner h2'), /Neuer KI-Agent/); assert.ok((await text(p, '#dlgInner')).includes('Agenten-Code')); assert.equal(await p.locator('#t_r').count(), 0, 'keine Rollenwahl für Agenten');
+    await shot(p, 'portal-agent-anlegen', vp);
+    await p.locator('#t_n').fill('Kurts Claude Code'); await p.locator('#t_f').fill('KI-Agent (Claude Code bei Kurt)');
+    await p.locator('#tf [type=submit]').click(); await p.waitForTimeout(600);
+    assert.equal(gespeichert.length, 1); assert.equal(gespeichert[0].typ, 'agent'); assert.equal(gespeichert[0].name, 'Kurts Claude Code'); assert.equal(gespeichert[0].mitglied_id, undefined);
+    await p.locator('#neum').click(); await p.waitForTimeout(150); assert.match(await text(p, '#dlgInner h2'), /Neues Teammitglied/); assert.equal(await p.locator('#t_r').count(), 1);
+    await p.locator('#t_c').click();
+    await p.locator('[data-m="agent-claude"]').click(); await p.waitForTimeout(150); assert.ok((await text(p, '#dlgInner')).includes('Neuen Agenten-Code erzeugen'));
+    await p.locator('#tf [type=submit]').click(); await p.waitForTimeout(600); assert.equal(gespeichert[1].typ, undefined, 'bestehender Agent: kein typ');
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/tab/team', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+    assert.equal(await p.locator('#neua').count(), 0, 'nur Timo legt Agenten an');
+    await p.close();
+  }
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });
