@@ -441,3 +441,23 @@ Timos Wunsch: Er will KI-Agenten, zum Beispiel „Kurts Claude Code“, selbst i
 | `npm run test:office` | 111 von 111 |
 
 Screenshots: `screenshots/desktop-portal-agent-anlegen.png`, `screenshots/mobil-portal-agent-anlegen.png`.
+
+## 25. Nachtrag 20.10.2026: Papierkorb, Notiz-Versionen, Schutz vor Datenverlust (Branch `feature/papierkorb-versionen`, KI-erstellt: Claude Code)
+
+Anlass: Kurt hat im Portal Inhalte verloren, eine Aufgabe zu Modul 2 und Text. Wiederherstellen war nicht möglich: Gelöschtes war sofort endgültig weg, Notizen hatten keine Versionen, und n8n speichert erfolgreiche Portal-Anfragen nicht.
+
+- **Papierkorb (Supabase, `supabase/team_papierkorb.sql`):** `team_loeschen(art, id, von)` kopiert die Zeile (bei Aufgaben samt Kommentaren) in `team_papierkorb` und löscht sie erst danach, beides in einem Schritt. `team_wiederherstellen(eintrag)` holt sie zurück, bei gleichem Notiztitel mit dem Zusatz „(wiederhergestellt)“. Gelöschtes bleibt 30 Tage im Papierkorb. Gilt für Aufgaben, Notizen, Vorschläge, Social-Beiträge, Systeme und Zeiteinträge.
+- **Notiz-Versionen:** Ein Trigger sichert vor jeder Änderung von Titel oder Inhalt die alte Fassung, je Notiz die letzten 30, höchstens 180 Tage alt. Damit gilt das für jeden Weg, auf dem eine Notiz geändert wird, auch für Agenten.
+- **Portal-API:** lädt über `team_laden_plus()`, löscht über `team_loeschen`, neue Aktionen `papierkorb`, `papierkorb_wiederherstellen` und `notiz_versionen`. Beim Speichern von Notizen und Aufgaben schickt das Portal den Stand mit, den es geöffnet hatte. Weicht der ab, antwortet die API mit 409 statt still zu überschreiben. Agenten schicken keinen Stand mit, für sie ändert sich nichts.
+- **Portal:** „🗑 Papierkorb“ unter Aufgaben und Notizen. Das Team sieht dort, was es selbst gelöscht hat, Timo sieht alles. Im Notiz-Dialog gibt es „Versionen“ (ansehen, in den Editor übernehmen). Bei gleichzeitigem Bearbeiten erscheint ein Hinweis mit „Meine Fassung trotzdem speichern“, „Meinen Text kopieren“ und „Abbrechen und neu laden“. Bei ungespeicherten Änderungen fragen Abbrechen, Zurück-Taste, Adresswechsel, [[Link]]-Klick und das Neuladen der Seite vorher nach. Der Lösch-Knopf heißt „In den Papierkorb“.
+
+| Prüfung | Ergebnis |
+|---|---|
+| SQL in lokalem Postgres (PGlite), zweimal ausgeführt: Versionen, Begrenzung auf 30, Aufgabe samt Kommentaren in den Papierkorb und zurück, Titelkonflikt, Fehlerfälle, Aufräumen nach 30 Tagen, `team_laden_plus` | 14 von 14 |
+| Logik der Portal-API lokal: Löschen über den Papierkorb, Rechte (Team sieht nur Eigenes, Agenten dürfen nicht löschen), Wiederherstellen, Versionen, Konflikt mit und ohne „trotzdem“ | bestanden |
+| Browser (Desktop und Handy): Papierkorb-Liste und Wiederherstellen, Versionen ansehen und übernehmen, Abbrechen und Adresswechsel fragen nach (bei „Nein“ bleibt der Text), Konflikt-Hinweis und „trotzdem speichern“, Löschen über den Papierkorb | bestanden |
+| `npm run test:office` | 112 von 112 |
+
+**Reihenfolge beim Einspielen:** (1) SQL im Supabase-SQL-Editor ausführen, (2) Portal-API in n8n auf `team_laden_plus` und den neuen Code umstellen, (3) diesen PR mergen. In anderer Reihenfolge funktioniert das Laden nicht, oder das Portal zeigt „Papierkorb“, obwohl noch endgültig gelöscht wird.
+
+Screenshots: `screenshots/*-portal-papierkorb.png`, `*-portal-notiz-versionen.png`, `*-portal-notiz-konflikt.png`.
