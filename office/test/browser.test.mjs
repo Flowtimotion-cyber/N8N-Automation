@@ -394,4 +394,65 @@ test('Portal: Timo legt unter „Team“ einen KI-Agenten an; Teammitglieder seh
   }
 });
 
+test('Portal: Papierkorb, Notiz-Versionen, Warnung bei gleichzeitigem Bearbeiten und Schutz vor ungespeicherten Änderungen', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-papierkorb', netzfehlerErwartet: true });
+    const gesendet = []; let konfliktEinmal = true;
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const b = JSON.parse(r.request().postData() || '{}'); const j = (code, body) => r.fulfill({ status: code, contentType: 'application/json', body: JSON.stringify(body) });
+      if (b.aktion !== 'laden') gesendet.push({ aktion: b.aktion, daten: b.daten });
+      if (b.aktion === 'papierkorb') return j(200, { ok: true, tage: 30, eintraege: [{ eintrag_id: 'pk_1', art: 'aufgabe', art_name: 'Aufgabe', objekt_id: 'a_x', titel: 'TestAufgabe#1', projekt: 'Kurs Modul 2', vorschau: '**Level 3:** Notizen', zeichen: 20, kommentare: 2, geloescht_von: 'm_kurt', geloescht_von_name: 'Kurt (Test)', geloescht_am: '2026-10-19T12:00:00Z', endgueltig_ab: '2026-11-18T12:00:00Z' }] });
+      if (b.aktion === 'papierkorb_wiederherstellen') return j(200, { ok: true, id: 'a_x' });
+      if (b.aktion === 'notiz_versionen') return j(200, { ok: true, notiz_id: b.daten.notiz_id, versionen: [{ version_id: 'nv_1', titel: 'Entscheidung: Tonalität Kurs', inhalt: 'Alte Fassung mit Level 3', geaendert_von_name: 'Kurt (Test)', fassung_vom: '2026-10-19T11:40:00Z', gesichert_am: '2026-10-19T11:54:00Z' }] });
+      if (b.aktion === 'notiz_speichern' && !b.daten.trotzdem && konfliktEinmal) { konfliktEinmal = false; return j(409, { ok: false, konflikt: true, fehler: 'Diese Notiz wurde inzwischen von Timo (Test) geändert, während du sie offen hattest.' }); }
+      if (b.aktion === 'notiz_speichern' || b.aktion === 'notiz_loeschen') return j(200, { ok: true, id: 'n_2' });
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    const fragen = []; let antwort = false; p.on('dialog', d => { fragen.push(d.message()); antwort ? d.accept() : d.dismiss(); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_kurt + '#/notiz/n_2', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+    // Papierkorb
+    await p.locator('#pk_n').click(); await p.waitForTimeout(300);
+    assert.match(await text(p, '#dlgInner'), /TestAufgabe#1/); assert.match(await text(p, '#pk_info'), /Was du gelöscht hast\. Gelöschtes bleibt 30 Tage/);
+    assert.match(await text(p, '#pk_liste'), /Gelöscht von Kurt \(Test\) am 19\.10\.2026, 14:00 · endgültig weg ab 18\.11\.2026 · 2 Kommentare · Kurs Modul 2/);
+    await shot(p, 'portal-papierkorb', vp);
+    await p.locator('[data-wh="pk_1"]').click(); await p.waitForTimeout(400);
+    assert.deepEqual(gesendet.find(g => g.aktion === 'papierkorb_wiederherstellen').daten, { eintrag_id: 'pk_1' });
+    await p.locator('#pk_zu').click();
+    // Versionen
+    await p.locator('#nedit').click(); await p.waitForTimeout(200);
+    assert.equal(await text(p, '#n_del'), 'In den Papierkorb');
+    await p.locator('#n_ver').click(); await p.waitForTimeout(300);
+    assert.match(await text(p, '#n_verbox'), /Frühere Fassungen[\s\S]*Kurt \(Test\) · 24 Zeichen/);
+    await p.locator('[data-vs="0"]').click(); assert.match(await text(p, '[data-vv="0"]'), /Alte Fassung mit Level 3/);
+    await shot(p, 'portal-notiz-versionen', vp);
+    antwort = true; await p.locator('[data-vu="0"]').click(); antwort = false;
+    assert.equal(await p.locator('#n_i').inputValue(), 'Alte Fassung mit Level 3');
+    // Ungespeicherte Änderungen: Abbrechen und Zurück-Taste fragen, bei „Nein“ bleibt alles
+    await p.locator('#n_i').fill('Mein neuer Text mit Level 3 und 4');
+    await p.locator('#n_c').click(); await p.waitForTimeout(150);
+    assert.ok(await p.locator('#dlg').evaluate(d => d.open), 'Abbrechen + Nein: Dialog bleibt offen'); assert.match(fragen.at(-1), /ungespeicherte Änderungen/);
+    const vorher = await p.evaluate(() => location.hash);
+    await p.evaluate(() => { location.hash = '#/tab/aufgaben'; }); await p.waitForTimeout(250);
+    assert.ok(await p.locator('#dlg').evaluate(d => d.open), 'Adresswechsel + Nein: Dialog bleibt offen');
+    assert.equal(await p.evaluate(() => location.hash), vorher, 'Adresse zurückgesetzt'); assert.equal(await p.locator('#n_i').inputValue(), 'Mein neuer Text mit Level 3 und 4');
+    // Gleichzeitig bearbeitet: Hinweis, dann trotzdem speichern
+    await p.locator('#nf [type=submit]').click(); await p.waitForTimeout(300);
+    assert.match(await text(p, '#konfl'), /von Timo \(Test\) geändert[\s\S]*liegt danach unter „Versionen“/);
+    await shot(p, 'portal-notiz-konflikt', vp);
+    const erst = gesendet.filter(g => g.aktion === 'notiz_speichern')[0]; assert.ok(erst.daten.stand, 'Stand wird mitgeschickt'); assert.ok(!erst.daten.trotzdem);
+    await p.locator('#k_ja').click(); await p.waitForTimeout(400);
+    const zweit = gesendet.filter(g => g.aktion === 'notiz_speichern')[1]; assert.equal(zweit.daten.trotzdem, true); assert.equal(zweit.daten.inhalt, 'Mein neuer Text mit Level 3 und 4');
+    assert.ok(!(await p.locator('#dlg').evaluate(d => d.open)), 'nach dem Speichern zu');
+    // Löschen = Papierkorb
+    await p.locator('#nedit').click(); await p.waitForTimeout(200);
+    await p.locator('#n_del').click(); assert.equal(await text(p, '#n_del'), 'Wirklich? (30 Tage wiederherstellbar)');
+    await p.locator('#n_del').click(); await p.waitForTimeout(300);
+    assert.ok(gesendet.some(g => g.aktion === 'notiz_loeschen')); assert.match(await text(p, '#toast'), /Papierkorb verschoben/);
+    await p.close();
+  }
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });

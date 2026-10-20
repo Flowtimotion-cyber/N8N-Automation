@@ -345,7 +345,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   async function api(aktion, daten) {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
     let j = null; try { j = await r.json(); } catch (e) {}
-    if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; throw err; }
+    if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; err.daten = j; throw err; }
     return j;
   }
 
@@ -376,7 +376,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     try { await navigator.clipboard.writeText(url); toast('Link ' + (was ? 'zu „' + was + '“ ' : '') + 'kopiert'); }
     catch (e) { window.prompt('Link kopieren:', url); }
   }
-  const nachHash = () => { if (!D || D.setup || location.hash === letzterHash) return; letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render(); };
+  const nachHash = () => {
+    if (!D || D.setup || location.hash === letzterHash) return;
+    // Zurück-Taste mit offenem, geändertem Dialog: erst fragen, sonst Adresse zurücksetzen und nichts verlieren
+    if ($('#dlg').open && !verwerfenOk()) { history.pushState(null, '', letzterHash || (location.pathname + location.search)); return; }
+    letzterHash = location.hash; leseHash(); if ($('#dlg').open) $('#dlg').close(); render();
+  };
   window.addEventListener('hashchange', nachHash);
   window.addEventListener('popstate', nachHash);
 
@@ -537,7 +542,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#v_c').onclick = () => dlg.close();
     const del = $('#v_del'); if (del) del.onclick = async () => {
       if (!del.dataset.sicher) { del.dataset.sicher = '1'; del.textContent = 'Wirklich löschen?'; return; }
-      try { await api('vorschlag_loeschen', { vorschlag_id: v.vorschlag_id }); D.vorschlaege = (D.vorschlaege || []).filter(x => x.vorschlag_id !== v.vorschlag_id); dlg.close(); toast('Gelöscht'); render(); laden(true); } catch (e) { toast(e.message); }
+      try { await api('vorschlag_loeschen', { vorschlag_id: v.vorschlag_id }); D.vorschlaege = (D.vorschlaege || []).filter(x => x.vorschlag_id !== v.vorschlag_id); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); render(); laden(true); } catch (e) { toast(e.message); }
     };
     const auf = $('#v_auf'); if (auf) auf.onclick = async () => {
       auf.disabled = true;
@@ -672,7 +677,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     else if (F.status) L = L.filter(a => a.status === F.status);
     if (F.q) { const q = F.q.toLowerCase(); L = L.filter(a => (a.titel + ' ' + a.beschreibung).toLowerCase().includes(q)); }
     L.sort(sortAufgaben);
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><button class="btn" id="neu">+ Neue Aufgabe</button></div>' +
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
       '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
       (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
       '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
@@ -681,7 +686,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
       (F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
     bindTasks();
-    $('#neu').onclick = () => aufgabeDialog(null);
+    $('#neu').onclick = () => aufgabeDialog(null); $('#pk_a').onclick = papierkorbDialog;
     $('#fp').onchange = e => { F.person = e.target.value; saveF(); vAufgaben(); };
     $('#fj').onchange = e => { F.projekt = e.target.value; saveF(); vAufgaben(); };
     $('#fs').onchange = e => { F.status = e.target.value; saveF(); vAufgaben(); };
@@ -709,16 +714,17 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
       (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
-      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">Löschen</button>' : '') +
+      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">In den Papierkorb</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('a_b');
     if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
-    $('#a_x').onclick = () => dlg.close();
+    $('#a_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
     projNeu('a_j');
     if (darfLoeschen) $('#a_del').onclick = async () => {
-      if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich löschen?'; return; }
-      try { await api('aufgabe_loeschen', { aufgabe_id: a.aufgabe_id }); dlg.close(); toast('Aufgabe gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+      if (!$('#a_del').dataset.sicher) { $('#a_del').dataset.sicher = '1'; $('#a_del').textContent = 'Wirklich? (30 Tage wiederherstellbar)'; return; }
+      try { await api('aufgabe_loeschen', { aufgabe_id: a.aufgabe_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
+    let aufgabeTrotzdem = false;
     $('#af').onsubmit = async ev => {
       ev.preventDefault();
       if (projOffen('a_j')) return;
@@ -726,13 +732,19 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
         prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
         kommentar: $('#a_k') ? $('#a_k').value : '' };
+      if (!neu) daten.stand = a.geaendert || '';
+      if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
       try {
         await api('aufgabe_speichern', daten);
         const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
         if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
         else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
         await laden(true);
-      } catch (e) { toast(e.message); btn.disabled = false; }
+      } catch (e) {
+        btn.disabled = false;
+        if (e.daten && e.daten.konflikt) konfliktZeigen(e, () => { aufgabeTrotzdem = true; $('#af').requestSubmit(); }, 'a_b', 'Speicherst du trotzdem, wird die andere Fassung der Beschreibung überschrieben.');
+        else toast(e.message);
+      }
     };
   }
 
@@ -983,7 +995,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     zeig(); setTimeout(grow, 0);
   }
   function bindWikiLinks(root) {
-    (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (n) setzeHash('#/notiz/' + n.notiz_id); if (!n) neueNotizTitel = a.dataset.wl; render(); });
+    (root || document).querySelectorAll('a.wl').forEach(a => a.onclick = ev => { ev.preventDefault(); if (!verwerfenOk()) return; const n = (D.notizen || []).find(x => x.titel.toLowerCase() === a.dataset.wl.toLowerCase()); if ($('#dlg').open) $('#dlg').close(); tab = 'notizen'; ls.set('mt-tab', tab); offeneNotiz = n ? n.notiz_id : null; if (n) setzeHash('#/notiz/' + n.notiz_id); if (!n) neueNotizTitel = a.dataset.wl; render(); });
   }
   function dialogAdresse(h, was) {
     setzeHash(h);
@@ -992,6 +1004,58 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#dlg').addEventListener('close', () => { if (location.hash === h) setzeHash('#/tab/' + tab, true); }, { once: true });
   }
   let dlgGeaendert = false;
+  // Ungespeicherte Änderungen im Dialog: vor dem Schließen fragen (Zurück-Taste, [[Links]], Abbrechen, Neuladen der Seite)
+  function verwerfenOk() { const d = $('#dlg'); return !(d && d.open && dlgGeaendert) || confirm('Du hast ungespeicherte Änderungen. Wirklich verwerfen?'); }
+  window.addEventListener('beforeunload', ev => { const d = $('#dlg'); if (d && d.open && dlgGeaendert) { ev.preventDefault(); ev.returnValue = ''; } });
+  // Gleichzeitig bearbeitet: Hinweis im Dialog, die eigene Fassung bleibt im Fenster
+  function konfliktZeigen(e, nochmal, textFeld, hinweis) {
+    const alt = $('#konfl'); if (alt) alt.remove();
+    const box = document.createElement('div'); box.className = 'note warn'; box.id = 'konfl'; box.style.margin = '0 0 12px';
+    box.innerHTML = '<b>Achtung:</b> ' + esc(e.message) + ' Deine Fassung ist noch hier im Fenster. ' + esc(hinweis) +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn" id="k_ja">Meine Fassung trotzdem speichern</button>' +
+      '<button type="button" class="btn sec" id="k_kopie">Meinen Text kopieren</button><button type="button" class="btn ghost" id="k_neu">Abbrechen und neu laden</button></div>';
+    const knoepfe = $('#dlg .dlgbtns'); knoepfe.parentNode.insertBefore(box, knoepfe);
+    $('#k_ja').onclick = () => { box.remove(); nochmal(); };
+    $('#k_kopie').onclick = async () => { try { await navigator.clipboard.writeText($('#' + textFeld).value); toast('Dein Text ist kopiert'); } catch (x) { $('#' + textFeld).select(); toast('Text markiert, bitte mit Strg+C kopieren'); } };
+    $('#k_neu').onclick = async () => { if (!confirm('Deine Änderungen in diesem Fenster gehen verloren. Neu laden?')) return; dlgGeaendert = false; $('#dlg').close(); await laden(true); };
+    box.scrollIntoView({ block: 'nearest' });
+  }
+  function datumZeit(iso) { const d = new Date(iso); return isNaN(d) ? '–' : d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  // Papierkorb: Gelöschtes 30 Tage lang zurückholen
+  function papierkorbDialog() {
+    $('#dlgInner').innerHTML = '<h2>🗑 Papierkorb</h2><p class="small muted" id="pk_info">Wird geladen …</p><div id="pk_liste"></div><div class="dlgbtns"><button type="button" class="btn sec" id="pk_zu">Schließen</button></div>';
+    const dlg = openDlg(true); $('#pk_zu').onclick = () => dlg.close();
+    api('papierkorb', {}).then(r => {
+      const L = r.eintraege || [];
+      $('#pk_info').textContent = (istAdmin() ? 'Alles, was im Team gelöscht wurde. ' : 'Was du gelöscht hast. ') + 'Gelöschtes bleibt ' + (r.tage || 30) + ' Tage hier und ist danach endgültig weg.';
+      $('#pk_liste').innerHTML = L.length ? L.map(e => '<div class="cpost"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><span class="chip">' + esc(e.art_name) + '</span> <b>' + esc(e.titel || '(ohne Titel)') + '</b>' +
+        '<div class="small muted">Gelöscht von ' + esc(e.geloescht_von_name) + ' am ' + esc(datumZeit(e.geloescht_am)) + ' · endgültig weg ab ' + esc(datumZeit(e.endgueltig_ab).split(',')[0]) + (e.kommentare ? ' · ' + e.kommentare + ' Kommentare' : '') + (e.projekt ? ' · ' + esc(e.projekt) : '') + '</div></div>' +
+        '<button type="button" class="btn sec" data-wh="' + esc(e.eintrag_id) + '">Wiederherstellen</button></div>' +
+        (e.vorschau ? '<details class="small"><summary>Inhalt ansehen (' + e.zeichen + ' Zeichen)</summary><div class="md">' + md(e.vorschau + (e.zeichen > e.vorschau.length ? ' …' : '')) + '</div></details>' : '') + '</div>').join('')
+        : '<p class="muted">Der Papierkorb ist leer.</p>';
+      document.querySelectorAll('[data-wh]').forEach(b => b.onclick = async () => {
+        b.disabled = true;
+        try { await api('papierkorb_wiederherstellen', { eintrag_id: b.dataset.wh }); toast('Wiederhergestellt'); await laden(true); papierkorbDialog(); }
+        catch (e) { toast(e.message); b.disabled = false; }
+      });
+    }).catch(e => { $('#pk_info').textContent = e.message; });
+  }
+  // Notiz-Versionen: Vor jeder Änderung sichert die Datenbank die alte Fassung
+  function versionenZeigen(n) {
+    const box = $('#n_verbox'); if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false; box.innerHTML = '<p class="small muted">Versionen werden geladen …</p>';
+    api('notiz_versionen', { notiz_id: n.notiz_id }).then(r => {
+      const V = r.versionen || [];
+      box.innerHTML = '<h3 style="margin:0 0 6px">Frühere Fassungen</h3>' + (V.length ? V.map((v, i) => '<div class="cpost"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><span class="small"><b>' + esc(datumZeit(v.fassung_vom || v.gesichert_am)) + '</b> · ' + esc(v.geaendert_von_name || '–') + ' · ' + (v.inhalt || '').length + ' Zeichen' + (v.titel !== n.titel ? ' · Titel „' + esc(v.titel) + '“' : '') + '</span>' +
+        '<span style="display:flex;gap:6px"><button type="button" class="btn ghost" data-vs="' + i + '">Ansehen</button><button type="button" class="btn sec" data-vu="' + i + '">In den Editor übernehmen</button></span></div><div class="md small" data-vv="' + i + '" hidden></div></div>').join('')
+        : '<p class="small muted">Noch keine früheren Fassungen. Ab jetzt wird vor jeder Änderung die alte Fassung gesichert.</p>');
+      box.querySelectorAll('[data-vs]').forEach(b => b.onclick = () => { const d = box.querySelector('[data-vv="' + b.dataset.vs + '"]'); if (d.hidden) d.innerHTML = md(V[b.dataset.vs].inhalt || ''); d.hidden = !d.hidden; });
+      box.querySelectorAll('[data-vu]').forEach(b => b.onclick = () => {
+        if (!confirm('Den Text im Editor durch diese Fassung ersetzen? Gespeichert wird erst mit „Speichern“.')) return;
+        const ta = $('#n_i'); ta.value = V[b.dataset.vu].inhalt || ''; ta.dispatchEvent(new Event('input', { bubbles: true })); toast('Fassung übernommen. Zum Behalten auf „Speichern“ klicken.');
+      });
+    }).catch(e => { box.innerHTML = '<p class="small muted">' + esc(e.message) + '</p>'; });
+  }
   document.addEventListener('input', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
   document.addEventListener('change', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
   document.addEventListener('submit', ev => { if (ev.target.closest && ev.target.closest('#dlg')) dlgGeaendert = false; }, true);
@@ -1551,14 +1615,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (F.nq) { const q = F.nq.toLowerCase(); L = L.filter(n => (n.titel + ' ' + n.inhalt).toLowerCase().includes(q)); }
     const akt = N.find(n => n.notiz_id === offeneNotiz) || L[0];
     const rueck = akt ? N.filter(n => n.notiz_id !== akt.notiz_id && n.inhalt.toLowerCase().includes('[[' + akt.titel.toLowerCase() + ']]')) : [];
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Notizen & Dokumente</h1><p class="sub">Gemeinsames Wissen fürs Team: Abläufe, Protokolle, Vorlagen. Mit [[Titel]] verlinkst du Notizen untereinander.</p></div><button class="btn" id="neun">+ Notiz</button></div>' +
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Notizen & Dokumente</h1><p class="sub">Gemeinsames Wissen fürs Team: Abläufe, Protokolle, Vorlagen. Mit [[Titel]] verlinkst du Notizen untereinander.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_n" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neun">+ Notiz</button></span></div>' +
       '<div class="notes"><div class="nlist card"><div class="tools" style="margin-bottom:8px"><input class="grow" id="nq" type="search" placeholder="Suchen …" value="' + esc(F.nq || '') + '">' +
       '<select id="nj"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.notizProjekt) + '</select></div>' +
       (L.length ? L.map(n => '<button class="nitem' + (akt && n.notiz_id === akt.notiz_id ? ' on' : '') + '" data-n="' + esc(n.notiz_id) + '"><b>' + esc(n.titel) + '</b><span class="small muted">' + (n.projekt ? '<i class="pdot" style="background:' + esc(projektFarbe(n.projekt)) + '"></i>' + esc(n.projekt) + ' · ' : '') + fmtD(n.geaendert) + '</span></button>').join('') : '<p class="empty">Keine Notizen gefunden.</p>') + '</div>' +
       '<div class="card nview">' + (akt ? '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div><h1 style="font-size:22px">' + esc(akt.titel) + '</h1><div class="small muted">' + (akt.projekt ? esc(akt.projekt) + ' · ' : '') + 'zuletzt geändert von ' + esc(mitglied(akt.geaendert_von || akt.autor).name) + ', ' + fmtDT(akt.geaendert) + '</div></div><div style="display:flex;gap:6px"><button class="btn ghost" id="nlink">🔗 Link kopieren</button><button class="btn sec" id="nedit">Bearbeiten</button></div></div>' +
         '<div class="md" style="margin-top:14px">' + md(akt.inhalt) + '</div>' + (rueck.length ? '<div class="small muted" style="margin-top:18px;border-top:1px solid var(--line);padding-top:10px">Verlinkt von: ' + rueck.map(n => '<a href="#" class="wl" data-wl="' + esc(n.titel) + '">' + esc(n.titel) + '</a>').join(', ') + '</div>' : '')
         : '<p class="empty">Noch keine Notizen. Leg die erste an.</p>') + '</div></div>';
-    $('#neun').onclick = () => notizDialog(null);
+    $('#neun').onclick = () => notizDialog(null); $('#pk_n').onclick = papierkorbDialog;
     const ne = $('#nedit'); if (ne) ne.onclick = () => notizDialog(akt);
     if (akt) { setzeHash('#/notiz/' + akt.notiz_id, true); $('#nlink').onclick = () => kopiereLink('#/notiz/' + akt.notiz_id, akt.titel); } else setzeHash('#/tab/notizen', true);
     document.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { offeneNotiz = b.dataset.n; setzeHash('#/notiz/' + offeneNotiz); vNotizen(); if (window.innerWidth < 800) $('.nview').scrollIntoView({ behavior: 'smooth' }); });
@@ -1574,18 +1638,28 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f2"><div class="f"><label for="n_t">Titel</label><input id="n_t" required maxlength="160" value="' + esc(n.titel) + '"></div>' +
       '<div class="f"><label for="n_j">Projekt (optional)</label>' + projSelect('n_j', n.projekt, '– kein Projekt –') + '</div></div>' +
       editorHtml('n_i', n.inhalt, 'Inhalt', { rows: 18, max: 50000 }) +
-      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="n_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="n_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+      (neu ? '' : '<div id="n_verbox" class="card" style="padding:10px 12px;margin:0 0 12px" hidden></div>') +
+      '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="n_del">In den Papierkorb</button>' : '') + (neu ? '' : '<button type="button" class="btn ghost" id="n_ver">Versionen</button>') + '<button type="button" class="btn sec" id="n_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('n_i');
-    $('#n_c').onclick = () => dlg.close();
+    $('#n_c').onclick = () => { if (verwerfenOk()) dlg.close(); };
+    if (!neu) $('#n_ver').onclick = () => versionenZeigen(n);
+    let notizTrotzdem = false;
     projNeu('n_j');
     if (darfLoeschen) $('#n_del').onclick = async () => {
-      if (!$('#n_del').dataset.sicher) { $('#n_del').dataset.sicher = '1'; $('#n_del').textContent = 'Wirklich löschen?'; return; }
-      try { await api('notiz_loeschen', { notiz_id: n.notiz_id }); dlg.close(); offeneNotiz = null; toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+      if (!$('#n_del').dataset.sicher) { $('#n_del').dataset.sicher = '1'; $('#n_del').textContent = 'Wirklich? (30 Tage wiederherstellbar)'; return; }
+      try { await api('notiz_loeschen', { notiz_id: n.notiz_id }); dlg.close(); offeneNotiz = null; toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#nf').onsubmit = async ev => {
       ev.preventDefault(); if (projOffen('n_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-      try { const r = await api('notiz_speichern', { notiz_id: n.notiz_id, titel: $('#n_t').value, inhalt: $('#n_i').value, projekt: $('#n_j').value }); offeneNotiz = r.id; dlg.close(); toast('Gespeichert'); await laden(true); }
-      catch (e) { toast(e.message); btn.disabled = false; }
+      const daten = { notiz_id: n.notiz_id, titel: $('#n_t').value, inhalt: $('#n_i').value, projekt: $('#n_j').value };
+      if (!neu) daten.stand = n.geaendert || '';
+      if (notizTrotzdem) { daten.trotzdem = true; notizTrotzdem = false; }
+      try { const r = await api('notiz_speichern', daten); offeneNotiz = r.id; dlg.close(); toast('Gespeichert'); await laden(true); }
+      catch (e) {
+        btn.disabled = false;
+        if (e.daten && e.daten.konflikt) konfliktZeigen(e, () => { notizTrotzdem = true; $('#nf').requestSubmit(); }, 'n_i', 'Die andere Fassung geht dabei nicht verloren, sie liegt danach unter „Versionen“.');
+        else toast(e.message);
+      }
     };
   }
 
@@ -2018,7 +2092,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     projNeu('t_j');
     if (!neu) $('#t_del').onclick = async () => {
       if (!$('#t_del').dataset.sicher) { $('#t_del').dataset.sicher = '1'; $('#t_del').textContent = 'Wirklich löschen?'; return; }
-      try { await api('zeit_loeschen', { zeit_id: z.zeit_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+      try { await api('zeit_loeschen', { zeit_id: z.zeit_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#zeitf').onsubmit = async ev => {
       ev.preventDefault(); if (!$('#t_a').value && projOffen('t_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
@@ -2077,7 +2151,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#p_c').onclick = () => dlg.close();
     if (!neu) $('#p_del').onclick = async () => {
       if (!$('#p_del').dataset.sicher) { $('#p_del').dataset.sicher = '1'; $('#p_del').textContent = 'Wirklich löschen?'; return; }
-      try { await api('social_loeschen', { post_id: p.post_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+      try { await api('social_loeschen', { post_id: p.post_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#pf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
@@ -2241,7 +2315,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#s_c').onclick = () => dlg.close();
     if (!neu) $('#s_del').onclick = async () => {
       if (!$('#s_del').dataset.sicher) { $('#s_del').dataset.sicher = '1'; $('#s_del').textContent = 'Wirklich löschen?'; return; }
-      try { await api('system_loeschen', { system_id: s.system_id }); dlg.close(); toast('Gelöscht'); await laden(true); } catch (e) { toast(e.message); }
+      try { await api('system_loeschen', { system_id: s.system_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
     $('#sf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
