@@ -16,7 +16,7 @@ W, HH = 1280, 720
 BRAND = {"n8n": "EA4B71", "claude": "D97757", "anthropic": "191919", "openai": "412991", "googlegemini": "8E75B2",
          "ollama": "000000", "make": "6D00CC", "zapier": "FF4F00", "gmail": "EA4335", "googlesheets": "34A853",
          "googlecalendar": "4285F4", "slack": "4A154B", "hubspot": "FF7A59", "notion": "000000", "docker": "2496ED",
-         "hetzner": "D50C2D", "sap": "0FAAFF", "ubuntu": "E95420", "github": "181717", "googlechrome": "4285F4"}
+         "hetzner": "D50C2D", "supabase": "3FCF8E", "obsidian": "7C3AED", "sap": "0FAAFF", "ubuntu": "E95420", "github": "181717", "googlechrome": "4285F4"}
 
 G = {  # simple stroke glyphs, 24x24
  "form": '<rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -234,6 +234,7 @@ em { font-style:normal; color:var(--accent); }
 #av { position:absolute; left:-169px; top:-45px; width:658px; height:370px; object-fit:cover; }
 .hook { position:absolute; left:100px; width:700px; top:0; height:640px; display:flex; flex-direction:column; justify-content:center; gap:18px; }
 .hook .hd { font-size:56px; }
+#avlab { position:absolute; left:900px; top:486px; width:240px; text-align:center; z-index:21; font-size:17px; font-weight:700; color:#fff; background:rgba(28,27,25,.78); border-radius:30px; padding:7px 0; opacity:0; }
 .cap { position:absolute; left:120px; right:120px; top:654px; text-align:center; font-weight:700; font-size:25px; opacity:0; white-space:nowrap; z-index:30; color:var(--ink); }
 .cap .w { opacity:.18; }
 .cap .w.k { color:var(--accent); }
@@ -241,9 +242,9 @@ em { font-style:normal; color:var(--accent); }
 
 CAPFIX = [(r"\bCloud Code\b", "Claude Code"), (r"\bPubly\b", "Pabbly"), (r"\b2224\b", "2024"), (r"\bChat, GPT\b", "ChatGPT \u200b"),
           (r"\bChat GPT\b", "ChatGPT \u200b"), (r"\bOlama\b", "Ollama"), (r"\bLama\b", "Llama"), (r"\bQuen\b", "Qwen"), (r"\bCL eins\b", "CLI \u200b"), (r"Video Fünften", "Video fünf"), (r"Teil dritten", "Teil drei"), (r"Teil zweiten", "Teil zwei"),
-          (r"Video sechsten", "Video sechs"), (r"\bN8N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"Claude Pro-Abo", "Claude-Pro-Abo")]
+          (r"Video sechsten", "Video sechs"), (r"\bN8N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"Claude Pro-Abo", "Claude-Pro-Abo"), (r"Supa-Base", "Supabase"), (r"\bSupa Base\b", "Supabase"), (r"\bRack-System", "RAG-System"), (r"\bRAG System\b", "RAG-System"), (r"\bC-R-M\b", "CRM"), (r"\bSuperbase\b", "Supabase"), (r"\bCarsten\b", "Karsten"), (r"Modul zweite", "Modul zwei"), (r"\bFördercheck\b", "Förder-Check"), (r"\bK-I\b", "KI"), (r"\bM-C-P\b", "MCP")]
 KEYW = {"n8n", "api", "webhook", "mcp", "claude", "trigger", "node", "workflow", "credential", "execution", "ollama", "ki",
-        "automation", "steckbrief", "motor", "baumeister", "steckdose", "chatgpt", "codex", "gemini", "assistent"}
+        "automation", "steckbrief", "motor", "baumeister", "steckdose", "chatgpt", "codex", "gemini", "assistent", "athena", "supabase", "obsidian", "rag", "ragsystem", "recruiterin", "gedächtnis", "firmengedächtnis", "ampel", "gefördert"}
 
 # ---------------------------------------------------------------- scene builders
 class Scene:
@@ -798,12 +799,14 @@ def compose(key, plan, out_dir):
             cjs.append(f'tl.to("#c{gi}_{wi}",{{opacity:1,duration:.12}},{w["s"]:.2f});')
     av_html = ""
     if av_end:
-        av_html = (f'<div id="avw"><video id="av" src="assets/avatar.mp4" muted playsinline data-start="0" data-duration="{av_end+1.2:.2f}" data-track-index="5"></video></div>')
+        av_html = (f'<div id="avw"><video id="av" src="assets/avatar.mp4" muted playsinline data-start="0" data-duration="{av_end+1.2:.2f}" data-track-index="5"></video></div>'
+                   + ('<div id="avlab">KI-Avatar von Timo</div>' if os.environ.get("KIT_AVLABEL") else ''))
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(raw), "-t", f"{av_end+1.5:.2f}", "-an", "-vf", "scale=640:-2", "-r", "25", "-g", "25", "-keyint_min", "25", "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-movflags", "+faststart", str(out / "assets/avatar.mp4")], check=True)
         B.js.insert(0, f'tl.fromTo("#avw",{{opacity:0,scale:.6}},{{opacity:1,scale:1,duration:.5,ease:"back.out(1.6)"}},0.05);'
                        f'tl.to("#avw",{{left:40,top:520,width:110,height:110,duration:.6,ease:"power2.inOut"}},{av_end:.2f});'
                        f'tl.to("#av",{{left:-58,top:-15,width:226,height:127,duration:.6,ease:"power2.inOut"}},{av_end:.2f});'
-                       f'tl.to("#avw",{{opacity:0,scale:.4,duration:.35}},{av_end+.6:.2f});')
+                       f'tl.to("#avw",{{opacity:0,scale:.4,duration:.35}},{av_end+.6:.2f});'
+                       + (f'tl.to("#avlab",{{opacity:1,duration:.4}},0.4);tl.to("#avlab",{{opacity:0,duration:.25}},{av_end-.1:.2f});' if os.environ.get("KIT_AVLABEL") else ''))
     html = f"""<!doctype html>
 <html lang="de"><head><meta charset="UTF-8" /><meta name="viewport" content="width=1280, height=720" />
 <title>{key}</title><script src="assets/gsap.min.js"></script><style>{CSS}</style></head>
