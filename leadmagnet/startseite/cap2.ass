@@ -1,0 +1,17 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: C,Space Grotesk Light,40,&H00FFFFFF,&H00FFFFFF,&H00241A1C,&H55241A1C,1,0,0,0,100,100,0,0,3,14,0,2,80,80,44,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.59,0:00:02.81,C,,0,0,0,,Dein Betrieb ertrinkt in Routine?
+Dialogue: 0,0:00:02.81,0:00:05.23,C,,0,0,0,,Die Momentum KI Akademie zeigt dir,
+Dialogue: 0,0:00:05.23,0:00:08.19,C,,0,0,0,,wie KI-Agenten diese Arbeit übernehmen.
+Dialogue: 0,0:00:08.19,0:00:09.79,C,,0,0,0,,Für dein Team gefördert
+Dialogue: 0,0:00:09.79,0:00:11.71,C,,0,0,0,,und Modul eins ist gratis.
+Dialogue: 0,0:00:11.71,0:00:13.86,C,,0,0,0,,Starte direkt.
