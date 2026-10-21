@@ -400,7 +400,7 @@ function tDnd(c, L, T, finish) {
     ch.addEventListener("contextmenu", e => { if (touch) e.preventDefault(); });
     return ch; });
   function layout() { chips.forEach((ch, i) => { if (T.placed[i]) { ch.classList.add("placed"); ch.classList.remove("sel", "wrong"); ch.draggable = false; zones[L.items[i].c].appendChild(ch); } else pool.appendChild(ch); });
-    if (Object.keys(T.placed).length === L.items.length) { hint.remove(); fb.innerHTML = '<div class="fb ok">Alle Karten richtig zugeordnet. Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.</div>'; finish(); } }
+    if (Object.keys(T.placed).length === L.items.length) { hint.remove(); fb.innerHTML = '<div class="fb ok">Alle Karten richtig zugeordnet. ' + esc(L.merksatz || 'Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.') + '</div>'; finish(); } }
   function drop(i, cat) {
     if (T.placed[i]) return; const it = L.items[i]; sel = null; chips[i].classList.remove("sel"); markTargets(false);
     if (it.c === cat) { T.placed[i] = true; addXP(T.tries[i] ? Math.round(L.xp_each / 2) : L.xp_each); fb.innerHTML = '<div class="fb ok">Richtig: ' + esc(it.f) + '</div>'; }
