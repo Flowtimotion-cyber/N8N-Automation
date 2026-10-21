@@ -13,7 +13,7 @@ PROMISE = [
 ]
 
 LEVELS = [
-    {"id": 1, "title": "Die volle Tasse", "videos": ["U1"],
+    {"id": 1, "title": "Die volle Tasse", "videos": ["U0", "U1"],
      "merksatz": "Was jede Woche gleich abläuft, gehört nicht auf deinen Tisch, sondern in eine Automation.",
      "kernpunkte": [
          "In fast jedem Betrieb laufen Stunden pro Woche in Routine: Daten abtippen, Standardmails, Angebote aus Vorlagen, Zahlen zusammensuchen.",
