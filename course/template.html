@@ -70,6 +70,11 @@ textarea { min-height:70px; resize:vertical; }
 .cats { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
 .cat { border:2px dashed #CFC9BF; border-radius:16px; padding:14px; min-height:140px; background:rgba(255,255,255,.6); }
 .cat.over { border-color:var(--accent); background:var(--accent-2); }
+.cat.target { border-color:var(--accent); border-style:solid; cursor:pointer; }
+.chip.ghost { position:fixed; z-index:60; pointer-events:none; opacity:.92; box-shadow:0 12px 30px rgba(20,18,58,.25); transform:scale(1.03); max-width:80vw; }
+.chip.lift { opacity:.35; }
+.dndhint { background:var(--accent-2); border-radius:12px; padding:10px 14px; font-size:15px; margin:12px 0 0; }
+.dndhint b { color:var(--accent); }
 .cat h4 { margin:0 0 10px; font-size:18px; } .cat .chip { display:block; margin-top:8px; }
 /* binary + quiz */
 .q { font-size:22px; font-weight:700; margin:8px 0 18px; }
@@ -243,25 +248,69 @@ function tFlip(c, L, T, finish) {
 
 function tDnd(c, L, T, finish) {
   T.placed = T.placed || {}; T.tries = T.tries || {};
+  const touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  const hint = el("p", "dndhint", touch
+    ? "<b>So geht’s auf dem Handy:</b> Karte antippen, dann die passende Kategorie darunter antippen. Oder Karte kurz gedrückt halten und ziehen."
+    : "<b>So geht’s:</b> Karte in die passende Kategorie ziehen oder Karte anklicken und dann die Kategorie anklicken.");
+  c.appendChild(hint);
   const pool = el("div", "pool"); const cats = el("div", "cats"); c.appendChild(pool); c.appendChild(cats);
   const fb = el("div"); c.appendChild(fb);
   let sel = null; const zones = {};
+  function markTargets(on) { Object.values(zones).forEach(z => z.classList.toggle("target", on)); }
+  function select(i) {
+    chips.forEach(x => x.classList.remove("sel")); sel = i; chips[i].classList.add("sel"); markTargets(true);
+    fb.innerHTML = '<div class="fb">Jetzt die passende Kategorie antippen.</div>';
+    if (touch) { const r = cats.getBoundingClientRect(); if (r.top > window.innerHeight * 0.7) cats.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  }
   L.cats.forEach(name => { const z = el("div", "cat", "<h4>" + esc(name) + "</h4>"); z.dataset.cat = name; zones[name] = z; cats.appendChild(z);
     z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("over"); });
     z.addEventListener("dragleave", () => z.classList.remove("over"));
     z.addEventListener("drop", e => { e.preventDefault(); z.classList.remove("over"); drop(+e.dataTransfer.getData("text"), name); });
     z.addEventListener("click", () => { if (sel !== null) drop(sel, name); }); });
-  const chips = L.items.map((it, i) => { const ch = el("div", "chip", esc(it.t)); ch.draggable = true;
+  const chips = L.items.map((it, i) => { const ch = el("div", "chip", esc(it.t)); ch.draggable = !touch;
     ch.addEventListener("dragstart", e => e.dataTransfer.setData("text", String(i)));
-    ch.addEventListener("click", e => { if (T.placed[i]) return; e.stopPropagation(); chips.forEach(x => x.classList.remove("sel")); sel = i; ch.classList.add("sel"); });
+    ch.addEventListener("click", e => { if (T.placed[i] || ch.dataset.dragged) { delete ch.dataset.dragged; return; } e.stopPropagation(); select(i); });
+    // Ziehen mit dem Finger: kurz halten (250 ms), dann ziehen. Bewegt sich der Finger vorher, ist es normales Scrollen.
+    ch.addEventListener("touchstart", e => {
+      if (T.placed[i] || e.touches.length > 1) return;
+      const t0 = e.touches[0], sx = t0.clientX, sy = t0.clientY; let ghost = null, over = null, lx = sx, ly = sy;
+      const zoneAt = (x, y) => { const t = document.elementFromPoint(x, y); return t && t.closest ? t.closest(".cat") : null; };
+      function start() {
+        ghost = ch.cloneNode(true); ghost.classList.add("ghost"); ghost.classList.remove("sel");
+        ghost.style.width = ch.offsetWidth + "px"; document.body.appendChild(ghost); ch.classList.add("lift"); markTargets(true);
+        move(lx, ly); if (navigator.vibrate) navigator.vibrate(15);
+      }
+      function move(x, y) {
+        ghost.style.left = (x - ghost.offsetWidth / 2) + "px"; ghost.style.top = (y - ghost.offsetHeight / 2) + "px";
+        const z = zoneAt(x, y); if (z !== over) { if (over) over.classList.remove("over"); over = z; if (z) z.classList.add("over"); }
+        if (y > window.innerHeight - 60) window.scrollBy(0, 12); else if (y < 80) window.scrollBy(0, -12);
+      }
+      function onMove(ev) {
+        const t = ev.touches[0]; lx = t.clientX; ly = t.clientY;
+        if (!ghost) { if (Math.abs(lx - sx) > 10 || Math.abs(ly - sy) > 10) cleanup(); return; }
+        ev.preventDefault(); move(lx, ly);
+      }
+      function onEnd(ev) {
+        if (ghost) { ev.preventDefault(); ch.dataset.dragged = "1"; setTimeout(() => delete ch.dataset.dragged, 400); const z = zoneAt(lx, ly); cleanup(); if (z) drop(i, z.dataset.cat); else markTargets(sel !== null); }
+        else cleanup();
+      }
+      function cleanup() {
+        clearTimeout(timer); if (ghost) { ghost.remove(); ghost = null; } ch.classList.remove("lift"); if (over) over.classList.remove("over");
+        ch.removeEventListener("touchmove", onMove); ch.removeEventListener("touchend", onEnd); ch.removeEventListener("touchcancel", cleanup);
+      }
+      const timer = setTimeout(start, 250);
+      ch.addEventListener("touchmove", onMove, { passive: false }); ch.addEventListener("touchend", onEnd); ch.addEventListener("touchcancel", cleanup);
+    }, { passive: true });
+    ch.addEventListener("contextmenu", e => { if (touch) e.preventDefault(); });
     return ch; });
   function layout() { chips.forEach((ch, i) => { if (T.placed[i]) { ch.classList.add("placed"); ch.classList.remove("sel", "wrong"); ch.draggable = false; zones[L.items[i].c].appendChild(ch); } else pool.appendChild(ch); });
-    if (Object.keys(T.placed).length === L.items.length) { fb.innerHTML = '<div class="fb ok">Alle Karten richtig zugeordnet. Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.</div>'; finish(); } }
+    if (Object.keys(T.placed).length === L.items.length) { hint.remove(); fb.innerHTML = '<div class="fb ok">Alle Karten richtig zugeordnet. Ein Trigger startet den Workflow, Nodes erledigen die Arbeit.</div>'; finish(); } }
   function drop(i, cat) {
-    if (T.placed[i]) return; const it = L.items[i]; sel = null; chips[i].classList.remove("sel");
+    if (T.placed[i]) return; const it = L.items[i]; sel = null; chips[i].classList.remove("sel"); markTargets(false);
     if (it.c === cat) { T.placed[i] = true; addXP(T.tries[i] ? Math.round(L.xp_each / 2) : L.xp_each); fb.innerHTML = '<div class="fb ok">Richtig: ' + esc(it.f) + '</div>'; }
     else { T.tries[i] = (T.tries[i] || 0) + 1; chips[i].classList.remove("wrong"); void chips[i].offsetWidth; chips[i].classList.add("wrong"); fb.innerHTML = '<div class="fb bad">Noch nicht. ' + esc(it.f) + '</div>'; }
-    save(); layout(); }
+    save(); layout();
+    if (touch) fb.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
   layout();
 }
 
