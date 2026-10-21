@@ -5,7 +5,7 @@ Stand 21.10.2026 · zur Freigabe durch Timo, bevor HeyGen rendert.
 **Aufbau jedes Videos:** Hook (Schmerz oder Neugier, erste 5 Sekunden) → **Warum** (was es dich heute kostet, was du gewinnst) → Erklärung mit einem Bild aus dem Alltag → Aufgabe im Kurs.
 **Machart wie im fertigen Kurs:** HeyGen-Avatar „Timo Merz“ mit deiner Stimme, kurz im Vollbild, dann als Kreis unten links. Dahinter animierte Szenen mit Logos (n8n, Claude, Supabase, Obsidian …), Einblendungen und Untertiteln. Unten links „KI-Avatar von Timo“.
 **Wortwahl:** In den Videos nur „gefördert“, ohne „Agentur für Arbeit“ (wie bei den Filmen gewünscht).
-**Länge:** 60–90 Sekunden je Video, zusammen ca. 9 Minuten.
+**Länge:** 60–90 Sekunden je Video, zusammen ca. 11 Minuten.
 **Für HeyGen:** n8n wird als „N-Eight-N“ geschrieben, KI als „K-I“, MCP als „M-C-P“.
 
 ---
@@ -20,7 +20,25 @@ Das liegt nicht daran, dass du zu langsam bist. Du bist zu voll.
 
 In den nächsten zwanzig Minuten zeige ich dir, wie KI-Agenten genau diese Arbeit übernehmen. Ohne Programmieren, mit deinen Daten in deiner Hand. Und am Ende weißt du, ob die Schulung deines Teams gefördert wird.
 
-Sechs kurze Level, nach jedem eine kleine Aufgabe. Los geht's.
+Sechs kurze Level, nach jedem eine kleine Aufgabe. Aber vorher zeige ich dir, warum wir genau hier anfangen.
+
+## UW · Warum Claude Code und n8n? (direkt nach dem Intro, ca. 100 s)
+
+Vor zwei Jahren hättest du für eine einzige Automation einen Programmierer gebraucht. Wochen Zeit, tausende Euro, und am Ende wusste nur er, wie es funktioniert.
+
+Das hat sich geändert. Und zwar komplett.
+
+Heute beschreibst du Claude Code in ganz normalen Worten, was passieren soll. Claude Code baut die Automation direkt in N-Eight-N, testet sie, und wenn etwas hakt, findet er den Fehler und repariert ihn. Er kann deine Abläufe sogar überwachen und dir sagen, wenn irgendwo etwas nicht rund läuft.
+
+Warum das für dich so wichtig ist: Die Frage ist nicht mehr, wie man etwas programmiert. Das „Wie“ übernimmt die K-I. Die entscheidende Frage ist: Was willst du eigentlich? Welcher Ablauf kostet dich Zeit? Was soll am Ende rauskommen? Wer das klar sagen kann, kann bauen lassen.
+
+Und warum N-Eight-N? Weil dort alles zusammenläuft: Mail, Kalender, CRM, Buchhaltung, deine eigenen Daten. Auf deinem eigenen oder einem gemieteten Server, nicht als Insel, sondern als Zentrale.
+
+Was du dafür lernen musst, ist überschaubar: die Grundlagen, ein paar Prinzipien, und die Sicherheitsthemen, damit nichts schiefgeht. Genau das bekommst du hier, komprimiert und auf das Wesentliche reduziert.
+
+Und damit kannst du dir danach praktisch alles bauen lassen. Automationen für deinen Alltag. Ein Kundenportal. Eine eigene Software-Lösung, die du sogar verkaufen kannst. Dein eigenes CRM, das genau zu deinem Betrieb passt.
+
+Nicht du musst programmieren lernen. Du musst lernen, was du willst. Lass uns anfangen.
 
 ## U1 · Die volle Tasse (ca. 75 s)
 

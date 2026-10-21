@@ -22,7 +22,7 @@ for f in (ROOT / "docs/modul-1-1/media").iterdir():
 media = {"LOGO_FULL": "media/logo_full.png", "LOGO_MARK": "media/logo_mark.png",
          "IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"}
 VID = C / "videos_unternehmer"
-for k in ["U0", "U1", "U2", "U3", "U4", "U5", "U6", "VEND"]:
+for k in ["U0", "UW", "U1", "U2", "U3", "U4", "U5", "U6", "VEND"]:
     for ext, key in [(".mp4", k), (".webm", k + "_webm"), (".jpg", k + "_poster")]:
         src = VID / (k + ext)
         if src.exists(): shutil.copy2(src, MED / src.name); media[key] = "media/" + src.name
