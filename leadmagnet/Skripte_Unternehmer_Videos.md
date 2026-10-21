@@ -27,7 +27,9 @@ Fünf Begriffe, mehr brauchst du heute nicht.
 **Athena** ist unsere KI-Recruiterin. Sie stellt weitere KI-Agenten für deinen Betrieb ein, so wie du einen neuen Mitarbeiter einstellst: mit Stellenbeschreibung, Aufgaben und Grenzen.
 **n8n** ist der Motor. Dort laufen die Abläufe, Tag und Nacht, auf einem Server, der dir gehört.
 **MCP** ist die Steckdose. Darüber darf die KI deine Programme bedienen, aber nur die, die du freigibst.
-Und das **Firmen-Gedächtnis** erinnert sich an das, was dein Betrieb weiß.
+Und das **Firmen-Gedächtnis** erinnert sich an das, was dein Betrieb weiß: ein RAG-System auf Supabase, auf Wunsch zusammen mit Obsidian, auf deinem eigenen oder einem gemieteten Server.
+
+Und du bist nicht allein: Hinter den Agenten stehen echte Ansprechpartner, die jeden Tag mit diesen Systemen arbeiten und rund um die Uhr an deiner Seite sind, wenn der KI-Agent nicht schon weiterhilft.
 
 Kurz gesagt: Claude Code baut, Athena stellt ein, n8n arbeitet, MCP verbindet, das Gedächtnis erinnert. Zieh die Begriffe gleich an die richtige Stelle.
 
