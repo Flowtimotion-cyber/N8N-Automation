@@ -2,14 +2,15 @@
 
 Each video = voice-over (HeyGen audio) + small avatar circle during the hook + scenes
 anchored to spoken phrases (Scribe word timestamps)."""
-import json, pathlib, re, shutil, subprocess, html as H
+import json, os, pathlib, re, shutil, subprocess, html as H
 from PIL import Image
 
 KIT = pathlib.Path(__file__).resolve().parent
 STUDIO = KIT.parent
-SI = pathlib.Path("/tmp/si/package/icons")
-WORDS = json.loads((STUDIO / "heygen2/words.json").read_text())
-RAW = STUDIO / "heygen2/raw"
+SI = pathlib.Path(os.environ.get("KIT_ICONS", "/tmp/si/package/icons"))
+HG = STUDIO / os.environ.get("KIT_HEYGEN", "heygen2")
+WORDS = json.loads((HG / "words.json").read_text()) if (HG / "words.json").exists() else {}
+RAW = HG / "raw"
 W, HH = 1280, 720
 
 BRAND = {"n8n": "EA4B71", "claude": "D97757", "anthropic": "191919", "openai": "412991", "googlegemini": "8E75B2",
@@ -751,7 +752,7 @@ def compose(key, plan, out_dir):
     out = pathlib.Path(out_dir)
     if out.exists(): shutil.rmtree(out)
     (out / "assets").mkdir(parents=True)
-    src = STUDIO / "projects/level2/assets"
+    src = STUDIO.parent / "projects/level2/assets"
     shutil.copytree(src / "fonts", out / "assets/fonts")
     shutil.copy(src / "gsap.min.js", out / "assets/gsap.min.js")
     for p in (KIT / "shots").glob("*.jpg"): shutil.copy(p, out / "assets" / p.name)

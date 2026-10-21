@@ -18,11 +18,11 @@ HOOK = "https://n8n.hm-storage.de/webhook/lm-unternehmer"
 # Medien: alles außer den Mitarbeiter-Videos übernehmen
 for f in (ROOT / "docs/modul-1-1/media").iterdir():
     if not re.match(r"^(V\d|INTRO|VEND)", f.name): shutil.copy2(f, MED / f.name)
-media = {"FILM": "https://d2ol7oe51mr4n9.cloudfront.net/user_354vY4tY6qYYmvkP5rkeAXzqHOG/90b8d2bd-214a-4cba-8c22-100a093df2f3.mp4",
-         "LOGO_FULL": "media/logo_full.png", "LOGO_MARK": "media/logo_mark.png",
+# Kein Willkommensfilm im Kurs: Der läuft schon auf der Webseite. Stattdessen U0-Intro als erstes Video.
+media = {"LOGO_FULL": "media/logo_full.png", "LOGO_MARK": "media/logo_mark.png",
          "IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"}
 VID = C / "videos_unternehmer"
-for k in ["U1", "U2", "U3", "U4", "U5", "U6", "VEND"]:
+for k in ["U0", "U1", "U2", "U3", "U4", "U5", "U6", "VEND"]:
     for ext, key in [(".mp4", k), (".webm", k + "_webm"), (".jpg", k + "_poster")]:
         src = VID / (k + ext)
         if src.exists(): shutil.copy2(src, MED / src.name); media[key] = "media/" + src.name
