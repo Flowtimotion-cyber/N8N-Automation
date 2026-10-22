@@ -120,5 +120,59 @@ rep('$("#verb").onclick = e => { e.preventDefault(); verbesserungOeffnen(); };\n
 h = h.replace("hilft dir, das Gespräch mit deiner Führungskraft vorzubereiten", "hilft dir bei Fragen zur Förderung")
 h = re.sub(r'c\.appendChild\(el\("p", "muted small", "Dein Fortschritt wird gespeichert\. Bist du bei Claude angemeldet.*?"\)\);', 'c.appendChild(el("p", "muted small", "Dein Fortschritt bleibt in diesem Browser gespeichert. Du kannst jederzeit pausieren und später weitermachen."));', h, count=1)
 h = h.replace("Server der Kursleitung", "Server der Momentum KI Akademie").replace("Die Kursleitung speichert", "Die Momentum KI Akademie speichert").replace("oder schreib der Kursleitung", "oder schreib uns")
+# Erklärseite (z. B. API, Webhook, MCP) als eigener Schritt vor der Aufgabe eines Levels
+rep('DATA.levels.forEach(L => { L.videos.forEach(v => STEPS.push({ k: "video", lv: L.id, v })); STEPS.push({ k: "task", lv: L.id }); });',
+    'DATA.levels.forEach(L => { L.videos.forEach(v => STEPS.push({ k: "video", lv: L.id, v })); if (L.erklaer) STEPS.push({ k: "explain", lv: L.id }); STEPS.push({ k: "task", lv: L.id }); });')
+rep('({ start: renderStart, video: renderVideo, task: renderTask, check: renderCheck, summary: renderSummary })[st.k](sc, st);',
+    '({ start: renderStart, video: renderVideo, explain: renderExplain, task: renderTask, check: renderCheck, summary: renderSummary })[st.k](sc, st);')
+rep('if (st.k === "task") return "Level " + st.lv + " · Aufgabe";', 'if (st.k === "explain") return "Level " + st.lv + " · Erklärung"; if (st.k === "task") return "Level " + st.lv + " · Aufgabe";')
+ERKLAER_JS = r"""
+function renderExplain(sc, st) {
+  const L = LV(st.lv); const E = L.erklaer;
+  const c = el("div", "card ex");
+  c.innerHTML = '<div class="kicker">Level ' + L.id + ' · Verstehen</div><h2>' + esc(E.titel) + '</h2><p class="muted" style="font-size:17px;max-width:72ch">' + esc(E.intro) + '</p>';
+  const g = el("div", "exgrid");
+  E.karten.forEach(k => {
+    const d = el("article", "excard");
+    d.innerHTML = '<div class="exhead"><span class="exicon" aria-hidden="true">' + k.icon + '</span><div><b>' + esc(k.name) + '</b><span>' + esc(k.kurz) + '</span></div></div>' +
+      '<p class="exsatz">' + esc(k.satz) + '</p><dl>' + k.zeilen.map(z => '<dt>' + esc(z[0]) + '</dt><dd>' + esc(z[1]) + '</dd>').join("") + '</dl>';
+    g.appendChild(d);
+  });
+  c.appendChild(g);
+  const kt = el("div", "exkette"); kt.setAttribute("aria-label", "So hängt es zusammen");
+  kt.innerHTML = '<h3>So hängt es zusammen</h3><div class="exflow">' + E.kette.map((s, i) =>
+    '<div class="exnode"><b>' + esc(s[0]) + '</b><span>' + esc(s[1]) + '</span></div>' + (i < E.kette.length - 1 ? '<div class="exlink"><span>' + esc(E.kette_leitungen[i]) + '</span></div>' : '')).join("") + '</div>' +
+    '<p class="merk" style="font-size:17px">' + esc(E.kern) + '</p>';
+  c.appendChild(kt);
+  const w = el("div", "kp"); w.innerHTML = '<h3>Warum das für dich wichtig ist</h3><ol>' + E.warum.map(x => '<li><b>' + esc(x[0]) + ':</b> ' + esc(x[1]) + '</li>').join("") + '</ol>';
+  c.appendChild(w);
+  sc.appendChild(c);
+  setNext(true, "Zur Aufgabe");
+}
+"""
+rep('function renderTask(sc, st) {', ERKLAER_JS.strip() + '\n\nfunction renderTask(sc, st) {')
+ERKLAER_CSS = """
+.exgrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-top:18px; }
+.excard { border:1.5px solid var(--line); border-radius:16px; padding:16px 18px; background:#fff; min-width:0; }
+.exhead { display:flex; gap:12px; align-items:center; }
+.exicon { font-size:28px; width:48px; height:48px; border-radius:14px; background:var(--accent-2); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.exhead div { display:flex; flex-direction:column; } .exhead b { font-size:20px; } .exhead span { color:var(--accent); font-weight:700; font-size:14px; }
+.exsatz { font-weight:700; font-size:16px; line-height:1.45; margin:12px 0 4px; }
+.excard dl { margin:0; } .excard dt { color:var(--muted); font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-top:10px; }
+.excard dd { margin:2px 0 0; font-size:15.5px; line-height:1.45; }
+.exkette { margin-top:22px; } .exkette h3, .ex .kp h3 { margin:0 0 10px; font-size:20px; }
+.exflow { display:flex; align-items:stretch; gap:0; flex-wrap:nowrap; }
+.exnode { flex:1 1 0; min-width:0; border-radius:14px; background:var(--accent-2); padding:12px 14px; display:flex; flex-direction:column; gap:2px; text-align:center; }
+.exnode b { font-size:16px; } .exnode span { color:var(--muted); font-size:14px; }
+.exlink { flex:0 0 auto; display:flex; align-items:center; justify-content:center; padding:0 8px; position:relative; min-width:96px; }
+.exlink::before { content:""; position:absolute; left:4px; right:4px; top:50%; border-top:2px dashed var(--accent); }
+.exlink span { position:relative; background:#fff; border:1.5px solid var(--accent); color:var(--accent); font-weight:700; font-size:13px; border-radius:999px; padding:3px 10px; white-space:nowrap; }
+@media (max-width:640px) {
+  .exflow { flex-direction:column; }
+  .exlink { min-height:44px; min-width:0; }
+  .exlink::before { left:50%; right:auto; top:2px; bottom:2px; border-top:none; border-left:2px dashed var(--accent); }
+}
+"""
+rep('</style>', ERKLAER_CSS.strip() + '\n</style>')
 (OUT / "index.html").write_text(h)
 print(OUT / "index.html", round(len(h) / 1e3), "KB", "Videos:", [k for k in media if k.startswith(("U", "VEND")) and "_" not in k])
