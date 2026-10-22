@@ -473,6 +473,7 @@ test('Portal: Kursstände getrennt nach Modulen (Übersicht und Kursseite)', asy
     const p = await neueSeite(vp, { name: 'portal-kurs-module' });
     await p.route(u => String(u).includes('/webhook/team-klassenbuch'), r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: false, fehler: 'Testadapter: Klassenbuch nicht nachgebildet' }) }));
     await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      if (JSON.parse(r.request().postData() || '{}').aktion === 'teilnehmer') return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, spalten: [], teilnehmer: [] }) });
       const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); const j = await res.json();
       if (j && j.ok && !j.setup) { j.kurs = KURS; j.anfragen = []; }
       r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) });
@@ -495,6 +496,55 @@ test('Portal: Kursstände getrennt nach Modulen (Übersicht und Kursseite)', asy
     assert.ok(!(await text(p, '#main')).includes('Kurscode „OFFEN“'), 'OFFEN gilt nicht als falscher Kurscode');
     await p.locator('.seg [data-km=""]').click(); await p.waitForTimeout(200);
     assert.ok((await text(p, '#main')).includes('Anna Beispiel'));
+    await p.close();
+  }
+});
+
+test('Portal: Teilnehmer-Register (Tabelle, Klick-Häkchen, Dialog, Spalten)', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const SPALTEN = [['antrag', 'Antrag genehmigt'], ['gutschein', 'Bildungsgutschein im Haus'], ['vertrag', 'Seminarvertrag unterzeichnet'], ['brandschutz', 'Brandschutzordnung'], ['google', 'Google-Bewertung']].map(([id, ti], i) => ({ spalte_id: id, titel: ti, reihenfolge: (i + 1) * 10, aktiv: true }));
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-teilnehmer-register' });
+    const gesendet = [];
+    await p.route(u => String(u).includes('/webhook/team-klassenbuch'), r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: false, fehler: 'Testadapter' }) }));
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const b = JSON.parse(r.request().postData() || '{}'); const j = body => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      if (b.aktion !== 'laden') gesendet.push({ aktion: b.aktion, daten: b.daten });
+      if (b.aktion === 'teilnehmer') return j({ ok: true, spalten: SPALTEN, teilnehmer: [
+        { tn_id: 'tn_1', name: 'Erika Muster', email: 'e@example.org', massnahme: 'TEMP-Kurs', start: '2026-11-03', status: 'aktiv', notiz: 'braucht Laptop', haken: { antrag: { s: 'ja', d: '2026-10-20', von: 'm_timo' }, gutschein: { s: 'entfaellt', d: '2026-10-21', von: 'm_timo' } }, geaendert: '2026-10-22T10:00:00Z' },
+        { tn_id: 'tn_2', name: 'Fritz Probe', massnahme: 'TEMP-Kurs', status: 'interessent', haken: {}, geaendert: '2026-10-22T10:00:00Z' },
+        { tn_id: 'tn_3', name: 'Gerda Fertig', massnahme: 'Modul 1', status: 'abgeschlossen', haken: {}, geaendert: '2026-10-22T10:00:00Z' }] });
+      if (['tn_haken', 'tn_speichern', 'tn_spalte_speichern'].includes(b.aktion)) return j({ ok: true, id: 'tn_x' });
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/kurs', { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
+    const box = await text(p, '#tnBox');
+    for (const ti of ['Teilnehmer-Register', 'Antrag genehmigt', 'Bildungsgutschein im Haus', 'Seminarvertrag unterzeichnet', 'Brandschutzordnung', 'Google-Bewertung', 'Erika Muster', 'Fritz Probe']) assert.ok(box.includes(ti), ti);
+    assert.ok(!box.includes('Gerda Fertig'), 'Abgeschlossene standardmäßig ausgeblendet');
+    assert.equal(await text(p, '[data-tnz="tn_1"][data-sp="antrag"]'), '✓'); assert.equal(await text(p, '[data-tnz="tn_1"][data-sp="gutschein"]'), '–');
+    assert.match(box, /2\/5/, 'Stand zählt erledigt und entfällt');
+    await shot(p, 'portal-teilnehmer-register', vp);
+    await p.locator('[data-tnz="tn_2"][data-sp="vertrag"]').dispatchEvent('click'); await p.waitForTimeout(200);
+    assert.equal(await text(p, '[data-tnz="tn_2"][data-sp="vertrag"]'), '✓', 'Klick setzt erledigt');
+    await p.locator('[data-tnz="tn_2"][data-sp="vertrag"]').dispatchEvent('click'); await p.waitForTimeout(200);
+    assert.equal(await text(p, '[data-tnz="tn_2"][data-sp="vertrag"]'), '–', 'zweiter Klick: entfällt');
+    assert.deepEqual(gesendet.filter(g => g.aktion === 'tn_haken').map(g => g.daten.wert), ['ja', 'entfaellt']);
+    await p.evaluate(() => { const s = document.querySelector('#tn_st'); s.value = 'alle'; s.dispatchEvent(new Event('change')); }); await p.waitForTimeout(150);
+    assert.ok((await text(p, '#tnBox')).includes('Gerda Fertig'));
+    // neuer Teilnehmer
+    await p.locator('#tn_neu').click(); await p.waitForTimeout(200);
+    await p.locator('#tn_n').fill('Hanna Neu'); await p.locator('#tn_m').fill('TEMP-Kurs');
+    await p.evaluate(() => { const s = document.querySelector('[data-tnw="antrag"]'); s.value = 'ja'; s.dispatchEvent(new Event('change')); });
+    await shot(p, 'portal-teilnehmer-dialog', vp);
+    await p.locator('#tnf [type=submit]').click(); await p.waitForTimeout(400);
+    const sp = gesendet.find(g => g.aktion === 'tn_speichern').daten;
+    assert.equal(sp.name, 'Hanna Neu'); assert.equal(sp.haken_aenderungen.length, 1); assert.equal(sp.haken_aenderungen[0].wert, 'ja'); assert.match(sp.haken_aenderungen[0].datum, /^\d{4}-\d{2}-\d{2}$/);
+    // Spalte anlegen
+    await p.locator('#tn_sp').click(); await p.waitForTimeout(200);
+    await p.locator('#ts_neu').fill('Teilnahmebescheinigung ausgehändigt'); await p.locator('#tsf [type=submit]').click(); await p.waitForTimeout(400);
+    assert.deepEqual(gesendet.filter(g => g.aktion === 'tn_spalte_speichern').map(g => g.daten.titel), ['Teilnahmebescheinigung ausgehändigt']);
     await p.close();
   }
 });

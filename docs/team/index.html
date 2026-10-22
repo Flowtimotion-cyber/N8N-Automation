@@ -93,6 +93,11 @@ td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .member .act{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .note{background:#F3EEFD;border:1px solid #E1D5FA;border-radius:12px;padding:12px 14px;font-size:14px}
 .note.warn{background:#FFF6E5;border-color:#F6DDAA}
+.tntab th{font-size:12px;line-height:1.25;vertical-align:bottom;max-width:120px;min-width:92px;padding:8px 10px;white-space:normal;hyphens:auto}.tntab td{vertical-align:middle}
+.tntab th:first-child,.tntab td:first-child{position:sticky;left:0;background:var(--card);z-index:1;min-width:170px}
+.tnz{width:38px;height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;font-weight:700;color:var(--mut)}
+.tnz.ja{background:#E7F7EE;color:#1E8A4C;border-color:#BFE8CF}.tnz.entfaellt{background:#F3F3F7;color:var(--mut);border-style:dashed}
+.tnz:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 dialog{border:0;border-radius:18px;padding:0;max-height:calc(100vh - 24px);overflow:auto;width:min(620px,calc(100vw - 24px));box-shadow:0 30px 80px rgba(20,18,58,.3)}
 dialog::backdrop{background:rgba(20,18,58,.45)}
 .dlg{padding:20px 22px}
@@ -2192,6 +2197,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       (M.length ? '<div class="seg" style="margin-bottom:14px;flex-wrap:wrap" role="tablist" aria-label="Modul wählen">' + [''].concat(M.map(x => x.name)).map(n => '<button type="button" data-km="' + esc(n) + '" class="' + (n === modul ? 'on' : '') + '">' + esc(n || 'Alle Module') + '</button>').join('') + '</div>' : '') +
       '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + (m ? kpi(m.abgeschlossen || 0, 'fertig') : '') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
       vergleich +
+      (istDozent() ? '<div id="tnBox"></div>' : '') +
       (istDozent() ? '<div id="kbBox"></div>' + communityHtml() : '') +
       '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + (m ? '' : '<h3 style="margin-top:14px">Nach Modul</h3>' + bars(k.je_teil, 'var(--acc2)')) + '</div>' +
       '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
@@ -2201,8 +2207,121 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
       (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
     bindCommunity();
-    if (istDozent()) kbZeigen();
+    if (istDozent()) { kbZeigen(); tnZeigen(); }
     document.querySelectorAll('[data-km]').forEach(b => b.onclick = () => { ls.set('mt-kursmodul', b.dataset.km); vKurs(); });
+  }
+
+  // ---------- Teilnehmer-Register (nur Timo und Dozenten): eine Zeile je Teilnehmer, eine Spalte je Punkt ----------
+  let TN = null;
+  const tnF = { status: ls.get('mt-tnstatus') || 'laufend', such: '' };
+  const TN_STATUS = { interessent: 'Interessent', aktiv: 'aktiv', abgeschlossen: 'abgeschlossen', abgebrochen: 'abgebrochen' };
+  const TN_WERT = { '': 'offen', ja: 'erledigt', entfaellt: 'entfällt' };
+  const tnNaechster = w => w === 'ja' ? 'entfaellt' : w === 'entfaellt' ? '' : 'ja';
+  const tnDatumDe = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? d.split('-').reverse().join('.') : '';
+  function tnLaden() { return api('teilnehmer', {}).then(r => { TN = r; return r; }); }
+  function tnZeigen() {
+    const box = $('#tnBox'); if (!box) return;
+    if (!TN) {
+      box.innerHTML = '<div class="card"><h2>Teilnehmer-Register</h2><p class="small muted">Wird geladen …</p></div>';
+      tnLaden().then(tnZeigen).catch(e => { if ($('#tnBox')) $('#tnBox').innerHTML = '<div class="card"><h2>Teilnehmer-Register</h2><p class="small muted">' + esc(e.message) + '</p></div>'; });
+      return;
+    }
+    const SP = (TN.spalten || []).filter(x => x.aktiv);
+    const such = tnF.such.toLowerCase();
+    const L = (TN.teilnehmer || []).filter(t => (tnF.status === 'alle' || (tnF.status === 'laufend' ? ['interessent', 'aktiv'].includes(t.status) : t.status === tnF.status)) &&
+      (!such || [t.name, t.massnahme, t.email].join(' ').toLowerCase().includes(such)));
+    const zelle = (t, x) => {
+      const h = (t.haken || {})[x.spalte_id] || {}, w = h.s || '';
+      const titel = x.titel + ': ' + TN_WERT[w] + (h.d ? ' am ' + tnDatumDe(h.d) : '') + (h.von ? ' (' + (mitglied(h.von).name || h.von) + ')' : '') + '. Klicken: ' + TN_WERT[tnNaechster(w)];
+      return '<td style="text-align:center"><button type="button" class="tnz ' + w + '" data-tnz="' + esc(t.tn_id) + '" data-sp="' + esc(x.spalte_id) + '" title="' + esc(titel) + '" aria-label="' + esc(t.name + ', ' + titel) + '">' + (w === 'ja' ? '✓' : w === 'entfaellt' ? '–' : '') + '</button></td>';
+    };
+    const fertig = t => SP.filter(x => ((t.haken || {})[x.spalte_id] || {}).s).length;
+    box.innerHTML = '<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><h2 style="margin:0">Teilnehmer-Register</h2>' +
+      '<p class="small muted" style="margin:4px 0 0">Klick in ein Feld: offen → ✓ erledigt (mit Datum) → – entfällt → offen. Nur für Timo und die Dozenten sichtbar.</p></div>' +
+      '<span style="display:flex;gap:8px;flex-wrap:wrap">' + (istAdmin() ? '<button class="btn sec" id="tn_sp">Spalten verwalten</button>' : '') + '<button class="btn" id="tn_neu">+ Teilnehmer</button></span></div>' +
+      '<div class="tools" style="margin:12px 0 8px;display:flex;gap:8px;flex-wrap:wrap"><input id="tn_such" type="search" placeholder="Name, Maßnahme oder E-Mail suchen" value="' + esc(tnF.such) + '" style="flex:1;min-width:180px">' +
+      '<select id="tn_st" aria-label="Status">' + [['laufend', 'Interessenten und aktive'], ['alle', 'Alle'], ['interessent', 'Interessenten'], ['aktiv', 'Aktive'], ['abgeschlossen', 'Abgeschlossene'], ['abgebrochen', 'Abgebrochene']].map(([v, l]) => '<option value="' + v + '"' + (v === tnF.status ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+      (L.length ? '<div class="tablewrap"><table class="tntab"><tr><th>Teilnehmer</th>' + SP.map(x => '<th style="text-align:center">' + esc(x.titel) + '</th>').join('') + '<th>Stand</th><th></th></tr>' +
+        L.map(t => '<tr><td><b>' + esc(t.name) + '</b><br><span class="small muted">' + esc([t.massnahme, TN_STATUS[t.status] || t.status, t.start ? 'ab ' + tnDatumDe(t.start) : ''].filter(Boolean).join(' · ')) + '</span>' + (t.notiz ? ' <span title="' + esc(t.notiz) + '">📝</span>' : '') + '</td>' +
+          SP.map(x => zelle(t, x)).join('') + '<td class="small">' + fertig(t) + '/' + SP.length + '</td><td><button class="btn ghost" data-tned="' + esc(t.tn_id) + '">Bearbeiten</button></td></tr>').join('') + '</table></div>'
+        : '<p class="muted">' + ((TN.teilnehmer || []).length ? 'Keine Teilnehmer passen zum Filter.' : 'Noch keine Teilnehmer eingetragen. Mit „+ Teilnehmer“ legst du den ersten an.') + '</p>') + '</div>';
+    $('#tn_neu').onclick = () => tnDialog(null);
+    if ($('#tn_sp')) $('#tn_sp').onclick = tnSpaltenDialog;
+    $('#tn_st').onchange = ev => { tnF.status = ev.target.value; ls.set('mt-tnstatus', tnF.status); tnZeigen(); };
+    $('#tn_such').oninput = ev => { tnF.such = ev.target.value; clearTimeout(tnZeigen.t); tnZeigen.t = setTimeout(() => { tnZeigen(); const i = $('#tn_such'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); };
+    box.querySelectorAll('[data-tned]').forEach(b => b.onclick = () => tnDialog(TN.teilnehmer.find(t => t.tn_id === b.dataset.tned)));
+    box.querySelectorAll('[data-tnz]').forEach(b => b.onclick = async () => {
+      const t = TN.teilnehmer.find(x => x.tn_id === b.dataset.tnz); if (!t) return;
+      const sp = b.dataset.sp, vorher = Object.assign({}, t.haken || {}), w = tnNaechster(((t.haken || {})[sp] || {}).s || '');
+      t.haken = Object.assign({}, t.haken || {}); if (w) t.haken[sp] = { s: w, d: heuteIso(), von: D.ich.mitglied_id }; else delete t.haken[sp];
+      tnZeigen();
+      try { await api('tn_haken', { tn_id: t.tn_id, spalte_id: sp, wert: w }); }
+      catch (e) { t.haken = vorher; tnZeigen(); toast(e.message); }
+    });
+  }
+  function heuteIso() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function tnDialog(t) {
+    const neu = !t; t = t || { name: '', email: '', telefon: '', massnahme: '', start: '', ende: '', status: 'aktiv', notiz: '', haken: {} };
+    const SP = (TN.spalten || []).filter(x => x.aktiv || (t.haken || {})[x.spalte_id]);
+    const massnahmen = [...new Set((TN.teilnehmer || []).map(x => x.massnahme).filter(Boolean))];
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Teilnehmer' : esc(t.name)) + '</h2><form id="tnf">' +
+      '<div class="f2"><div class="f"><label for="tn_n">Name</label><input id="tn_n" required maxlength="120" value="' + esc(t.name) + '"></div>' +
+      '<div class="f"><label for="tn_m">Maßnahme / Kurs</label><input id="tn_m" maxlength="80" list="tn_ml" value="' + esc(t.massnahme) + '" placeholder="z. B. TEMP-Kurs"><datalist id="tn_ml">' + massnahmen.map(x => '<option value="' + esc(x) + '">').join('') + '</datalist></div>' +
+      '<div class="f"><label for="tn_e">E-Mail</label><input id="tn_e" type="email" maxlength="160" value="' + esc(t.email) + '"></div>' +
+      '<div class="f"><label for="tn_t">Telefon</label><input id="tn_t" type="tel" maxlength="40" value="' + esc(t.telefon) + '"></div>' +
+      '<div class="f"><label for="tn_s">Start</label><input id="tn_s" type="date" value="' + esc(t.start || '') + '"></div>' +
+      '<div class="f"><label for="tn_en">Ende</label><input id="tn_en" type="date" value="' + esc(t.ende || '') + '"></div>' +
+      '<div class="f"><label for="tn_stt">Status</label><select id="tn_stt">' + Object.entries(TN_STATUS).map(([v, l]) => '<option value="' + v + '"' + (v === t.status ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div></div>' +
+      '<h3 style="margin:6px 0 8px">Stand</h3><div class="tablewrap"><table class="small">' + SP.map(x => { const h = (t.haken || {})[x.spalte_id] || {};
+        return '<tr><td>' + esc(x.titel) + (x.aktiv ? '' : ' <span class="muted">(ausgeblendet)</span>') + '</td><td><select data-tnw="' + esc(x.spalte_id) + '" aria-label="' + esc(x.titel) + '">' + Object.entries(TN_WERT).map(([v, l]) => '<option value="' + v + '"' + (v === (h.s || '') ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
+          '<td><input type="date" data-tnd="' + esc(x.spalte_id) + '" value="' + esc(h.d || '') + '" aria-label="Datum ' + esc(x.titel) + '"></td><td class="muted">' + (h.von ? esc(mitglied(h.von).name || h.von) : '') + '</td></tr>'; }).join('') + '</table></div>' +
+      '<div class="f" style="margin-top:10px"><label for="tn_no">Notiz</label><textarea id="tn_no" rows="3" maxlength="4000">' + esc(t.notiz) + '</textarea></div>' +
+      '<div class="dlgbtns">' + (!neu && istAdmin() ? '<button type="button" class="btn danger left" id="tn_del">In den Papierkorb</button>' : '') + '<button type="button" class="btn sec" id="tn_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(true);
+    $('#tn_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
+    $('#dlgInner').querySelectorAll('[data-tnw]').forEach(sel => sel.onchange = () => { const d = $('#dlgInner').querySelector('[data-tnd="' + sel.dataset.tnw + '"]'); if (sel.value && !d.value) d.value = heuteIso(); if (!sel.value) d.value = ''; });
+    if ($('#tn_del')) $('#tn_del').onclick = async () => {
+      const b = $('#tn_del'); if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Wirklich? (30 Tage wiederherstellbar)'; return; }
+      try { await api('tn_loeschen', { tn_id: t.tn_id }); dlgGeaendert = false; dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await tnLaden(); tnZeigen(); } catch (e) { toast(e.message); }
+    };
+    let trotzdem = false;
+    $('#tnf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const aend = [];
+      $('#dlgInner').querySelectorAll('[data-tnw]').forEach(sel => { const id = sel.dataset.tnw, h = (t.haken || {})[id] || {}, d = $('#dlgInner').querySelector('[data-tnd="' + id + '"]').value;
+        if (sel.value !== (h.s || '') || (sel.value && d !== (h.d || ''))) aend.push({ spalte_id: id, wert: sel.value, datum: d }); });
+      const daten = { tn_id: t.tn_id, name: $('#tn_n').value, massnahme: $('#tn_m').value, email: $('#tn_e').value, telefon: $('#tn_t').value, start: $('#tn_s').value, ende: $('#tn_en').value,
+        status: $('#tn_stt').value, notiz: $('#tn_no').value, haken_aenderungen: aend };
+      if (!neu) daten.stand = t.geaendert || '';
+      if (trotzdem) { daten.trotzdem = true; trotzdem = false; }
+      try { await api('tn_speichern', daten); dlgGeaendert = false; dlg.close(); toast('Gespeichert'); await tnLaden(); tnZeigen(); }
+      catch (e) {
+        btn.disabled = false;
+        if (e.daten && e.daten.konflikt) konfliktZeigen(e, () => { trotzdem = true; $('#tnf').requestSubmit(); }, 'tn_no', 'Speicherst du trotzdem, werden die anderen Angaben überschrieben. Die Häkchen bleiben, wie sie sind.');
+        else toast(e.message);
+      }
+    };
+  }
+  function tnSpaltenDialog() {
+    const SP = (TN.spalten || []).slice();
+    $('#dlgInner').innerHTML = '<h2>Spalten im Teilnehmer-Register</h2><p class="small muted">Umbenennen, Reihenfolge ändern oder ausblenden. Ausgeblendete Spalten behalten ihre Häkchen. Neue Punkte unten anlegen.</p><form id="tsf"><div class="tablewrap"><table class="small"><tr><th>Name</th><th>Reihenfolge</th><th>sichtbar</th></tr>' +
+      SP.map(x => '<tr data-tsp="' + esc(x.spalte_id) + '"><td><input maxlength="60" value="' + esc(x.titel) + '" aria-label="Name"></td><td><input type="number" min="0" max="999" style="width:80px" value="' + (Number(x.reihenfolge) || 50) + '" aria-label="Reihenfolge"></td><td><input type="checkbox"' + (x.aktiv ? ' checked' : '') + ' aria-label="sichtbar"></td></tr>').join('') + '</table></div>' +
+      '<div class="f" style="margin-top:10px"><label for="ts_neu">Neue Spalte</label><input id="ts_neu" maxlength="60" placeholder="z. B. Teilnahmebescheinigung ausgehändigt"></div>' +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="ts_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(false);
+    $('#ts_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
+    $('#tsf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        for (const tr of $('#dlgInner').querySelectorAll('[data-tsp]')) {
+          const x = SP.find(y => y.spalte_id === tr.dataset.tsp), [ti, re, ak] = tr.querySelectorAll('input');
+          if (ti.value.trim() !== x.titel || Number(re.value) !== (Number(x.reihenfolge) || 50) || ak.checked !== x.aktiv)
+            await api('tn_spalte_speichern', { spalte_id: x.spalte_id, titel: ti.value, reihenfolge: Number(re.value), aktiv: ak.checked });
+        }
+        if ($('#ts_neu').value.trim()) await api('tn_spalte_speichern', { titel: $('#ts_neu').value });
+        dlgGeaendert = false; dlg.close(); toast('Spalten gespeichert'); await tnLaden(); tnZeigen();
+      } catch (e) { toast(e.message); btn.disabled = false; }
+    };
   }
 
   function communityHtml() {
