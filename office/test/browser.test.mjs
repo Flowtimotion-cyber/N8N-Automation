@@ -455,4 +455,48 @@ test('Portal: Papierkorb, Notiz-Versionen, Warnung bei gleichzeitigem Bearbeiten
   }
 });
 
+test('Portal: Kursstände getrennt nach Modulen (Übersicht und Kursseite)', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const jetzt = new Date().toISOString();
+  const KURS = { teilnehmende: 4, aktiv_7_tage: 3, fortschritt_schnitt: 55, check_bestanden: 2, fragen_gesamt: 5, fragen_7_tage: 2, namen_sichtbar: true,
+    je_teil: [['Modul 1.1', 3], ['Modul 1.2', 2], ['Unternehmer Modul 1', 1]], schritte: [['Abschluss', 2]], fragen_je_schritt: [], check_fehler: [],
+    liste: [{ name: 'Anna Beispiel', email: 'a@example.org', kurs: 'Modul 1.1', fortschritt: 100, schritt: 'Abschluss', check: 'bestanden', zuletzt: jetzt },
+      { name: 'Bernd Beispiel', email: 'b@example.org', kurs: 'Modul 1.2', fortschritt: 40, schritt: 'Level 4 · Video', check: 'offen', zuletzt: jetzt },
+      { name: 'Clara Beispiel', email: '', kurs: 'Unternehmer Modul 1', fortschritt: 6, schritt: 'Level 1 · Video', check: 'offen', zuletzt: jetzt, kurscode: 'OFFEN' }],
+    fragen: [{ zeit: jetzt, name: 'Bernd Beispiel', kurs: 'Modul 1.2', schritt: 'Level 4', frage: 'Wie verbinde ich n8n?' }],
+    module: [
+      { name: 'Modul 1.1', teilnehmende: 3, aktiv_7_tage: 2, fortschritt_schnitt: 70, abgeschlossen: 2, check_bestanden: 2, schritte: [['Abschluss', 2], ['Level 2 · Video', 1]], check_fehler: [['Frage 3', 1]], fragen_gesamt: 3, fragen_7_tage: 0, fragen_je_schritt: [['Start', 3]] },
+      { name: 'Modul 1.2', teilnehmende: 2, aktiv_7_tage: 2, fortschritt_schnitt: 55, abgeschlossen: 1, check_bestanden: 0, schritte: [['Level 4 · Video', 1], ['Abschluss', 1]], check_fehler: [], fragen_gesamt: 2, fragen_7_tage: 2, fragen_je_schritt: [['Level 4', 2]] },
+      { name: 'Unternehmer Modul 1', teilnehmende: 1, aktiv_7_tage: 1, fortschritt_schnitt: 6, abgeschlossen: 0, check_bestanden: 0, schritte: [['Level 1 · Video', 1]], check_fehler: [], fragen_gesamt: 0, fragen_7_tage: 0, fragen_je_schritt: [] }] };
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'portal-kurs-module' });
+    await p.route(u => String(u).includes('/webhook/team-klassenbuch'), r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: false, fehler: 'Testadapter: Klassenbuch nicht nachgebildet' }) }));
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); const j = await res.json();
+      if (j && j.ok && !j.setup) { j.kurs = KURS; j.anfragen = []; }
+      r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/start', { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+    await p.locator('[data-dt="kurs"]').first().click(); await p.waitForTimeout(300);
+    const dash = await text(p, '#dbody');
+    for (const n of ['Modul 1.1', 'Modul 1.2', 'Unternehmer Modul 1']) assert.ok(dash.includes(n), 'Übersicht zeigt ' + n);
+    assert.match(dash, /Wo sie stehen/);
+    await shot(p, 'portal-kurs-module-uebersicht', vp);
+    await p.evaluate(() => { location.hash = '#/tab/kurs'; }); await p.waitForTimeout(400);
+    assert.match(await text(p, '#main'), /Module im Vergleich/);
+    await p.locator('.seg [data-km="Modul 1.2"]').click(); await p.waitForTimeout(200);
+    const m12 = await text(p, '#main');
+    assert.match(m12, /Modul 1\.2\. Du siehst Namen/); assert.ok(m12.includes('Bernd Beispiel') && !m12.includes('Anna Beispiel'), 'Tabelle nur Modul 1.2');
+    assert.ok(m12.includes('Wie verbinde ich n8n?')); assert.ok(!m12.includes('Module im Vergleich'));
+    await shot(p, 'portal-kurs-modul-12', vp);
+    await p.locator('.seg [data-km="Unternehmer Modul 1"]').click(); await p.waitForTimeout(200);
+    assert.ok(!(await text(p, '#main')).includes('Kurscode „OFFEN“'), 'OFFEN gilt nicht als falscher Kurscode');
+    await p.locator('.seg [data-km=""]').click(); await p.waitForTimeout(200);
+    assert.ok((await text(p, '#main')).includes('Anna Beispiel'));
+    await p.close();
+  }
+});
+
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });

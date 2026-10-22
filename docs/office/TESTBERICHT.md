@@ -461,3 +461,22 @@ Anlass: Kurt hat im Portal Inhalte verloren, eine Aufgabe zu Modul 2 und Text. W
 **Reihenfolge beim Einspielen:** (1) SQL im Supabase-SQL-Editor ausführen, (2) Portal-API in n8n auf `team_laden_plus` und den neuen Code umstellen, (3) diesen PR mergen. In anderer Reihenfolge funktioniert das Laden nicht, oder das Portal zeigt „Papierkorb“, obwohl noch endgültig gelöscht wird.
 
 Screenshots: `screenshots/*-portal-papierkorb.png`, `*-portal-notiz-versionen.png`, `*-portal-notiz-konflikt.png`.
+
+## 26. Nachtrag 22.10.2026: Kursstände getrennt nach Modulen, Testeinträge gelöscht (Branch `feature/kurs-module`, KI-erstellt: Claude Code)
+
+Timos Wunsch: In der Übersicht die Stände der Kurse nach Modulen getrennt zeigen und alle Tests löschen.
+
+- **Portal-API (n8n, Knoten „Antwort bauen“):** liefert zusätzlich `kurs.module`. Je Modul sind das Teilnehmende, aktive in den letzten 7 Tagen, Ø Fortschritt, fertig (100 %), Check bestanden, wo die Teilnehmenden stehen, Check-Fehler und Fragen an den Assistenten. Bei den Fragen steht jetzt das Modul dabei. Der Kurscode „OFFEN“ des Unternehmer-Moduls gilt nicht mehr als falscher Kurscode. Die bisherigen Felder bleiben, ältere Portal-Fassungen laufen also weiter. Veröffentlicht (44c91266, Vorversion a55ebbe9).
+- **Übersicht (Dashboard „Kurse & Teilnehmer“):** je Modul eine Karte (Modul 1.1, Modul 1.2, Unternehmer Modul 1) mit Kennzahlen und „Wo sie stehen“.
+- **Kursseite:** Auswahl „Alle Module / Modul 1.1 / …“. Bei „Alle Module“ gibt es zusätzlich die Tabelle „Module im Vergleich“. Bei einem gewählten Modul zeigen Kennzahlen, Diagramme, Teilnehmenden-Liste und Fragen nur dieses Modul. Die Spalte heißt jetzt „Modul“ statt „Teil“.
+- **Testeinträge gelöscht:** über einen vorübergehenden Workflow, erst im Probelauf (dry run), dann echt. Danach wurde der Workflow archiviert. Gelöscht wurden 6 Lernstände (Test (Claude), Test Claude, test5, Tristan test, test2, Test3), 8 Chatfragen (Tristan, Test3) und 6 Anfragen (TEST Claude, Test Claude, TEST Leadmagnet, dreimal Timos eigene Fördercheck-Tests). Danach erneut gelesen: Alle echten Teilnehmenden sind noch da. Stehen gelassen, Rückfrage an Timo: Kurt (Modul 1.1 und 1.2, Zugangsanfrage) und ein namenloser Eintrag im Unternehmer-Modul vom 22.10.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Logik je Modul lokal: Zählung, Aktivität, Ø, fertig, Check-Fehler, Fragen, Gesamtzahlen unverändert, OFFEN kein falscher Code | bestanden |
+| Code in n8n mit der geprüften Datei verglichen, „Anfrage prüfen“ unverändert | identisch |
+| Live: Laden über `team.py` | funktioniert |
+| Browser (Desktop und Handy): Übersicht mit drei Modul-Karten, Kursseite mit Vergleich und Modulwahl, Liste und Fragen gefiltert | bestanden |
+| `npm run test:office` | 113 von 113 |
+
+Screenshots: `screenshots/*-portal-kurs-module-uebersicht.png`, `*-portal-kurs-modul-12.png`.
