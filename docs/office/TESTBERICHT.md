@@ -480,3 +480,22 @@ Timos Wunsch: In der Übersicht die Stände der Kurse nach Modulen getrennt zeig
 | `npm run test:office` | 113 von 113 |
 
 Screenshots: `screenshots/*-portal-kurs-module-uebersicht.png`, `*-portal-kurs-modul-12.png`.
+
+## 27. Nachtrag 22.10.2026: Teilnehmer-Register (Branch `feature/teilnehmer-register`, KI-erstellt: Claude Code)
+
+Timos Wunsch: Unter „Kurs & Teilnehmer“ soll es ein Register der Kursteilnehmer als saubere Tabelle geben. Die Spalten sind „Antrag genehmigt“, „Bildungsgutschein im Haus“, „Seminarvertrag unterzeichnet“, „Brandschutzordnung“, „Google-Bewertung“ und „was noch so kommt“. Die Automationen kommen später dazu.
+
+- **Supabase (`supabase/team_teilnehmer.sql`, nach `team_papierkorb.sql` ausführen):** Tabellen `team_teilnehmer` und `team_tn_spalten`, dazu die 5 Startspalten. Die Funktion `team_tn_haken()` setzt einen einzelnen Punkt, ohne gleichzeitige Änderungen anderer zu überschreiben. Über sie setzen auch die späteren Automationen ihre Haken. Der Papierkorb kennt jetzt die Art „teilnehmer“, und `team_laden_plus()` liefert Register und Spalten mit.
+- **Portal-API:** neue Aktionen `teilnehmer` (lesen), `tn_speichern` (mit Stand-Prüfung und Haken-Änderungen), `tn_haken`, `tn_loeschen` (in den Papierkorb, nur Timo) und `tn_spalte_speichern` (nur Timo). Sehen und pflegen dürfen nur Timo und die Dozenten. Vertrieb, Team und Agenten bekommen 403.
+- **Portal:** Die Karte „Teilnehmer-Register“ auf der Kursseite ist eine Tabelle mit einer Zeile je Teilnehmer und einer Spalte je Punkt. Ein Klick auf eine Zelle schaltet offen → ✓ (mit Datum) → – entfällt → offen. Dazu kommen Suche, Statusfilter (Standard: Interessenten und aktive), die Spalte „Stand x/y“ und der Dialog für Stammdaten, Punkte mit Datum und Notiz. „Spalten verwalten“ (nur Timo) erlaubt Umbenennen, Reihenfolge, Ausblenden und neue Spalten. Die Namensspalte bleibt beim seitlichen Scrollen auf dem Handy stehen.
+
+| Prüfung | Ergebnis |
+|---|---|
+| SQL in lokalem Postgres (PGlite), zweimal ausgeführt: Startspalten ohne Doppel, Haken setzen und zurücknehmen ohne Nebenwirkung, Fehlerfälle, `team_laden_plus`, Papierkorb und Wiederherstellen samt Haken | 9 von 9 |
+| Logik der Portal-API lokal: Rechte (Dozent ja, Vertrieb und Agent nein, Löschen und Spalten nur Timo), Anlegen mit gültigen Haken, Konflikt, E-Mail-Prüfung, Haken bleiben beim Ändern erhalten, Spalten, Papierkorb-Anzeige; die Prüfungen aus Abschnitt 25 laufen weiter | bestanden |
+| Browser (Desktop und Handy): Tabelle mit 5 Spalten, Filter, Klick-Häkchen (✓, dann –), neuer Teilnehmer mit Haken und Datum, neue Spalte | bestanden |
+| `npm run test:office` | 114 von 114 |
+
+Screenshots: `screenshots/*-portal-teilnehmer-register.png`, `*-portal-teilnehmer-dialog.png`.
+
+**Datenschutz:** Das Register enthält Personendaten und Förderangaben (Bildungsgutschein). Sichtbar ist es nur für Timo und die Dozenten, gespeichert wird es in Supabase wie die übrigen Teamdaten. Gehört ins Löschkonzept (z. B. Löschen nach Ende der Aufbewahrungsfrist der Maßnahme). Offen für Timo bzw. den Datenschutz-Check.
