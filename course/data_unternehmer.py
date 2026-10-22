@@ -1,5 +1,8 @@
 # Leadmagnet für Unternehmer: Modul 1 „Die volle Tasse – KI im Betrieb verstehen“
 # Offen für alle (ohne Kurscode). Modul 2 (Umsetzung mit n8n) gibt es nach einem kurzen Gespräch.
+import pathlib
+ATHENA_PROMPT = (pathlib.Path(__file__).parent / "prompts/athena.xml").read_text(encoding="utf-8").strip()
+
 TITLE = "Die volle Tasse: KI im Betrieb verstehen"
 SUBTITLE = "Modul 1 · für Unternehmer · ca. 20 Minuten"
 INTRO = ("Du bist nicht zu langsam. Deine Tasse ist zu voll: Mails, Angebote, Abos, Prognosen. "
@@ -29,11 +32,34 @@ LEVELS = [
          {"id": "team", "q": "Wie viele Mitarbeiter arbeiten bei dir?", "min": 1, "max": 100, "step": 1, "val": 10, "unit": "", "maxlabel": "100+"}],
      "xp": 50},
     {"id": 2, "title": "Wer macht was?", "videos": ["U2"],
+     # Erklärseite vor der Aufgabe: Athena als erster KI-Agent, Prompt zum Kopieren
+     "erklaer": {
+         "kicker": "Dein erster KI-Agent",
+         "titel": "Athena: die Recruiterin für dein KI-Team",
+         "hook": "Stell dir vor, du könntest morgen einen neuen Mitarbeiter einstellen, der nie krank wird, nachts arbeitet und genau weiß, was er tun soll. Damit das klappt, brauchst du zuerst jemanden, der richtig einstellt.",
+         "intro": "Genau dafür gibt es Athena. Sie ist dein erster KI-Agent, und ihre einzige Aufgabe ist es, weitere KI-Agenten für dich einzustellen. Wie eine Personalchefin führt sie mit dir ein Bewerbungsgespräch, nur andersherum: Sie fragt dich, wen du brauchst.",
+         "schritte_titel": "So arbeitet Athena",
+         "schritte": [
+             ["Sie lernt deinen Betrieb kennen", "Branche, Abläufe, Programme. Sie fragt nur, was sie wirklich braucht, und immer nur eine Frage auf einmal."],
+             ["Sie klärt die neue Stelle", "Welche Aufgabe soll der neue KI-Mitarbeiter übernehmen? Was soll am Ende herauskommen? Was darf er allein, wofür braucht er deine Freigabe?"],
+             ["Sie schlägt Name und Persönlichkeit vor", "Jeder Agent bekommt eine klare Rolle und einen passenden Stil. Du entscheidest, ob es passt."],
+             ["Sie schreibt die Stellenbeschreibung", "Das Ergebnis ist ein fertiger Prompt für deinen neuen Agenten, mit Aufgaben, Grenzen und Sicherheitsregeln. Den setzt du überall ein, wo du KI nutzt."]],
+         "prompt": {
+             "titel": "Hol dir Athena: der Prompt zum Kopieren",
+             "hinweis": "Kopier den Prompt und leg in Claude ein neues Projekt an, z. B. „Athena“. Füg den Prompt dort als Anweisung für das Projekt ein. Dann startest du einen Chat mit: „Hallo Athena, ich möchte einen neuen KI-Mitarbeiter einstellen.“ In ChatGPT geht es genauso mit einem eigenen GPT oder Projekt.",
+             "datei": "Athena_KI-Recruiterin.xml",
+             "text": ATHENA_PROMPT},
+         "kern": "Ein guter KI-Agent entsteht nicht durch einen möglichst langen Prompt, sondern durch eine klare Rolle, die richtigen Werkzeuge und klare Grenzen. Genau das klärt Athena mit dir.",
+         "warum_titel": "Warum du mit Athena anfängst",
+         "warum": [
+             ["Kein Technik-Wissen nötig", "Du beschreibst in normaler Sprache, was du brauchst. Athena übersetzt das in eine Anleitung, die ein KI-Agent versteht."],
+             ["Einmal einrichten, immer wieder nutzen", "Mit Athena stellst du nicht nur einen Agenten ein, sondern dein ganzes KI-Team: für Angebote, Anfragen, Berichte, Social Media."],
+             ["Sicher von Anfang an", "Jeder Agent bekommt klare Grenzen: Was Geld kostet, nach außen geht oder sich nicht rückgängig machen lässt, braucht deine Freigabe. Passwörter gehören nie in einen Prompt."]]},
      "merksatz": "Claude Code baut, Athena stellt ein, n8n arbeitet, MCP verbindet, das Gedächtnis erinnert.",
      "kernpunkte": [
          "Ein KI-Chat wie ChatGPT redet. Ein KI-Agent arbeitet: Er hat Zugriff auf Werkzeuge und erledigt Aufgaben Schritt für Schritt.",
          "Claude Code ist der Baumeister. Du beschreibst in normaler Sprache, was du brauchst, und er baut, testet und repariert. Voraussetzung ist das Claude-Abo für etwa 20 € im Monat.",
-         "Athena ist unsere Recruiterin: ein Agent, der für dich weitere Agenten „einstellt“. Sie führt ein kurzes Gespräch, schreibt die Stellenbeschreibung und legt den neuen Agenten an.",
+         "Athena ist dein erster KI-Agent: eine Recruiterin, die für dich weitere KI-Agenten „einstellt“. Sie führt ein kurzes Gespräch mit dir, schreibt die Stellenbeschreibung, und damit legst du den neuen Agenten an. Den Prompt für Athena bekommst du gleich zum Kopieren.",
          "n8n ist der Motor. Hier laufen deine Abläufe automatisch, auch nachts. n8n verbindet Mail, Kalender, CRM, Buchhaltung und mehr.",
          "MCP ist die Steckdose: ein offener Standard, über den ein KI-Agent Werkzeuge wie n8n bedienen darf. Du bestimmst, was er sehen und tun darf.",
          "Das Firmen-Gedächtnis speichert dein Wissen so, dass Agenten es finden: ein RAG-System auf Supabase, auf Wunsch kombiniert mit Obsidian für eure Notizen. Es läuft auf deinem eigenen oder einem gemieteten Server, deine Daten bleiben bei dir.",

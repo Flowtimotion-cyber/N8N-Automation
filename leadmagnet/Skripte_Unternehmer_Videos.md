@@ -50,7 +50,7 @@ Der Weg ist umgekehrt. Erst schauen, was jede Woche gleich abläuft. Genau das g
 
 Gleich schiebst du drei Regler: deine Stunden mit Routine, deine Abos und dein Team. Es gibt kein Richtig oder Falsch. Du siehst nur, wie voll deine Tasse gerade ist.
 
-## U2 · Wer macht was? (ca. 90 s)
+## U2 · Wer macht was? (ca. 100 s, Stand 22.10.2026: Athena ausführlicher)
 
 Die meisten Unternehmer scheitern an KI nicht wegen der Technik. Sondern weil niemand ihnen sagt, wer im System eigentlich was macht. Dann klingt alles gleich: Chatbot, Agent, Automation.
 
@@ -58,7 +58,7 @@ Warum das wichtig ist: Wenn du die Rollen kennst, kannst du entscheiden. Du wei�
 
 Fünf Rollen, wie in einem kleinen Team.
 **Claude Code** ist der Baumeister. Du beschreibst in normalen Worten, was du brauchst, und er baut es, testet es und repariert es.
-**Athena** ist unsere Recruiterin. Sie stellt weitere KI-Agenten für deinen Betrieb ein, mit Stellenbeschreibung, Aufgaben und Grenzen, wie bei einem neuen Mitarbeiter.
+**Athena** ist dein erster KI-Agent, unsere Recruiterin. Mit ihr stellst du alle weiteren KI-Mitarbeiter ein: Sie fragt dich, welche Aufgabe der Neue übernehmen soll, und schreibt ihm eine Stellenbeschreibung mit Aufgaben und Grenzen, wie bei einem echten Mitarbeiter. Ihren Prompt bekommst du gleich zum Kopieren.
 **N-Eight-N** ist der Motor. Dort laufen deine Abläufe, Tag und Nacht.
 **M-C-P** ist die Steckdose. Darüber darf die K-I deine Programme bedienen, aber nur die, die du freigibst.
 Und das **Firmen-Gedächtnis** erinnert sich an alles, was dein Betrieb weiß. Ein RAG-System auf Supabase, auf Wunsch mit Obsidian, auf deinem eigenen oder einem gemieteten Server.
@@ -67,7 +67,7 @@ Und du bist nicht allein: Hinter den Agenten stehen echte Ansprechpartner, die j
 
 Jetzt du: Zieh jede Aussage zur richtigen Rolle.
 
-## U3 · Die Bausteine (ca. 75 s)
+## U3 · Die Bausteine (ca. 95 s, Stand 22.10.2026: Leitungen API, Webhook, MCP)
 
 Weißt du, warum so viele Automationen nach drei Wochen wieder abgeschaltet werden? Weil niemand vorher klar gesagt hat, wann sie starten und was am Ende rauskommen soll.
 
@@ -77,7 +77,11 @@ Stell dir ein Rezept vor.
 Der **Auslöser** startet: eine neue Mail, ein ausgefülltes Formular, Montag acht Uhr.
 Die **Schritte** erledigen die Arbeit: lesen, sortieren, ein Angebot vorbereiten, Bescheid geben.
 Die **Zugangsdaten** geben die Erlaubnis, zum Beispiel für dein Postfach. Die legst immer du selbst an, nie die K-I.
-Und die **Leitungen** verbinden die Schritte zu einer Kette.
+Und die **Leitungen** verbinden alles. Davon gibt es drei.
+Die **A-P-I**: N-Eight-N ruft bei einem Programm an und fragt nach, zum Beispiel jeden Morgen nach den offenen Rechnungen.
+Der **Webhook**: Das Programm klingelt von selbst, sobald etwas passiert, zum Beispiel bei jeder neuen Bestellung.
+Und **M-C-P**: die Steckdose für K-I. Darüber bedient ein K-I-Agent wie Claude Code deine Abläufe, aber nur die, die du freigibst.
+Kurz gesagt: A-P-I und Webhook verbinden Programme. M-C-P verbindet die K-I mit diesen Programmen.
 
 Gut beschrieben ist halb gebaut. Ordne die Bausteine gleich zu.
 
