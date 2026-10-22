@@ -1373,8 +1373,17 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       karte('Verteilung nach Stufe', bars(verteilung)) + karte('Woher die Leads kommen', bars(Object.entries(quelle).sort((a, b) => b[1] - a[1]), 'var(--acc2)')) + '</div>' +
       '<p class="dhint">Stand: ' + fmtDT(VT.d.stand) + ' · <button class="btn ghost" data-goto="vertrieb">Zur Pipeline →</button></p>';
   }
+  // Ein Modul kompakt: Kennzahlen und wo die Teilnehmenden stehen
+  function modulKarte(m) {
+    return karte(m.name, '<div class="dmini">' + kpi(m.teilnehmende || 0, 'Teilnehmende') + kpi(m.aktiv_7_tage || 0, 'aktiv (7 Tage)') + kpi((m.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') +
+      kpi(m.abgeschlossen || 0, 'fertig') + kpi(m.check_bestanden || 0, 'Check bestanden') + kpi(m.fragen_7_tage || 0, 'Fragen (7 Tage)') + '</div>' +
+      '<h3 class="small muted" style="margin:10px 0 4px">Wo sie stehen</h3>' + bars(m.schritte, 'var(--acc2)'));
+  }
   function dashKurs() {
     const k = D.kurs || {}, an = D.anfragen || [];
+    if (Array.isArray(k.module) && k.module.length) return '<div class="dgrid">' + k.module.map(modulKarte).join('') +
+      karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + (istDozent() ? kbDashKarte() : '') + '</div>' +
+      '<p class="dhint"><button class="btn ghost" data-goto="kurs">Details →</button></p>';
     return '<div class="dmini">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv (7 Tage)') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Check bestanden') + kpi(k.fragen_7_tage || 0, 'Fragen (7 Tage)') + kpi(an.length, 'Anfragen') + '</div>' +
       '<div class="dgrid">' + karte('Nach Kursteil', bars(k.je_teil)) + karte('Wo die Teilnehmenden stehen', bars(k.schritte, 'var(--acc2)')) + karte('Fragen an den Assistenten nach Schritt', bars(k.fragen_je_schritt, 'var(--teal)')) +
       karte('Anfragen je Woche', saeulen(proWoche(an, a => a.eingegangen, 8), 'Anfragen')) + (istDozent() ? kbDashKarte() : '') + '</div>' +
@@ -2169,20 +2178,31 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     return '<div class="bars">' + list.map(([k, v]) => '<div class="row"><span class="bl" title="' + esc(k) + '">' + esc(k) + '</span><span class="bt"><i style="width:' + Math.round(v / max * 100) + '%' + (color ? ';background:' + color : '') + '"></i></span><b>' + v + '</b></div>').join('') + '</div>';
   }
   function vKurs() {
-    const k = D.kurs || {};
+    const kAlle = D.kurs || {};
     const an = D.anfragen || [];
-    $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">Modul 1 (n8n und Claude Code). ' + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
-      '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
+    const M = Array.isArray(kAlle.module) ? kAlle.module : [];
+    let modul = ls.get('mt-kursmodul') || '';
+    if (modul && !M.some(m => m.name === modul)) modul = '';
+    const m = M.find(x => x.name === modul);
+    // Ein Modul gewählt: dessen Zahlen, sonst alle zusammen
+    const k = m ? Object.assign({}, kAlle, m, { liste: (kAlle.liste || []).filter(t => t.kurs === modul), fragen: (kAlle.fragen || []).filter(f => f.kurs === modul) }) : kAlle;
+    const vergleich = M.length > 1 && !m ? '<div class="card"><h2>Module im Vergleich</h2><div class="tablewrap"><table><tr><th>Modul</th><th>Teilnehmende</th><th>aktiv (7 Tage)</th><th>Ø Fortschritt</th><th>fertig</th><th>Check bestanden</th><th>Fragen</th></tr>' +
+      M.map(x => '<tr><td><button class="btn ghost" style="padding:2px 0" data-km="' + esc(x.name) + '">' + esc(x.name) + '</button></td><td>' + x.teilnehmende + '</td><td>' + x.aktiv_7_tage + '</td><td><div class="prog"><i style="width:' + (Number(x.fortschritt_schnitt) || 0) + '%"></i></div>' + x.fortschritt_schnitt + ' %</td><td>' + x.abgeschlossen + '</td><td>' + x.check_bestanden + '</td><td>' + x.fragen_gesamt + '</td></tr>').join('') + '</table></div></div>' : '';
+    $('#main').innerHTML = '<h1>Kurs & Teilnehmer</h1><p class="sub">' + (m ? esc(m.name) + '. ' : 'Alle Module. ') + (k.namen_sichtbar ? 'Du siehst Namen, weil du zur Kursleitung gehörst. Bitte vertraulich behandeln.' : 'Teilnehmer-Daten siehst du zusammengefasst ohne Namen.') + '</p>' +
+      (M.length ? '<div class="seg" style="margin-bottom:14px;flex-wrap:wrap" role="tablist" aria-label="Modul wählen">' + [''].concat(M.map(x => x.name)).map(n => '<button type="button" data-km="' + esc(n) + '" class="' + (n === modul ? 'on' : '') + '">' + esc(n || 'Alle Module') + '</button>').join('') + '</div>' : '') +
+      '<div class="kpis">' + kpi(k.teilnehmende || 0, 'Teilnehmende') + kpi(k.aktiv_7_tage || 0, 'aktiv in 7 Tagen') + kpi((k.fortschritt_schnitt || 0) + ' %', 'Ø Fortschritt') + (m ? kpi(m.abgeschlossen || 0, 'fertig') : '') + kpi(k.check_bestanden || 0, 'Abschluss-Check bestanden') + kpi(k.fragen_gesamt || 0, 'Fragen an den Assistenten') + '</div>' +
+      vergleich +
       (istDozent() ? '<div id="kbBox"></div>' + communityHtml() : '') +
-      '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + '<h3 style="margin-top:14px">Nach Kursteil</h3>' + bars(k.je_teil, 'var(--acc2)') + '</div>' +
+      '<div class="grid"><div class="card"><h2>Wo die Teilnehmenden stehen</h2>' + bars(k.schritte) + (m ? '' : '<h3 style="margin-top:14px">Nach Modul</h3>' + bars(k.je_teil, 'var(--acc2)')) + '</div>' +
       '<div class="card"><h2>Fragen an den Assistenten nach Schritt</h2>' + bars(k.fragen_je_schritt, 'var(--teal)') + '<h3 style="margin-top:14px">Häufigste Fehler im Check</h3>' + bars(k.check_fehler, 'var(--red)') + '</div></div>' +
-      (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Teil</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
+      (k.namen_sichtbar ? '<div class="card"><h2>Teilnehmende</h2><div class="tablewrap"><table><tr><th>Name</th><th>Modul</th><th>Fortschritt</th><th>Schritt</th><th>Check</th><th>Zuletzt aktiv</th></tr>' +
         ((k.liste || []).map(t => '<tr><td><b>' + esc(t.name) + '</b>' + (t.code_falsch ? ' <span class="chip" style="background:#FFF4E5" title="Falscher Kurscode eingegeben">Kurscode „' + esc(t.kurscode) + '“</span>' : '') + '<br><span class="small muted">' + esc(t.email || '') + '</span></td><td>' + esc(t.kurs) + '</td><td><div class="prog"><i style="width:' + (Number(t.fortschritt) || 0) + '%"></i></div>' + esc(t.fortschritt) + ' %</td><td>' + esc(t.schritt || '–') + '</td><td>' + esc(t.check) + '</td><td>' + fmtDT(t.zuletzt) + '</td></tr>').join('') || '<tr><td colspan="6" class="muted">Noch keine Teilnehmenden.</td></tr>') + '</table></div></div>' +
         '<div class="card"><h2>Letzte Fragen an den Assistenten</h2>' + ((k.fragen || []).map(f => '<div style="padding:8px 0;border-top:1px solid var(--line)"><div class="small muted">' + fmtDT(f.zeit) + ' · ' + esc(f.name || 'ohne Namen') + (f.schritt ? ' · ' + esc(f.schritt) : '') + '</div><div>' + esc(f.frage) + '</div></div>').join('') || '<p class="empty">Noch keine Fragen.</p>') + '</div>' : '') +
       '<div class="card"><h2>Anfragen aus dem Kurs</h2><p class="small muted">Personen, die über den Kurs ein Angebot' + (istDozent() ? ' oder einen Zugang' : '') + ' angefragt haben. Sie haben der Kontaktaufnahme zugestimmt.</p><div class="tablewrap"><table><tr><th>Art</th><th>Person</th><th>Firma</th><th>Angaben</th><th>Eingang</th><th>Status</th></tr>' +
       (an.map(a => '<tr><td>' + (a.typ === 'zugang' ? 'Zugang' : 'Angebot') + '</td><td><b>' + esc(a.name) + '</b><br><span class="small">' + (a.email ? '<a href="mailto:' + esc(a.email) + '">' + esc(a.email) + '</a>' : '') + (a.telefon ? '<br><a href="tel:' + esc(a.telefon) + '">' + esc(a.telefon) + '</a>' : '') + '</span></td><td>' + esc(a.firma || '–') + (a.mitarbeitende ? '<br><span class="small muted">' + esc(a.mitarbeitende) + ' Mitarbeitende</span>' : '') + '</td><td class="small">' + esc([a.server, a.zeitrahmen].filter(Boolean).join(' · ') || '–') + (a.nachricht ? '<br><span class="muted">' + esc(a.nachricht) + '</span>' : '') + '</td><td>' + fmtDT(a.eingegangen) + '</td><td><span class="chip">' + esc(a.status || 'neu') + '</span></td></tr>').join('') || '<tr><td colspan="6" class="muted">Keine Anfragen.</td></tr>') + '</table></div></div>';
     bindCommunity();
     if (istDozent()) kbZeigen();
+    document.querySelectorAll('[data-km]').forEach(b => b.onclick = () => { ls.set('mt-kursmodul', b.dataset.km); vKurs(); });
   }
 
   function communityHtml() {
