@@ -2,7 +2,7 @@ import { workflow, node, trigger, ifElse, switchCase, expr } from '@n8n/workflow
 
 // ---------- Konfiguration (hier anpassen) ----------
 const CFG = `const CFG = {
-  BUCHUNG_URL: '',            // GHL-Kalender Karsten (TEMP.Akademie) – Link von Timo
+  BUCHUNG_URL: 'https://api.leadconnectorhq.com/widget/booking/vgYAcYTgqLJOE2sh0TTy', // GHL-Kalender Karsten
   MODUL1_URL: 'https://flowtimotion-cyber.github.io/N8N-Automation/unternehmer/',
   SEITE_URL: 'https://momentum-ki-akademie.de/unternehmer',
   GHL_WEBHOOK: ''             // Inbound-Webhook im GHL-Unterkonto TEMP.Akademie – Link von Timo
@@ -191,10 +191,10 @@ const telegram = node({ type: 'n8n-nodes-base.telegram', version: 1.2, config: {
   credentials: { telegramApi: { id: 'hZktbgIoaHaiDLB7', name: 'Telegram Dialyse' } } } });
 
 const mail = node({ type: 'n8n-nodes-base.emailSend', version: 2.1, config: { name: 'Ergebnis per Mail', onError: 'continueRegularOutput', parameters: {
-  resource: 'email', operation: 'send', fromEmail: 'Momentum KI Akademie <hermetikm@gmail.com>',
+  resource: 'email', operation: 'send', fromEmail: 'Momentum KI Akademie <info@momentum-ki-akademie.de>',
   toEmail: expr("{{ $('Prüfen und aufbereiten').item.json.email }}"), subject: expr("{{ $('Prüfen und aufbereiten').item.json.mail_betreff }}"),
-  emailFormat: 'html', html: expr("{{ $('Prüfen und aufbereiten').item.json.mail_html }}"), options: { appendAttribution: false, replyTo: 'hermetikm@gmail.com' } },
-  credentials: { smtp: { id: 'AmekA6FZj4ee7KiO', name: 'SMTP account' } } } });
+  emailFormat: 'html', html: expr("{{ $('Prüfen und aufbereiten').item.json.mail_html }}"), options: { appendAttribution: false, replyTo: 'info@momentum-ki-akademie.de' } },
+  credentials: { smtp: { id: 'SK15qLpQaPey2axD', name: 'SMTP-info@momentum-ki-akademie.de' } } } });
 
 const ghlGesetzt = ifElse({ version: 2.2, config: { name: 'GHL-Webhook eingetragen?', parameters: { conditions: {
   options: { caseSensitive: true, leftValue: '', typeValidation: 'strict' },
