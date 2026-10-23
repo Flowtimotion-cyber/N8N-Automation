@@ -240,7 +240,7 @@ em { font-style:normal; color:var(--accent); }
 .cap .w.k { color:var(--accent); }
 """
 
-CAPFIX = [(r"\bCloud Code\b", "Claude Code"), (r"\bPubly\b", "Pabbly"), (r"\b2224\b", "2024"), (r"\bChat, GPT\b", "ChatGPT \u200b"),
+CAPFIX = [(r"\bCloud Code\b", "Claude Code"), (r"\bCloudCode\b", "Claude Code"), (r"\bRacksystem\b", "RAG-System"), (r"\bN8N\b", "n8n"), (r"rund die Uhr", "rund um die Uhr"), (r"\bPubly\b", "Pabbly"), (r"\b2224\b", "2024"), (r"\bChat, GPT\b", "ChatGPT \u200b"),
           (r"\bChat GPT\b", "ChatGPT \u200b"), (r"\bOlama\b", "Ollama"), (r"\bLama\b", "Llama"), (r"\bQuen\b", "Qwen"), (r"\bCL eins\b", "CLI \u200b"), (r"Video Fünften", "Video fünf"), (r"Teil dritten", "Teil drei"), (r"Teil zweiten", "Teil zwei"),
           (r"Video sechsten", "Video sechs"), (r"\bN8N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"Claude Pro-Abo", "Claude-Pro-Abo"), (r"Supa-Base", "Supabase"), (r"\bSupa Base\b", "Supabase"), (r"\bRack-System", "RAG-System"), (r"\bRAG System\b", "RAG-System"), (r"\bC-R-M\b", "CRM"), (r"\bSuperbase\b", "Supabase"), (r"\bCarsten\b", "Karsten"), (r"Modul zweite", "Modul zwei"), (r"\bFördercheck\b", "Förder-Check"), (r"\bK-I\b", "KI"), (r"\bM-C-P\b", "MCP")]
 KEYW = {"n8n", "api", "webhook", "mcp", "claude", "trigger", "node", "workflow", "credential", "execution", "ollama", "ki",

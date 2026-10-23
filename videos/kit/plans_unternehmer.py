@@ -93,12 +93,12 @@ P["U2"] = dict(av_end="Warum das wichtig", scenes=[
     {"icon": "n8n", "t": "n8n", "d": "Der Motor: Abläufe Tag und Nacht", "at": "ist der Motor"},
     {"icon": "plug", "t": "MCP", "d": "Die Steckdose: nur, was du freigibst", "at": "MCP ist die"},
     {"icon": "book", "t": "Firmen-Gedächtnis", "d": "Erinnert sich an alles, was dein Betrieb weiß", "at": "Firmengedächtnis"}]),
-  S("title", "Ein RAG-System", kick="Dein Firmen-Gedächtnis", title="RAG-System auf deinem eigenen oder gemieteten *Server*", logos=[
+  S("title", "Ein Racksystem", kick="Dein Firmen-Gedächtnis", title="RAG-System auf deinem eigenen oder gemieteten *Server*", logos=[
     {"i": "supabase", "n": "Supabase", "at": "Superbase"}, {"i": "obsidian", "n": "Obsidian", "at": "Obsidian"},
     {"i": "server", "n": "Dein Server", "at": "gemieteten Server"}]),
   S("title", "Und du bist nicht allein", glyph="users", kick="Und du bist nicht allein",
     title="Echte Ansprechpartner, *rund um die Uhr*", sub="…wenn der KI-Agent nicht schon weiterhilft.", sub_at="wenn der KI-Agent"),
-  S("title", "Jetzt du", glyph="arrow", kick="Deine Aufgabe", title="Zieh jede Aussage zur richtigen *Rolle*."),
+  S("title", "Gleich lernst du", glyph="arrow", kick="Gleich im Kurs", title="Athenas Prompt holen, dann jede Aussage zur richtigen *Rolle* ziehen."),
 ])
 
 P["U3"] = dict(av_end="Warum du die Bausteine", scenes=[
@@ -194,14 +194,15 @@ P["UN"] = dict(av_end="Warum das wichtig ist", scenes=[
     {"icon": "user", "t": "Arbeitsanweisung für einen neuen Kollegen", "at": "Arbeitsanweisung"}]),
   S("title", "Warum das wichtig ist", glyph="target", kick="Warum das wichtig ist",
     title="Es fehlt nicht die Idee. Es fehlt jemand, *der baut*.", sub="Genau diese Lücke schließen wir.", sub_at="diese Lücke"),
-  S("cards", "Drei Rollen", kick="Drei Rollen greifen ineinander", title="Motor, Personalchefin, Fachkraft", cards=[
-    {"icon": "gear", "t": "n8n", "d": "Der Motor: Abläufe rund um die Uhr", "at": "ist der Motor"},
-    {"icon": "users", "t": "Athena", "d": "Die Personalchefin: stellt den Spezialisten ein", "at": "Personalchefin"},
-    {"icon": "robot", "t": "n8n-Agent", "d": "Die Fachkraft: baut über MCP in n8n", "at": "Fachkraft"}]),
-  S("hub", "verbindet Hunderte", kick="Warum n8n?", title="Die Zentrale für deine Abläufe", center="n8n", sats=[
+  S("title", "Drei Rollen", glyph="users", kick="Drei Rollen greifen ineinander", title="*Motor*, *Personalchefin*, *Fachkraft*"),
+  S("hub", "ist der Motor", kick="n8n ist der Motor", title="Die Zentrale für deine Abläufe", center="n8n", sats=[
     {"i": "mail", "n": "Hunderte Programme", "at": "Hunderte Programme"},
     {"i": "server", "n": "Euer eigener Server", "at": "eigenen Server"},
     {"i": "plug", "n": "MCP für KI-Agenten", "at": "direkt darin bauen"}]),
+  S("cards", "Athena ist die Personalchefin", kick="Wer einstellt, wer baut", title="Personalchefin und Fachkraft", cards=[
+    {"icon": "users", "t": "Athena", "d": "Die Personalchefin: stellt den Spezialisten ein, mit Regeln und Grenzen", "at": "Personalchefin"},
+    {"icon": "robot", "t": "Dein n8n-Agent", "d": "Die Fachkraft: arbeitet in Claude Code", "at": "Fachkraft"},
+    {"icon": "plug", "t": "Über MCP", "d": "baut er direkt in deinem n8n", "at": "baut über"}]),
   S("term", "So läuft es ab", kick="So baut dein n8n-Agent", title="Vom Steckbrief zum Ablauf", lines=[
     {"p": True, "t": "Hier ist mein Steckbrief „Anfrage beantworten“.", "at": "deinen Steckbrief"},
     {"c": "y", "t": "? Welches Postfach soll ich nutzen?", "at": "fragt nach"},

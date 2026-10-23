@@ -65,7 +65,7 @@ Und das **Firmen-Gedächtnis** erinnert sich an alles, was dein Betrieb weiß. E
 
 Und du bist nicht allein: Hinter den Agenten stehen echte Ansprechpartner, die jeden Tag mit diesen Systemen arbeiten und rund um die Uhr an deiner Seite sind, wenn der KI-Agent nicht schon weiterhilft.
 
-Jetzt du: Zieh jede Aussage zur richtigen Rolle.
+Gleich lernst du Athena genauer kennen und holst dir ihren Prompt. Danach ziehst du jede Aussage zur richtigen Rolle.
 
 ## U3 · Die Bausteine (ca. 95 s, Stand 22.10.2026: Leitungen API, Webhook, MCP)
 
@@ -83,7 +83,7 @@ Der **Webhook**: Das Programm klingelt von selbst, sobald etwas passiert, zum Be
 Und **M-C-P**: die Steckdose für K-I. Darüber bedient ein K-I-Agent wie Claude Code deine Abläufe, aber nur die, die du freigibst.
 Kurz gesagt: A-P-I und Webhook verbinden Programme. M-C-P verbindet die K-I mit diesen Programmen.
 
-Gut beschrieben ist halb gebaut. Ordne die Bausteine gleich zu.
+Gut beschrieben ist halb gebaut. Auf der nächsten Seite siehst du die drei Leitungen im Vergleich, danach ordnest du die Bausteine zu.
 
 ## U4 · Datenschutz-Ampel (ca. 85 s)
 
