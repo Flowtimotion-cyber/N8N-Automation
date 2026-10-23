@@ -216,3 +216,94 @@ P["UN"] = dict(av_end="Warum das wichtig ist", scenes=[
   S("title", "Einmal eingestellt", glyph="spark", kick="Merk dir",
     title="Du sagst *was*. Er *baut*. Du entscheidest, was *live* geht."),
 ])
+
+
+# ---------------------------------------------------------------- Version 3 (23.10.2026): UW, U2, U6 neu gerendert
+P["UW"] = dict(av_end="Das hat sich geändert", scenes=[
+  S("hook", 0, kick="Vor zwei Jahren", title="Eine Automation = ein *Programmierer*", items=[
+    {"icon": "hourglass", "t": "Wochen Zeit", "at": "Wochen Zeit"},
+    {"icon": "euro", "t": "Tausende Euro", "at": "tausende Euro"},
+    {"icon": "lock", "t": "Nur er weiß, wie es läuft", "at": "wusste nur er"}]),
+  S("title", "Das hat sich geändert", glyph="spark", kick="Heute", title="Das hat sich *komplett* geändert."),
+  S("compare", "Ein KI-Chat sagt", kick="Chat gegen Agent", title="Berater oder *Mitarbeiter*?", cols=[
+    {"t": "KI-Chat", "icon": "chat", "at": "Ein KI-Chat", "rows": [{"t": "Sagt dir, wie man das Lager umräumt", "at": "wie man das Lager"}]},
+    {"t": "Claude Code", "icon": "claude", "at": "Claude Code räumt", "rows": [
+      {"t": "Räumt es um", "at": "räumt es"}, {"t": "Sagt Bescheid, wenn es fertig ist", "at": "sagt dir Bescheid"}]}]),
+  S("term", "Du beschreibst in normalen", kick="So geht es heute", title="Du beschreibst. Claude Code baut.", lines=[
+    {"p": True, "t": "Wenn eine Anfrage reinkommt: sortieren und mir Bescheid geben.", "at": "in normalen Worten"},
+    {"c": "m", "t": "Baue Workflow „Anfragen“ in n8n …", "at": "Claude Code baut"},
+    {"c": "g", "t": "✓ Workflow erstellt und getestet", "at": "testet sie"},
+    {"c": "y", "t": "⚠ Fehler gefunden → repariert", "at": "findet er den Fehler"}]),
+  S("compare", "Warum das für dich", kick="Warum das so wichtig ist", title="Nicht mehr *wie*, sondern *was*", cols=[
+    {"t": "Das Wie", "icon": "gear", "at": "Die Frage ist nicht mehr", "rows": [
+      {"t": "Programmieren, Code, Technik", "mk": "x"}, {"t": "übernimmt die KI", "at": "übernimmt die KI"}]},
+    {"t": "Das Was", "icon": "target", "at": "Die entscheidende Frage", "rows": [
+      {"t": "Welcher Ablauf kostet dich Zeit?", "at": "Welcher Ablauf"},
+      {"t": "Was soll am Ende rauskommen?", "at": "Was soll am Ende"}]}]),
+  S("hub", "Und warum n8n", kick="Warum n8n?", title="Die Zentrale, in der alles zusammenläuft", center="n8n", sats=[
+    {"i": "mail", "n": "Mail", "at": "Mail"}, {"i": "calendar", "n": "Kalender", "at": "Kalender"},
+    {"i": "users", "n": "CRM", "at": "CRM"}, {"i": "euro", "n": "Buchhaltung", "at": "Buchhaltung"},
+    {"i": "table", "n": "Deine Daten", "at": "deine eigenen Daten"}, {"i": "server", "n": "Dein Server", "at": "gemieteten Server"}]),
+  S("check", "Was du dafür lernen", kick="Was du lernen musst", title="Keine Programmiersprache. *Zehn Grundregeln.*", mode="icon", items=[
+    {"icon": "x", "t": "Keine Programmiersprache", "at": "keine Programmiersprache"},
+    {"icon": "bolt", "t": "10 Grundregeln", "at": "zehn Grundregeln"},
+    {"icon": "target", "t": "Werkzeuge wechseln, Regeln bleiben", "at": "Werkzeuge wechseln"},
+    {"icon": "folder", "t": "Deine Dateien bleiben bei dir", "at": "als Datei bei dir"}]),
+  S("cards", "Damit kannst du", kick="Was du danach bauen lässt", title="Praktisch alles", cards=[
+    {"icon": "bolt", "t": "Automationen", "d": "für deinen Alltag", "at": "für deinen Alltag"},
+    {"icon": "users", "t": "Kundenportal", "d": "für deine Kunden", "at": "Kundenportal"},
+    {"icon": "table", "t": "Eigenes CRM", "d": "passend zu deinem Betrieb", "at": "eigenes CRM"}]),
+  S("title", "Nicht du musst", glyph="target", kick="Merk dir", title="Lerne, *was* du willst. Das *Wie* baut die KI."),
+])
+
+P["U2"] = dict(av_end="Warum das wichtig", scenes=[
+  S("hook", 0, kick="Chatbot, Agent, Automation …", title="Klingt alles *gleich*?", items=[
+    {"icon": "chat", "t": "Chatbot", "at": "Chatbot"}, {"icon": "robot", "t": "Agent", "at": "Agent"},
+    {"icon": "bolt", "t": "Automation", "at": "Automation"}]),
+  S("title", "Warum das wichtig", glyph="target", kick="Warum das wichtig ist",
+    title="Du weißt, was du *kaufen* musst und was nicht.", sub="Kein Tool mehr, das du nicht brauchst.", sub_at="verkauft keiner"),
+  S("cards", "Fünf Rollen", kick="Fünf Rollen wie in einem Team", title="Wer macht was?", cards=[
+    {"icon": "claude", "t": "Claude Code", "d": "Der Baumeister: baut, testet, repariert", "at": "Claude Code ist der Baumeister"},
+    {"icon": "users", "t": "Athena", "d": "Dein erster KI-Agent: stellt alle weiteren ein", "at": "Athena ist dein erster"}]),
+  S("term", "Mit ihr stellst du", kick="Athena, die KI-Recruiterin", title="Sie fragt, du antwortest, sie stellt *ein*", ttl="athena", lines=[
+    {"c": "m", "t": "Welche Aufgabe soll dein neuer KI-Mitarbeiter übernehmen?", "at": "Sie fragt dich"},
+    {"p": True, "t": "Anfragen sortieren und Antworten vorbereiten.", "at": "welche Aufgabe"},
+    {"c": "g", "t": "✓ Stellenbeschreibung: Aufgaben, Regeln, Grenzen", "at": "Stellenbeschreibung"},
+    {"c": "y", "t": "→ Ihren Prompt bekommst du gleich zum Kopieren", "at": "zum Kopieren"}]),
+  S("cards", "ist der Motor", kick="Fünf Rollen wie in einem Team", title="…dazu Motor, Steckdose und Gedächtnis", cards=[
+    {"icon": "n8n", "t": "n8n", "d": "Der Motor: Abläufe Tag und Nacht", "at": "ist der Motor"},
+    {"icon": "plug", "t": "MCP", "d": "Die Steckdose: nur, was du freigibst", "at": "MCP ist die"},
+    {"icon": "book", "t": "Firmen-Gedächtnis", "d": "Erinnert sich an alles, was dein Betrieb weiß", "at": "Firmengedächtnis"}]),
+  S("check", "Es beginnt mit einer Seite", kick="Dein Firmen-Gedächtnis", title="Vier Stufen, drei davon sind *Textdateien*", mode="icon", items=[
+    {"icon": "doc", "t": "Eine Seite Text, die jeder Agent liest", "at": "einer Seite Text"},
+    {"icon": "folder", "t": "Vorlagen als einfache Dateien bei euch", "at": "Vorlagen als einfache"},
+    {"icon": "table", "t": "Wird es viel: eine Datenbank zum Nachschlagen", "at": "kommt eine Datenbank"},
+    {"icon": "server", "t": "Euer Server oder EU-Cloud mit Vertrag", "at": "auf eurem Server"}]),
+  S("title", "Und du bist nicht allein", glyph="users", kick="Und du bist nicht allein",
+    title="Echte Ansprechpartner *werktags*, der KI-Assistent rund um die Uhr", sub="…die jeden Tag mit diesen Systemen arbeiten.", sub_at="jeden Tag"),
+  S("title", "Gleich lernst du", glyph="arrow", kick="Gleich im Kurs", title="Athenas Prompt holen, dann jede Aussage zur richtigen *Rolle* ziehen."),
+])
+
+P["U6"] = dict(av_end="Bei vielen Betrieben", scenes=[
+  S("hook", 0, kick="Zähl mal mit", title="Wie viele *Software-Abos* hast du?", items=[
+    {"icon": "users", "t": "CRM", "at": "CRM"}, {"icon": "calendar", "t": "Kalender", "at": "Kalender"},
+    {"icon": "form", "t": "Formulare", "at": "Formulare"}, {"icon": "mail", "t": "Newsletter", "at": "Newsletter"},
+    {"icon": "euro", "t": "Buchhaltung", "at": "Buchhaltung"}]),
+  S("stat", "Bei vielen Betrieben", kick="Bei vielen Betrieben", num=10, unit="+", label="Abos",
+    sub="Jedes kann ein bisschen, keins passt genau.", sub_at="Jedes kann"),
+  S("compare", "Warum sich das", kick="Warum sich das jetzt ändert", title="Eigene Werkzeuge statt Abos", cols=[
+    {"t": "Früher", "icon": "hourglass", "mk": "x", "at": "Früher", "rows": [{"t": "Eigenes Werkzeug: teuer, Monate Arbeit"}]},
+    {"t": "Heute", "icon": "claude", "at": "Heute baut", "rows": [
+      {"t": "Erster Prototyp an einem Nachmittag", "at": "an einem Nachmittag"},
+      {"t": "Dann: Tests, Datenschutz, deine Freigabe", "at": "braucht er Tests"}]}]),
+  S("title", "Schnell heißt nicht", glyph="warn", kick="Merk dir", title="Schnell heißt *nicht einfach*.",
+    sub="Aber oft ersetzt so ein Werkzeug zwei oder drei Abos.", sub_at="Aber oft"),
+  S("brief", "Dafür brauchst du", kick="Der Bauplan", title="Der Prozess-Steckbrief", fields=[
+    {"l": "Auslöser", "v": "Neue Anfrage über die Webseite", "at": "Auslöser"},
+    {"l": "Schritte", "v": "Lesen → sortieren → Angebot vorbereiten", "at": "Schritte"},
+    {"l": "Programme", "v": "Postfach, CRM, Kalender", "at": "Programme"},
+    {"l": "Ergebnis", "v": "Angebot liegt als Entwurf bereit", "at": "Ergebnis"},
+    {"l": "Fehlerfall", "v": "Nachricht an mich, wenn etwas hakt", "at": "schiefgeht"}]),
+  S("title", "Erst schauen", glyph="search", kick="Deine Aufgabe", title="Erst schauen, *dann bauen*.",
+    sub="3 Fehler finden, dann deinen eigenen Steckbrief schreiben", sub_at="Gleich findest"),
+])

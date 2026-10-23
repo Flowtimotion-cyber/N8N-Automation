@@ -22,7 +22,7 @@ for f in (ROOT / "docs/modul-1-1/media").iterdir():
 media = {"LOGO_FULL": "media/logo_full.png", "LOGO_MARK": "media/logo_mark.png",
          "IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"}
 VID = C / "videos_unternehmer"
-for k in ["U0", "UW", "U1", "U2", "U3", "U4", "U5", "U6", "UN", "VEND"]:
+for k in ["H1", "U0", "UW", "H2", "U1", "U2", "U3", "U4", "U5", "U6", "UN", "H4", "VEND"]:
     for ext, key in [(".mp4", k), (".webm", k + "_webm"), (".jpg", k + "_poster")]:
         src = VID / (k + ext)
         if src.exists(): shutil.copy2(src, MED / src.name); media[key] = "media/" + src.name
@@ -40,7 +40,7 @@ for L in D.LEVELS:
     L = dict(L); da = [v for v in L["videos"] if v in media]
     if da != L["videos"]: print("Video fehlt, übersprungen:", [v for v in L["videos"] if v not in media])
     L["videos"] = da or L["videos"][:1]; LEVELS.append(L)
-DATA = {"title": D.TITLE, "subtitle": D.SUBTITLE, "intro": D.INTRO, "promise": D.PROMISE, "levels": LEVELS, "check": D.CHECK, "pass": D.PASS}
+DATA = {"title": D.TITLE, "subtitle": D.SUBTITLE, "intro": D.INTRO, "promise": D.PROMISE, "levels": LEVELS, "check": D.CHECK, "pass": D.PASS, "hybrid": D.HYBRID, "grundregeln": D.GRUNDREGELN}
 h = re.sub(r"^const DATA = .*;$", lambda m: "const DATA = " + json.dumps(DATA, ensure_ascii=False) + ";", h, count=1, flags=re.M)
 h = re.sub(r"^const MEDIA = .*;$", lambda m: "const MEDIA = " + json.dumps(media) + ";", h, count=1, flags=re.M)
 rep('<title>Automationen verstehen und planen</title>', '<title>Die volle Tasse · KI im Betrieb verstehen · Momentum KI Akademie</title>')
@@ -51,12 +51,15 @@ rep('const LS_KEY = "m11-automationen-v2";', 'const LS_KEY = "u1-unternehmer-v1"
 # Kurscode-Sperre entfernen
 rep('  if (i > 0 && !kurscodeOk(S.kurscode)) { S.step = 0; toast("Bitte zuerst deinen Namen, den richtigen Kurscode und deine E-Mail eintragen."); if (STEPS[S.step]) render(); return; }\n', '')
 rep('if (S.step > 0 && !kurscodeOk(S.kurscode)) S.step = 0;\n', '')
-rep('STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });', 'STEPS.push({ k: "check" }); if (MEDIA.VEND) STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });')
+rep('STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });', 'STEPS.push({ k: "check" }); if (MEDIA.H4) STEPS.push({ k: "video", lv: NLV + 1, v: "H4" }); if (MEDIA.VEND) STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });')
 rep('Das Video zu diesem Abschnitt wird gerade neu aufgenommen. Bis dahin findest du hier die wichtigsten Punkte.', 'Das Wichtigste in zwei Minuten:')
 rep('🔊 Ton an! Danach trägst du unten deinen Namen und den Kurscode ein.', '🔊 Ton an! Danach geht es unten los.')
 rep("' hast Teil 1 geschafft</h1>'", "' hast Modul 1 geschafft</h1>'")
 rep("Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.", "In Modul 2 wird umgesetzt: Du verbindest Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der aus diesem Steckbrief deinen ersten Ablauf baut.")
 rep('saveFile("Merkblatt_Automationen.txt", merkText())', 'saveFile("Merkblatt_Die_volle_Tasse.txt", merkText())')
+rep("""'<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +""", """'<h2 style="margin-top:20px">Die 10 Grundregeln</h2><ol class="ml">' + DATA.grundregeln.map(g => '<li><b>' + esc(g[0]) + '</b> ' + esc(g[1]) + '</li>').join("") + '</ol>' +
+    '<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +""")
+rep('"Mein Prozess-Steckbrief:", ...STECK.own.map', '"Die 10 Grundregeln:", ...DATA.grundregeln.map((g, i) => (i + 1) + ". " + g[0] + " " + g[1]), "",\n    "Mein Prozess-Steckbrief:", ...STECK.own.map')
 rep('setNext(true, "Weiter zu Teil 2 →", true);', 'setNext(true, "Förder-Check und Termin →", true);')
 rep('"Die 6 Merksätze:"', '"Die " + NLV + " Merksätze:"')
 rep('" / 10" : "")', '" / " + DATA.check.length : "")')
@@ -79,6 +82,7 @@ renderStart = function (sc) {
   const card = $(".card:not(.film)", sc); const nameInp = $("input[type=text]", card);
   nameInp.id = "tn-name"; nameInp.placeholder = "Vorname (freiwillig)";
   const note = $("p.small", card); if (note) note.textContent = "Dein Fortschritt wird ohne Namen und ohne E-Mail gespeichert, damit wir sehen, wo der Kurs hakt, und ihn verbessern. Mehr dazu unter „Datenschutz im Kurs“.";
+  card.appendChild(el("p", "muted small", DATA.hybrid));
   card.appendChild(dzBox());
   const ai = el("div", "askai", '<div><b>Dein KI-Assistent</b><span>Unten rechts wartet ein KI-Assistent, der den Kurs kennt. Er erklärt Begriffe, beantwortet Fragen zum Einrichten und zur Förderung deines Teams. Er ist eine KI, kein Mensch.</span></div>');
   const aib = el("button", "btn sec", "Kurz ausprobieren"); aib.onclick = () => window.openAssistant(); ai.appendChild(aib); card.appendChild(ai);
