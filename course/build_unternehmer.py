@@ -22,7 +22,7 @@ for f in (ROOT / "docs/modul-1-1/media").iterdir():
 media = {"LOGO_FULL": "media/logo_full.png", "LOGO_MARK": "media/logo_mark.png",
          "IMG_DESK": "media/img_desk.jpg", "IMG_SORT": "media/img_sort.jpg", "IMG_DONE": "media/img_done.jpg"}
 VID = C / "videos_unternehmer"
-for k in ["U0", "UW", "U1", "U2", "U3", "U4", "U5", "U6", "VEND"]:
+for k in ["U0", "UW", "U1", "U2", "U3", "U4", "U5", "U6", "UN", "VEND"]:
     for ext, key in [(".mp4", k), (".webm", k + "_webm"), (".jpg", k + "_poster")]:
         src = VID / (k + ext)
         if src.exists(): shutil.copy2(src, MED / src.name); media[key] = "media/" + src.name
@@ -34,7 +34,13 @@ def rep(old, new, count=1):
     if n < 1: raise SystemExit("nicht gefunden: " + old[:90])
     h = h.replace(old, new) if count == 0 else h.replace(old, new, count)
 
-DATA = {"title": D.TITLE, "subtitle": D.SUBTITLE, "intro": D.INTRO, "promise": D.PROMISE, "levels": D.LEVELS, "check": D.CHECK, "pass": D.PASS}
+# Videos, die (noch) nicht produziert sind, überspringen; mindestens ein Video-Schritt pro Level bleibt
+LEVELS = []
+for L in D.LEVELS:
+    L = dict(L); da = [v for v in L["videos"] if v in media]
+    if da != L["videos"]: print("Video fehlt, übersprungen:", [v for v in L["videos"] if v not in media])
+    L["videos"] = da or L["videos"][:1]; LEVELS.append(L)
+DATA = {"title": D.TITLE, "subtitle": D.SUBTITLE, "intro": D.INTRO, "promise": D.PROMISE, "levels": LEVELS, "check": D.CHECK, "pass": D.PASS}
 h = re.sub(r"^const DATA = .*;$", lambda m: "const DATA = " + json.dumps(DATA, ensure_ascii=False) + ";", h, count=1, flags=re.M)
 h = re.sub(r"^const MEDIA = .*;$", lambda m: "const MEDIA = " + json.dumps(media) + ";", h, count=1, flags=re.M)
 rep('<title>Automationen verstehen und planen</title>', '<title>Die volle Tasse · KI im Betrieb verstehen · Momentum KI Akademie</title>')

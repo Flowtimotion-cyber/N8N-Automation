@@ -54,7 +54,8 @@ LEVELS = [
          "warum": [
              ["Kein Technik-Wissen nötig", "Du beschreibst in normaler Sprache, was du brauchst. Athena übersetzt das in eine Anleitung, die ein KI-Agent versteht."],
              ["Einmal einrichten, immer wieder nutzen", "Mit Athena stellst du nicht nur einen Agenten ein, sondern dein ganzes KI-Team: für Angebote, Anfragen, Berichte, Social Media."],
-             ["Sicher von Anfang an", "Jeder Agent bekommt klare Grenzen: Was Geld kostet, nach außen geht oder sich nicht rückgängig machen lässt, braucht deine Freigabe. Passwörter gehören nie in einen Prompt."]]},
+             ["Sicher von Anfang an", "Jeder Agent bekommt klare Grenzen: Was Geld kostet, nach außen geht oder sich nicht rückgängig machen lässt, braucht deine Freigabe. Passwörter gehören nie in einen Prompt."],
+             ["Dein erster Spezialist", "Als Erstes stellt Athena deinen n8n-Agenten ein, der deine Abläufe in n8n baut. Wie das genau funktioniert, zeigen wir dir in Level 6."]]},
      "merksatz": "Claude Code baut, Athena stellt ein, n8n arbeitet, MCP verbindet, das Gedächtnis erinnert.",
      "kernpunkte": [
          "Ein KI-Chat wie ChatGPT redet. Ein KI-Agent arbeitet: Er hat Zugriff auf Werkzeuge und erledigt Aufgaben Schritt für Schritt.",
@@ -161,14 +162,51 @@ LEVELS = [
          {"t": "Entscheiden, in welchen Markt ihr nächstes Jahr geht", "a": False, "r": "Wer-Frage: Strategie bleibt bei dir"},
          {"t": "Terminerinnerung an Kunden einen Tag vorher", "a": True, "r": "feste Regel mit Datum"}],
      "xp_each": 10},
-    {"id": 6, "title": "Eigene Werkzeuge statt Abos", "videos": ["U6"],
+    {"id": 6, "title": "Eigene Werkzeuge statt Abos", "videos": ["U6", "UN"],
+     # Vertiefung vor der Steckbrief-Aufgabe: warum n8n, warum Athena einen n8n-Agenten einstellt, wie er baut
+     "erklaer": {
+         "kicker": "Vertiefung",
+         "titel": "Vom Steckbrief zum laufenden Ablauf",
+         "hook": "Gleich schreibst du deinen ersten Prozess-Steckbrief. Vorher zeigen wir dir, was danach damit passiert: Wie wird aus ein paar Sätzen ein Ablauf, der jeden Tag für dich arbeitet?",
+         "intro": "Drei Rollen greifen dafür ineinander: n8n als Motor, Athena als Personalchefin und dein n8n-Agent als Fachkraft, die baut.",
+         "karten": [
+             {"icon": "⚙️", "name": "Warum n8n?", "kurz": "Der Motor", "satz": "In n8n laufen deine Abläufe, rund um die Uhr, auch wenn niemand am Rechner sitzt.",
+              "zeilen": [["Verbindet alles", "Fertige Bausteine für Hunderte Programme wie Mail, Kalender, CRM und Buchhaltung. Alles andere über API und Webhook."],
+                         ["Gehört euch", "Läuft in der n8n-Cloud oder auf eurem eigenen Server in Deutschland. Eure Daten bleiben bei euch."],
+                         ["Für KI-Agenten gemacht", "Der MCP-Zugang ist eingebaut. Ein KI-Agent kann Abläufe in n8n direkt anlegen, testen und starten. Darum nutzen wir n8n statt Make oder Zapier."],
+                         ["Planbare Kosten", "Auf eurem eigenen Server zahlt ihr nur den Server, nicht jeden einzelnen Durchlauf."]]},
+             {"icon": "🧑‍💼", "name": "Warum Athena?", "kurz": "Die Personalchefin", "satz": "Athena baut selbst keine Abläufe. Sie stellt den Spezialisten ein, der das kann.",
+              "zeilen": [["Was sie tut", "Sie fragt dich, was der neue Agent können soll, und schreibt seine Stellenbeschreibung: Aufgaben, Regeln, Grenzen."],
+                         ["Warum ein Spezialist?", "Ein Allrounder ohne klare Rolle rät und macht Fehler. Ein Spezialist mit Stellenbeschreibung arbeitet verlässlich, genau wie in deinem Team."],
+                         ["Das Ergebnis", "Dein n8n-Agent: ein KI-Mitarbeiter, der n8n kennt, deine Regeln befolgt und nur tut, was du erlaubst."]]},
+             {"icon": "🤖", "name": "Dein n8n-Agent", "kurz": "Die Fachkraft", "satz": "Er arbeitet in Claude Code und baut über MCP direkt in deinem n8n.",
+              "zeilen": [["Was er kann", "Aus deinem Steckbrief einen Ablauf bauen, ihn testen, Fehler finden und reparieren."],
+                         ["Womit", "Claude Code ist sein Arbeitsplatz, MCP sein Zugang zu n8n, n8n seine Werkstatt."],
+                         ["Was er nicht darf", "Zugangsdaten anlegen, echte Daten ohne deine Freigabe verarbeiten oder etwas live schalten, ohne dass du zustimmst."]]}],
+         "schritte_titel": "So baut dein n8n-Agent deinen Ablauf",
+         "schritte": [
+             ["Du beschreibst", "Dein Steckbrief, den du gleich schreibst: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall."],
+             ["Er fragt nach", "Welches Postfach? Was passiert bei einer leeren Anfrage? Ist etwas unklar, fragt er, statt zu raten."],
+             ["Er baut in n8n", "Über MCP legt er den Ablauf direkt in eurer n8n-Instanz an, Baustein für Baustein."],
+             ["Er testet mit Testdaten", "Er startet den Ablauf, prüft jeden Schritt auf Grün oder Rot und repariert, was hakt."],
+             ["Du gibst frei", "Du legst die Zugangsdaten selbst an, schaust dir das Ergebnis an und schaltest den Ablauf live."],
+             ["Er bleibt dran", "Geht etwas schief, meldet sich der Ablauf. Der Agent liest die Fehlermeldung und schlägt die Reparatur vor."]],
+         "kette": [["Du", "Steckbrief und Freigabe"], ["n8n-Agent", "in Claude Code"], ["n8n", "der Motor"], ["Deine Programme", "Mail, CRM, Buchhaltung"]],
+         "kette_leitungen": ["Auftrag", "MCP", "API und Webhook"],
+         "kern": "Athena stellt ein, der n8n-Agent baut, n8n arbeitet. Du sagst, was du willst, und entscheidest, was live geht.",
+         "warum_titel": "Warum dieser Weg?",
+         "warum": [
+             ["Einmal einstellen, immer wieder nutzen", "Für jeden weiteren Ablauf schreibst du nur einen neuen Steckbrief. Dein n8n-Agent ist schon eingestellt und kennt deine Regeln."],
+             ["Kein Programmierer nötig", "Das Wie übernimmt der Agent. Du bleibst beim Was: Welcher Ablauf kostet Zeit, und was soll am Ende herauskommen?"],
+             ["Du behältst die Kontrolle", "Jeder Ablauf läuft in deinem n8n, mit deinen Zugangsdaten und nach deiner Freigabe. Nichts geht ohne dich live."]]},
      "merksatz": "Erst schauen, dann bauen: Gut beschrieben ist halb gebaut.",
      "kernpunkte": [
          "Mit Claude Code und n8n baust du dir Werkzeuge, die genau zu deinem Ablauf passen: eine Zeiterfassung, eine Aufgabenliste, ein Angebots-Assistent. Oft ersetzt das ein Abo.",
          "Unser eigenes Team-Portal mit Aufgaben, Zeiten und Vertrieb haben KI-Agenten gebaut. Dieser Kurs auch.",
          "Bevor gebaut wird, schaust du hin: Wie läuft der Ablauf heute wirklich? Ein Agent baut genau das, was du beschreibst.",
          "Ein guter Steckbrief hat fünf Teile: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall.",
-         "Diesen Steckbrief nimmst du mit in Modul 2. Dort verbindest du Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der daraus deinen ersten Ablauf baut."],
+         "n8n ist der Motor, Athena die Personalchefin, dein n8n-Agent die Fachkraft: Er baut über MCP aus deinem Steckbrief den Ablauf in n8n, testet ihn und repariert Fehler. Zugangsdaten und Freigabe bleiben bei dir.",
+         "Diesen Steckbrief nimmst du mit in Modul 2. Dort verbindest du Claude Code mit n8n, Athena stellt deinen n8n-Agenten ein, und er baut daraus deinen ersten Ablauf."],
      "type": "errors",
      "intro": "In diesem Steckbrief „Anfrage beantworten“ stecken drei Fehler. Tippe die fehlerhaften Zeilen an.",
      "lines": [
@@ -192,6 +230,7 @@ CHECK = [
     {"q": "Personaldaten sollen ausgewertet werden. Was passt?", "a": "Lokale KI auf eigenem Rechner oder Server", "d": ["Ein beliebiger KI-Chat im Browser", "Ein öffentlicher Link", "Ein kostenloses Testkonto"], "lv": 4},
     {"q": "Welche Frage beantwortet nur ein Mensch?", "a": "Wofür steht mein Betrieb?", "d": ["Was hat der Kunde letztes Jahr bestellt?", "Was kostet das Angebot?", "Was steht im Vertrag?"], "lv": 5},
     {"q": "Woran erkennst du einen guten ersten Ablauf?", "a": "Regelmäßig, feste Regeln, mehrere Programme, wenig Risiko", "d": ["Möglichst groß und kompliziert", "Selten und kreativ", "Mit vielen sensiblen Daten"], "lv": 5},
+    {"q": "Wer baut aus deinem Steckbrief den Ablauf in n8n?", "a": "Dein n8n-Agent, den Athena für dich eingestellt hat", "d": ["Athena selbst", "n8n ganz von allein", "Ein externer Programmierer"], "lv": 6},
     {"q": "Was gehört in einen Steckbrief?", "a": "Auslöser, Schritte, Programme, Ergebnis, Fehlerfall", "d": ["Logo und Farben", "Nur das Budget", "Nur die Programme"], "lv": 6},
 ]
 PASS = 8

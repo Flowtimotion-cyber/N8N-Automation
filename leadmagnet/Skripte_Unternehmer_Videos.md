@@ -1,6 +1,6 @@
 # Modul 1 „Die volle Tasse“ – Erklärvideos (Version 2, Hormozi + Warum)
 
-Stand 21.10.2026 · zur Freigabe durch Timo, bevor HeyGen rendert.
+Stand 23.10.2026 · zur Freigabe durch Timo, bevor HeyGen rendert. Neu bzw. geändert: U2 (Athena), U3 (Leitungen API, Webhook, MCP), UN (neu).
 
 **Aufbau jedes Videos:** Hook (Schmerz oder Neugier, erste 5 Sekunden) → **Warum** (was es dich heute kostet, was du gewinnst) → Erklärung mit einem Bild aus dem Alltag → Aufgabe im Kurs.
 **Machart wie im fertigen Kurs:** HeyGen-Avatar „Timo Merz“ mit deiner Stimme, kurz im Vollbild, dann als Kreis unten links. Dahinter animierte Szenen mit Logos (n8n, Claude, Supabase, Obsidian …), Einblendungen und Untertiteln. Unten links „KI-Avatar von Timo“.
@@ -120,6 +120,23 @@ Warum sich das jetzt ändert: Früher war ein eigenes Werkzeug teuer und dauerte
 Dafür brauchst du nur eines: eine gute Beschreibung. Wir nennen sie Prozess-Steckbrief. Fünf Felder: Auslöser, Schritte, Programme, Ergebnis und was passieren soll, wenn etwas schiefgeht.
 
 Erst schauen, dann bauen. Gleich findest du drei Fehler in einem Beispiel-Steckbrief, danach schreibst du deinen eigenen. Den gibst du in Modul 2 an Claude Code.
+
+## UN · Vom Steckbrief zum laufenden Ablauf (neu, ca. 100 s, Stand 23.10.2026; läuft in Level 6 nach U6)
+
+Was passiert eigentlich mit deinem Steckbrief, wenn er fertig ist? Landet er in einer Schublade? Nein. Er wird zur Arbeitsanweisung für einen neuen Kollegen.
+
+Warum das wichtig ist: Die meisten Betriebe scheitern nicht an der Idee, sondern an der Umsetzung. Es fehlt jemand, der baut. Genau diese Lücke schließen wir jetzt.
+
+Drei Rollen greifen ineinander.
+**N-Eight-N** ist der Motor. Dort laufen deine Abläufe, rund um die Uhr. N-Eight-N verbindet Hunderte Programme, läuft auf Wunsch auf eurem eigenen Server, und das ist der Hauptgrund, warum wir es nutzen: Ein K-I-Agent kann über M-C-P direkt darin bauen.
+**Athena** ist die Personalchefin. Sie baut selbst nichts. Sie stellt den Spezialisten ein: deinen N-Eight-N-Agenten, mit Stellenbeschreibung, Regeln und Grenzen.
+Und der **N-Eight-N-Agent** ist die Fachkraft. Er arbeitet in Claude Code und baut über M-C-P direkt in deinem N-Eight-N.
+
+So läuft es ab: Du gibst ihm deinen Steckbrief. Er fragt nach, wo etwas unklar ist. Er baut den Ablauf, testet ihn mit Testdaten und repariert, was hakt.
+Dann kommst du: Du legst die Zugangsdaten an, prüfst das Ergebnis und gibst frei. Und wenn später etwas schiefgeht, meldet sich der Ablauf, und der Agent schlägt die Reparatur vor.
+
+Einmal eingestellt, baut er dir jeden weiteren Ablauf aus einem neuen Steckbrief. Du sagst, was du willst. Er baut. Du entscheidest, was live geht.
+Auf der nächsten Seite findest du alles zum Nachlesen. Danach schreibst du deinen eigenen Steckbrief.
 
 ## VEND · Abschluss (ca. 60 s)
 
