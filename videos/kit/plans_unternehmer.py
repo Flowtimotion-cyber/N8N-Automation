@@ -83,17 +83,22 @@ P["U2"] = dict(av_end="Warum das wichtig", scenes=[
     title="Du weißt, was du *kaufen* musst und was nicht.", sub="Kein Tool mehr, das du nicht brauchst.", sub_at="verkauft keiner"),
   S("cards", "Fünf Rollen", kick="Fünf Rollen wie in einem Team", title="Wer macht was?", cards=[
     {"icon": "claude", "t": "Claude Code", "d": "Der Baumeister: baut, testet, repariert", "at": "Claude Code ist der Baumeister"},
-    {"icon": "users", "t": "Athena", "d": "Die Recruiterin: stellt KI-Agenten ein", "at": "Athena ist unsere"},
-    {"icon": "n8n", "t": "n8n", "d": "Der Motor: Abläufe Tag und Nacht", "at": "ist der Motor"}]),
-  S("cards", "MCP ist die Steckdose", kick="Fünf Rollen wie in einem Team", title="…und zwei, die verbinden und erinnern", cards=[
+    {"icon": "users", "t": "Athena", "d": "Dein erster KI-Agent: stellt alle weiteren ein", "at": "Athena ist dein erster"}]),
+  S("term", "Mit ihr stellst du", kick="Athena, die KI-Recruiterin", title="Sie fragt, du antwortest, sie stellt *ein*", ttl="athena", lines=[
+    {"c": "m", "t": "Welche Aufgabe soll dein neuer KI-Mitarbeiter übernehmen?", "at": "Sie fragt dich"},
+    {"p": True, "t": "Anfragen sortieren und Antworten vorbereiten.", "at": "welche Aufgabe"},
+    {"c": "g", "t": "✓ Stellenbeschreibung: Aufgaben, Regeln, Grenzen", "at": "Stellenbeschreibung"},
+    {"c": "y", "t": "→ Ihren Prompt bekommst du gleich zum Kopieren", "at": "zum Kopieren"}]),
+  S("cards", "ist der Motor", kick="Fünf Rollen wie in einem Team", title="…dazu Motor, Steckdose und Gedächtnis", cards=[
+    {"icon": "n8n", "t": "n8n", "d": "Der Motor: Abläufe Tag und Nacht", "at": "ist der Motor"},
     {"icon": "plug", "t": "MCP", "d": "Die Steckdose: nur, was du freigibst", "at": "MCP ist die"},
     {"icon": "book", "t": "Firmen-Gedächtnis", "d": "Erinnert sich an alles, was dein Betrieb weiß", "at": "Firmengedächtnis"}]),
-  S("title", "Ein RAG-System", kick="Dein Firmen-Gedächtnis", title="RAG-System auf deinem eigenen oder gemieteten *Server*", logos=[
+  S("title", "Ein Racksystem", kick="Dein Firmen-Gedächtnis", title="RAG-System auf deinem eigenen oder gemieteten *Server*", logos=[
     {"i": "supabase", "n": "Supabase", "at": "Superbase"}, {"i": "obsidian", "n": "Obsidian", "at": "Obsidian"},
     {"i": "server", "n": "Dein Server", "at": "gemieteten Server"}]),
   S("title", "Und du bist nicht allein", glyph="users", kick="Und du bist nicht allein",
     title="Echte Ansprechpartner, *rund um die Uhr*", sub="…wenn der KI-Agent nicht schon weiterhilft.", sub_at="wenn der KI-Agent"),
-  S("title", "Jetzt du", glyph="arrow", kick="Deine Aufgabe", title="Zieh jede Aussage zur richtigen *Rolle*."),
+  S("title", "Gleich lernst du", glyph="arrow", kick="Gleich im Kurs", title="Athenas Prompt holen, dann jede Aussage zur richtigen *Rolle* ziehen."),
 ])
 
 P["U3"] = dict(av_end="Warum du die Bausteine", scenes=[
@@ -108,7 +113,13 @@ P["U3"] = dict(av_end="Warum du die Bausteine", scenes=[
     {"i": "bell", "l": "Bescheid", "at": "Bescheid geben"}],
     run=["Und die Leitungen"], below=[
       {"i": "key", "t": "Zugangsdaten legst du selbst an", "at": "Die Zugangsdaten"},
-      {"i": "arrow", "t": "Leitungen verbinden die Schritte", "at": "Und die Leitungen"}]),
+      {"i": "arrow", "t": "Leitungen verbinden alles", "at": "Und die Leitungen"}]),
+  S("cards", "Davon gibt es drei", kick="Die drei Leitungen", title="Nachfragen, Bescheid sagen, Steckdose für *KI*", cards=[
+    {"icon": "chat", "t": "API", "d": "n8n fragt nach, z. B. jeden Morgen die offenen Rechnungen", "at": "Die API"},
+    {"icon": "bell", "t": "Webhook", "d": "Das Programm klingelt von selbst, z. B. bei jeder Bestellung", "at": "Der Webhook"},
+    {"icon": "plug", "t": "MCP", "d": "Ein KI-Agent bedient nur die Abläufe, die du freigibst", "at": "Und MCP"}]),
+  S("hub", "Kurz gesagt", kick="Kurz gesagt", title="API und Webhook verbinden Programme. MCP verbindet die *KI*.", center="n8n", sats=[
+    {"i": "mail", "n": "Programme", "at": "verbinden Programme"}, {"i": "robot", "n": "KI-Agent", "at": "verbindet die"}]),
   S("title", "Gut beschrieben", glyph="doc", kick="Merk dir", title="Gut beschrieben ist *halb gebaut*."),
 ])
 
@@ -174,4 +185,34 @@ P["VEND"] = dict(av_end="Jetzt hast du zwei", scenes=[
     {"icon": "rocket", "t": "Modul 2: Umsetzung", "d": "Zugang nach kurzem Gespräch", "at": "Zweitens"}],
     foot="Förder-Check: <b>2 Minuten</b>, dann Gespräch mit Karsten", foot_at="Mach den"),
   S("title", "Deine Tasse ist", glyph="pot", kick="Bis gleich", title="Deine Tasse ist jetzt ein bisschen *leerer*."),
+])
+
+P["UN"] = dict(av_end="Warum das wichtig ist", scenes=[
+  S("hook", 0, kick="Dein Steckbrief ist fertig", title="Und dann? *Schublade?*", items=[
+    {"icon": "doc", "t": "Steckbrief", "at": "deinem Steckbrief"},
+    {"icon": "folder", "t": "Schublade?", "at": "Schublade"},
+    {"icon": "user", "t": "Arbeitsanweisung für einen neuen Kollegen", "at": "Arbeitsanweisung"}]),
+  S("title", "Warum das wichtig ist", glyph="target", kick="Warum das wichtig ist",
+    title="Es fehlt nicht die Idee. Es fehlt jemand, *der baut*.", sub="Genau diese Lücke schließen wir.", sub_at="diese Lücke"),
+  S("title", "Drei Rollen", glyph="users", kick="Drei Rollen greifen ineinander", title="*Motor*, *Personalchefin*, *Fachkraft*"),
+  S("hub", "ist der Motor", kick="n8n ist der Motor", title="Die Zentrale für deine Abläufe", center="n8n", sats=[
+    {"i": "mail", "n": "Hunderte Programme", "at": "Hunderte Programme"},
+    {"i": "server", "n": "Euer eigener Server", "at": "eigenen Server"},
+    {"i": "plug", "n": "MCP für KI-Agenten", "at": "direkt darin bauen"}]),
+  S("cards", "Athena ist die Personalchefin", kick="Wer einstellt, wer baut", title="Personalchefin und Fachkraft", cards=[
+    {"icon": "users", "t": "Athena", "d": "Die Personalchefin: stellt den Spezialisten ein, mit Regeln und Grenzen", "at": "Personalchefin"},
+    {"icon": "robot", "t": "Dein n8n-Agent", "d": "Die Fachkraft: arbeitet in Claude Code", "at": "Fachkraft"},
+    {"icon": "plug", "t": "Über MCP", "d": "baut er direkt in deinem n8n", "at": "baut über"}]),
+  S("term", "So läuft es ab", kick="So baut dein n8n-Agent", title="Vom Steckbrief zum Ablauf", lines=[
+    {"p": True, "t": "Hier ist mein Steckbrief „Anfrage beantworten“.", "at": "deinen Steckbrief"},
+    {"c": "y", "t": "? Welches Postfach soll ich nutzen?", "at": "fragt nach"},
+    {"c": "m", "t": "Baue den Ablauf in n8n über MCP …", "at": "baut den Ablauf"},
+    {"c": "g", "t": "✓ Test mit Testdaten: alle Schritte grün", "at": "testet ihn"},
+    {"c": "y", "t": "⚠ Schritt 3 rot → repariert", "at": "repariert"}]),
+  S("check", "Dann kommst du", kick="Dann kommst du", title="Was immer bei dir bleibt", mode="icon", items=[
+    {"icon": "key", "t": "Zugangsdaten anlegen", "at": "Zugangsdaten"},
+    {"icon": "search", "t": "Ergebnis prüfen", "at": "prüfst das Ergebnis"},
+    {"icon": "check", "t": "Freigeben", "at": "gibst frei"}]),
+  S("title", "Einmal eingestellt", glyph="spark", kick="Merk dir",
+    title="Du sagst *was*. Er *baut*. Du entscheidest, was *live* geht."),
 ])

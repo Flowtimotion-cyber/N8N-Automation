@@ -1,6 +1,6 @@
 # Modul 1 „Die volle Tasse“ – Erklärvideos (Version 2, Hormozi + Warum)
 
-Stand 21.10.2026 · zur Freigabe durch Timo, bevor HeyGen rendert.
+Stand 23.10.2026 · zur Freigabe durch Timo, bevor HeyGen rendert. Neu bzw. geändert: U2 (Athena), U3 (Leitungen API, Webhook, MCP), UN (neu).
 
 **Aufbau jedes Videos:** Hook (Schmerz oder Neugier, erste 5 Sekunden) → **Warum** (was es dich heute kostet, was du gewinnst) → Erklärung mit einem Bild aus dem Alltag → Aufgabe im Kurs.
 **Machart wie im fertigen Kurs:** HeyGen-Avatar „Timo Merz“ mit deiner Stimme, kurz im Vollbild, dann als Kreis unten links. Dahinter animierte Szenen mit Logos (n8n, Claude, Supabase, Obsidian …), Einblendungen und Untertiteln. Unten links „KI-Avatar von Timo“.
@@ -50,7 +50,7 @@ Der Weg ist umgekehrt. Erst schauen, was jede Woche gleich abläuft. Genau das g
 
 Gleich schiebst du drei Regler: deine Stunden mit Routine, deine Abos und dein Team. Es gibt kein Richtig oder Falsch. Du siehst nur, wie voll deine Tasse gerade ist.
 
-## U2 · Wer macht was? (ca. 90 s)
+## U2 · Wer macht was? (ca. 100 s, Stand 22.10.2026: Athena ausführlicher)
 
 Die meisten Unternehmer scheitern an KI nicht wegen der Technik. Sondern weil niemand ihnen sagt, wer im System eigentlich was macht. Dann klingt alles gleich: Chatbot, Agent, Automation.
 
@@ -58,16 +58,16 @@ Warum das wichtig ist: Wenn du die Rollen kennst, kannst du entscheiden. Du wei�
 
 Fünf Rollen, wie in einem kleinen Team.
 **Claude Code** ist der Baumeister. Du beschreibst in normalen Worten, was du brauchst, und er baut es, testet es und repariert es.
-**Athena** ist unsere Recruiterin. Sie stellt weitere KI-Agenten für deinen Betrieb ein, mit Stellenbeschreibung, Aufgaben und Grenzen, wie bei einem neuen Mitarbeiter.
+**Athena** ist dein erster KI-Agent, unsere Recruiterin. Mit ihr stellst du alle weiteren KI-Mitarbeiter ein: Sie fragt dich, welche Aufgabe der Neue übernehmen soll, und schreibt ihm eine Stellenbeschreibung mit Aufgaben und Grenzen, wie bei einem echten Mitarbeiter. Ihren Prompt bekommst du gleich zum Kopieren.
 **N-Eight-N** ist der Motor. Dort laufen deine Abläufe, Tag und Nacht.
 **M-C-P** ist die Steckdose. Darüber darf die K-I deine Programme bedienen, aber nur die, die du freigibst.
 Und das **Firmen-Gedächtnis** erinnert sich an alles, was dein Betrieb weiß. Ein RAG-System auf Supabase, auf Wunsch mit Obsidian, auf deinem eigenen oder einem gemieteten Server.
 
 Und du bist nicht allein: Hinter den Agenten stehen echte Ansprechpartner, die jeden Tag mit diesen Systemen arbeiten und rund um die Uhr an deiner Seite sind, wenn der KI-Agent nicht schon weiterhilft.
 
-Jetzt du: Zieh jede Aussage zur richtigen Rolle.
+Gleich lernst du Athena genauer kennen und holst dir ihren Prompt. Danach ziehst du jede Aussage zur richtigen Rolle.
 
-## U3 · Die Bausteine (ca. 75 s)
+## U3 · Die Bausteine (ca. 95 s, Stand 22.10.2026: Leitungen API, Webhook, MCP)
 
 Weißt du, warum so viele Automationen nach drei Wochen wieder abgeschaltet werden? Weil niemand vorher klar gesagt hat, wann sie starten und was am Ende rauskommen soll.
 
@@ -77,9 +77,13 @@ Stell dir ein Rezept vor.
 Der **Auslöser** startet: eine neue Mail, ein ausgefülltes Formular, Montag acht Uhr.
 Die **Schritte** erledigen die Arbeit: lesen, sortieren, ein Angebot vorbereiten, Bescheid geben.
 Die **Zugangsdaten** geben die Erlaubnis, zum Beispiel für dein Postfach. Die legst immer du selbst an, nie die K-I.
-Und die **Leitungen** verbinden die Schritte zu einer Kette.
+Und die **Leitungen** verbinden alles. Davon gibt es drei.
+Die **A-P-I**: N-Eight-N ruft bei einem Programm an und fragt nach, zum Beispiel jeden Morgen nach den offenen Rechnungen.
+Der **Webhook**: Das Programm klingelt von selbst, sobald etwas passiert, zum Beispiel bei jeder neuen Bestellung.
+Und **M-C-P**: die Steckdose für K-I. Darüber bedient ein K-I-Agent wie Claude Code deine Abläufe, aber nur die, die du freigibst.
+Kurz gesagt: A-P-I und Webhook verbinden Programme. M-C-P verbindet die K-I mit diesen Programmen.
 
-Gut beschrieben ist halb gebaut. Ordne die Bausteine gleich zu.
+Gut beschrieben ist halb gebaut. Auf der nächsten Seite siehst du die drei Leitungen im Vergleich, danach ordnest du die Bausteine zu.
 
 ## U4 · Datenschutz-Ampel (ca. 85 s)
 
@@ -116,6 +120,23 @@ Warum sich das jetzt ändert: Früher war ein eigenes Werkzeug teuer und dauerte
 Dafür brauchst du nur eines: eine gute Beschreibung. Wir nennen sie Prozess-Steckbrief. Fünf Felder: Auslöser, Schritte, Programme, Ergebnis und was passieren soll, wenn etwas schiefgeht.
 
 Erst schauen, dann bauen. Gleich findest du drei Fehler in einem Beispiel-Steckbrief, danach schreibst du deinen eigenen. Den gibst du in Modul 2 an Claude Code.
+
+## UN · Vom Steckbrief zum laufenden Ablauf (neu, ca. 100 s, Stand 23.10.2026; läuft in Level 6 nach U6)
+
+Was passiert eigentlich mit deinem Steckbrief, wenn er fertig ist? Landet er in einer Schublade? Nein. Er wird zur Arbeitsanweisung für einen neuen Kollegen.
+
+Warum das wichtig ist: Die meisten Betriebe scheitern nicht an der Idee, sondern an der Umsetzung. Es fehlt jemand, der baut. Genau diese Lücke schließen wir jetzt.
+
+Drei Rollen greifen ineinander.
+**N-Eight-N** ist der Motor. Dort laufen deine Abläufe, rund um die Uhr. N-Eight-N verbindet Hunderte Programme, läuft auf Wunsch auf eurem eigenen Server, und das ist der Hauptgrund, warum wir es nutzen: Ein K-I-Agent kann über M-C-P direkt darin bauen.
+**Athena** ist die Personalchefin. Sie baut selbst nichts. Sie stellt den Spezialisten ein: deinen N-Eight-N-Agenten, mit Stellenbeschreibung, Regeln und Grenzen.
+Und der **N-Eight-N-Agent** ist die Fachkraft. Er arbeitet in Claude Code und baut über M-C-P direkt in deinem N-Eight-N.
+
+So läuft es ab: Du gibst ihm deinen Steckbrief. Er fragt nach, wo etwas unklar ist. Er baut den Ablauf, testet ihn mit Testdaten und repariert, was hakt.
+Dann kommst du: Du legst die Zugangsdaten an, prüfst das Ergebnis und gibst frei. Und wenn später etwas schiefgeht, meldet sich der Ablauf, und der Agent schlägt die Reparatur vor.
+
+Einmal eingestellt, baut er dir jeden weiteren Ablauf aus einem neuen Steckbrief. Du sagst, was du willst. Er baut. Du entscheidest, was live geht.
+Auf der nächsten Seite findest du alles zum Nachlesen. Danach schreibst du deinen eigenen Steckbrief.
 
 ## VEND · Abschluss (ca. 60 s)
 

@@ -1,5 +1,8 @@
 # Leadmagnet für Unternehmer: Modul 1 „Die volle Tasse – KI im Betrieb verstehen“
 # Offen für alle (ohne Kurscode). Modul 2 (Umsetzung mit n8n) gibt es nach einem kurzen Gespräch.
+import pathlib
+ATHENA_PROMPT = (pathlib.Path(__file__).parent / "prompts/athena.xml").read_text(encoding="utf-8").strip()
+
 TITLE = "Die volle Tasse: KI im Betrieb verstehen"
 SUBTITLE = "Modul 1 · für Unternehmer · ca. 20 Minuten"
 INTRO = ("Du bist nicht zu langsam. Deine Tasse ist zu voll: Mails, Angebote, Abos, Prognosen. "
@@ -29,11 +32,35 @@ LEVELS = [
          {"id": "team", "q": "Wie viele Mitarbeiter arbeiten bei dir?", "min": 1, "max": 100, "step": 1, "val": 10, "unit": "", "maxlabel": "100+"}],
      "xp": 50},
     {"id": 2, "title": "Wer macht was?", "videos": ["U2"],
+     # Erklärseite vor der Aufgabe: Athena als erster KI-Agent, Prompt zum Kopieren
+     "erklaer": {
+         "kicker": "Dein erster KI-Agent",
+         "titel": "Athena: die Recruiterin für dein KI-Team",
+         "hook": "Stell dir vor, du könntest morgen einen neuen Mitarbeiter einstellen, der nie krank wird, nachts arbeitet und genau weiß, was er tun soll. Damit das klappt, brauchst du zuerst jemanden, der richtig einstellt.",
+         "intro": "Genau dafür gibt es Athena. Sie ist dein erster KI-Agent, und ihre einzige Aufgabe ist es, weitere KI-Agenten für dich einzustellen. Wie eine Personalchefin führt sie mit dir ein Bewerbungsgespräch, nur andersherum: Sie fragt dich, wen du brauchst.",
+         "schritte_titel": "So arbeitet Athena",
+         "schritte": [
+             ["Sie lernt deinen Betrieb kennen", "Branche, Abläufe, Programme. Sie fragt nur, was sie wirklich braucht, und immer nur eine Frage auf einmal."],
+             ["Sie klärt die neue Stelle", "Welche Aufgabe soll der neue KI-Mitarbeiter übernehmen? Was soll am Ende herauskommen? Was darf er allein, wofür braucht er deine Freigabe?"],
+             ["Sie schlägt Name und Persönlichkeit vor", "Jeder Agent bekommt eine klare Rolle und einen passenden Stil. Du entscheidest, ob es passt."],
+             ["Sie schreibt die Stellenbeschreibung", "Das Ergebnis ist ein fertiger Prompt für deinen neuen Agenten, mit Aufgaben, Grenzen und Sicherheitsregeln. Den setzt du überall ein, wo du KI nutzt."]],
+         "prompt": {
+             "titel": "Hol dir Athena: der Prompt zum Kopieren",
+             "hinweis": "Kopier den Prompt und leg in Claude ein neues Projekt an, z. B. „Athena“. Füg den Prompt dort als Anweisung für das Projekt ein. Dann startest du einen Chat mit: „Hallo Athena, ich möchte einen neuen KI-Mitarbeiter einstellen.“ In ChatGPT geht es genauso mit einem eigenen GPT oder Projekt.",
+             "datei": "Athena_KI-Recruiterin.xml",
+             "text": ATHENA_PROMPT},
+         "kern": "Ein guter KI-Agent entsteht nicht durch einen möglichst langen Prompt, sondern durch eine klare Rolle, die richtigen Werkzeuge und klare Grenzen. Genau das klärt Athena mit dir.",
+         "warum_titel": "Warum du mit Athena anfängst",
+         "warum": [
+             ["Kein Technik-Wissen nötig", "Du beschreibst in normaler Sprache, was du brauchst. Athena übersetzt das in eine Anleitung, die ein KI-Agent versteht."],
+             ["Einmal einrichten, immer wieder nutzen", "Mit Athena stellst du nicht nur einen Agenten ein, sondern dein ganzes KI-Team: für Angebote, Anfragen, Berichte, Social Media."],
+             ["Sicher von Anfang an", "Jeder Agent bekommt klare Grenzen: Was Geld kostet, nach außen geht oder sich nicht rückgängig machen lässt, braucht deine Freigabe. Passwörter gehören nie in einen Prompt."],
+             ["Dein erster Spezialist", "Als Erstes stellt Athena deinen n8n-Agenten ein, der deine Abläufe in n8n baut. Wie das genau funktioniert, zeigen wir dir in Level 6."]]},
      "merksatz": "Claude Code baut, Athena stellt ein, n8n arbeitet, MCP verbindet, das Gedächtnis erinnert.",
      "kernpunkte": [
          "Ein KI-Chat wie ChatGPT redet. Ein KI-Agent arbeitet: Er hat Zugriff auf Werkzeuge und erledigt Aufgaben Schritt für Schritt.",
          "Claude Code ist der Baumeister. Du beschreibst in normaler Sprache, was du brauchst, und er baut, testet und repariert. Voraussetzung ist das Claude-Abo für etwa 20 € im Monat.",
-         "Athena ist unsere Recruiterin: ein Agent, der für dich weitere Agenten „einstellt“. Sie führt ein kurzes Gespräch, schreibt die Stellenbeschreibung und legt den neuen Agenten an.",
+         "Athena ist dein erster KI-Agent: eine Recruiterin, die für dich weitere KI-Agenten „einstellt“. Sie führt ein kurzes Gespräch mit dir, schreibt die Stellenbeschreibung, und damit legst du den neuen Agenten an. Den Prompt für Athena bekommst du gleich zum Kopieren.",
          "n8n ist der Motor. Hier laufen deine Abläufe automatisch, auch nachts. n8n verbindet Mail, Kalender, CRM, Buchhaltung und mehr.",
          "MCP ist die Steckdose: ein offener Standard, über den ein KI-Agent Werkzeuge wie n8n bedienen darf. Du bestimmst, was er sehen und tun darf.",
          "Das Firmen-Gedächtnis speichert dein Wissen so, dass Agenten es finden: ein RAG-System auf Supabase, auf Wunsch kombiniert mit Obsidian für eure Notizen. Es läuft auf deinem eigenen oder einem gemieteten Server, deine Daten bleiben bei dir.",
@@ -50,23 +77,52 @@ LEVELS = [
          {"t": "Läuft rund um die Uhr und protokolliert jeden Durchlauf", "c": "n8n (Motor)", "f": "In n8n siehst du jeden Durchlauf grün oder rot."}],
      "xp_each": 10},
     {"id": 3, "title": "Die Bausteine einer Automation", "videos": ["U3"],
-     "merksatz": "Ein Auslöser startet, Schritte erledigen die Arbeit, Zugangsdaten geben die Erlaubnis.",
+     # Erklärseite vor der Aufgabe: API, Webhook und MCP im Vergleich
+     "erklaer": {
+         "titel": "API, Webhook und MCP: die drei Leitungen",
+         "intro": "Damit Programme zusammenarbeiten, brauchen sie Leitungen. Drei Begriffe hörst du dabei immer wieder. Sie klingen technisch, dahinter stecken aber einfache Ideen.",
+         "karten": [
+             {"icon": "📞", "name": "API", "kurz": "Nachfragen", "satz": "n8n ruft bei einem Programm an und fragt nach.",
+              "zeilen": [["Wer startet?", "n8n, zu einer festen Zeit oder in einem Schritt des Ablaufs."],
+                         ["Wie im Alltag", "Du rufst beim Lieferanten an: „Ist meine Bestellung schon da?“"],
+                         ["Was es braucht", "Die Schnittstelle des Programms und einen Zugangsschlüssel (API-Key), den du in n8n hinterlegst."],
+                         ["Beispiel", "Jeden Morgen holt n8n die offenen Rechnungen aus der Buchhaltung."]]},
+             {"icon": "🔔", "name": "Webhook", "kurz": "Bescheid sagen", "satz": "Das Programm meldet sich von selbst, sobald etwas passiert.",
+              "zeilen": [["Wer startet?", "Das andere Programm, im selben Moment, in dem etwas passiert."],
+                         ["Wie im Alltag", "Der Paketbote klingelt. Du musst nicht ständig aus dem Fenster schauen."],
+                         ["Was es braucht", "Eine Empfangsadresse in n8n (Webhook-URL), die du im anderen Programm einträgst."],
+                         ["Beispiel", "Der Online-Shop meldet jede neue Bestellung sofort an n8n."]]},
+             {"icon": "🔌", "name": "MCP", "kurz": "Steckdose für KI", "satz": "Ein KI-Agent bekommt Zugang zu deinen Werkzeugen und kann sie bedienen.",
+              "zeilen": [["Wer startet?", "Der KI-Agent, z. B. Claude Code, wenn er für deine Aufgabe ein Werkzeug braucht."],
+                         ["Wie im Alltag", "Eine Steckdose: Jedes Gerät mit passendem Stecker funktioniert, ohne neu zu verkabeln."],
+                         ["Was es braucht", "Den MCP-Zugang in n8n (ist eingebaut, du schaltest ihn ein), einen KI-Agenten und deine Freigabe, welche Abläufe er sehen und starten darf."],
+                         ["Beispiel", "Du schreibst Claude Code: „Leg den neuen Kunden an und schick ihm das Angebot.“ Er nutzt dafür deinen freigegebenen n8n-Ablauf."]]}],
+         "kette": [["Deine Programme", "CRM, Shop, Buchhaltung, Mail"], ["n8n", "der Motor"], ["KI-Agent", "z. B. Claude Code"]],
+         "kette_leitungen": ["API und Webhook", "MCP"],
+         "kern": "API und Webhook verbinden Programme miteinander. MCP verbindet eine KI mit diesen Programmen. MCP ersetzt API und Webhook also nicht, es baut darauf auf.",
+         "warum": [
+             ["Richtig planen", "Ob Webhook oder API entscheidet, ob ein Ablauf sofort reagiert oder zu festen Zeiten nachschaut. Und bevor du ein neues Programm kaufst, frag: Hat es eine API und Webhooks? Ohne Schnittstelle bleibt es eine Insel."],
+             ["KI, die wirklich arbeitet", "Erst über MCP kann ein KI-Agent mehr als reden. Er sieht, welche Werkzeuge es gibt, und bedient sie, ohne dass jemand für jede KI eigens programmieren muss. MCP ist ein offener Standard, den Anthropic, OpenAI, Google und viele andere nutzen. Du bist an keinen Anbieter gebunden."],
+             ["Kontrolle behalten", "Bei allen drei Leitungen legst du die Zugangsdaten an und bestimmst, was erlaubt ist. Bei MCP gibst du einzelne Abläufe frei, nicht dein ganzes System. Der Agent kann nur, was du ihm erlaubst."]]},
+     "merksatz": "Ein Auslöser startet, Schritte erledigen die Arbeit, Zugangsdaten geben die Erlaubnis, Leitungen verbinden.",
      "kernpunkte": [
          "Auslöser (Trigger): startet den Ablauf, z. B. ein Kontaktformular, eine neue Mail oder „jeden Montag um 7 Uhr“.",
          "Schritt (Node): eine Station mit genau einer Aufgabe, z. B. Kontakt anlegen oder Mail senden.",
          "Ablauf (Workflow): alle Schritte in der richtigen Reihenfolge. Wie ein Rezept.",
          "Zugangsdaten (Credentials): die Erlaubnis, z. B. in dein CRM zu schreiben. Die legst du selbst an, nie die KI.",
-         "API und Webhook sind die Leitungen: Über eine API fragt n8n bei einem Programm nach. Über einen Webhook meldet sich ein Programm von selbst, sobald etwas passiert."],
+         "API und Webhook sind die Leitungen zwischen Programmen: Über eine API fragt n8n bei einem Programm nach. Über einen Webhook meldet sich ein Programm von selbst, sobald etwas passiert.",
+         "MCP ist die Leitung zwischen KI und Werkzeug: Darüber bedient ein KI-Agent wie Claude Code die Abläufe in n8n, die du freigegeben hast."],
      "type": "dnd",
      "intro": "Ordne jedes Beispiel dem richtigen Baustein zu. Ziehen oder antippen, dann die Kategorie antippen.",
-     "cats": ["Auslöser", "Schritt", "Zugangsdaten", "Leitung (API/Webhook)"],
+     "cats": ["Auslöser", "Schritt", "Zugangsdaten", "Leitung (API, Webhook, MCP)"],
      "items": [
          {"t": "Ein Kunde schickt das Anfrageformular ab", "c": "Auslöser", "f": "Das Formular startet den Ablauf."},
          {"t": "Jeden Freitag um 16 Uhr", "c": "Auslöser", "f": "Auch eine Uhrzeit kann einen Ablauf starten."},
          {"t": "Angebot aus der Vorlage erstellen", "c": "Schritt", "f": "Eine einzelne Aufgabe im Ablauf ist ein Schritt."},
          {"t": "Der Schlüssel, mit dem n8n in dein CRM schreiben darf", "c": "Zugangsdaten", "f": "Zugangsdaten hinterlegst du selbst, sicher in n8n."},
-         {"t": "Der Online-Shop meldet sofort jede neue Bestellung", "c": "Leitung (API/Webhook)", "f": "Das ist ein Webhook: Das Programm klingelt von selbst."},
-         {"t": "n8n holt jeden Morgen die offenen Rechnungen aus der Buchhaltung", "c": "Leitung (API/Webhook)", "f": "Das ist eine API-Abfrage: n8n fragt aktiv nach."}],
+         {"t": "Der Online-Shop meldet sofort jede neue Bestellung", "c": "Leitung (API, Webhook, MCP)", "f": "Das ist ein Webhook: Das Programm klingelt von selbst."},
+         {"t": "n8n holt jeden Morgen die offenen Rechnungen aus der Buchhaltung", "c": "Leitung (API, Webhook, MCP)", "f": "Das ist eine API-Abfrage: n8n fragt aktiv nach."},
+         {"t": "Claude Code startet deinen freigegebenen n8n-Ablauf „Angebot senden“", "c": "Leitung (API, Webhook, MCP)", "f": "Das ist MCP: die Leitung zwischen KI-Agent und Werkzeug."}],
      "xp_each": 10},
     {"id": 4, "title": "Datenschutz: die Ampel", "videos": ["U4"],
      "merksatz": "Grün darf in die Cloud, Gelb nur mit Vertrag, Rot bleibt bei lokaler KI im Haus.",
@@ -106,14 +162,51 @@ LEVELS = [
          {"t": "Entscheiden, in welchen Markt ihr nächstes Jahr geht", "a": False, "r": "Wer-Frage: Strategie bleibt bei dir"},
          {"t": "Terminerinnerung an Kunden einen Tag vorher", "a": True, "r": "feste Regel mit Datum"}],
      "xp_each": 10},
-    {"id": 6, "title": "Eigene Werkzeuge statt Abos", "videos": ["U6"],
+    {"id": 6, "title": "Eigene Werkzeuge statt Abos", "videos": ["U6", "UN"],
+     # Vertiefung vor der Steckbrief-Aufgabe: warum n8n, warum Athena einen n8n-Agenten einstellt, wie er baut
+     "erklaer": {
+         "kicker": "Vertiefung",
+         "titel": "Vom Steckbrief zum laufenden Ablauf",
+         "hook": "Gleich schreibst du deinen ersten Prozess-Steckbrief. Vorher zeigen wir dir, was danach damit passiert: Wie wird aus ein paar Sätzen ein Ablauf, der jeden Tag für dich arbeitet?",
+         "intro": "Drei Rollen greifen dafür ineinander: n8n als Motor, Athena als Personalchefin und dein n8n-Agent als Fachkraft, die baut.",
+         "karten": [
+             {"icon": "⚙️", "name": "Warum n8n?", "kurz": "Der Motor", "satz": "In n8n laufen deine Abläufe, rund um die Uhr, auch wenn niemand am Rechner sitzt.",
+              "zeilen": [["Verbindet alles", "Fertige Bausteine für Hunderte Programme wie Mail, Kalender, CRM und Buchhaltung. Alles andere über API und Webhook."],
+                         ["Gehört euch", "Läuft in der n8n-Cloud oder auf eurem eigenen Server in Deutschland. Eure Daten bleiben bei euch."],
+                         ["Für KI-Agenten gemacht", "Der MCP-Zugang ist eingebaut. Ein KI-Agent kann Abläufe in n8n direkt anlegen, testen und starten. Darum nutzen wir n8n statt Make oder Zapier."],
+                         ["Planbare Kosten", "Auf eurem eigenen Server zahlt ihr nur den Server, nicht jeden einzelnen Durchlauf."]]},
+             {"icon": "🧑‍💼", "name": "Warum Athena?", "kurz": "Die Personalchefin", "satz": "Athena baut selbst keine Abläufe. Sie stellt den Spezialisten ein, der das kann.",
+              "zeilen": [["Was sie tut", "Sie fragt dich, was der neue Agent können soll, und schreibt seine Stellenbeschreibung: Aufgaben, Regeln, Grenzen."],
+                         ["Warum ein Spezialist?", "Ein Allrounder ohne klare Rolle rät und macht Fehler. Ein Spezialist mit Stellenbeschreibung arbeitet verlässlich, genau wie in deinem Team."],
+                         ["Das Ergebnis", "Dein n8n-Agent: ein KI-Mitarbeiter, der n8n kennt, deine Regeln befolgt und nur tut, was du erlaubst."]]},
+             {"icon": "🤖", "name": "Dein n8n-Agent", "kurz": "Die Fachkraft", "satz": "Er arbeitet in Claude Code und baut über MCP direkt in deinem n8n.",
+              "zeilen": [["Was er kann", "Aus deinem Steckbrief einen Ablauf bauen, ihn testen, Fehler finden und reparieren."],
+                         ["Womit", "Claude Code ist sein Arbeitsplatz, MCP sein Zugang zu n8n, n8n seine Werkstatt."],
+                         ["Was er nicht darf", "Zugangsdaten anlegen, echte Daten ohne deine Freigabe verarbeiten oder etwas live schalten, ohne dass du zustimmst."]]}],
+         "schritte_titel": "So baut dein n8n-Agent deinen Ablauf",
+         "schritte": [
+             ["Du beschreibst", "Dein Steckbrief, den du gleich schreibst: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall."],
+             ["Er fragt nach", "Welches Postfach? Was passiert bei einer leeren Anfrage? Ist etwas unklar, fragt er, statt zu raten."],
+             ["Er baut in n8n", "Über MCP legt er den Ablauf direkt in eurer n8n-Instanz an, Baustein für Baustein."],
+             ["Er testet mit Testdaten", "Er startet den Ablauf, prüft jeden Schritt auf Grün oder Rot und repariert, was hakt."],
+             ["Du gibst frei", "Du legst die Zugangsdaten selbst an, schaust dir das Ergebnis an und schaltest den Ablauf live."],
+             ["Er bleibt dran", "Geht etwas schief, meldet sich der Ablauf. Der Agent liest die Fehlermeldung und schlägt die Reparatur vor."]],
+         "kette": [["Du", "Steckbrief und Freigabe"], ["n8n-Agent", "in Claude Code"], ["n8n", "der Motor"], ["Deine Programme", "Mail, CRM, Buchhaltung"]],
+         "kette_leitungen": ["Auftrag", "MCP", "API und Webhook"],
+         "kern": "Athena stellt ein, der n8n-Agent baut, n8n arbeitet. Du sagst, was du willst, und entscheidest, was live geht.",
+         "warum_titel": "Warum dieser Weg?",
+         "warum": [
+             ["Einmal einstellen, immer wieder nutzen", "Für jeden weiteren Ablauf schreibst du nur einen neuen Steckbrief. Dein n8n-Agent ist schon eingestellt und kennt deine Regeln."],
+             ["Kein Programmierer nötig", "Das Wie übernimmt der Agent. Du bleibst beim Was: Welcher Ablauf kostet Zeit, und was soll am Ende herauskommen?"],
+             ["Du behältst die Kontrolle", "Jeder Ablauf läuft in deinem n8n, mit deinen Zugangsdaten und nach deiner Freigabe. Nichts geht ohne dich live."]]},
      "merksatz": "Erst schauen, dann bauen: Gut beschrieben ist halb gebaut.",
      "kernpunkte": [
          "Mit Claude Code und n8n baust du dir Werkzeuge, die genau zu deinem Ablauf passen: eine Zeiterfassung, eine Aufgabenliste, ein Angebots-Assistent. Oft ersetzt das ein Abo.",
          "Unser eigenes Team-Portal mit Aufgaben, Zeiten und Vertrieb haben KI-Agenten gebaut. Dieser Kurs auch.",
          "Bevor gebaut wird, schaust du hin: Wie läuft der Ablauf heute wirklich? Ein Agent baut genau das, was du beschreibst.",
          "Ein guter Steckbrief hat fünf Teile: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall.",
-         "Diesen Steckbrief nimmst du mit in Modul 2. Dort verbindest du Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der daraus deinen ersten Ablauf baut."],
+         "n8n ist der Motor, Athena die Personalchefin, dein n8n-Agent die Fachkraft: Er baut über MCP aus deinem Steckbrief den Ablauf in n8n, testet ihn und repariert Fehler. Zugangsdaten und Freigabe bleiben bei dir.",
+         "Diesen Steckbrief nimmst du mit in Modul 2. Dort verbindest du Claude Code mit n8n, Athena stellt deinen n8n-Agenten ein, und er baut daraus deinen ersten Ablauf."],
      "type": "errors",
      "intro": "In diesem Steckbrief „Anfrage beantworten“ stecken drei Fehler. Tippe die fehlerhaften Zeilen an.",
      "lines": [
@@ -137,6 +230,7 @@ CHECK = [
     {"q": "Personaldaten sollen ausgewertet werden. Was passt?", "a": "Lokale KI auf eigenem Rechner oder Server", "d": ["Ein beliebiger KI-Chat im Browser", "Ein öffentlicher Link", "Ein kostenloses Testkonto"], "lv": 4},
     {"q": "Welche Frage beantwortet nur ein Mensch?", "a": "Wofür steht mein Betrieb?", "d": ["Was hat der Kunde letztes Jahr bestellt?", "Was kostet das Angebot?", "Was steht im Vertrag?"], "lv": 5},
     {"q": "Woran erkennst du einen guten ersten Ablauf?", "a": "Regelmäßig, feste Regeln, mehrere Programme, wenig Risiko", "d": ["Möglichst groß und kompliziert", "Selten und kreativ", "Mit vielen sensiblen Daten"], "lv": 5},
+    {"q": "Wer baut aus deinem Steckbrief den Ablauf in n8n?", "a": "Dein n8n-Agent, den Athena für dich eingestellt hat", "d": ["Athena selbst", "n8n ganz von allein", "Ein externer Programmierer"], "lv": 6},
     {"q": "Was gehört in einen Steckbrief?", "a": "Auslöser, Schritte, Programme, Ergebnis, Fehlerfall", "d": ["Logo und Farben", "Nur das Budget", "Nur die Programme"], "lv": 6},
 ]
 PASS = 8
