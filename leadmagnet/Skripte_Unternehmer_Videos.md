@@ -160,3 +160,58 @@ Terminal und n8n nebeneinander: Befehl einfügen, `/mcp` → n8n → Authenticat
 
 ## KI-Flieger-Intro (optional, Higgsfield)
 Timo spricht in die Kamera, von rechts schwebt der KI-Flieger herein (Lemniskate mit kleiner Acht als Brille). Startbild: ein eigenes Foto von Timo.
+
+---
+
+# Version 3 (23.10.2026, Claude Code): UW, U2, U6 neu, Willkommensfilm bleibt für Timos echte Aufnahme
+
+Grund: Prüfbericht `Projekt-Manager/22_Momentum/2026-10-23_Pruefbericht_Modul1_Kurs-und-Videos.md` (Abschnitte 3, 10, 11). Nicht mehr sagen: „rund um die Uhr“ für Menschen, „RAG auf Supabase“ als Pflicht, „an einem Nachmittag“ ohne Einschränkung, „ein paar Prinzipien“. Keine Aussage, dass der Kurs auf dem eigenen Server läuft (nur n8n).
+
+## UW v3 · Warum Claude Code und n8n? (ca. 100 s)
+
+Vor zwei Jahren hättest du für eine einzige Automation einen Programmierer gebraucht. Wochen Zeit, tausende Euro, und am Ende wusste nur er, wie es funktioniert.
+
+Das hat sich geändert. Und zwar komplett.
+
+Ein K-I-Chat sagt dir, wie man das Lager umräumt. Claude Code räumt es um und sagt dir Bescheid, wenn es fertig ist. Du beschreibst in normalen Worten, was passieren soll. Claude Code baut die Automation direkt in N-Eight-N, testet sie, und wenn etwas hakt, findet er den Fehler und repariert ihn.
+
+Warum das für dich so wichtig ist: Die Frage ist nicht mehr, wie man etwas programmiert. Das Wie übernimmt die K-I. Die entscheidende Frage ist: Was willst du? Welcher Ablauf kostet dich Zeit? Was soll am Ende rauskommen?
+
+Und warum N-Eight-N? Weil dort alles zusammenläuft: Mail, Kalender, CRM, Buchhaltung, deine eigenen Daten. Auf deinem eigenen oder einem gemieteten Server, als Zentrale, nicht als Insel.
+
+Was du dafür lernen musst, ist keine Programmiersprache. Es sind zehn Grundregeln. Die gelten für Claude Code und N-Eight-N genauso wie für das Werkzeug, das in zwei Jahren kommt. Werkzeuge wechseln. Die Regeln bleiben. Und alles, was du dabei aufbaust, liegt als Datei bei dir, nicht beim Anbieter.
+
+Damit kannst du dir danach praktisch alles bauen lassen: Automationen für deinen Alltag, ein Kundenportal, dein eigenes CRM.
+
+Nicht du musst programmieren lernen. Du musst lernen, was du willst. Lass uns anfangen.
+
+## U2 v3 · Wer macht was? (ca. 100 s)
+
+Die meisten Unternehmer scheitern an K-I nicht wegen der Technik. Sondern weil niemand ihnen sagt, wer im System eigentlich was macht. Dann klingt alles gleich: Chatbot, Agent, Automation.
+
+Warum das wichtig ist: Wenn du die Rollen kennst, kannst du entscheiden. Du weißt, was du kaufen musst und was nicht. Und dir verkauft keiner mehr ein Tool, das du nicht brauchst.
+
+Fünf Rollen, wie in einem kleinen Team.
+Claude Code ist der Baumeister. Du beschreibst in normalen Worten, was du brauchst, und er baut es, testet es und repariert es.
+Athena ist dein erster K-I-Agent, unsere Recruiterin. Mit ihr stellst du alle weiteren K-I-Mitarbeiter ein: Sie fragt dich, welche Aufgabe der Neue übernehmen soll, und schreibt ihm eine Stellenbeschreibung mit Aufgaben und Grenzen, wie bei einem echten Mitarbeiter. Ihren Prompt bekommst du gleich zum Kopieren.
+N-Eight-N ist der Motor. Dort laufen deine Abläufe, Tag und Nacht.
+M-C-P ist die Steckdose. Darüber darf die K-I deine Programme bedienen, aber nur die, die du freigibst.
+Und das Firmen-Gedächtnis erinnert sich an alles, was dein Betrieb weiß. Es beginnt mit einer Seite Text, die jeder Agent liest, und mit euren Vorlagen als einfache Dateien bei euch. Wird es viel, kommt eine Datenbank dazu, in der die K-I nachschlägt. Auf eurem Server oder in der EU-Cloud mit Vertrag.
+
+Und du bist nicht allein: Hinter den Agenten stehen echte Ansprechpartner, die jeden Tag mit diesen Systemen arbeiten. Der K-I-Assistent im Kurs ist rund um die Uhr da, wir werktags.
+
+Gleich lernst du Athena genauer kennen und holst dir ihren Prompt. Danach ziehst du jede Aussage zur richtigen Rolle.
+
+## U6 v3 · Eigene Werkzeuge statt Abos (ca. 60 s)
+
+Zähl mal deine Software-Abos. CRM, Kalender, Formulare, Newsletter, Buchhaltung. Bei vielen Betrieben sind es zehn oder mehr. Jedes kann ein bisschen, keins passt genau.
+
+Warum sich das jetzt ändert: Früher war ein eigenes Werkzeug teuer und dauerte Monate. Heute baut Claude Code dir an einem Nachmittag einen ersten Prototyp, genau für deinen Ablauf. Bis er im Betrieb läuft, braucht er Tests, Datenschutz und deine Freigabe. Schnell heißt nicht einfach. Aber oft ersetzt so ein Werkzeug am Ende zwei oder drei Abos.
+
+Dafür brauchst du nur eines: eine gute Beschreibung. Wir nennen sie Prozess-Steckbrief. Fünf Felder: Auslöser, Schritte, Programme, Ergebnis und was passieren soll, wenn etwas schiefgeht.
+
+Erst schauen, dann bauen. Gleich findest du drei Fehler in einem Beispiel-Steckbrief, danach schreibst du deinen eigenen. Den gibst du in Modul 2 an Claude Code.
+
+## Echte Aufnahmen (Timo, 24.10.2026)
+
+H1 Intro mit Übergabe an Mo, H2 Warum Claude Code, H3 Werkzeug-Block für den Willkommensfilm, H4 Abschluss mit Abnahme: Sprechtexte im Prüfbericht Abschnitt 6 und 11.4, Mos Audio in `22_Momentum/Mo_Audio/`. Im Kurs vorgesehen: H1 vor U0 in Level 1, H2 vor UW in Level 2, H4 vor VEND.

@@ -4,11 +4,25 @@ import pathlib
 ATHENA_PROMPT = (pathlib.Path(__file__).parent / "prompts/athena.xml").read_text(encoding="utf-8").strip()
 
 TITLE = "Die volle Tasse: KI im Betrieb verstehen"
-SUBTITLE = "Modul 1 · für Unternehmer · ca. 20 Minuten"
+SUBTITLE = "Modul 1 · für Unternehmer · ca. 25 Minuten"
 INTRO = ("Du bist nicht zu langsam. Deine Tasse ist zu voll: Mails, Angebote, Abos, Prognosen. "
-         "In 20 Minuten verstehst du, welche Arbeit KI-Agenten in deinem Betrieb übernehmen können, "
+         "In 25 Minuten verstehst du, welche Arbeit KI-Agenten in deinem Betrieb übernehmen können, "
          "was hinter Begriffen wie Claude Code, n8n und MCP steckt, wo der Datenschutz greift und wo du "
          "am besten anfängst. Ohne Technik-Vorwissen.")
+HYBRID = ("Hybrid gemacht: Die Erklärvideos spricht mein KI-Avatar, gekennzeichnet in jedem Video. Begrüßung, Begründung und Abschluss bin ich in echt. "
+          "Die Inhalte stammen von mir, der Avatar spart Drehtage und hält den Kurs aktuell.")
+GRUNDREGELN = [
+    ["Was vor Wie.", "Du beschreibst das fertige Ergebnis, nicht den Weg. Den Weg findet der Agent."],
+    ["Erst schauen, dann bauen.", "Kein Ablauf ohne Steckbrief: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall."],
+    ["Du bist Bauherr, nicht Bauarbeiter.", "Du gibst Ziel und Grenzen, prüfst und gibst frei. Der Agent erkundet, plant, baut, testet."],
+    ["Zugangsdaten und Freigabe bleiben beim Menschen.", "Freiheit gibst du in Stufen. Löschen, Senden, Geld: immer fragen. Den Tresor öffnest du."],
+    ["Schnell heißt nicht einfach.", "Testdaten vor Echtdaten. Ein Prototyp ist kein Betrieb. „Das hat die KI gemacht“ schützt dich nicht."],
+    ["Daten sortieren, bevor gebaut wird.", "Die Ampel: Grün in die Cloud, Gelb nur mit Vertrag, Rot bleibt im Haus. Entscheide nach Datenart, nicht nach Angst."],
+    ["Jeder Agent eine Rolle und Grenzen.", "Was du dreimal erklärt hast, schreibst du einmal auf. Ab dann liest er es selbst."],
+    ["Was-Fragen an die KI, Wer-Fragen an dich.", "Verantwortung braucht ein Gesicht."],
+    ["Lass den Agenten sich selbst prüfen und stell offene Fragen.", "Frag nie „Ist das okay?“, frag „Was ist daran schwach?“. Dann bekommst du die Wahrheit."],
+    ["Klein anfangen, früh korrigieren.", "Nichts geht live, was du nicht in zwei Sätzen erklären kannst."],
+]
 PROMISE = [
     ["Zeit zurück", "Routine läuft automatisch: Anfragen sortieren, Angebote vorbereiten, Berichte zusammenstellen. Du gewinnst Zeit für Führung und Kunden."],
     ["Eigene Werkzeuge statt Abos", "Wer das Fundament versteht, lässt sich Werkzeuge bauen, die zum eigenen Ablauf passen, statt sich an fünf Programme anzupassen."],
@@ -16,7 +30,7 @@ PROMISE = [
 ]
 
 LEVELS = [
-    {"id": 1, "title": "Die volle Tasse", "videos": ["U0", "UW", "U1"],
+    {"id": 1, "title": "Die volle Tasse", "videos": ["H1", "U0", "U1"],
      "merksatz": "Was jede Woche gleich abläuft, gehört nicht auf deinen Tisch, sondern in eine Automation.",
      "kernpunkte": [
          "In fast jedem Betrieb laufen Stunden pro Woche in Routine: Daten abtippen, Standardmails, Angebote aus Vorlagen, Zahlen zusammensuchen.",
@@ -31,7 +45,7 @@ LEVELS = [
          {"id": "tools", "q": "Für wie viele Software-Abos zahlt dein Betrieb (CRM, Kalender, Formulare, Newsletter …)?", "min": 0, "max": 15, "step": 1, "val": 5, "unit": "", "maxlabel": "15+"},
          {"id": "team", "q": "Wie viele Mitarbeiter arbeiten bei dir?", "min": 1, "max": 100, "step": 1, "val": 10, "unit": "", "maxlabel": "100+"}],
      "xp": 50},
-    {"id": 2, "title": "Wer macht was?", "videos": ["U2"],
+    {"id": 2, "title": "Wer macht was?", "videos": ["UW", "U2"],
      # Erklärseite vor der Aufgabe: Athena als erster KI-Agent, Prompt zum Kopieren
      "erklaer": {
          "kicker": "Dein erster KI-Agent",
@@ -59,22 +73,25 @@ LEVELS = [
      "merksatz": "Claude Code baut, Athena stellt ein, n8n arbeitet, MCP verbindet, das Gedächtnis erinnert.",
      "kernpunkte": [
          "Ein KI-Chat wie ChatGPT redet. Ein KI-Agent arbeitet: Er hat Zugriff auf Werkzeuge und erledigt Aufgaben Schritt für Schritt.",
-         "Claude Code ist der Baumeister. Du beschreibst in normaler Sprache, was du brauchst, und er baut, testet und repariert. Voraussetzung ist das Claude-Abo für etwa 20 € im Monat.",
+         "Claude Code ist der Baumeister. Du beschreibst in normaler Sprache, was du brauchst, und er baut, testet und repariert. Voraussetzung ist ein Claude-Abo ab etwa 20 € im Monat; wer viel baut, nimmt die größere Stufe.",
+         "Chat und Agent sind zwei Kategorien: Ein KI-Chat sagt dir, wie man das Lager umräumt. Ein Agent räumt es um und sagt Bescheid, wenn er fertig ist. Der Zeitgewinn kommt nicht aus mehr Intelligenz, sondern daraus, dass du nicht mehr der Bote zwischen Chat und Programmen bist.",
+         "Werkzeug, nicht Religion: Wir nehmen Claude Code, weil es heute das stärkste Werkzeug dieser Art ist und MCP ein offener Standard ist. Codex von OpenAI funktioniert mit denselben Steckbriefen und Regeln. Alles, was du aufbaust, liegt als Datei bei dir, nicht beim Anbieter: Werkzeug wechseln heißt Dateien mitnehmen.",
          "Athena ist dein erster KI-Agent: eine Recruiterin, die für dich weitere KI-Agenten „einstellt“. Sie führt ein kurzes Gespräch mit dir, schreibt die Stellenbeschreibung, und damit legst du den neuen Agenten an. Den Prompt für Athena bekommst du gleich zum Kopieren.",
          "n8n ist der Motor. Hier laufen deine Abläufe automatisch, auch nachts. n8n verbindet Mail, Kalender, CRM, Buchhaltung und mehr.",
          "MCP ist die Steckdose: ein offener Standard, über den ein KI-Agent Werkzeuge wie n8n bedienen darf. Du bestimmst, was er sehen und tun darf.",
-         "Das Firmen-Gedächtnis speichert dein Wissen so, dass Agenten es finden: ein RAG-System auf Supabase, auf Wunsch kombiniert mit Obsidian für eure Notizen. Es läuft auf deinem eigenen oder einem gemieteten Server, deine Daten bleiben bei dir.",
-         "Und du bist nie allein: Hinter den Agenten stehen echte Ansprechpartner, die täglich mit diesen Systemen arbeiten und rund um die Uhr an deiner Seite sind, wenn der KI-Agent nicht schon weiterhilft."],
+         "Das Firmen-Gedächtnis hat vier Stufen, und drei davon sind einfache Textdateien bei euch: die Regeldatei, die jeder Agent beim Start liest (Athenas Stellenbeschreibung ist genau das); eure Vorlagen und Beispiele als Klartext (Word und PDF sind für Drucker gemacht, nicht für Agenten); eine Lehren-Datei, in die nach jedem Durchlauf eine Zeile kommt. Erst bei tausenden Dokumenten kommt Stufe vier: eine Datenbank, in der die KI nachschlägt (z. B. Supabase), auf eurem Server oder in der EU-Cloud mit Vertrag. Obsidian ist so ein Ordner mit schöner Oberfläche.",
+         "Und du bist nie allein: Hinter den Agenten stehen echte Ansprechpartner, die täglich mit diesen Systemen arbeiten. Der KI-Assistent im Kurs ist rund um die Uhr da, wir werktags."],
      "type": "dnd",
      "intro": "Wer macht was? Ordne jede Aussage der richtigen Rolle zu.",
-     "cats": ["Claude Code (Baumeister)", "Athena (Recruiterin)", "n8n (Motor)", "MCP (Steckdose)"],
+     "cats": ["Claude Code (Baumeister)", "Athena (Recruiterin)", "n8n (Motor)", "MCP (Steckdose)", "Firmen-Gedächtnis"],
      "items": [
          {"t": "Baut aus deiner Beschreibung eine fertige Automation", "c": "Claude Code (Baumeister)", "f": "Der Baumeister setzt um, was du beschreibst."},
          {"t": "Fragt nach, welche Aufgaben ein neuer Agent übernehmen soll, und schreibt seine Stellenbeschreibung", "c": "Athena (Recruiterin)", "f": "Athena stellt neue Agenten ein, wie eine Personalchefin."},
          {"t": "Schickt jeden Montag um 7 Uhr den Wochenbericht", "c": "n8n (Motor)", "f": "n8n führt Abläufe zu festen Zeiten aus, ohne dass jemand daneben sitzt."},
          {"t": "Erlaubt einem KI-Agenten, Werkzeuge in n8n zu bedienen", "c": "MCP (Steckdose)", "f": "MCP ist die standardisierte Verbindung zwischen KI und Werkzeug."},
          {"t": "Findet den Fehler in einem Ablauf und repariert ihn", "c": "Claude Code (Baumeister)", "f": "Testen und Reparieren gehört zum Baumeister."},
-         {"t": "Läuft rund um die Uhr und protokolliert jeden Durchlauf", "c": "n8n (Motor)", "f": "In n8n siehst du jeden Durchlauf grün oder rot."}],
+         {"t": "Läuft rund um die Uhr und protokolliert jeden Durchlauf", "c": "n8n (Motor)", "f": "In n8n siehst du jeden Durchlauf grün oder rot."},
+         {"t": "Weiß noch, was der Kunde letztes Jahr bestellt hat, und eure Regeln für Angebote", "c": "Firmen-Gedächtnis", "f": "Das Gedächtnis: Regeldatei, Vorlagen, Lehren, bei Bedarf eine Datenbank zum Nachschlagen."}],
      "xp_each": 10},
     {"id": 3, "title": "Die Bausteine einer Automation", "videos": ["U3"],
      # Erklärseite vor der Aufgabe: API, Webhook und MCP im Vergleich
@@ -129,10 +146,13 @@ LEVELS = [
      "kernpunkte": [
          "Grün: öffentliche Infos und Testdaten. Ein normales KI-Konto ist in Ordnung.",
          "Gelb: interne Abläufe, Vorlagen, Preise. Nur mit geschäftlichem KI-Konto, Vertrag zur Auftragsverarbeitung und der Einstellung „nicht zum Training verwenden“.",
-         "Rot: Personal-, Gesundheits- und Kundendaten. Nur mit lokaler KI, also einem Modell auf eurem eigenen Rechner oder Server (z. B. mit Ollama). Dann verlässt kein Datensatz das Haus.",
+         "Gelb sind auch normale Kundendaten (Name, Adresse, Auftrag), wenn ein Vertrag zur Auftragsverarbeitung besteht. Dazwischen gibt es KI-Anbieter mit Rechenzentrum in der EU und Vertrag.",
+         "Rot: Personalakten, Gesundheitsdaten, Geschäftsgeheimnisse, besondere Kundendaten (Patienten, Mandanten). Nur mit lokaler KI, also einem Modell auf eurem eigenen Rechner oder Server (z. B. mit Ollama). Dann verlässt kein Datensatz das Haus.",
          "n8n kann auf eurem eigenen Server laufen. Zusammen mit lokaler KI bleiben auch sensible Abläufe im Betrieb.",
          "Immer zuerst mit Testdaten arbeiten. Echte Daten erst, wenn alles geprüft und freigegeben ist. Den Datenschutzbeauftragten früh einbinden.",
-         "Wie ihr lokale KI einrichtet, lernen deine Mitarbeiter in der Momentum-Schulung, oder wir setzen es für euch um."],
+         "Wie ihr lokale KI einrichtet, lernen deine Mitarbeiter in der Momentum-Schulung, oder wir setzen es für euch um.",
+         "Welche KI? Denk in drei Klassen wie bei Mitarbeitern: Der Senior (stärkste Klasse) plant, baut und findet Fehler, die einzige Wahl für Baumeister und Athena. Der Sachbearbeiter (mittlere Klasse) für Texte, Zusammenfassungen und den Alltag. Der Azubi (schnell und günstig) für Sortieren und Massenarbeit in n8n-Abläufen. Keine Modellnamen merken, die altern in Monaten.",
+         "Drei Fragen entscheiden die Wahl: Welche Daten (die Ampel)? Welche Aufgabe (was eine feste Regel kann, braucht kein Modell)? Wie bezahlen (Festpreis-Abo für den Baumeister, nach Verbrauch mit Kostengrenze für Bausteine in Abläufen)? Schreibt deine Firma einen anderen Anbieter vor, gelten die drei Fragen genauso."],
      "type": "binary",
      "intro": "Welche Ampelfarbe passt? Entscheide dich.",
      "items": [
@@ -202,7 +222,8 @@ LEVELS = [
      "merksatz": "Erst schauen, dann bauen: Gut beschrieben ist halb gebaut.",
      "kernpunkte": [
          "Mit Claude Code und n8n baust du dir Werkzeuge, die genau zu deinem Ablauf passen: eine Zeiterfassung, eine Aufgabenliste, ein Angebots-Assistent. Oft ersetzt das ein Abo.",
-         "Unser eigenes Team-Portal mit Aufgaben, Zeiten und Vertrieb haben KI-Agenten gebaut. Dieser Kurs auch.",
+         "Unser eigenes Team-Portal mit Aufgaben, Zeiten und Vertrieb haben KI-Agenten gebaut, mit Timo als Bauherr: Er beschreibt, prüft und gibt frei. Dieser Kurs auch. Der Motor dahinter, n8n, läuft auf unserem eigenen Server.",
+         "Schnell heißt nicht einfach: Einen ersten Prototyp baut Claude Code an einem Nachmittag. Bis er im Betrieb läuft, braucht er Tests, Datenschutz und deine Freigabe. Alles mit Kundendaten, Geld oder Öffentlichkeit braucht Verantwortung, und „das hat die KI gemacht“ schützt dich nicht.",
          "Bevor gebaut wird, schaust du hin: Wie läuft der Ablauf heute wirklich? Ein Agent baut genau das, was du beschreibst.",
          "Ein guter Steckbrief hat fünf Teile: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall.",
          "n8n ist der Motor, Athena die Personalchefin, dein n8n-Agent die Fachkraft: Er baut über MCP aus deinem Steckbrief den Ablauf in n8n, testet ihn und repariert Fehler. Zugangsdaten und Freigabe bleiben bei dir.",
@@ -232,5 +253,6 @@ CHECK = [
     {"q": "Woran erkennst du einen guten ersten Ablauf?", "a": "Regelmäßig, feste Regeln, mehrere Programme, wenig Risiko", "d": ["Möglichst groß und kompliziert", "Selten und kreativ", "Mit vielen sensiblen Daten"], "lv": 5},
     {"q": "Wer baut aus deinem Steckbrief den Ablauf in n8n?", "a": "Dein n8n-Agent, den Athena für dich eingestellt hat", "d": ["Athena selbst", "n8n ganz von allein", "Ein externer Programmierer"], "lv": 6},
     {"q": "Was gehört in einen Steckbrief?", "a": "Auslöser, Schritte, Programme, Ergebnis, Fehlerfall", "d": ["Logo und Farben", "Nur das Budget", "Nur die Programme"], "lv": 6},
+    {"q": "Welche Frage bringt dich bei einem KI-Ergebnis weiter?", "a": "„Was ist daran schwach?“", "d": ["„Ist das okay?“", "„Bist du sicher?“", "„Passt das so?“"], "lv": 6},
 ]
-PASS = 8
+PASS = 9
