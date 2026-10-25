@@ -1,5 +1,5 @@
 # Leadmagnet für Unternehmer: Modul 1 „Die volle Tasse – KI im Betrieb verstehen“
-# Offen für alle (ohne Kurscode). Modul 2 (Umsetzung mit n8n) gibt es nach einem kurzen Gespräch.
+# Offen für alle (ohne Kurscode). Die Werkstatt (Umsetzung mit n8n) gibt es nach einem kurzen Gespräch.
 import pathlib
 ATHENA_PROMPT = (pathlib.Path(__file__).parent / "prompts/athena.xml").read_text(encoding="utf-8").strip()
 
@@ -9,12 +9,12 @@ INTRO = ("Du bist nicht zu langsam. Deine Tasse ist zu voll: Mails, Angebote, Ab
          "In 25 Minuten verstehst du, welche Arbeit KI-Agenten in deinem Betrieb übernehmen können, "
          "was hinter Begriffen wie Claude Code, n8n und MCP steckt, wo der Datenschutz greift und wo du "
          "am besten anfängst. Ohne Technik-Vorwissen.")
-HYBRID = ("Hybrid gemacht: Die Erklärvideos spricht mein KI-Avatar, gekennzeichnet in jedem Video. Begrüßung, Begründung und Abschluss bin ich in echt. "
-          "Die Inhalte stammen von mir, der Avatar spart Drehtage und hält den Kurs aktuell.")
+HYBRID = ("Die Videos spricht mein KI-Avatar: am Computer erzeugt, Bild und Stimme nach meinem Original. "
+          "Die Inhalte stammen von mir, geprüft und freigegeben. Der Avatar spart Drehtage und hält den Kurs aktuell.")
 GRUNDREGELN = [
     ["Was vor Wie.", "Du beschreibst das fertige Ergebnis, nicht den Weg. Den Weg findet der Agent."],
     ["Erst schauen, dann bauen.", "Kein Ablauf ohne Steckbrief: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall."],
-    ["Du bist Bauherr, nicht Bauarbeiter.", "Du gibst Ziel und Grenzen, prüfst und gibst frei. Der Agent erkundet, plant, baut, testet."],
+    ["Führen statt Blindflug.", "Du gibst Ziel und Grenzen, der Agent erkundet, plant, baut, testet. Vor jeder Freigabe drei Fragen: Was hast du gemacht? Was hast du geprüft? Was ist daran schwach?"],
     ["Zugangsdaten und Freigabe bleiben beim Menschen.", "Freiheit gibst du in Stufen. Löschen, Senden, Geld: immer fragen. Den Tresor öffnest du."],
     ["Schnell heißt nicht einfach.", "Testdaten vor Echtdaten. Ein Prototyp ist kein Betrieb. „Das hat die KI gemacht“ schützt dich nicht."],
     ["Daten sortieren, bevor gebaut wird.", "Die Ampel: Grün in die Cloud, Gelb nur mit Vertrag, Rot bleibt im Haus. Entscheide nach Datenart, nicht nach Angst."],
@@ -227,7 +227,9 @@ LEVELS = [
          "Bevor gebaut wird, schaust du hin: Wie läuft der Ablauf heute wirklich? Ein Agent baut genau das, was du beschreibst.",
          "Ein guter Steckbrief hat fünf Teile: Auslöser, Schritte, Programme, Ergebnis, Fehlerfall.",
          "n8n ist der Motor, Athena die Personalchefin, dein n8n-Agent die Fachkraft: Er baut über MCP aus deinem Steckbrief den Ablauf in n8n, testet ihn und repariert Fehler. Zugangsdaten und Freigabe bleiben bei dir.",
-         "Diesen Steckbrief nimmst du mit in Modul 2. Dort verbindest du Claude Code mit n8n, Athena stellt deinen n8n-Agenten ein, und er baut daraus deinen ersten Ablauf."],
+         "Diesen Steckbrief nimmst du mit in die Werkstatt. Dort verbindest du Claude Code mit n8n, Athena stellt deinen n8n-Agenten ein, und er baut daraus deinen ersten Ablauf.",
+         "Führen statt Blindflug: Bevor etwas live geht, stellst du jedem Agenten drei Fragen. Was hast du gemacht? Was hast du geprüft? Was ist daran schwach? Eine geschlossene Frage bekommt ein Ja, eine offene die Wahrheit."
+     ],
      "type": "errors",
      "intro": "In diesem Steckbrief „Anfrage beantworten“ stecken drei Fehler. Tippe die fehlerhaften Zeilen an.",
      "lines": [

@@ -271,6 +271,20 @@ CSS_HUD = """
 .lw .wd { width:104px; text-align:center; font-size:17px; font-weight:500; color:#EAF6F5; line-height:1.2; }
 .lw .own { display:flex; align-items:flex-end; gap:16px; font-size:24px; color:#8FA6A8; }
 .lw .own .ul { width:440px; height:36px; border-bottom:2px solid #2EE6D6; }
+/* Zuladung */
+.zl { padding:26px 30px 28px; display:flex; flex-direction:column; gap:16px; }
+.zl .row { display:flex; align-items:center; gap:18px; font-size:25px; font-weight:500; }
+.zl .bar { position:relative; height:34px; border-radius:17px; background:#0A1015; border:1.5px solid rgba(255,255,255,.08); overflow:hidden; }
+.zl .fill { position:absolute; left:0; top:0; bottom:0; width:85%; border-radius:17px; background:#FF4D4F; box-shadow:0 0 24px rgba(255,77,79,.6); }
+.zl .lbl { font-family:"JB", monospace; font-size:15px; letter-spacing:2px; text-transform:uppercase; color:#7F9BA0; }
+.zl .val { font-size:26px; font-weight:700; color:#FF4D4F; }
+/* Mannschaft */
+.mn { padding:22px 26px 24px; display:flex; gap:12px; justify-content:center; }
+.mn .seat { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:10px; padding:16px 8px 14px; border-radius:16px; background:#0A1015; border:1.5px solid rgba(255,255,255,.07); opacity:.35; }
+.mn .seat .ic { width:56px; height:56px; border-radius:14px; background:rgba(46,230,214,.12); display:flex; align-items:center; justify-content:center; }
+.mn .seat .t { font-size:18px; font-weight:700; text-align:center; line-height:1.15; }
+.mn .seat .sb { font-size:14px; color:#8FA6A8; text-align:center; }
+.mn .seat.mo .ic { background:rgba(155,108,255,.18); }
 """
 
 # ---------------------------------------------------------------- Cockpit-Modus (KIT_COCKPIT=1): wird als MOV mit Alpha gerendert und
@@ -301,7 +315,9 @@ body, #root { background:transparent; }
 .house { left:520px; width:700px; background:rgba(46,230,214,.08); }
 .house .lbl { background:#121A22; }
 .cap { left:470px; right:40px; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.85); }
+.cmp { margin:0 40px 0 470px; gap:18px; } .cmp .col { color:var(--ink); padding:22px 22px; box-shadow:0 22px 60px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(46,230,214,.25); } .cmp .ch { font-size:24px; } .cmp .row { font-size:20px; } .cmp .vs { color:var(--muted); } .term { left:470px; width:770px; } .chat { margin:0 40px 0 470px; } .msg.a { color:#1C1B19; } .bars { left:520px; right:60px; border-bottom-color:var(--ink); } .bars .bl, .bars .bn { color:var(--ink); } .sc .card.it[style*="left:130px"] { left:470px !important; width:770px !important; color:var(--ink); } .sf .val { color:var(--ink); } .sf { border-bottom-color:rgba(255,255,255,.12); } .sat { color:var(--ink); text-shadow:0 1px 6px rgba(0,0,0,.7); } .hubc { background:#121A22; box-shadow:0 0 0 6px rgba(46,230,214,.18), 0 24px 60px rgba(0,0,0,.5); }
 .lw .slots { gap:12px; } .lw .sl { width:76px; height:90px; font-size:46px; border-radius:12px; } .lw .wd { width:76px; font-size:13px; } .lw .own .ul { width:300px; }
+.mn .seat .t { font-size:16px; } .mn { gap:8px; padding:20px 18px; }
 .cap .w { opacity:.3; }
 """
 
@@ -463,13 +479,12 @@ class Builder:
             self.IN(i, self.t(foot_at, ts[-1] + .8 if ts else s + 1), "up")
         return h
 
-    def k_hub(self, s, e, kick=None, title=None, center="n8n", sats=(), hub_at=None, extra=None, extra_at=None, cy=380, rx=380, ry=170):
+    def k_hub(self, s, e, kick=None, title=None, center="n8n", sats=(), hub_at=None, extra=None, extra_at=None, cy=380, rx=380, ry=170, cx=640):
         import math
         a = self.uid("a")
         h = self.head(s, kick, title)
         ts = self.items(sats, s, e, gap=.3)
         th = self.t(hub_at, s + .2) if hub_at is not False else s + .2
-        cx = 640
         n = len(sats)
         for k, (sat, tt) in enumerate(zip(sats, ts)):
             ang = -math.pi / 2 + 2 * math.pi * k / n + (math.pi / n if n % 2 == 0 else 0)
@@ -847,6 +862,38 @@ class Builder:
         elif own:
             i = f"{a}o"; h += f'<div class="own it" id="{i}"><span>{esc(own)}</span><span class="ul"></span></div>'
             self.IN(i, (self.t(reveal[0].get("at"), s + .8) + .9) if reveal else s + 1.0, "up")
+        return h + "</div></div></div>"
+
+
+    def k_zuladung(self, s, e, kick=None, title=None, label="Zuladung", text="Zu viel an Bord: 5 bis 10 Stunden Routine pro Woche", pct=85,
+                   switch_at=None, text2="Ballast abgeworfen", pct2=28, right=None):
+        """Balken rot (pct %). Mit switch_at: wird grün (pct2 %), Text wechselt."""
+        a = self.uid("a")
+        h = self.head(s, kick, title) + self.hud(a, s, label, right, title) + '<div class="zl">'
+        h += f'<div class="row"><span class="lbl">{esc(label)}</span><span class="val" id="{a}v">{esc("rot" if switch_at is None or True else "")}</span></div>'
+        h += f'<div class="bar"><div class="fill" id="{a}f" style="width:{pct}%"></div></div>'
+        h += f'<div class="row it" id="{a}t"><span>{esc(text)}</span></div>'
+        self.IN(a + "t", s + .5, "left")
+        self.js.append(f'tl.fromTo("#{a}f",{{width:"0%"}},{{width:"{pct}%",duration:.9,ease:"power2.out"}},{s+.3:.2f});')
+        if switch_at is not None:
+            ts = self.t(switch_at, s + 2.0)
+            self.js.append(f'tl.to("#{a}f",{{width:"{pct2}%",backgroundColor:"#2ED573",boxShadow:"0 0 24px rgba(46,213,115,.6)",duration:.9,ease:"power2.inOut"}},{ts:.2f});')
+            self.js.append(f'tl.to("#{a}v",{{color:"#2ED573",duration:.4,onStart:()=>{{document.querySelector("#{a}v").textContent="grün"}}}},{ts:.2f});')
+            self.js.append(f'tl.to("#{a}t",{{opacity:0,duration:.25}},{ts:.2f});')
+            h += f'<div class="row it" id="{a}t2"><span>{esc(text2)}</span></div>'
+            self.IN(a + "t2", ts + .3, "left")
+        return h + "</div></div></div>"
+
+    def k_mannschaft(self, s, e, kick=None, title=None, seats=(), label="Mannschaft", right=None):
+        """seats: [{"t": "Baumeister", "sub": "Claude Code", "icon": "gear", "at": Phrase, "mo": False}], leuchten nacheinander auf."""
+        a = self.uid("a")
+        h = self.head(s, kick, title) + self.hud(a, s, label, right, title) + '<div class="mn">'
+        ts = self.items(seats, s, e, gap=.9, first=.6)
+        for k, (st, tt) in enumerate(zip(seats, ts)):
+            i = f"{a}s{k}"
+            h += f'<div class="seat{" mo" if st.get("mo") else ""}" id="{i}"><div class="ic">{icon(st.get("icon", "user"), 30)}</div><div class="t">{esc(st["t"])}</div><div class="sb">{esc(st.get("sub", ""))}</div></div>'
+            self.js.append(f'tl.to("#{i}",{{opacity:1,borderColor:"rgba(46,230,214,.7)",duration:.45,ease:"power2.out"}},{tt:.2f});')
+            self.js.append(f'tl.fromTo("#{i}",{{y:10}},{{y:0,duration:.45,ease:"power3.out"}},{tt:.2f});')
         return h + "</div></div></div>"
 
 

@@ -51,11 +51,11 @@ rep('const LS_KEY = "m11-automationen-v2";', 'const LS_KEY = "u1-unternehmer-v1"
 # Kurscode-Sperre entfernen
 rep('  if (i > 0 && !kurscodeOk(S.kurscode)) { S.step = 0; toast("Bitte zuerst deinen Namen, den richtigen Kurscode und deine E-Mail eintragen."); if (STEPS[S.step]) render(); return; }\n', '')
 rep('if (S.step > 0 && !kurscodeOk(S.kurscode)) S.step = 0;\n', '')
-rep('STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });', 'STEPS.push({ k: "check" }); if (MEDIA.H4) STEPS.push({ k: "video", lv: NLV + 1, v: "H4" }); if (MEDIA.VEND) STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });')
+rep('STEPS.push({ k: "check" }); STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });', 'STEPS.push({ k: "check" }); if (MEDIA.VEND) STEPS.push({ k: "video", lv: NLV + 1, v: "VEND" });')
 rep('Das Video zu diesem Abschnitt wird gerade neu aufgenommen. Bis dahin findest du hier die wichtigsten Punkte.', 'Das Wichtigste in zwei Minuten:')
 rep('🔊 Ton an! Danach trägst du unten deinen Namen und den Kurscode ein.', '🔊 Ton an! Danach geht es unten los.')
 rep("' hast Teil 1 geschafft</h1>'", "' hast Modul 1 geschafft</h1>'")
-rep("Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.", "In Modul 2 wird umgesetzt: Du verbindest Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der aus diesem Steckbrief deinen ersten Ablauf baut.")
+rep("Weiter geht es mit Teil 2: „Automationen bauen lassen“ – dort gibst du diesen Steckbrief an Claude Code.", "In der Werkstatt wird umgesetzt: Du verbindest Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der aus diesem Steckbrief deinen ersten Ablauf baut.")
 rep('saveFile("Merkblatt_Automationen.txt", merkText())', 'saveFile("Merkblatt_Die_volle_Tasse.txt", merkText())')
 rep("""'<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +""", """'<h2 style="margin-top:20px">Die 10 Grundregeln</h2><ol class="ml">' + DATA.grundregeln.map(g => '<li><b>' + esc(g[0]) + '</b> ' + esc(g[1]) + '</li>').join("") + '</ol>' +
     '<h2 style="margin-top:20px">Dein Prozess-Steckbrief</h2>' +""")
@@ -63,9 +63,9 @@ rep('"Mein Prozess-Steckbrief:", ...STECK.own.map', '"Die 10 Grundregeln:", ...D
 rep('setNext(true, "Weiter zu Teil 2 →", true);', 'setNext(true, "Förder-Check und Termin →", true);')
 rep('"Die 6 Merksätze:"', '"Die " + NLV + " Merksätze:"')
 rep('" / 10" : "")', '" / " + DATA.check.length : "")')
-rep("In Teil 2 wird gebaut.", "In Modul 2 wird gebaut.")
-rep("brauchst du in Teil 2 – dort baut Claude Code daraus deine Automation.", "brauchst du in Modul 2 – dort baut Claude Code daraus deinen ersten Ablauf.")
-rep("dein Steckbrief ist bereit für Teil 2.", "dein Steckbrief ist bereit für Modul 2.")
+rep("In Teil 2 wird gebaut.", "In der Werkstatt wird gebaut.")
+rep("brauchst du in Teil 2 – dort baut Claude Code daraus deine Automation.", "brauchst du in der Werkstatt – dort baut Claude Code daraus deinen ersten Ablauf.")
+rep("dein Steckbrief ist bereit für Teil 2.", "dein Steckbrief ist bereit für die Werkstatt.")
 rep("Sie nutzt sie, um dich zu betreuen und den Kurs zu verbessern", "Sie nutzt sie, um den Kurs zu verbessern")
 # Lernstand anonym an lm-unternehmer
 rep('const WEBHOOK = "https://n8n.hm-storage.de/webhook/kurs-lernstand";\nconst KURS = "Modul 1.1";\nconst TID_KEY = "m11-teilnehmer-id";',
@@ -92,17 +92,17 @@ renderStart = function (sc) {
 '''
 h = re.sub(r"// ---------- Startseite: Name \+ Kurscode sind Pflicht ----------.*?(?=// ---------- Abschluss: Zusammenfassung per Mail, Ausblick ----------)", lambda m: start_neu, h, count=1, flags=re.S)
 # Abschluss: statt Mail-Zusammenfassung die zwei Wege
-weiter_neu = r'''// ---------- Abschluss: Förder-Check, Termin, Modul 2 ----------
+weiter_neu = r'''// ---------- Abschluss: Förder-Check, Termin, Werkstatt ----------
 function newsletterBox(sc) {
   const c = el("div", "card nl"); sc.appendChild(c);
   c.innerHTML = '<div class="kicker">Dein nächster Schritt</div><h2>Die Grundpfeiler stehen. Jetzt bist du dran.</h2>' +
     '<div class="outlook">' +
     '<div><b>🎯 Dein Team schulen lassen, gefördert</b><span>Deine Mitarbeiter lernen das in einer zugelassenen Weiterbildung. Die Agentur für Arbeit übernimmt je nach Betriebsgröße bis zu 100 % der Kurskosten und zahlt einen Zuschuss zum Gehalt. Prüf es in zwei Minuten und buch ein kostenloses, unverbindliches Gespräch mit Karsten.</span></div>' +
-    '<div><b>🛠️ Modul 2: Umsetzung mit n8n</b><span>Du verbindest Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der aus deinem Steckbrief den ersten Ablauf baut. Den Zugang und den n8n-Schulungszugang bekommst du nach einem kurzen Gespräch mit uns.</span></div>' +
+    '<div><b>🛠️ Die Werkstatt: Umsetzung mit n8n</b><span>Du verbindest Claude Code mit n8n, und Athena stellt deinen n8n-Agenten ein, der aus deinem Steckbrief den ersten Ablauf baut. Den Zugang und den n8n-Schulungszugang bekommst du nach einem kurzen Gespräch mit uns.</span></div>' +
     '</div>';
   const row = el("div", "row"); row.style.marginTop = "14px";
   const a1 = el("a", "btn", "Förder-Check machen"); a1.href = SEITE + "?utm_source=kurs&utm_medium=modul1&utm_campaign=abschluss#foerder-check"; a1.style.textDecoration = "none";
-  const a2 = el("a", "btn sec", "Zugang zu Modul 2 anfragen"); a2.href = SEITE + "?utm_source=kurs&utm_medium=modul1&utm_campaign=modul2#modul-2"; a2.style.textDecoration = "none";
+  const a2 = el("a", "btn sec", "Zugang zur Werkstatt anfragen"); a2.href = SEITE + "?utm_source=kurs&utm_medium=modul1&utm_campaign=modul2#modul-2"; a2.style.textDecoration = "none";
   row.append(a1, a2); c.appendChild(row);
   c.appendChild(el("p", "muted small", "Die geförderten Kurse laufen 2026 über unseren AZAV-zugelassenen Partner TEMP.Akademie, ab Januar 2027 über die Momentum KI Akademie. Ob und in welcher Höhe gefördert wird, entscheidet die Agentur für Arbeit."));
 }
