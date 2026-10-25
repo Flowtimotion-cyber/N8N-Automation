@@ -215,3 +215,24 @@ Erst schauen, dann bauen. Gleich findest du drei Fehler in einem Beispiel-Steckb
 ## Echte Aufnahmen (Timo, 24.10.2026)
 
 H1 Intro mit Übergabe an Mo, H2 Warum Claude Code, H3 Werkzeug-Block für den Willkommensfilm, H4 Abschluss mit Abnahme: Sprechtexte im Prüfbericht Abschnitt 6 und 11.4, Mos Audio in `22_Momentum/Mo_Audio/`. Im Kurs vorgesehen: H1 vor U0 in Level 1, H2 vor UW in Level 2, H4 vor VEND.
+
+---
+
+## Version 4 (25.10.2026): Cockpit-Modus mit Mo-Dialog, erstes Video U4
+
+Rahmen aus `Projekt-Manager/22_Momentum/Flugplan_Gesamtstory.md`: Avatar-Timo sitzt im Momentum-Auto (linker Sitz), Mo fliegt oben rechts, die Anzeigen (Logbuch, Ampel, Leitwort) liegen rechts im Bild. Timo spricht per HeyGen mit `<break>`-Pausen, Mo antwortet in den Pausen (ElevenLabs, Stimme jessica). Pause = Mo-Dauer + 0,5 s.
+
+### U4 · Datenschutz-Ampel, Version 4 (ca. 83 s)
+
+**Timo (HeyGen):**
+„Und meine Kundendaten landen dann in Amerika?“ Das ist die häufigste Frage, die ich höre. Und sie ist berechtigt. Mo, was liegt an? `<break 6,5 s>`
+**Mo:** Neue Anfrage. Angebot, Preisliste, und eine Krankmeldung hängt dran. Ich lade alles in die Cloud.
+**Timo:** Stopp. Genau hier entscheidet sich, ob Automation dich schützt oder dich etwas kostet. Ein einziger falscher Ablauf mit echten Kundendaten kostet mehr, als jede Automation je spart. Deshalb sortieren wir vor dem Bauen, nicht danach. Mo, zeig die Ampel. `<break 2 s>`
+**Mo:** Ampel an.
+**Timo:** Grün: Öffentliches, Texte ohne Namen, deine Webseite. Das darf in die Cloud. Gelb: interne Abläufe, Vorlagen, Preise. Nur mit geschäftlichem Konto, Vertrag zur Auftragsverarbeitung und ohne Training mit deinen Daten. Rot: Personalakten, Gesundheitsdaten, Geschäftsgeheimnisse. Die bleiben im Haus, mit einer lokalen K-I auf deinem eigenen oder einem gemieteten Server. Mo, die Krankmeldung? `<break 3 s>`
+**Mo:** Rot. Das entscheidest du.
+**Timo:** Richtig. Das ist die Regel: Bei Rot hält Mo an und fragt. Ich entscheide. Und bevor ein Ablauf mit echten Daten live geht: Sprich mit deinem Datenschutzbeauftragten. Wir helfen dir dabei. Mo, der Buchstabe. `<break 4 s>`
+**Mo:** Buchstabe fünf leuchtet. Dein Wort dazu findest du.
+**Timo:** Jetzt sortierst du ein paar Beispiele in die Ampel.
+
+Anzeigen: Eingang (Logbuch-Tafel) bei Mos Anfrage, Ampel schaltet mit Grün/Gelb/Rot und noch einmal Rot bei der Krankmeldung, Leitwort MOMENTUM mit dem fünften Buchstaben N. Plan: `videos/kit/plans_cockpit.py`, Bau: `videos/kit/build_cockpit.py`.

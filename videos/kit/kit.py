@@ -273,6 +273,38 @@ CSS_HUD = """
 .lw .own .ul { width:440px; height:36px; border-bottom:2px solid #2EE6D6; }
 """
 
+# ---------------------------------------------------------------- Cockpit-Modus (KIT_COCKPIT=1): wird als MOV mit Alpha gerendert und
+# in ffmpeg über Cockpit-Schleife, freigestellten Avatar (linker Sitz) und Mo gelegt. Szenen sitzen rechts (x ab 470).
+CSS_COCKPIT = """
+:root { --ink:#F2F7F7; --muted:#B8C7CA; --accent:#2EE6D6; --soft:rgba(46,230,214,.16); --card:#121A22; --line:rgba(255,255,255,.12); }
+body, #root { background:transparent; }
+#bgdots { display:none; }
+.hd { text-shadow:0 2px 12px rgba(0,0,0,.7); }
+.kick { text-shadow:0 1px 6px rgba(0,0,0,.6); }
+.sub { text-shadow:0 1px 6px rgba(0,0,0,.6); }
+.top { left:470px; right:40px; }
+.center { left:470px; right:40px; }
+.center .hd { font-size:50px; }
+.hook { left:470px; width:770px; }
+.hook .hd { font-size:48px; }
+.hud { width:770px; margin:0 40px 0 470px; }
+.cards { margin:0 40px 0 470px; }
+.cards .card { color:var(--ink); box-shadow:0 22px 60px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(46,230,214,.25); }
+.cards .card .ic { background:var(--soft); }
+.cl { margin:0 40px 0 470px; }
+.cl .ci { color:var(--ink); box-shadow:0 22px 60px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(46,230,214,.25); }
+.cl .num { background:var(--accent); color:#0A1015; }
+.tile { background:#121A22; box-shadow:0 14px 34px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(46,230,214,.3); }
+.chip { background:#121A22; color:var(--ink); box-shadow:0 10px 26px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(46,230,214,.25); }
+.foot { left:470px; right:40px; }
+.foot span { background:var(--accent); color:#0A1015; } .foot span b { color:#0A1015; }
+.house { left:520px; width:700px; background:rgba(46,230,214,.08); }
+.house .lbl { background:#121A22; }
+.cap { left:470px; right:40px; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.85); }
+.lw .slots { gap:12px; } .lw .sl { width:76px; height:90px; font-size:46px; border-radius:12px; } .lw .wd { width:76px; font-size:13px; } .lw .own .ul { width:300px; }
+.cap .w { opacity:.3; }
+"""
+
 CAPFIX = [(r"Prozesssteckbrief", "Prozess-Steckbrief"), (r"Beispielsteckbrief", "Beispiel-Steckbrief"), (r"\bCloud Code\b", "Claude Code"), (r"\bCloudCode\b", "Claude Code"), (r"\bRacksystem\b", "RAG-System"), (r"\bN8N\b", "n8n"), (r"rund die Uhr", "rund um die Uhr"), (r"\bPubly\b", "Pabbly"), (r"\b2224\b", "2024"), (r"\bChat, GPT\b", "ChatGPT \u200b"),
           (r"\bChat GPT\b", "ChatGPT \u200b"), (r"\bOlama\b", "Ollama"), (r"\bLama\b", "Llama"), (r"\bQuen\b", "Qwen"), (r"\bCL eins\b", "CLI \u200b"), (r"Video Fünften", "Video fünf"), (r"Teil dritten", "Teil drei"), (r"Teil zweiten", "Teil zwei"),
           (r"Video sechsten", "Video sechs"), (r"\bN8N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"Claude Pro-Abo", "Claude-Pro-Abo"), (r"Supa-Base", "Supabase"), (r"\bSupa Base\b", "Supabase"), (r"\bRack-System", "RAG-System"), (r"\bRAG System\b", "RAG-System"), (r"\bC-R-M\b", "CRM"), (r"\bSuperbase\b", "Supabase"), (r"\bCarsten\b", "Karsten"), (r"Modul zweite", "Modul zwei"), (r"\bFördercheck\b", "Förder-Check"), (r"\bK-I\b", "KI"), (r"\bM-C-P\b", "MCP")]
@@ -912,7 +944,7 @@ def compose(key, plan, out_dir):
                        + (f'tl.to("#avlab",{{opacity:1,duration:.4}},0.4);tl.to("#avlab",{{opacity:0,duration:.25}},{av_end-.1:.2f});' if os.environ.get("KIT_AVLABEL") else ''))
     html = f"""<!doctype html>
 <html lang="de"><head><meta charset="UTF-8" /><meta name="viewport" content="width=1280, height=720" />
-<title>{key}</title><script src="assets/gsap.min.js"></script><style>{CSS}{CSS_HUD}</style></head>
+<title>{key}</title><script src="assets/gsap.min.js"></script><style>{CSS}{CSS_HUD}{CSS_COCKPIT if os.environ.get('KIT_COCKPIT') else ''}</style></head>
 <body>
 <div id="root" data-composition-id="{key.lower()}" data-start="0" data-width="1280" data-height="720" data-duration="{dur}">
   <div id="bgdots"></div>
