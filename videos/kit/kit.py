@@ -240,6 +240,39 @@ em { font-style:normal; color:var(--accent); }
 .cap .w.k { color:var(--accent); }
 """
 
+# ---------------------------------------------------------------- Cockpit-Anzeigen (HUD): Logbuch, Ampel, Leitwort
+CSS_HUD = """
+.hud { position:relative; margin:0 auto; width:1020px; background:#121A22; border-radius:20px; color:#EAF6F5; overflow:hidden;
+       box-shadow:0 30px 80px rgba(20,15,10,.28), inset 0 0 0 1.5px rgba(46,230,214,.35); }
+.hud .hh { display:flex; align-items:center; gap:12px; padding:15px 26px; border-bottom:1px solid rgba(46,230,214,.22); font-family:"JB", monospace; font-size:16px; letter-spacing:3px; text-transform:uppercase; color:#2EE6D6; }
+.hud .hh i { width:10px; height:10px; border-radius:50%; background:#2EE6D6; box-shadow:0 0 12px #2EE6D6; }
+.hud .hh span { margin-left:auto; letter-spacing:1px; color:#7F9BA0; text-transform:none; }
+/* Logbuch */
+.lb { padding:20px 30px 24px; display:flex; flex-direction:column; gap:14px; font-family:"JB", monospace; font-size:22px; line-height:1.45; }
+.lb .le { display:flex; gap:18px; align-items:flex-start; color:#8FA6A8; }
+.lb .le .n { color:#2EE6D6; font-weight:600; flex:0 0 auto; min-width:92px; }
+.lb .le.new { color:#EAF6F5; }
+.lb .le.new .n { color:#9B6CFF; }
+.lb .cur { display:inline-block; width:11px; height:24px; background:#2EE6D6; margin-left:3px; vertical-align:-3px; }
+/* Ampel */
+.amp { padding:22px 30px 26px; display:flex; gap:44px; align-items:center; }
+.amp .box { width:112px; padding:14px 0; background:#0A1015; border-radius:34px; display:flex; flex-direction:column; gap:14px; align-items:center; border:1.5px solid rgba(255,255,255,.08); flex:0 0 auto; }
+.amp .l { width:70px; height:70px; border-radius:50%; background:#243038; }
+.amp .rows { display:flex; flex-direction:column; gap:14px; flex:1; }
+.amp .row { display:flex; align-items:center; gap:18px; font-size:25px; font-weight:500; padding:14px 22px; border-radius:14px; background:rgba(255,255,255,.04); border:1.5px solid rgba(255,255,255,.07); }
+.amp .row b { font-family:"JB", monospace; letter-spacing:2px; text-transform:uppercase; font-size:15px; padding:6px 11px; border-radius:8px; flex:0 0 auto; }
+.amp .row.g b { background:rgba(46,213,115,.16); color:#2ED573; } .amp .row.y b { background:rgba(255,192,72,.16); color:#FFC048; } .amp .row.r b { background:rgba(255,77,79,.16); color:#FF4D4F; }
+/* Leitwort */
+.lw { padding:28px 30px 26px; display:flex; flex-direction:column; align-items:center; gap:22px; }
+.lw .slots { display:flex; gap:14px; }
+.lw .sl { width:104px; height:118px; border-radius:16px; background:#0A1015; border:1.5px solid rgba(46,230,214,.22); display:flex; align-items:center; justify-content:center; font-size:64px; font-weight:700; color:#26363E; }
+.lw .sl.lit { color:#2EE6D6; text-shadow:0 0 18px rgba(46,230,214,.7); border-color:rgba(46,230,214,.75); }
+.lw .wds { display:flex; gap:14px; }
+.lw .wd { width:104px; text-align:center; font-size:17px; font-weight:500; color:#EAF6F5; line-height:1.2; }
+.lw .own { display:flex; align-items:flex-end; gap:16px; font-size:24px; color:#8FA6A8; }
+.lw .own .ul { width:440px; height:36px; border-bottom:2px solid #2EE6D6; }
+"""
+
 CAPFIX = [(r"Prozesssteckbrief", "Prozess-Steckbrief"), (r"Beispielsteckbrief", "Beispiel-Steckbrief"), (r"\bCloud Code\b", "Claude Code"), (r"\bCloudCode\b", "Claude Code"), (r"\bRacksystem\b", "RAG-System"), (r"\bN8N\b", "n8n"), (r"rund die Uhr", "rund um die Uhr"), (r"\bPubly\b", "Pabbly"), (r"\b2224\b", "2024"), (r"\bChat, GPT\b", "ChatGPT \u200b"),
           (r"\bChat GPT\b", "ChatGPT \u200b"), (r"\bOlama\b", "Ollama"), (r"\bLama\b", "Llama"), (r"\bQuen\b", "Qwen"), (r"\bCL eins\b", "CLI \u200b"), (r"Video Fünften", "Video fünf"), (r"Teil dritten", "Teil drei"), (r"Teil zweiten", "Teil zwei"),
           (r"Video sechsten", "Video sechs"), (r"\bN8N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"Claude Pro-Abo", "Claude-Pro-Abo"), (r"Supa-Base", "Supabase"), (r"\bSupa Base\b", "Supabase"), (r"\bRack-System", "RAG-System"), (r"\bRAG System\b", "RAG-System"), (r"\bC-R-M\b", "CRM"), (r"\bSuperbase\b", "Supabase"), (r"\bCarsten\b", "Karsten"), (r"Modul zweite", "Modul zwei"), (r"\bFördercheck\b", "Förder-Check"), (r"\bK-I\b", "KI"), (r"\bM-C-P\b", "MCP")]
@@ -719,6 +752,72 @@ class Builder:
         return h + "</div>"
 
 
+    # ---- Cockpit-Anzeigen (Flugplan 25.10.2026): Logbuch, Ampel, Leitwort
+    def hud(self, a, s, label, right=None, title=None):
+        h = self.zone(title) + f'<div class="hud it" id="{a}w"><div class="hh"><i></i>{esc(label)}' + (f'<span>{esc(right)}</span>' if right else "") + '</div>'
+        self.IN(a + "w", s + .1, "up")
+        return h
+
+    def k_logbuch(self, s, e, kick=None, title=None, entries=(), new=None, new_at=None, label="Logbuch", right=None):
+        """entries: [{"n": "Flug 0", "t": "…"}] (alte Einträge, gedimmt); new: {"n": "Flug 1", "t": "…", "at": Phrase} wird getippt."""
+        a = self.uid("a")
+        h = self.head(s, kick, title) + self.hud(a, s, label, right, title) + '<div class="lb">'
+        for k, en in enumerate(entries):
+            i = f"{a}e{k}"
+            h += f'<div class="le it" id="{i}"><span class="n">{esc(en.get("n", f"Flug {k}"))}</span><span>{esc(en["t"])}</span></div>'
+            self.IN(i, s + .45 + k * .3, "left")
+        if new:
+            i = f"{a}n"; tn = self.t(new_at or new.get("at"), s + .9 + len(entries) * .3)
+            h += f'<div class="le new it" id="{i}"><span class="n">{esc(new.get("n", "Neu"))}</span><span><span id="{i}t"></span><span class="cur" id="{i}c"></span></span></div>'
+            self.IN(i, tn, "left")
+            self.js.append(f'TYPE("#{i}t",{json.dumps(new["t"])},{tn+.25:.2f},{max(1.0, len(new["t"])*.045):.2f});')
+            self.js.append(f'tl.fromTo("#{i}c",{{opacity:1}},{{opacity:0,duration:.45,repeat:30,yoyo:true,ease:"steps(1)"}},{tn:.2f});')
+        return h + "</div></div></div>"
+
+    def k_ampel(self, s, e, kick=None, title=None, lamps=(), label="Ampel", right=None):
+        """lamps: [{"c": "g"|"y"|"r", "t": "Text", "at": Phrase}] in Sprechreihenfolge; die Lampe leuchtet, wenn ihre Zeile kommt."""
+        a = self.uid("a")
+        col = {"g": "#2ED573", "y": "#FFC048", "r": "#FF4D4F"}
+        h = self.head(s, kick, title) + self.hud(a, s, label, right, title) + '<div class="amp"><div class="box">'
+        for c in ("r", "y", "g"): h += f'<div class="l" id="{a}l{c}"></div>'
+        h += '</div><div class="rows">'
+        ts = self.items(lamps, s, e, gap=1.1, first=.6)
+        for k, (lp, tt) in enumerate(zip(lamps, ts)):
+            i = f"{a}r{k}"; c = lp["c"]
+            h += f'<div class="row {c} it" id="{i}"><b>{ {"g": "Grün", "y": "Gelb", "r": "Rot"}[c] }</b><span>{esc(lp["t"])}</span></div>'
+            self.IN(i, tt, "left")
+            for cc in ("r", "y", "g"):
+                on = cc == c
+                self.js.append(f'tl.to("#{a}l{cc}",{{backgroundColor:"{col[cc] if on else "#243038"}",boxShadow:"0 0 {30 if on else 0}px {col[cc] if on else "rgba(0,0,0,0)"}",duration:.35}},{tt:.2f});')
+            self.js.append(f'tl.to("#{i}",{{borderColor:"{col[c]}",duration:.35}},{tt:.2f});')
+            if k: self.js.append(f'tl.to("#{a}r{k-1}",{{borderColor:"rgba(255,255,255,.07)",duration:.35}},{tt:.2f});')
+        return h + "</div></div></div></div>"
+
+    def k_leitwort(self, s, e, kick=None, title=None, word="MOMENTUM", lit=0, reveal=(), words=(), own="Dein Wort dazu:", label="Leitwort", right=None):
+        """word: das Leitwort; lit: so viele Buchstaben leuchten schon; reveal: [{"i": Index, "at": Phrase}] leuchten neu auf;
+        words: Mos Wörter je Buchstabe (nur in der Schluss-Szene); own: Zeile zum Selbstausfüllen (wenn keine words)."""
+        a = self.uid("a")
+        h = self.head(s, kick, title) + self.hud(a, s, label, right, title) + '<div class="lw"><div class="slots">'
+        for k, ch in enumerate(word):
+            h += f'<div class="sl{" lit" if k < lit else ""}" id="{a}s{k}">{ch}</div>'
+        h += '</div>'
+        for r in reveal:
+            k = r["i"]; tt = self.t(r.get("at"), s + .8)
+            self.js.append(f'tl.to("#{a}s{k}",{{color:"#2EE6D6",borderColor:"rgba(46,230,214,.75)",textShadow:"0 0 18px rgba(46,230,214,.7)",duration:.5,ease:"power2.out"}},{tt:.2f});')
+            self.js.append(f'tl.fromTo("#{a}s{k}",{{scale:1}},{{scale:1.12,duration:.25,yoyo:true,repeat:1,ease:"power2.inOut"}},{tt:.2f});')
+        if words:
+            ts = self.items([w if isinstance(w, dict) else {"t": w} for w in words], s + .6, e, gap=.35, first=.6)
+            h += '<div class="wds">'
+            for k, (w, tt) in enumerate(zip(words, ts)):
+                w = w if isinstance(w, dict) else {"t": w}
+                i = f"{a}w{k}"; h += f'<div class="wd it" id="{i}">{esc(w["t"])}</div>'; self.IN(i, tt, "up")
+            h += '</div>'
+        elif own:
+            i = f"{a}o"; h += f'<div class="own it" id="{i}"><span>{esc(own)}</span><span class="ul"></span></div>'
+            self.IN(i, (self.t(reveal[0].get("at"), s + .8) + .9) if reveal else s + 1.0, "up")
+        return h + "</div></div></div>"
+
+
 # ---------------------------------------------------------------- composition
 JS_HEAD = """
 const tl = gsap.timeline({ paused: true });
@@ -733,6 +832,10 @@ function SC(sel, s, e) { tl.fromTo(sel, {opacity:0}, {opacity:1, duration:.3}, s
 function CNT(sel, a, b, t, d) {
   const o = {v:a}, el = document.querySelector(sel);
   tl.to(o, {v:b, duration:d, ease:"power2.out", onUpdate:() => { el.textContent = Math.round(o.v).toLocaleString("de-DE"); }}, t);
+}
+function TYPE(sel, text, t, d) {
+  const el = document.querySelector(sel), o = {n:0};
+  tl.to(o, {n:text.length, duration:d, ease:"none", onUpdate:() => { el.textContent = text.slice(0, Math.round(o.n)); }}, t);
 }
 """
 
@@ -809,7 +912,7 @@ def compose(key, plan, out_dir):
                        + (f'tl.to("#avlab",{{opacity:1,duration:.4}},0.4);tl.to("#avlab",{{opacity:0,duration:.25}},{av_end-.1:.2f});' if os.environ.get("KIT_AVLABEL") else ''))
     html = f"""<!doctype html>
 <html lang="de"><head><meta charset="UTF-8" /><meta name="viewport" content="width=1280, height=720" />
-<title>{key}</title><script src="assets/gsap.min.js"></script><style>{CSS}</style></head>
+<title>{key}</title><script src="assets/gsap.min.js"></script><style>{CSS}{CSS_HUD}</style></head>
 <body>
 <div id="root" data-composition-id="{key.lower()}" data-start="0" data-width="1280" data-height="720" data-duration="{dur}">
   <div id="bgdots"></div>
