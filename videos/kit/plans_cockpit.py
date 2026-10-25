@@ -1,7 +1,7 @@
 """Szenenpläne für Lernvideos im Cockpit-Modus (Flugplan Gesamtstory, 25.10.2026).
 
 Je Video: `mo` = Mos Sätze (Datei-Kürzel in Mo_Audio/Saetze_jessica, Text, Anker-Phrase: Timos letztes Wort vor der Pause),
-`scenes` = Szenen wie in plans_unternehmer.py. Zeiten können zusätzlich relativ zu Mos Sätzen stehen: at=("mo", Index, Versatz).
+`scenes` = Szenen wie in plans_unternehmer.py. Mo startet 0,3 s nach Beginn der gemessenen Pause (`lead` ändert das je Satz). Zeiten können zusätzlich relativ zu Mos Sätzen stehen: at=("mo", Index, Versatz).
 Timos HeyGen-Text braucht an jeder Mo-Stelle eine Pause: <break time="Xs" /> mit X = Mo-Dauer + 0,5 s."""
 from kit import S
 
@@ -11,7 +11,7 @@ P = {}
 P["U4"] = dict(av_end=None, mo=[
   {"k": "M4_01", "t": "Neue Anfrage. Angebot, Preisliste, und eine Krankmeldung hängt dran. Ich lade alles in die Cloud.", "after": "was liegt an"},
   {"k": "M4_02", "t": "Ampel an.", "after": "die Ampel", "from": 25},
-  {"k": "M4_03", "t": "Rot. Das entscheidest du.", "after": "die Krankmeldung"},
+  {"k": "M4_03", "t": "Rot. Das entscheidest du.", "after": "die Krankmeldung", "lead": .15},
   {"k": "M4_04", "t": "Buchstabe fünf leuchtet. Dein Wort dazu findest du.", "after": "der Buchstabe"},
 ], scenes=[
   S("hook", 0, kick="Die häufigste Frage", title="„Und meine Kundendaten landen dann in *Amerika*?“",

@@ -10,7 +10,7 @@ Ablauf je Video:
   7. python build_cockpit.py final KEY KEY_matte.mov KEY_kit.mov out.mp4
      -> Cockpit-Schleife + Avatar (linker Sitz) + Mo (oben rechts, hört zu oder spricht) + Overlay + Ton
 
-Umgebung: KIT_HEYGEN (Ordner mit words.json und raw/), KIT_OUT (Ausgabeordner), MO_DIR (Mo-Sätze),
+Umgebung: KIT_HEYGEN (Ordner mit words.json und raw/, relativ zu videos/), KIT_HEYGEN_ABS (derselbe Ordner absolut), KIT_OUT (Ausgabeordner), MO_DIR (Mo-Sätze),
 KIT_ASSETS (cockpit_auto_loop.mp4, mo_idle.mp4, mo_test.mp4, ambience.wav; Original in
 Projekt-Manager/22_Momentum/Pilot_Flug/Cockpit_Auto/Assets)."""
 import os, sys, json, pathlib, subprocess
@@ -26,18 +26,24 @@ OUT = pathlib.Path(os.environ.get("KIT_OUT", str(HERE / "out_cockpit")))
 
 def dur(p): return float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).decode().strip())
 
+def pauses(src, min_len=1.2, db=-30):
+    """Echte Stillephasen in der HeyGen-Tonspur (ffmpeg silencedetect), als [(start, ende)]."""
+    import re
+    out = subprocess.run(["ffmpeg", "-i", str(src), "-af", f"silencedetect=n={db}dB:d={min_len}", "-f", "null", "-"], capture_output=True, text=True).stderr
+    st = re.findall(r"silence_start: ([0-9.]+)", out); en = re.findall(r"silence_end: ([0-9.]+)", out)
+    return [(float(a), float(b)) for a, b in zip(st, en)]
+
 def mo_times(key, plan):
-    """Mo spricht 0,35 s nach Timos letztem Wort vor der Pause."""
-    words = WORDS[key]; n = [norm(w["t"]) for w in words]
+    """Mo spricht 0,3 s nach Beginn der k-ten echten Pause (gemessen, nicht aus Wortzeiten: die liegen oft 0,3 s daneben).
+    Warnung, wenn die Pause kürzer ist als Mos Satz: dann HeyGen-Text mit längerer Pause neu erzeugen oder Pause im Schnitt strecken."""
+    src = pathlib.Path(os.environ["KIT_HEYGEN_ABS"]) / "raw" / f"{key}.mp4" if os.environ.get("KIT_HEYGEN_ABS") else (HERE.parent / os.environ.get("KIT_HEYGEN", "heygen2") / "raw" / f"{key}.mp4")
+    ps = pauses(src)
+    if len(ps) < len(plan["mo"]): raise SystemExit(f"{key}: nur {len(ps)} Pausen gefunden, {len(plan['mo'])} Mo-Sätze geplant: {ps}")
     out = []
-    for m in plan["mo"]:
-        toks = [norm(t) for t in m["after"].split() if norm(t)]
-        t = None
-        for i in range(len(n) - len(toks) + 1):
-            if n[i:i + len(toks)] == toks and words[i]["s"] >= m.get("from", 0):
-                t = words[i + len(toks) - 1]["e"] + .35; break
-        if t is None: raise SystemExit(f"{key}: Anker nicht gefunden: {m['after']!r}")
-        out.append({"k": m["k"], "txt": m["t"], "t": round(t, 3), "d": round(dur(MO_DIR / f"jessica_{m['k']}.mp3"), 3)})
+    for m, (a, b) in zip(plan["mo"], ps):
+        d = round(dur(MO_DIR / f"jessica_{m['k']}.mp3"), 3); t = round(a + m.get("lead", .3), 3)
+        if t + d > b - .15: print(f"  WARN {key} {m['k']}: Pause {a:.2f}-{b:.2f} ({b-a:.1f} s) zu kurz für {d:.1f} s Mo-Satz")
+        out.append({"k": m["k"], "txt": m["t"], "t": t, "d": d, "pause": [round(a, 2), round(b, 2)]})
     return out
 
 def resolve(obj, mo):
