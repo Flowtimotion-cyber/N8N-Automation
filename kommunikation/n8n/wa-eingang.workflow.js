@@ -69,12 +69,14 @@ const rohdaten = node({
     parameters: {
       mode: 'runOnceForAllItems',
       jsCode: `// Roher Body (für die HMAC-Prüfung byte-genau) und Signatur-Header. Ohne Rohdaten bleibt roh leer → Prüfung schlägt fehl.
+// Die Binärdaten hängen am Webhook-Eintrag (nicht am Eingang dieses Knotens), deshalb direkt von dort dekodieren.
 const it = $('WA Eingang (POST)').first();
 const h = it.json.headers || {};
+const b = it.binary && it.binary.data;
 let roh = '';
-if (it.binary && it.binary.data) {
-  const buf = await this.helpers.getBinaryDataBuffer(0, 'data');
-  roh = buf.toString('utf8');
+if (b) {
+  if (b.id) throw new Error('Rohdaten liegen im n8n-Dateispeicher (binaryDataMode filesystem/s3). Knoten "Rohdaten lesen" muss dann per Helper lesen.');
+  roh = Buffer.from(String(b.data || ''), 'base64').toString('utf8');
 }
 return [{ json: { roh, signatur: String(h['x-hub-signature-256'] || '') } }];`
     }
