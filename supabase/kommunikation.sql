@@ -158,6 +158,13 @@ declare
   v_neu    boolean;
   v_mensch boolean := (p->>'absender') like 'mitglied:%' or (p->>'absender') like 'mensch:%';
 begin
+  -- Konversation anlegen, falls die erste Nachricht von uns kommt (z. B. Instagram-Echo vor jeder Kundennachricht)
+  if p ? 'kanal' and p ? 'kontakt_extern' then
+    insert into kom_konversationen (konversation_id, kanal, kontakt_extern)
+    values (p->>'konversation_id', p->>'kanal', p->>'kontakt_extern')
+    on conflict (konversation_id) do nothing;
+  end if;
+
   insert into kom_nachrichten (nachricht_id, konversation_id, richtung, absender, typ, text, medien, status, zeit)
   values (p->>'nachricht_id', p->>'konversation_id', 'aus', p->>'absender', coalesce(p->>'typ', 'text'), p->>'text',
           case when p ? 'medien' and p->'medien' <> 'null'::jsonb then p->'medien' end,
