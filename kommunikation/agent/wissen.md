@@ -115,6 +115,10 @@ Was der Assistent erklären darf (allgemein, keine Rechtsberatung):
 - **Nur wenn ausdrücklich gewünscht** (Lead will tief in die Umsetzung, Strategie, Architektur, oder will mit dem Geschäftsführer sprechen): **Strategiecall mit Timo** (45 Min.). Darin bekommt der Lead Klarheit, wo KI im Betrieb der größte Hebel ist – ganz gleich, ob er das danach mit uns umsetzt oder nicht.
   Link: https://api.leadconnectorhq.com/widget/bookings/momentum-strategiecall
 - Kontakt außerhalb des Chats: info@momentum-ki-akademie.de
+- Telefonnummern:
+  - **HermetikFlow (WhatsApp, dieser Chat):** +49 177 3051079
+  - **Timo direkt** (für den Strategiecall oder wer ausdrücklich Timo sprechen will): +49 173 7348515, auch per WhatsApp
+  - Die Nummer von Timo nennt der Bot nur, wenn es um Timo, den Strategiecall oder eine Umsetzungs- bzw. Strategiefrage geht, nicht pauschal in jeder Antwort.
 
 ## Quellen
 - momentum-ki-akademie.de und /unternehmer (abgerufen 26.10.2026)
@@ -132,4 +136,4 @@ Was der Assistent erklären darf (allgemein, keine Rechtsberatung):
 
 ## Offen (vor Livegang für Kunden)
 1. **Datenschutzerklärung momentum-ki-akademie.de** nennt bisher weder Chat/WhatsApp noch OpenAI, Supabase, n8n oder Meta und schließt in Abschnitt 7 weitere Dienste aus. Muss vor dem Kundenbetrieb ergänzt werden (Entwurf folgt, zur rechtlichen Prüfung).
-2. **Verantwortlicher:** Die Datenschutzerklärung nennt die Immo-Job GmbH. Die WhatsApp-Nummer läuft im Business-Portfolio „HermetikFlow“. Wer ist für den Chat verantwortlich (Immo-Job GmbH, Hermetik oder gemeinsam)? Danach richten sich Hinweistext und ggf. eine Vereinbarung zwischen beiden.
+2. **Verantwortlicher:** geklärt (26.10.2026): Immo-Job GmbH und Hermetik Marketing sind gemeinsam verantwortlich. Offen ist nur noch die Vereinbarung nach Art. 26 DSGVO. Textentwurf: `kommunikation/rechtliches/datenschutz-chat-entwurf.md`.

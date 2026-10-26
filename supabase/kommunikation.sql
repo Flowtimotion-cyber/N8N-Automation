@@ -148,6 +148,59 @@ begin
   return jsonb_build_object('neu', v_neu);
 end $$;
 
+-- Ausgehende Nachricht speichern (Bot oder Mensch), idempotent über nachricht_id (wamid von Meta).
+-- Schreibt ein Mensch (absender 'mitglied:<id>' oder 'mensch:<kanal-app>'), schaltet die Konversation auf modus 'mensch':
+-- Der Bot antwortet dann nicht mehr, bis jemand kom_modus_setzen(…, 'ki') aufruft. Gilt für alle Kanäle (WhatsApp, Instagram, Website).
+create or replace function kom_ausgang(p jsonb)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_neu    boolean;
+  v_mensch boolean := (p->>'absender') like 'mitglied:%' or (p->>'absender') like 'mensch:%';
+begin
+  insert into kom_nachrichten (nachricht_id, konversation_id, richtung, absender, typ, text, medien, status, zeit)
+  values (p->>'nachricht_id', p->>'konversation_id', 'aus', p->>'absender', coalesce(p->>'typ', 'text'), p->>'text',
+          case when p ? 'medien' and p->'medien' <> 'null'::jsonb then p->'medien' end,
+          coalesce(p->>'status', 'gesendet'), coalesce((p->>'zeit')::timestamptz, now()))
+  on conflict (nachricht_id) do nothing;
+  get diagnostics v_neu = row_count;
+
+  if v_neu and v_mensch then
+    update kom_konversationen
+       set modus = 'mensch', status = 'offen',
+           zugewiesen = coalesce(zugewiesen, case when (p->>'absender') like 'mitglied:%' then substr(p->>'absender', 10) end),
+           geaendert = now()
+     where konversation_id = p->>'konversation_id' and modus <> 'mensch';
+    if found then
+      insert into kom_audit (konversation_id, wer, aktion, details)
+      values (p->>'konversation_id', p->>'absender', 'ki_pausiert', jsonb_build_object('grund', 'Mensch hat geschrieben'));
+    end if;
+  end if;
+  if v_neu and (p->>'absender') = 'ki' then
+    update kom_konversationen set begruesst_am = coalesce(begruesst_am, now()), geaendert = now()
+     where konversation_id = p->>'konversation_id';
+  end if;
+  return jsonb_build_object('neu', v_neu, 'mensch', v_mensch);
+end $$;
+
+-- Modus bewusst umschalten (Portal-Knopf „KI pausieren“ / „An KI zurückgeben“), mit Protokoll.
+create or replace function kom_modus_setzen(p_konversation text, p_modus text, p_wer text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if p_modus not in ('ki', 'mensch') then raise exception 'modus muss ki oder mensch sein'; end if;
+  update kom_konversationen set modus = p_modus, geaendert = now() where konversation_id = p_konversation;
+  if not found then return jsonb_build_object('ok', false, 'fehler', 'Konversation unbekannt'); end if;
+  insert into kom_audit (konversation_id, wer, aktion, details)
+  values (p_konversation, p_wer, case when p_modus = 'ki' then 'ki_aktiviert' else 'ki_pausiert' end, '{}'::jsonb);
+  return jsonb_build_object('ok', true, 'modus', p_modus);
+end $$;
+
+revoke all on function kom_ausgang(jsonb)                from public, anon, authenticated;
+revoke all on function kom_modus_setzen(text, text, text) from public, anon, authenticated;
+grant execute on function kom_ausgang(jsonb)                to service_role;
+grant execute on function kom_modus_setzen(text, text, text) to service_role;
+
 -- Webhook-Prüfungen von Meta. Das Secret verlässt die Datenbank nicht; zurück kommt nur wahr/falsch.
 -- pgcrypto liegt bei Supabase im Schema „extensions“ (ist standardmäßig aktiv).
 create extension if not exists pgcrypto with schema extensions;
