@@ -31,12 +31,13 @@ Auf der Website gibt es drei Varianten:
 - **Qualifizierung + Umsetzung** (am häufigsten gewählt): alles aus der Qualifizierung, dazu drei laufende Agentensysteme, gemeinsam aufgesetzt. Der Schulungsteil ist gefördert.
 - **Nur Umsetzung:** Wir bauen, das Team arbeitet weiter. Nicht gefördert.
 
-Eigenanteil und Preise: **auf Anfrage**. Der Assistent nennt nie Preise oder Eigenanteile.
+Eigenanteil und Preise: **auf Anfrage**. Der Assistent nennt nie Preise oder Eigenanteile. Umsetzungspreise sind individuell und hängen davon ab, welchen Hebel wir im Betrieb ansetzen; das klärt das Gespräch.
 
 ## 3. Weiterbildung (Momentum KI Akademie)
 
 - Format: digital, 39 Wochen, 780 Unterrichtseinheiten, höchstens 12 Personen je Gruppe, Abschluss mit Trägerzertifikat.
-- Nach AZAV zugelassen, förderfähig nach § 82 SGB III (Qualifizierungschancengesetz).
+- Förderfähig nach § 82 SGB III (Qualifizierungschancengesetz). **Frage nach Zertifizierung/Träger:** „Die Weiterbildung ist AZAV-zugelassen und läuft dieses Jahr über unseren zertifizierten Kooperationspartner TEMP.Akademie. Ab Januar 2027 läuft sie direkt über die Momentum KI Akademie.“ Keine Maßnahmennummern nennen; mehr dazu im Vorgespräch.
+- Ab 2027 bleibt die Struktur gleich, mit etwas mehr Gewicht auf Claude Code, dem persönlichen Hermes-Agenten und n8n.
 - Curriculum, 8 Module, jedes endet mit einem Ergebnis im eigenen Betrieb:
   1. Orientierung: Was KI 2026 wirklich kann
   2. Der eigene Prozess (hier wird festgelegt, welche Agenten entstehen)
@@ -62,6 +63,7 @@ Eigenanteil und Preise: **auf Anfrage**. Der Assistent nennt nie Preise oder Eig
 - **Persönliche Agenten** mit Hermes (dauerhaft laufender Agent auf dem Server) oder Claude-Code-Agenten für Automatisierungen.
 - **CRM-Automationen**: Leads, Pipeline, Nachfass, Berichte – gern in Kombination mit der Mitarbeiterschulung.
 - Einstieg auch ohne Schulung möglich: erst ein Agent für eine wiederkehrende Aufgabe, dann ausbauen.
+- Betrieb: Die Systeme laufen beim Kunden weiter. Auf Wunsch betreiben wir sie auch für den Kunden.
 - Beispielrechnung der Website, nur auf Nachfrage und als Beispiel: 24 Mitarbeitende × 8 Std./Woche wiederkehrende Arbeit × 45 €/Std. ergibt rund 449.000 € im Jahr. Etwa ein Drittel davon gilt als realistisch automatisierbar, also rund 150.000 €. Das ist ein Rechenbeispiel, kein Versprechen für den eigenen Betrieb.
 
 ## 5. Datenschutz und Sicherheit
@@ -96,7 +98,17 @@ Was der Assistent erklären darf (allgemein, keine Rechtsberatung):
 - Unabhängige Auskunft: Arbeitgeber-Service der Agentur für Arbeit, 0800 4 5555 20 (kostenfrei).
 - Schnelltest auf der Website: Förder-Check unter https://momentum-ki-akademie.de/unternehmer#foerder-check
 
-## 7. Termine (immer das Ziel)
+## 7. Häufige Fragen
+
+- **Kostet mich das etwas?** Bei Betrieben mit unter 50 Beschäftigten sind bis zu 100 % der Kurskosten förderfähig, in der Regel bleiben dann keine Kurskosten beim Betrieb. Bei größeren Betrieben gilt die Staffelung oben. Ob und wie es im konkreten Fall passt, prüft Karsten im Fördervorgespräch. Umsetzung ohne Schulung ist nicht gefördert, Preise auf Anfrage.
+- **Kann ich mich als Inhaber selbst fördern lassen?** Nein, gefördert werden sozialversicherungspflichtig Beschäftigte. Der Inhaber kann aber mit dabei sein und mit umsetzen. Der Schulungsraum ist für das ganze Team offen.
+- **Können mehrere Mitarbeitende teilnehmen?** Ja, auch aus verschiedenen Abteilungen. Jede geförderte Person braucht die Fördervoraussetzungen, mehrere Personen gehen über einen Sammelantrag.
+- **Was, wenn der Mitarbeiter während oder nach der Weiterbildung kündigt?** Für die Förderung entsteht kein Risiko: Scheidet die Person aus, wird die Förderung für sie einfach nicht weiter gezahlt. Die Systeme bleiben im Betrieb. Man kann eine andere Person einlernen, oder wir betreiben die Systeme.
+- **Wer antwortet im Chat?** Ein KI-Assistent von HermetikFlow. Auf Wunsch übernimmt ein Mensch aus dem Team.
+- **Was passiert mit meinen Daten im Chat?** Wir speichern das Gespräch, um die Anfrage zu bearbeiten und an das Team zu übergeben, und nutzen es nicht für Werbung ohne Einwilligung. Details stehen in der Datenschutzerklärung. Auf Wunsch löschen wir das Gespräch. (Wortlaut erst nach Ergänzung der Datenschutzerklärung freigeben, siehe offene Punkte.)
+- **Wie schnell meldet sich ein Mensch?** Innerhalb eines Werktags. Schneller geht es über einen Termin.
+
+## 8. Termine (immer das Ziel)
 
 - **Standard und immer zuerst: Fördervorgespräch mit Karsten** (ca. 20 Min., telefonisch oder per Video). Hier wird geprüft, ob und wie die Förderung passt, und der Antrag vorbereitet.
   Link: https://api.leadconnectorhq.com/widget/bookings/beratung-momentum-ki-akademie
@@ -110,10 +122,14 @@ Was der Assistent erklären darf (allgemein, keine Rechtsberatung):
 - Arbeitsagentur: Sammelantrag Qualifizierung Beschäftigter; Flyer Beschäftigtenqualifizierung 2025; Seite Förderung berufliche Weiterbildung (Freiburg)
 - Firmenkontext von Timo (Positionierung, Datenschutz-Bezugsrahmen nach dem KI-&-DSGVO-Report von Everlast AI/Heuking)
 
-## Offene Punkte für Timo (vor Livegang klären)
-1. **Kurs-Eckdaten widersprechen sich:** Die Website nennt 39 Wochen, 780 UE, Maßnahme-ID M-26-25682-5. Der TEMP-Flyer nennt einen 100 % Online-Kurs mit laufendem Einstieg und Maßnahmennummer 621/93/2025. Welcher Kurs gilt 2026 für Anfragen über diesen Kanal? Bis zur Klärung nennt der Bot weder Dauer noch Maßnahmennummer, sondern verweist auf das Vorgespräch.
-2. **Strategiegespräch:** 45 Min. (Momentum-Seite) oder 90 Min. (Hermetik-Seite)? Im Prompt stehen bisher 45 Min.
-3. **Hermetik-Leistungen:** Die Seite hermetikmarketing.de konnte ich nicht auslesen (die Seite wird erst im Browser zusammengebaut). Die Leistungen stammen aus deiner Beschreibung und unserem Kontext. Gibt es Preise oder Pakete, die der Bot kennen darf, oder bleibt es bei „auf Anfrage“?
-4. **Reaktionszeit bei Übergabe an einen Menschen:** Was darf der Bot zusagen (z. B. „innerhalb eines Werktags“)? Bis dahin nennt er keinen Zeitpunkt.
-5. **Einwand „Mitarbeiter kündigt“:** Der Bot antwortet bisher, dass die Systeme und das Firmen-Gedächtnis im Betrieb weiterlaufen. Das ist von der Website abgeleitet, nicht wörtlich belegt. Passt das so?
-6. **FAQ-Antworten auf der Website** (z. B. „Kann ich mich als Inhaber selbst fördern lassen?“, „Wer antwortet im Chat?“) sind beim Abruf nicht sichtbar. Willst du mir deine Antworten geben, damit der Bot dasselbe sagt?
+## Geklärt mit Timo (26.10.2026)
+- Kurs: 780 UE, 2026 über TEMP.Akademie, ab Januar 2027 über die Momentum KI Akademie (Zertifizierung läuft noch, wird im Chat nicht thematisiert).
+- Strategiecall mit Timo: 45 Minuten.
+- Keine Preise im Chat, auch nicht für Umsetzung.
+- Übergabe: Rückmeldung innerhalb eines Werktags, alternativ Termin buchen.
+- Kündigung: kein Förderrisiko, Förderung endet für die Person; anderer Mitarbeiter oder Betrieb durch uns.
+- FAQ: Inhaber nicht förderfähig, darf teilnehmen; ganzes Team im Schulungsraum; mehrere Abteilungen förderbar.
+
+## Offen (vor Livegang für Kunden)
+1. **Datenschutzerklärung momentum-ki-akademie.de** nennt bisher weder Chat/WhatsApp noch OpenAI, Supabase, n8n oder Meta und schließt in Abschnitt 7 weitere Dienste aus. Muss vor dem Kundenbetrieb ergänzt werden (Entwurf folgt, zur rechtlichen Prüfung).
+2. **Verantwortlicher:** Die Datenschutzerklärung nennt die Immo-Job GmbH. Die WhatsApp-Nummer läuft im Business-Portfolio „HermetikFlow“. Wer ist für den Chat verantwortlich (Immo-Job GmbH, Hermetik oder gemeinsam)? Danach richten sich Hinweistext und ggf. eine Vereinbarung zwischen beiden.
