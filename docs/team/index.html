@@ -2122,10 +2122,23 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
 
   // ---------- Social Media ----------
+  const SFORMATE = ['Bild', 'Karussell', 'Reel', 'Text'];
+  const medienListe = p => String(p.medien || '').split(/[\s,]+/).filter(u => /^https:\/\//.test(u));
+  const istVideoUrl = u => /\.(mp4|mov|webm)(\?|$)/i.test(u);
+  function medienVorschau(liste, gross) {
+    if (!liste.length) return '';
+    const h = gross ? 140 : 44;
+    return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">' + liste.slice(0, gross ? 10 : 3).map(u => istVideoUrl(u)
+      ? '<video src="' + esc(u) + '" muted playsinline preload="metadata"' + (gross ? ' controls' : '') + ' style="height:' + h + 'px;border-radius:8px;background:#000"></video>'
+      : '<img src="' + esc(u) + '" alt="" loading="lazy" style="height:' + h + 'px;border-radius:8px;object-fit:cover">').join('') + '</div>';
+  }
   function postRow(p) {
     const d = dDate(p.datum);
-    return '<div class="post" data-p="' + esc(p.post_id) + '"><div class="date">' + (d ? '<b>' + d.getDate() + '</b><span>' + d.toLocaleDateString('de-DE', { month: 'short' }) + '</span>' : '<span>ohne<br>Datum</span>') + '</div>' +
-      '<div><div style="font-weight:600">' + esc(p.thema) + '</div><div class="meta"><span class="chip">' + esc(p.kanal) + '</span><span class="chip">' + esc(p.status) + '</span>' + (p.text ? '<span>' + esc(p.text.slice(0, 90)) + (p.text.length > 90 ? ' …' : '') + '</span>' : '') + '</div></div>' +
+    return '<div class="post" data-p="' + esc(p.post_id) + '"><div class="date">' + (d ? '<b>' + d.getDate() + '</b><span>' + d.toLocaleDateString('de-DE', { month: 'short' }) + (p.uhrzeit ? ' ' + esc(p.uhrzeit) : '') + '</span>' : '<span>ohne<br>Datum</span>') + '</div>' +
+      '<div><div style="font-weight:600">' + esc(p.thema) + '</div><div class="meta"><span class="chip">' + esc(p.kanal) + '</span>' + (p.format ? '<span class="chip">' + esc(p.format) + '</span>' : '') + '<span class="chip">' + esc(p.status) + '</span>' +
+      (p.status === 'Geplant' && p.freigegeben_von ? '<span class="chip" title="Freigegeben von ' + esc((mitglied(p.freigegeben_von).name || p.freigegeben_von)) + '">✓ freigegeben</span>' : '') +
+      (p.fehler ? '<span class="chip" style="background:#fde2e2;color:#8a1c1c" title="' + esc(p.fehler) + '">⚠ Fehler</span>' : '') +
+      (p.text ? '<span>' + esc(p.text.slice(0, 90)) + (p.text.length > 90 ? ' …' : '') + '</span>' : '') + '</div>' + medienVorschau(medienListe(p), false) + '</div>' +
       '<div>' + av(p.verantwortlich) + '</div></div>';
   }
   function bindPosts() { document.querySelectorAll('[data-p]').forEach(e => e.onclick = () => postDialog(D.social.find(p => p.post_id === e.dataset.p))); }
@@ -2151,30 +2164,46 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   function postDialog(p) {
     const neu = !p;
-    p = p || { thema: '', text: '', datum: '', kanal: 'LinkedIn', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '' };
+    p = p || { thema: '', text: '', datum: '', uhrzeit: '', kanal: 'Instagram', format: 'Bild', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '', medien: '', hook: '', hashtags: '', quelle: '' };
+    const auto = ['Instagram'].includes(p.kanal);
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Beitrag' : 'Beitrag bearbeiten') + '</h2><form id="pf">' +
+      (p.permalink ? '<p class="small">✅ Veröffentlicht' + (p.veroeffentlicht_am ? ' am ' + new Date(p.veroeffentlicht_am).toLocaleString('de-DE') : '') + ' · <a href="' + esc(p.permalink) + '" target="_blank" rel="noopener">Beitrag ansehen ↗</a></p>' : '') +
+      (p.fehler ? '<p class="small" style="color:#8a1c1c">⚠ Letzter Versuch fehlgeschlagen (' + esc(p.versuche || 1) + '/3): ' + esc(p.fehler) + '</p>' : '') +
       '<div class="f"><label for="p_t">Thema</label><input id="p_t" required maxlength="160" value="' + esc(p.thema) + '"></div>' +
-      editorHtml('p_x', p.text, 'Text / Notizen', { rows: 8, max: 4000 }) +
+      '<div class="f"><label for="p_h">Hook (erste Zeile / erste Sekunde, intern)</label><input id="p_h" maxlength="300" value="' + esc(p.hook) + '"></div>' +
+      editorHtml('p_x', p.text, 'Text / Caption (wird so gepostet)', { rows: 8, max: 4000 }) +
+      '<div class="f"><label for="p_g">Hashtags</label><input id="p_g" maxlength="500" placeholder="#ki #weiterbildung #qcg" value="' + esc(p.hashtags) + '"></div>' +
       '<div class="f2"><div class="f"><label for="p_d">Datum</label><input id="p_d" type="date" value="' + esc(p.datum) + '"></div>' +
+      '<div class="f"><label for="p_u">Uhrzeit</label><input id="p_u" type="time" value="' + esc(p.uhrzeit) + '"></div>' +
       '<div class="f"><label for="p_k">Kanal</label><select id="p_k">' + opt(KANAELE, p.kanal) + '</select></div>' +
+      '<div class="f"><label for="p_f">Format</label><select id="p_f">' + opt(SFORMATE, p.format || 'Bild') + '</select></div>' +
       '<div class="f"><label for="p_s">Status</label><select id="p_s">' + opt(SSTATUS, p.status) + '</select></div>' +
       '<div class="f"><label for="p_v">Zuständig</label><select id="p_v">' + personOpts(p.verantwortlich) + '</select></div></div>' +
+      '<div class="f"><label for="p_m">Medien (öffentliche Bild-/Video-URLs, eine pro Zeile; Karussell 2–10)</label><textarea id="p_m" rows="3" maxlength="4000">' + esc(p.medien) + '</textarea></div>' +
+      '<div id="p_mv">' + medienVorschau(medienListe(p), true) + '</div>' +
       '<div class="f"><label for="p_l">Link (Entwurf, Canva, fertiger Beitrag)</label><input id="p_l" type="url" placeholder="https://…" value="' + esc(p.link) + '"></div>' +
-      (p.link ? '<p><a href="' + esc(p.link) + '" target="_blank" rel="noopener">Link öffnen ↗</a></p>' : '') +
-      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="p_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="p_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+      '<div class="f"><label for="p_q">Inspiration / Quelle</label><input id="p_q" maxlength="400" value="' + esc(p.quelle) + '"></div>' +
+      '<p class="small muted" id="p_hint">' + (auto ? 'Instagram: Auf „Geplant“ gesetzt, wird der Beitrag zum Termin automatisch veröffentlicht. „Geplant“ ist deine Freigabe.' : 'Dieser Kanal wird noch nicht automatisch veröffentlicht.') + (p.freigegeben_von ? ' Freigegeben von ' + esc((mitglied(p.freigegeben_von).name || p.freigegeben_von)) + (p.freigegeben_am ? ' am ' + new Date(p.freigegeben_am).toLocaleString('de-DE') : '') + '.' : '') + '</p>' +
+      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="p_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="p_c">Abbrechen</button>' +
+      (p.status === 'Zur Freigabe' ? '<button type="button" class="btn sec" id="p_ok">Freigeben &amp; planen</button>' : '') +
+      '<button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('p_x');
+    $('#p_m').oninput = () => { $('#p_mv').innerHTML = medienVorschau(medienListe({ medien: $('#p_m').value }), true); };
     $('#p_c').onclick = () => dlg.close();
     if (!neu) $('#p_del').onclick = async () => {
       if (!$('#p_del').dataset.sicher) { $('#p_del').dataset.sicher = '1'; $('#p_del').textContent = 'Wirklich löschen?'; return; }
       try { await api('social_loeschen', { post_id: p.post_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
     };
-    $('#pf').onsubmit = async ev => {
-      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+    const speichern = async (status, btn) => {
+      btn.disabled = true;
       try {
-        await api('social_speichern', { post_id: p.post_id, thema: $('#p_t').value, text: $('#p_x').value, datum: $('#p_d').value, kanal: $('#p_k').value, status: $('#p_s').value, verantwortlich: $('#p_v').value, link: $('#p_l').value });
-        dlg.close(); toast('Gespeichert'); await laden(true);
+        if (status === 'Geplant' && $('#p_k').value === 'Instagram' && !$('#p_d').value) throw new Error('Für automatisches Posten braucht der Beitrag ein Datum.');
+        await api('social_speichern', { post_id: p.post_id, thema: $('#p_t').value, text: $('#p_x').value, datum: $('#p_d').value, uhrzeit: $('#p_u').value, kanal: $('#p_k').value, format: $('#p_f').value, status, verantwortlich: $('#p_v').value, link: $('#p_l').value, medien: $('#p_m').value, hook: $('#p_h').value, hashtags: $('#p_g').value, quelle: $('#p_q').value });
+        dlg.close(); toast(status === 'Geplant' && !p.freigegeben_von ? 'Freigegeben und geplant' : 'Gespeichert'); await laden(true);
       } catch (e) { toast(e.message); btn.disabled = false; }
     };
+    if ($('#p_ok')) $('#p_ok').onclick = ev => speichern('Geplant', ev.target);
+    $('#pf').onsubmit = ev => { ev.preventDefault(); speichern($('#p_s').value, ev.target.querySelector('[type=submit]')); };
   }
 
   // ---------- Kurs ----------
