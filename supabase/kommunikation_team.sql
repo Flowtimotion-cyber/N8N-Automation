@@ -134,3 +134,6 @@ revoke all on function kom_benachrichtigung_ergebnis(bigint, boolean, text) from
 grant execute on function kom_team_kontakt(text)                          to service_role;
 grant execute on function kom_benachrichtigungen_holen()                   to service_role;
 grant execute on function kom_benachrichtigung_ergebnis(bigint, boolean, text) to service_role;
+
+-- Schnittstelle sofort neu laden, damit n8n die neuen Funktionen findet
+notify pgrst, 'reload schema';
