@@ -42,6 +42,7 @@ const planen = node({
       mode: 'runOnceForAllItems', language: 'javaScript',
       jsCode: 
         "const p = $input.first().json;\n" +
+        "if (!p || !p.post_id) return [];\n" +
         "const caption = [String(p.text || '').trim(), String(p.hashtags || '').trim()].filter(Boolean).join('\\n\\n').slice(0, 2200);\n" +
         "const medien = String(p.medien || '').split(/[\\s,]+/).filter(u => /^https:\\/\\//.test(u));\n" +
         "const istVideo = u => /\\.(mp4|mov)(\\?|$)/i.test(u);\n" +
