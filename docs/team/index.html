@@ -28,6 +28,8 @@ h3{font-size:15px;margin:0 0 8px}
 .sub{color:var(--mut);margin:0 0 18px}
 .muted{color:var(--mut)}
 .small{font-size:13px}
+.card.ideenKarte{border:2px solid transparent;background:linear-gradient(#fff,#fff) padding-box,linear-gradient(90deg,#9B2FC7,#3B4FD8,#22C2C8) border-box}
+.idee{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:0 10px 30px rgba(20,18,58,.05);margin-bottom:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
@@ -2334,6 +2336,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const gruppe = arr => { const g = {}; arr.forEach(p => { const d = dDate(p.datum); const k = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }); (g[k] = g[k] || []).push(p); }); return g; };
     const G = gruppe(kommend);
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Social-Media-Plan</h1><p class="sub">Ideen sammeln, Termine festlegen, Status verfolgen.</p></div><button class="btn" id="neup">+ Beitrag</button></div>' +
+      ideenKarte() +
       '<div class="card" style="padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Unsere Profile:</b>' + PROFILE.map(([n, u, h]) => '<a class="btn sec" style="padding:6px 12px" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(n) + ' · ' + esc(h) + ' ↗</a>').join('') + '</div>' +
       '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt(KANAELE, F.kanal) + '</select><span class="small muted">' +
       SSTATUS.map(s => esc(s) + ': ' + L.filter(p => p.status === s).length).join(' · ') + '</span></div>' +
@@ -2343,6 +2346,97 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     bindPosts();
     $('#neup').onclick = () => postDialog(null);
     $('#fk').onchange = e => { F.kanal = e.target.value; saveF(); vSocial(); };
+    ideenBinden();
+  }
+
+  // ---------- Ideen-Briefkasten (ganzes Team): Ideen, Links, Bilder, Videos für die Content-Automation ----------
+  const IDEEN_API = 'https://n8n.hm-storage.de/webhook/social-ideen-api';
+  const ISTATUS = { neu: '🆕 Neu', eingeplant: '📅 Eingeplant', umgesetzt: '✅ Umgesetzt', verworfen: '✖ Verworfen' };
+  let IDEEN = null, ideenAlle = false;
+  async function ideenApi(aktion, daten) {
+    const r = await fetch(IDEEN_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.');
+    return j;
+  }
+  function ideenKarte() {
+    return '<div class="card ideenKarte"><h2 style="margin-top:0">💡 Ideen &amp; Material fürs Team</h2>' +
+      '<p class="small muted" style="margin-top:-4px">Idee, Link zu einem Post, der euch gefallen hat, ein Bild oder ein eigenes Video. Die Content-Automation liest alles mit und baut es in die Strategie ein. Eigene Videos schneidet die KI zu einem Reel im Momentum-Design – du gibst es danach wie jeden Beitrag frei.</p>' +
+      '<form id="ideeForm"><div class="f"><label for="i_t">Deine Idee oder Notiz</label><textarea id="i_t" rows="2" maxlength="3000" placeholder="z. B. „Reel: Hermes erklärt in 20 Sekunden, warum lokale KI sicherer ist“ oder was dir an dem Post gefallen hat"></textarea></div>' +
+      '<div class="f2"><div class="f"><label for="i_l">Link (optional)</label><input id="i_l" type="url" maxlength="500" placeholder="https://www.instagram.com/p/…"></div>' +
+      '<div class="f"><label for="i_d">Bild oder Video (optional)</label><input id="i_d" type="file" accept="image/*,video/*"></div></div>' +
+      '<div id="i_prog" class="small muted" aria-live="polite"></div>' +
+      '<button class="btn" type="submit" id="i_send">Mit dem Team teilen</button></form>' +
+      '<div id="ideenListe" style="margin-top:14px"><p class="small muted">Ideen werden geladen …</p></div></div>';
+  }
+  function ideeVorschau(i) {
+    if (!i.datei_url) return '';
+    if (i.art === 'video') return '<video src="' + esc(i.datei_url) + '" controls preload="metadata" style="max-width:220px;max-height:220px;border-radius:10px;display:block;margin-top:6px"></video>';
+    return '<a href="' + esc(i.datei_url) + '" target="_blank" rel="noopener"><img src="' + esc(i.datei_url) + '" alt="Bild zur Idee" loading="lazy" style="max-width:160px;max-height:160px;border-radius:10px;display:block;margin-top:6px;object-fit:cover"></a>';
+  }
+  function ideenZeigen() {
+    const el = $('#ideenListe'); if (!el) return;
+    if (!IDEEN) return;
+    const offen = IDEEN.filter(i => i.status === 'neu' || i.status === 'eingeplant');
+    const L = ideenAlle ? IDEEN : offen.slice(0, 8);
+    const verw = istDozent();
+    el.innerHTML = (L.length ? L.map(i => '<div class="idee">' + av(i.autor) +
+      '<div style="flex:1;min-width:0"><div class="small muted">' + esc(mitglied(i.autor).name) + ' · ' + fmtDT(i.erstellt) + ' · <span class="chip">' + esc(ISTATUS[i.status] || i.status) + '</span></div>' +
+      (i.text ? '<div style="white-space:pre-wrap;overflow-wrap:anywhere">' + esc(i.text) + '</div>' : '') +
+      (i.link ? '<div class="small" style="overflow-wrap:anywhere"><a href="' + esc(i.link) + '" target="_blank" rel="noopener">' + esc(i.link) + ' ↗</a></div>' : '') +
+      ideeVorschau(i) + (i.notiz ? '<div class="small muted" style="margin-top:4px">💬 ' + esc(i.notiz) + '</div>' : '') + '</div>' +
+      (verw ? '<select data-ist="' + esc(i.idee_id) + '" aria-label="Status der Idee" style="width:auto">' + Object.keys(ISTATUS).map(k => '<option value="' + k + '"' + (k === i.status ? ' selected' : '') + '>' + ISTATUS[k] + '</option>').join('') + '</select>' : '') + '</div>').join('')
+      : '<p class="empty">Noch keine offenen Ideen. Teil die erste!</p>') +
+      (IDEEN.length > L.length || ideenAlle ? '<button type="button" class="btn ghost" id="i_alle">' + (ideenAlle ? 'Nur offene zeigen' : 'Alle ' + IDEEN.length + ' Ideen zeigen') + '</button>' : '');
+    el.querySelectorAll('[data-ist]').forEach(s => s.onchange = async () => {
+      try { await ideenApi('status', { idee_id: s.dataset.ist, status: s.value }); const i = IDEEN.find(x => x.idee_id === s.dataset.ist); if (i) i.status = s.value; toast('Status gespeichert.'); ideenZeigen(); }
+      catch (e) { toast(e.message); }
+    });
+    const a = $('#i_alle'); if (a) a.onclick = () => { ideenAlle = !ideenAlle; ideenZeigen(); };
+  }
+  async function ideenLaden() {
+    try { IDEEN = (await ideenApi('liste')).ideen || []; ideenZeigen(); }
+    catch (e) { const el = $('#ideenListe'); if (el) el.innerHTML = '<p class="small muted">Ideen konnten nicht geladen werden: ' + esc(e.message) + '</p>'; }
+  }
+  function hochladen(url, datei, fortschritt) {
+    return new Promise((ok, nein) => {
+      const x = new XMLHttpRequest();
+      x.open('PUT', url);
+      x.setRequestHeader('Content-Type', datei.type || 'application/octet-stream');
+      x.setRequestHeader('x-upsert', 'false');
+      x.upload.onprogress = e => { if (e.lengthComputable) fortschritt(Math.round(e.loaded / e.total * 100)); };
+      x.onload = () => x.status >= 200 && x.status < 300 ? ok() : nein(new Error(x.status === 413 ? 'Die Datei ist zu groß für den Speicher.' : 'Upload fehlgeschlagen (' + x.status + ').'));
+      x.onerror = () => nein(new Error('Upload abgebrochen. Prüf deine Verbindung.'));
+      x.send(datei);
+    });
+  }
+  function ideenBinden() {
+    if (IDEEN) ideenZeigen(); else ideenLaden();
+    const f = $('#ideeForm'); if (!f) return;
+    f.onsubmit = async ev => {
+      ev.preventDefault();
+      const text = $('#i_t').value.trim(), link = $('#i_l').value.trim(), datei = $('#i_d').files[0];
+      const prog = $('#i_prog'), btn = $('#i_send');
+      if (!text && !link && !datei) { toast('Schreib eine Idee, füge einen Link ein oder wähl eine Datei.'); return; }
+      if (datei && !/^(image|video)\//.test(datei.type)) { toast('Bitte nur Bilder oder Videos hochladen.'); return; }
+      btn.disabled = true;
+      try {
+        let datei_url = '', datei_typ = '';
+        if (datei) {
+          prog.textContent = 'Upload wird vorbereitet …';
+          const u = await ideenApi('upload_url', { name: datei.name, typ: datei.type, groesse: datei.size });
+          await hochladen(u.upload_url, datei, p => { prog.textContent = 'Lädt hoch … ' + p + ' %'; });
+          datei_url = u.public_url; datei_typ = datei.type;
+        }
+        prog.textContent = 'Wird gespeichert …';
+        const r = await ideenApi('speichern', { text, link, datei_url, datei_typ });
+        if (r.idee) (IDEEN = IDEEN || []).unshift(r.idee);
+        f.reset(); prog.textContent = '';
+        toast(datei && datei.type.startsWith('video/') ? 'Danke! Die KI macht daraus einen Reel-Entwurf zur Freigabe.' : 'Danke! Deine Idee ist im Briefkasten.');
+        ideenZeigen();
+      } catch (e) { prog.textContent = ''; toast(e.message); }
+      finally { btn.disabled = false; }
+    };
   }
   function postDialog(p) {
     const neu = !p;
