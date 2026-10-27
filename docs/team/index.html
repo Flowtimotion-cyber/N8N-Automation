@@ -829,7 +829,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const text = 'Hallo ' + p.name + ', ich habe dir im Momentum Team-Portal eine Aufgabe zugewiesen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
     const nr = waNummer(p.telefon);
     if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. WhatsApp geht in etwa einer Minute an: ' + (d.wa_namen || [p.name]).join(', ')); return; }
-    if (p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
+    if (WA_AUTO_AKTIV && p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
     $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
       '<p>Gespeichert. ' + (nr && WA_AUTO_AKTIV ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
       (nr ? '<p class="muted">Gib ' + esc(p.name) + ' jetzt kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div>'
