@@ -319,6 +319,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .wa-chat .wc-hinweis{padding:8px 12px;font-size:13px;background:#FFF4E5;color:#9A5B00;border-top:1px solid var(--line)}
 .chip.ki{background:#EDE7FC;color:#5B2BB5}.chip.mensch{background:#E9F7F0;color:#146C47}.chip.wart{background:#FDECEA;color:var(--red)}.chip.erl{background:#EEF0F3;color:#5A6170}
 .wa-zurueck{display:none}
+.bet{display:flex;flex-wrap:wrap;gap:6px}.betp{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13.5px;cursor:pointer;background:#fff}.betp:has(input:checked){border-color:var(--acc);background:#F4F1FD}
 body[data-tab="whatsapp"] #kiBtn{display:none}
 @media (max-width:820px){.wa{grid-template-columns:1fr}.wa.offen .wa-liste{display:none}.wa:not(.offen) .wa-chat{display:none}.wa-zurueck{display:inline-flex}.wa-chat{height:calc(100vh - 170px)}}
 </style></head>
@@ -370,6 +371,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const mitglied = id => (D.mitglieder || []).find(x => x.mitglied_id === id) || (/^kurs:/.test(String(id || '')) ? { name: String(id).slice(5) + ' (Kurs)', mitglied_id: id } : { name: '–', mitglied_id: id });
   const farbe = id => 'c' + (1 + (Math.abs([...String(id)].reduce((s, c) => s + c.charCodeAt(0), 0)) % 6));
   const istKI = id => mitglied(id).typ === 'agent';
+  const istDabei = (a, id) => a.verantwortlich === id || (a.beteiligte || []).includes(id);
   const av = id => { const p = mitglied(id); return istKI(id) ? '<span class="av ki" title="' + esc(p.name) + ' (KI-Agent)">🤖</span>' : '<span class="av ' + farbe(id) + '" title="' + esc(p.name) + '">' + esc((p.name || '?').slice(0, 1).toUpperCase()) + '</span>'; };
   const istAdmin = () => D && D.ich && D.ich.rolle === 'admin';
   const istDozent = () => D && D.ich && (D.ich.rolle === 'admin' || D.ich.rolle === 'dozent');
@@ -652,7 +654,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   function vStart() {
     const ich = D.ich.mitglied_id;
     const offen = D.aufgaben.filter(a => a.status !== 'Erledigt');
-    const meine = offen.filter(a => a.verantwortlich === ich).sort(sortAufgaben);
+    const meine = offen.filter(a => istDabei(a, ich)).sort(sortAufgaben);
     const late = offen.filter(ueberfaellig);
     const p1 = offen.filter(a => Number(a.prio) === 1);
     const posts = D.social.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= heute()).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 4);
@@ -698,16 +700,16 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
       (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
       (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
-      '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
+      '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + ((a.beteiligte || []).length ? ' <span title="Beteiligt: ' + esc(a.beteiligte.map(x => mitglied(x).name).join(', ')) + '">+' + a.beteiligte.length + '</span>' : '') + '</div></div>';
   }
   function bindTasks() { document.querySelectorAll('[data-a]').forEach(e => e.onclick = () => aufgabeDialog(D.aufgaben.find(a => a.aufgabe_id === e.dataset.a))); }
 
   function vAufgaben() {
     const ich = D.ich.mitglied_id;
     let L = D.aufgaben.slice();
-    if (F.person === 'ich') L = L.filter(a => a.verantwortlich === ich);
+    if (F.person === 'ich') L = L.filter(a => istDabei(a, ich));
     else if (F.person === 'von_mir') L = L.filter(a => a.erstellt_von === ich);
-    else if (F.person) L = L.filter(a => a.verantwortlich === F.person);
+    else if (F.person) L = L.filter(a => istDabei(a, F.person));
     if (F.projekt) L = L.filter(a => a.projekt === F.projekt);
     if (F.status === 'offen') L = L.filter(a => a.status !== 'Erledigt');
     else if (F.status === 'late') L = L.filter(ueberfaellig);
@@ -748,6 +750,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
       '<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
+      '<div class="f"><label>Beteiligte (zusätzlich, mehrere möglich)</label><div class="bet" id="a_bet">' + (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<label class="betp"><input type="checkbox" value="' + esc(p.mitglied_id) + '"' + ((a.beteiligte || []).includes(p.mitglied_id) ? ' checked' : '') + '><span>' + esc(p.name) + (p.typ === 'agent' ? ' 🤖' : '') + '</span></label>').join('') + '</div></div>' +
       '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa" checked><span id="a_wa_t"></span></label>' +
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
@@ -756,15 +759,20 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('a_b');
     // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar
-    const waZeile = () => {
-      const id = $('#a_v').value, p = mitglied(id), wird = id !== D.ich.mitglied_id && (neu || a.verantwortlich !== id) && !istKI(id);
-      const kann = wird && p.whatsapp_ok && waNummer(p.telefon);
-      $('#a_wa_l').style.display = wird ? '' : 'none';
-      $('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
-      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(p.name) + ' automatisch per WhatsApp informieren (über HermetikFlow)'
-        : '📲 Automatische WhatsApp nicht möglich: ' + esc(p.name) + (waNummer(p.telefon) ? ' hat WhatsApp-Benachrichtigungen im Profil nicht aktiviert.' : ' hat keine Handynummer eingetragen.');
+    const betWahl = () => [...document.querySelectorAll('#a_bet input:checked')].map(i => i.value).filter(x => x !== $('#a_v').value);
+    const waEmpf = () => {   // wer durch dieses Speichern neu dazukommt (ohne mich und ohne KI-Agenten)
+      const v = $('#a_v').value, vorher = new Set([a.verantwortlich, ...(a.beteiligte || [])].filter(Boolean));
+      return [...new Set([v, ...betWahl()])].filter(id => (neu || !vorher.has(id)) && id !== D.ich.mitglied_id && id !== a.erstellt_von && !istKI(id));
     };
-    $('#a_v').addEventListener('change', waZeile); $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; waZeile();
+    const waZeile = () => {
+      document.querySelectorAll('#a_bet input').forEach(i => { const v = i.value === $('#a_v').value; i.disabled = v; if (v) i.checked = false; i.parentElement.style.opacity = v ? .45 : 1; });
+      const E = waEmpf().map(mitglied), ja = E.filter(p => p.whatsapp_ok && waNummer(p.telefon)), nein = E.filter(p => !(p.whatsapp_ok && waNummer(p.telefon)));
+      $('#a_wa_l').style.display = E.length ? '' : 'none';
+      $('#a_wa').disabled = !ja.length; if (!ja.length) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
+      $('#a_wa_t').innerHTML = (ja.length ? '📲 Automatisch per WhatsApp informieren: ' + esc(ja.map(p => p.name).join(', ')) + ' (über HermetikFlow)' : '📲 Automatische WhatsApp nicht möglich')
+        + (nein.length ? '<br><span class="small muted">Ohne WhatsApp: ' + esc(nein.map(p => p.name).join(', ')) + ' – keine Handynummer oder Benachrichtigung im Profil nicht aktiviert.</span>' : '');
+    };
+    $('#a_v').addEventListener('change', waZeile); $('#a_bet').addEventListener('change', waZeile); $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; waZeile();
     if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
     $('#a_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
     projNeu('a_j');
@@ -778,19 +786,20 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       if (projOffen('a_j')) return;
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
-        prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
+        prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked, beteiligte: betWahl(),
         kommentar: $('#a_k') ? $('#a_k').value : '' };
       if (!neu) daten.stand = a.geaendert || '';
       if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
       try {
         const res = await api('aufgabe_speichern', daten);
         const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
-        const zp = mitglied(daten.verantwortlich), waMoeglich = neuZu && zp.whatsapp_ok && waNummer(zp.telefon) && !istKI(daten.verantwortlich);
-        daten.wa_auto = waMoeglich && $('#a_wa').checked;
+        const waListe = waEmpf().map(mitglied).filter(p => p.whatsapp_ok && waNummer(p.telefon)), waMoeglich = waListe.length > 0;
+        daten.wa_auto = waMoeglich && $('#a_wa').checked; daten.wa_namen = waListe.map(p => p.name);
         const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
         if (waMoeglich && !daten.wa_auto && aid) waApi('benachrichtigung_aus', { aufgabe_id: aid }).catch(() => toast('Die automatische WhatsApp ließ sich nicht abbestellen.'));
         if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
-        else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
+        else if (neuZu) zugewiesen(daten);
+        else { dlg.close(); toast(daten.wa_auto ? 'Gespeichert. WhatsApp geht in etwa einer Minute an: ' + daten.wa_namen.join(', ') : 'Gespeichert'); }
         await laden(true);
       } catch (e) {
         btn.disabled = false;
@@ -813,7 +822,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const p = mitglied(d.verantwortlich);
     const text = 'Hallo ' + p.name + ', ich habe dir im Momentum Team-Portal eine Aufgabe zugewiesen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
     const nr = waNummer(p.telefon);
-    if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. ' + p.name + ' bekommt in etwa einer Minute automatisch eine WhatsApp.'); return; }
+    if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. WhatsApp geht in etwa einer Minute an: ' + (d.wa_namen || [p.name]).join(', ')); return; }
     if (p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
     $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
       '<p>Gespeichert. ' + (nr ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
@@ -2254,7 +2263,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const jetztH = new Date();
     z = z || { datum: ymd(wkOff ? montag(wkOff) : heute()), von: '09:00', bis: String(Math.max(10, jetztH.getHours())).padStart(2, '0') + ':00', pause_min: 0, taetigkeit: '', aufgabe_id: '', projekt: '' };
     const offeneA = D.aufgaben.filter(a => a.status !== 'Erledigt' || a.aufgabe_id === z.aufgabe_id);
-    const meineA = offeneA.filter(a => a.verantwortlich === D.ich.mitglied_id), andereA = offeneA.filter(a => a.verantwortlich !== D.ich.mitglied_id);
+    const meineA = offeneA.filter(a => istDabei(a, D.ich.mitglied_id)), andereA = offeneA.filter(a => !istDabei(a, D.ich.mitglied_id));
     const aOpt = arr => arr.sort(sortAufgaben).map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === z.aufgabe_id ? ' selected' : '') + '>' + esc(a.titel) + '</option>').join('');
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Zeit eintragen' : 'Eintrag bearbeiten') + '</h2><form id="zeitf">' +
       '<div class="f2"><div class="f"><label for="t_d">Datum</label><input id="t_d" type="date" required max="' + ymd(heute()) + '" value="' + esc(z.datum) + '"></div>' +
@@ -2771,13 +2780,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     for (const n of N) if ((n.geaendert_von || n.autor) !== ich && fdZeit(n.geaendert) >= grenze && fdErwaehnt(n.inhalt, ich))
       P.erwaehnt.push({ typ: 'notiz', zeit: n.geaendert, titel: n.titel, text: 'Notiz von ' + mitglied(n.geaendert_von || n.autor).name, notiz: n });
     // 4) Neu zugewiesen
-    for (const a of A) if (!inFreigabe.has(a.aufgabe_id) && a.verantwortlich === ich && a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.erstellt) >= seit)
+    for (const a of A) if (!inFreigabe.has(a.aufgabe_id) && istDabei(a, ich) && a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.erstellt) >= seit)
       P.neu.push({ typ: 'aufgabe', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (a.deadline ? ', bis ' + fmtD(a.deadline) : ''), aufgabe: a });
     // 5) Änderungen an eigenen Aufgaben seit dem letzten Besuch (je Aufgabe zusammengefasst)
     const proA = {};
     for (const v of V) {
       if (v.autor === ich || fdZeit(v.erstellt) < seit || inFreigabe.has(v.aufgabe_id) || gesehen.has(v.aufgabe_id + '|' + v.erstellt)) continue;
-      const a = aufgabe(v.aufgabe_id); if (!a || (a.verantwortlich !== ich && a.erstellt_von !== ich)) continue;
+      const a = aufgabe(v.aufgabe_id); if (!a || (!istDabei(a, ich) && a.erstellt_von !== ich)) continue;
       const x = proA[a.aufgabe_id] || (proA[a.aufgabe_id] = { zeit: v.erstellt, n: 0, letzt: v, a });
       x.n++; if (fdZeit(v.erstellt) >= fdZeit(x.zeit)) { x.zeit = v.erstellt; x.letzt = v; }
     }
