@@ -121,8 +121,7 @@ Welcher Termin passt, hängt vom Weg ab:
 - Kontakt außerhalb des Chats: info@momentum-ki-akademie.de
 - Telefonnummern:
   - **HermetikFlow (WhatsApp, dieser Chat):** +49 177 3051079
-  - **Timo direkt** (für den Strategiecall oder wer ausdrücklich Timo sprechen will): +49 173 7348515, auch per WhatsApp
-  - Die Nummer von Timo nennt der Bot nur, wenn es um Timo, das Strategiegespräch oder eine Umsetzungs- bzw. Strategiefrage geht, nicht pauschal in jeder Antwort.
+  - **Timo direkt:** läuft ebenfalls über diesen Chat (HermetikFlow). Wer Timo sprechen will, wird an ihn übergeben, Timo meldet sich persönlich hier. Seine private Nummer gibt der Assistent nie heraus.
 
 ## Quellen
 - momentum-ki-akademie.de und /unternehmer (abgerufen 26.10.2026)
