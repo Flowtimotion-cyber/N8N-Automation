@@ -55,6 +55,7 @@ const JS_GESENDET = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, nachricht: { id: $('Versand auswerten').first().json.nachricht_id, richtung: 'aus', absender: a.wer, typ: 'text', text: a.text, status: 'gesendet', zeit: new Date().toISOString() }, hinweis: 'Gesendet. Der Bot pausiert in diesem Gespräch, bis du ihn wieder einschaltest.' } } }];`;
 const JS_MODUS = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, modus: a.modus } } }];`;
+const JS_ABWAHL = `return [{ json: { code: 200, antwort: { ok: true } } }];`;
 const JS_STATUS = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, status: a.status } } }];`;
 
@@ -71,7 +72,7 @@ const api = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { na
 const eingang = ${code('Eingang', JS_EINGANG)};
 const mitglied = node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: 'Mitglied prüfen', executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput', parameters: { method: 'GET', url: ${e(`${SUPA}team_mitglieder?select=mitglied_id,name,rolle,status,typ&token=eq.{{ $json.token }}`)}, authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', options: { timeout: 15000 } }, credentials: ${CRED_SUPA} } });
 const anfrage = ${code('Anfrage prüfen', JS_ANFRAGE)};
-const wasTun = switchCase({ version: 3.2, config: { name: 'Was tun?', parameters: { rules: { values: [${['liste', 'verlauf', 'senden', 'modus', 'status', 'fehler'].map(fall).join(', ')}] } } } });
+const wasTun = switchCase({ version: 3.2, config: { name: 'Was tun?', parameters: { rules: { values: [${['liste', 'verlauf', 'senden', 'modus', 'status', 'fehler', 'benachrichtigung_aus'].map(fall).join(', ')}] } } } });
 const antwort = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Antwort senden', parameters: { respondWith: 'json', responseBody: expr('{{ JSON.stringify($json.antwort) }}'), options: { responseCode: expr('{{ $json.code }}') } } } });
 
 // liste
@@ -97,6 +98,9 @@ const modusOk = ${code('Modus melden', JS_MODUS)};
 // status
 const status = ${supa('Status setzen', 'PATCH', e(`${SUPA}kom_konversationen?konversation_id=eq.${KQ}`), e(`{{ JSON.stringify({ status: ${A}.status, geaendert: new Date().toISOString() }) }}`))};
 const statusOk = ${code('Status melden', JS_STATUS)};
+// benachrichtigung_aus
+const abwaehlen = ${supa('WhatsApp abwählen', 'PATCH', e(`${SUPA}kom_benachrichtigungen?status=eq.offen&aufgabe_id=eq.{{ encodeURIComponent(${A}.aufgabe_id) }}`), e("{{ JSON.stringify({ status: 'uebersprungen', fehler: 'im Portal abgewählt von ' + " + A + ".wer }) }}"))};
+const abwaehlenOk = ${code('Abwahl melden', JS_ABWAHL)};
 
 export default workflow('team-inbox', 'TEAM: WhatsApp-Inbox (Portal)')
   .add(api).to(eingang).to(mitglied).to(anfrage)
@@ -106,7 +110,8 @@ export default workflow('team-inbox', 'TEAM: WhatsApp-Inbox (Portal)')
     .onCase(2, gespraechSenden.to(sendenPruefen).to(darfRaus.onTrue(senden.to(auswerten).to(gesendet.onTrue(speichern.to(fertig).to(antwort)).onFalse(antwort))).onFalse(antwort)))
     .onCase(3, modus.to(modusOk).to(antwort))
     .onCase(4, status.to(statusOk).to(antwort))
-    .onCase(5, antwort));
+    .onCase(5, antwort)
+    .onCase(6, abwaehlen.to(abwaehlenOk).to(antwort)));
 `;
 writeFileSync(join(hier, 'inbox.workflow.gen.js'), sdk);
 console.log('geschrieben: kommunikation/n8n/inbox.workflow.gen.js', sdk.length, 'Zeichen');

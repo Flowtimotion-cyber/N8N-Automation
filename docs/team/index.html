@@ -748,12 +748,23 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
       '<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
+      '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa" checked><span id="a_wa_t"></span></label>' +
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
       (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">In den Papierkorb</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('a_b');
+    // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar
+    const waZeile = () => {
+      const id = $('#a_v').value, p = mitglied(id), wird = id !== D.ich.mitglied_id && (neu || a.verantwortlich !== id) && !istKI(id);
+      const kann = wird && p.whatsapp_ok && waNummer(p.telefon);
+      $('#a_wa_l').style.display = wird ? '' : 'none';
+      $('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
+      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(p.name) + ' automatisch per WhatsApp informieren (über HermetikFlow)'
+        : '📲 Automatische WhatsApp nicht möglich: ' + esc(p.name) + (waNummer(p.telefon) ? ' hat WhatsApp-Benachrichtigungen im Profil nicht aktiviert.' : ' hat keine Handynummer eingetragen.');
+    };
+    $('#a_v').addEventListener('change', waZeile); $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; waZeile();
     if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
     $('#a_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
     projNeu('a_j');
@@ -772,8 +783,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       if (!neu) daten.stand = a.geaendert || '';
       if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
       try {
-        await api('aufgabe_speichern', daten);
+        const res = await api('aufgabe_speichern', daten);
         const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
+        const zp = mitglied(daten.verantwortlich), waMoeglich = neuZu && zp.whatsapp_ok && waNummer(zp.telefon) && !istKI(daten.verantwortlich);
+        daten.wa_auto = waMoeglich && $('#a_wa').checked;
+        const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
+        if (waMoeglich && !daten.wa_auto && aid) waApi('benachrichtigung_aus', { aufgabe_id: aid }).catch(() => toast('Die automatische WhatsApp ließ sich nicht abbestellen.'));
         if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
         else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
         await laden(true);
@@ -798,8 +813,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const p = mitglied(d.verantwortlich);
     const text = 'Hallo ' + p.name + ', ich habe dir im Momentum Team-Portal eine Aufgabe zugewiesen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
     const nr = waNummer(p.telefon);
+    if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. ' + p.name + ' bekommt in etwa einer Minute automatisch eine WhatsApp.'); return; }
+    if (p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
     $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
-      '<p>Gespeichert. ' + (p.whatsapp_ok ? 'Sobald die automatische WhatsApp eingeschaltet ist, bekommt ' + esc(p.name) + ' automatisch Bescheid.' : '') + '</p>' +
+      '<p>Gespeichert. ' + (nr ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
       (nr ? '<p class="muted">Gib ' + esc(p.name) + ' jetzt kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div>'
         : '<div class="note warn" style="margin-bottom:14px">' + esc(p.name) + ' hat noch keine Handynummer eingetragen. Sag am besten kurz persönlich Bescheid.</div>') +
       '<div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button>' + (nr ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a>' : '') + '</div>';

@@ -11,6 +11,8 @@ test('Zugang und Eingaben', () => {
   assert.equal(inboxAnfrage({ ...timo, typ: 'agent' }, 'liste').code, 401);
   assert.equal(inboxAnfrage({ ...timo, rolle: 'team' }, 'liste').code, 403);
   assert.equal(inboxAnfrage(timo, 'loeschen').code, 400);
+  assert.equal(inboxAnfrage({ ...timo, rolle: 'team' }, 'benachrichtigung_aus', { aufgabe_id: 'a_123' }).aktion, 'benachrichtigung_aus');
+  assert.equal(inboxAnfrage({ ...timo, rolle: 'team' }, 'benachrichtigung_aus', { aufgabe_id: "x' or 1" }).code, 400);
   assert.equal(inboxAnfrage(timo, 'verlauf', { konversation_id: 'x; drop' }).code, 400);
   assert.equal(inboxAnfrage(timo, 'liste').aktion, 'liste');
   const s = inboxAnfrage(timo, 'senden', { konversation_id: 'wa:491511234', text: '  Hallo\r\nda ' });
