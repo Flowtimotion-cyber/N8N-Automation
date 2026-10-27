@@ -9,6 +9,12 @@ const FENSTER_MS = 24 * 60 * 60 * 1000;
 export function inboxAnfrage(ich, aktion, daten) {
   const d = daten && typeof daten === 'object' ? daten : {};
   if (!ich || !ich.mitglied_id || ich.status === 'gesperrt' || ich.typ === 'agent') return { aktion: 'fehler', code: 401, antwort: { ok: false, fehler: 'Dein Zugang ist ungültig. Bitte lade das Portal neu.' } };
+  // Automatische WhatsApp zu einer Aufgabe abwählen: darf jedes aktive Teammitglied (wer zuweist, entscheidet).
+  if (aktion === 'benachrichtigung_aus') {
+    const aid = String(d.aufgabe_id || '');
+    if (!/^[A-Za-z0-9_.:-]{1,80}$/.test(aid)) return { aktion: 'fehler', code: 400, antwort: { ok: false, fehler: 'Aufgabe nicht gefunden.' } };
+    return { aktion, aufgabe_id: aid, wer: 'mitglied:' + ich.mitglied_id, mitglied_id: ich.mitglied_id };
+  }
   if (!INBOX_ROLLEN.includes(ich.rolle)) return { aktion: 'fehler', code: 403, antwort: { ok: false, fehler: 'Die WhatsApp-Inbox sehen Timo, die Dozenten und das Vertriebsteam.' } };
   if (!INBOX_AKTIONEN.includes(aktion)) return { aktion: 'fehler', code: 400, antwort: { ok: false, fehler: 'Unbekannte Aktion.' } };
   const konv = String(d.konversation_id || '');
