@@ -121,7 +121,7 @@ const LIB = ${JSON.stringify(LIB)};
 
 const start = trigger({ type: 'n8n-nodes-base.executeWorkflowTrigger', version: 1.2, config: { name: 'Start', parameters: { inputSource: 'passthrough' } } });
 const einstellungen = node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Einstellungen', parameters: { mode: 'manual', includeOtherFields: false, assignments: { assignments: [
-  { id: 'tm', name: 'testmodus', value: true, type: 'boolean' },
+  { id: 'tm', name: 'testmodus', value: false, type: 'boolean' },
   { id: 'tn', name: 'test_nummern', value: '491737348515', type: 'string' },
   { id: 'tg', name: 'telegram_chat', value: '1535402553', type: 'string' }
 ] } } } });
