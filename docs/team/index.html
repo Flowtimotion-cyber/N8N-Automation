@@ -379,6 +379,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + (p.typ === 'agent' ? ' 🤖 (KI-Agent)' : '') + '</option>').join('');
   const saveF = () => ls.set('mt-filter', JSON.stringify(F));
   const waNummer = t => String(t || '').replace(/[^\d]/g, '');
+  // Automatische Aufgaben-WhatsApp (HermetikFlow): erst einschalten, wenn Meta den Vorlagenversand freigibt (Zahlungsmethode). Bis dahin manueller Weg.
+  const WA_AUTO_AKTIV = false;
 
   async function api(aktion, daten) {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
@@ -771,7 +773,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const waZeile = () => {
       document.querySelectorAll('#a_bet input').forEach(i => { const v = i.value === $('#a_v').value; i.disabled = v; if (v) i.checked = false; i.parentElement.style.opacity = v ? .45 : 1; });
       const E = waEmpf().map(mitglied), ja = E.filter(p => p.whatsapp_ok && waNummer(p.telefon)), nein = E.filter(p => !(p.whatsapp_ok && waNummer(p.telefon)));
-      $('#a_wa_l').style.display = E.length ? '' : 'none';
+      $('#a_wa_l').style.display = E.length && WA_AUTO_AKTIV ? '' : 'none';
       $('#a_wa').disabled = !ja.length; if (!ja.length) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
       $('#a_wa_t').innerHTML = (ja.length ? '📲 Automatisch per WhatsApp informieren: ' + esc(ja.map(p => p.name).join(', ')) + ' (über HermetikFlow)' : '📲 Automatische WhatsApp nicht möglich')
         + (nein.length ? '<br><span class="small muted">Ohne WhatsApp: ' + esc(nein.map(p => p.name).join(', ')) + ' – keine Handynummer oder Benachrichtigung im Profil nicht aktiviert.</span>' : '');
@@ -797,7 +799,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       try {
         const res = await api('aufgabe_speichern', daten);
         const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
-        const waListe = waEmpf().map(mitglied).filter(p => p.whatsapp_ok && waNummer(p.telefon)), waMoeglich = waListe.length > 0;
+        const waListe = waEmpf().map(mitglied).filter(p => p.whatsapp_ok && waNummer(p.telefon)), waMoeglich = WA_AUTO_AKTIV && waListe.length > 0;
         daten.wa_auto = waMoeglich && $('#a_wa').checked; daten.wa_namen = waListe.map(p => p.name);
         const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
         if (waMoeglich && !daten.wa_auto && aid) waApi('benachrichtigung_aus', { aufgabe_id: aid }).catch(() => toast('Die automatische WhatsApp ließ sich nicht abbestellen.'));
@@ -829,7 +831,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. WhatsApp geht in etwa einer Minute an: ' + (d.wa_namen || [p.name]).join(', ')); return; }
     if (p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
     $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
-      '<p>Gespeichert. ' + (nr ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
+      '<p>Gespeichert. ' + (nr && WA_AUTO_AKTIV ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
       (nr ? '<p class="muted">Gib ' + esc(p.name) + ' jetzt kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div>'
         : '<div class="note warn" style="margin-bottom:14px">' + esc(p.name) + ' hat noch keine Handynummer eingetragen. Sag am besten kurz persönlich Bescheid.</div>') +
       '<div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button>' + (nr ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a>' : '') + '</div>';
