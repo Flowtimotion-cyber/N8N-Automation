@@ -658,11 +658,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const posts = D.social.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= heute()).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 4);
     const anfr = (D.anfragen || []).filter(a => a.typ === 'angebot').slice(0, 4);
     const k = D.kurs || {};
+    const zurFreigabe = (D.social || []).filter(p => p.status === 'Zur Freigabe').sort((a, b) => String(a.datum || '9').localeCompare(String(b.datum || '9')));
     const h = new Date().getHours();
     $('#main').innerHTML = '<h1>' + (h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend') + ', ' + esc(D.ich.name) + '</h1><p class="sub">Das läuft gerade bei Momentum. Stand: ' + fmtDT(D.stand) + '</p>' +
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      (zurFreigabe.length ? '<div class="card" style="border:2px solid #9b2fc7"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">📣 ' + zurFreigabe.length + (zurFreigabe.length === 1 ? ' Social-Beitrag wartet' : ' Social-Beiträge warten') + ' auf deine Freigabe</h2><button class="btn" data-goto="social">Alle im Plan ansehen →</button></div>' +
+        '<p class="small muted" style="margin:6px 0 4px">Öffnen, Bilder und Text prüfen, dann „Freigeben &amp; planen“. Erst danach wird auf Instagram veröffentlicht.</p>' +
+        zurFreigabe.slice(0, 5).map(postRow).join('') + '</div>' : '') +
       '<div id="fuerDich"></div>' +
       dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🏢 Virtuelles Büro</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Virtuelles Büro (eingebettet)" loading="lazy"></iframe></div>' +
