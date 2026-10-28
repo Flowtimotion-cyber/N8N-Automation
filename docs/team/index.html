@@ -889,7 +889,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   };
   const tabellenKlartext = t => {
     const L = String(t || '').replace(/\r/g, '').split('\n'), aus = [];
-    for (let i = 0; i < L.length; i++) { const tb = tabelle(L, i); if (tb) { aus.push(...[tb.kopf, ...tb.zeilen].map(z => z.join(' · '))); i += tb.n - 1; } else aus.push(L[i]); }
+    for (let i = 0; i < L.length; i++) { const tb = tabelle(L, i); if (tb) { aus.push(...[tb.kopf, ...tb.zeilen].map(z => z.map(c => c.replace(/<br\s*\/?>/gi, ' ')).join(' · '))); i += tb.n - 1; } else aus.push(L[i]); }
     return aus.join('\n');
   };
   const klartext = t => tabellenKlartext(t).replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -905,7 +905,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const tb = tabelle(L, i);
       if (tb) {
         flushP(); flushL();
-        const zelle = (tag, c, k) => '<' + tag + (tb.ausr[k] ? ' style="text-align:' + tb.ausr[k] + '"' : '') + '>' + mdInline(c) + '</' + tag + '>';
+        // <br> in einer Zelle ist ein Zeilenumbruch (wie bei GitHub und Obsidian), außer in `Code`; anderes HTML bleibt Text
+        const umbruch = c => c.split(/(`[^`]*`)/).map((s, k) => k % 2 ? s : s.replace(/&lt;br\s*\/?&gt;/gi, '\u0003')).join('');
+        const zelle = (tag, c, k) => '<' + tag + (tb.ausr[k] ? ' style="text-align:' + tb.ausr[k] + '"' : '') + '>' + mdInline(umbruch(c)).replace(/\u0003/g, '<br>') + '</' + tag + '>';
         out += '<div class="tab"><table><thead><tr>' + tb.kopf.map((c, k) => zelle('th', c, k)).join('') + '</tr></thead><tbody>' +
           tb.zeilen.map(z => '<tr>' + z.map((c, k) => zelle('td', c, k)).join('') + '</tr>').join('') + '</tbody></table></div>';
         i += tb.n - 1; continue;
@@ -991,8 +993,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
      ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
      ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
-     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
-      .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>') + '</code></td><td>' + b + '</td></tr>').join('') +
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
+      .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>').replace(/⟨br⟩/g, '&lt;br&gt;') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
     opts = opts || {};
