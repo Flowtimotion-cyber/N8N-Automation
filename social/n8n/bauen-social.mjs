@@ -16,7 +16,9 @@ const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
 const BUCKET = 'medien-roh';
 const BILD_BUCKET = 'social-ideen';
-const CRED_SUPA = "{ supabaseApi: { id: 'NpKrSLYxAsarf8ar', name: 'Supabase account' } }";
+// newCredential('Name') statt fester ID: Der n8n-MCP-Import (create_workflow_from_code) übernimmt nur diese Form und hängt das
+// bestehende Credential „Supabase account“ (NpKrSLYxAsarf8ar) selbst an; feste {id, name}-Objekte lässt er leer (Befund 28.10.2026).
+const CRED_SUPA = "{ supabaseApi: newCredential('Supabase account') }";
 
 const jsQuelle = js => js.startsWith(LIB) ? 'LIB + ' + JSON.stringify(js.slice(LIB.length)) : JSON.stringify(js);
 const code = (name, js) => `node({ type: 'n8n-nodes-base.code', version: 2, config: { name: ${JSON.stringify(name)}, parameters: { mode: 'runOnceForAllItems', jsCode: ${jsQuelle(js)} } } })`;
@@ -72,7 +74,7 @@ const sdk = `// GENERIERT von social/n8n/bauen-social.mjs – nicht von Hand än
 // Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url, upload_url, upload_status, upload_loeschen.
 // Zugriff: aktive Teammitglieder mit Portal-Token; Agenten nur laden und upload_status; löschen nur Admin.
 // Rohvideos liegen im privaten Bucket „${BUCKET}“, Bilder zu Ideen im öffentlichen Bucket „${BILD_BUCKET}“. Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
-import { workflow, node, trigger, switchCase, expr } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, switchCase, expr, newCredential } from '@n8n/workflow-sdk';
 
 // Gemeinsame Logik aus social/lib/social.js (getestet), in jedem Code-Knoten vorangestellt
 const LIB = ${JSON.stringify(LIB)};

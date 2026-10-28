@@ -535,3 +535,5 @@ Screenshots: `screenshots/*-portal-social-upload-ideen.png`, `*-portal-social-id
 | `npm run test:office` | 115 von 115 |
 
 Screenshots zusätzlich: `screenshots/*-portal-social-idee-bild.png`.
+
+**n8n (28.10.2026, abends):** Workflow „TEAM: Social-Upload“ als `ZfStqgtH3IZugnv5` angelegt (26 Knoten, Credential „Supabase account“ per `setNodeCredential` gesetzt und mit manuellem Lauf 44187 bestätigt, inaktiv; erster Anlauf `rA6Rc7Ojv5NYyBZe` archiviert). `gThnlTbObVDF67Wl` (PR #49) deaktiviert, PR #49 geschlossen. Live-Test steht aus, bis Timo die SQL ausgeführt hat; dann aktivieren und als Timo einen Link, ein Bild und ein kleines Video als Probe einstellen.
