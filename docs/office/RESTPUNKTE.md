@@ -98,3 +98,4 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | Löschlauf für Rohvideos: Dateien mit `team_social_uploads.aufbewahren_bis < heute` aus dem Bucket entfernen (n8n-Zeitplan oder Hermes), Status `geloescht` setzen | LOESCHKONZEPT.md 5 |
 | B | Schriftliche Einwilligungs-Vorlage für Dozenten und Teilnehmer (Aufnahme, KI-Schnitt, Veröffentlichung); das Häkchen beim Upload ist nur der Vermerk | DATENSCHUTZ_AI_ACT.md E |
 | C | Ideen-Links: Vorschaubild/Titel automatisch vom Link holen (og:title) statt Handeingabe; Verknüpfung „daraus wurde Beitrag …“ (`post_id`) im Dialog setzen | `ideeDialog` |
+| B | Bilder im Bucket `social-ideen` beim Löschen einer Idee mitlöschen (heute bleibt die Datei liegen); dazu Lauf für verwaiste Dateien | `idee_loeschen` |

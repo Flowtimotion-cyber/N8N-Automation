@@ -1,8 +1,9 @@
 // Baut die n8n-SDK-Datei für „TEAM: Social-Upload“ (Webhook team-social).
 // Start: node social/n8n/bauen-social.mjs → social/n8n/social.workflow.gen.js
 // Eingebettet wird social/lib/social.js (getestet, node --test social/test/social.test.mjs).
-// Aktionen: laden, idee_speichern, idee_loeschen, upload_url (signierte Upload-URL für den Bucket medien-roh),
-// upload_status (hochgeladen | beauftragt | geschnitten | fehler), upload_loeschen (nur Admin: Datei + Status geloescht).
+// Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url (signierte Upload-URL für ein Bild im öffentlichen Bucket social-ideen),
+// upload_url (signierte Upload-URL für den privaten Bucket medien-roh), upload_status (hochgeladen | beauftragt | geschnitten | fehler),
+// upload_loeschen (nur Admin: Datei + Status geloescht).
 // Die Portal-API v2 (kMuDaDmT9rCN5Vs2) bleibt unberührt.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,7 @@ const LIB = readFileSync(join(hier, '..', 'lib/social.js'), 'utf8').replace(/^ex
 const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
 const BUCKET = 'medien-roh';
+const BILD_BUCKET = 'social-ideen';
 const CRED_SUPA = "{ supabaseApi: { id: 'NpKrSLYxAsarf8ar', name: 'Supabase account' } }";
 
 const jsQuelle = js => js.startsWith(LIB) ? 'LIB + ' + JSON.stringify(js.slice(LIB.length)) : JSON.stringify(js);
@@ -25,7 +27,7 @@ const fall = key => `{ outputKey: '${key}', conditions: { options: { caseSensiti
 const A = "$('Anfrage prüfen').first().json";
 const ICH = "$('Mitglied prüfen').all().map(i => i.json).find(m => m && m.mitglied_id) || null";
 const PFAD_URL = p => `{{ String(${p}).split('/').map(encodeURIComponent).join('/') }}`;
-const AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload_loeschen', 'fehler'];
+const AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload_loeschen', 'fehler', 'idee_bild_url'];
 
 const JS_EINGANG = `let b = $('Social-API').first().json.body || {};
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
@@ -39,7 +41,13 @@ const JS_LADEN = `${LIB}
 const ich = ${ICH};
 const ideen = $('Ideen laden').all().map(i => i.json).filter(x => x && x.idee_id);
 const uploads = $('Uploads laden').all().map(i => i.json).filter(x => x && x.upload_id);
-return [{ json: { code: 200, antwort: ladenAntwort(ideen, uploads, ich) } }];`;
+return [{ json: { code: 200, antwort: ladenAntwort(ideen, uploads, ich, ${JSON.stringify(STORAGE)}) } }];`;
+const JS_BILD_URL = `${LIB}
+const a = ${A};
+const r = $input.first().json || {};
+const url = signierteUrl(${JSON.stringify(STORAGE)}, r);
+if (!url) return [{ json: { code: 502, antwort: { ok: false, fehler: 'Supabase hat keine Upload-Adresse für das Bild ausgestellt' + (r.message || r.error ? ': ' + (r.message || r.error) : '.') } } }];
+return [{ json: { code: 200, antwort: { ok: true, bucket: a.bild.bucket, pfad: a.bild.pfad, mime: a.bild.mime, url, bild_url: bildUrl(${JSON.stringify(STORAGE)}, a.bild.pfad), gueltig_sek: 7200 } } }];`;
 const JS_IDEE = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, id: a.idee.idee_id, idee: a.idee } } }];`;
 const JS_IDEE_WEG = `const a = ${A};
@@ -61,9 +69,9 @@ return [{ json: { code: 200, antwort: { ok: true, id: a.upload_id, hinweis: 'Roh
 
 const sdk = `// GENERIERT von social/n8n/bauen-social.mjs – nicht von Hand ändern.
 // TEAM: Social-Upload. Webhook team-social, aufgerufen vom Team-Portal (docs/team/index.html, Register „Social Media“).
-// Aktionen: laden, idee_speichern, idee_loeschen, upload_url, upload_status, upload_loeschen.
+// Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url, upload_url, upload_status, upload_loeschen.
 // Zugriff: aktive Teammitglieder mit Portal-Token; Agenten nur laden und upload_status; löschen nur Admin.
-// Rohvideos liegen im privaten Bucket „${BUCKET}“. Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
+// Rohvideos liegen im privaten Bucket „${BUCKET}“, Bilder zu Ideen im öffentlichen Bucket „${BILD_BUCKET}“. Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
 import { workflow, node, trigger, switchCase, expr } from '@n8n/workflow-sdk';
 
 // Gemeinsame Logik aus social/lib/social.js (getestet), in jedem Code-Knoten vorangestellt
@@ -90,6 +98,9 @@ const ideeWegMelden = ${code('Papierkorb melden', JS_IDEE_WEG)};
 const uploadAnlegen = ${supa('Upload anlegen', 'POST', `'${SUPA}rpc/team_upload_anlegen'`, e(`{{ JSON.stringify({ p: ${A}.upload, p_von: ${A}.wer }) }}`))};
 const urlHolen = ${supa('Upload-Adresse signieren', 'POST', e(`${STORAGE}object/upload/sign/${BUCKET}/${PFAD_URL(A + '.upload.pfad')}`), '"{}"', " onError: 'continueRegularOutput',")};
 const urlMelden = ${code('Upload-Adresse melden', JS_URL)};
+// idee_bild_url: signierte Upload-Adresse für ein Bild im öffentlichen Bucket social-ideen (kein Tabelleneintrag; der Pfad kommt mit idee_speichern)
+const bildUrlHolen = ${supa('Bild-Adresse signieren', 'POST', e(`${STORAGE}object/upload/sign/${BILD_BUCKET}/${PFAD_URL(A + '.bild.pfad')}`), '"{}"', " onError: 'continueRegularOutput',")};
+const bildUrlMelden = ${code('Bild-Adresse melden', JS_BILD_URL)};
 // upload_status
 const statusSetzen = ${supa('Upload-Status setzen', 'POST', `'${SUPA}rpc/team_upload_status'`, e(`{{ JSON.stringify({ p_id: ${A}.upload_id, p_status: ${A}.status, p_von: ${A}.wer, p_run: ${A}.run_id || null, p_fehler: ${A}.fehler || null }) }}`))};
 const statusMelden = ${code('Status melden', JS_STATUS)};
@@ -110,7 +121,8 @@ export default workflow('team-social', 'TEAM: Social-Upload')
     .onCase(3, uploadAnlegen.to(urlHolen).to(urlMelden).to(antwort))
     .onCase(4, statusSetzen.to(statusMelden).to(antwort))
     .onCase(5, uploadSuchen.to(loeschenPruefen).to(gefunden.onCase(0, dateiWeg.to(geloeschtSetzen).to(geloeschtMelden).to(antwort)).onCase(1, antwort)))
-    .onCase(6, antwort));
+    .onCase(6, antwort)
+    .onCase(7, bildUrlHolen.to(bildUrlMelden).to(antwort)));
 `;
 writeFileSync(join(hier, 'social.workflow.gen.js'), sdk);
 console.log('geschrieben: social/n8n/social.workflow.gen.js', sdk.length, 'Zeichen');

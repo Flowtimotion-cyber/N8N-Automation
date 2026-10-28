@@ -10,7 +10,9 @@
 -- 1) Ideen und Mitbewerber-Posts ------------------------------------------------------------------
 create table if not exists team_social_ideen (
   idee_id       text primary key,
-  link          text not null,
+  art           text not null default 'link',      -- link (fremder Beitrag), idee (Freitext), bild (Screenshot oder eigenes Motiv)
+  link          text not null default '',
+  bild_pfad     text not null default '',          -- Pfad im öffentlichen Bucket social-ideen (ideen/JJJJ/MM/bild_<id>_<name>)
   titel         text not null default '',          -- worum geht es (kurz)
   quelle        text not null default '',          -- Autor / Firma / Profil
   kanal         text not null default 'LinkedIn',  -- LinkedIn, Instagram, YouTube, TikTok, Sonstiges
@@ -23,6 +25,21 @@ create table if not exists team_social_ideen (
   geaendert     timestamptz not null default now(),
   geaendert_von text not null default ''
 );
+-- Falls die Tabelle schon aus PR #49 („Ideen-Briefkasten“, 27.10.2026) existiert: fehlende Spalten nachziehen, nichts löschen.
+alter table team_social_ideen add column if not exists art            text not null default 'link';
+alter table team_social_ideen add column if not exists link           text not null default '';
+alter table team_social_ideen add column if not exists bild_pfad      text not null default '';
+alter table team_social_ideen add column if not exists titel          text not null default '';
+alter table team_social_ideen add column if not exists quelle         text not null default '';
+alter table team_social_ideen add column if not exists kanal          text not null default 'LinkedIn';
+alter table team_social_ideen add column if not exists warum_stark    text not null default '';
+alter table team_social_ideen add column if not exists thema_fuer_uns text not null default '';
+alter table team_social_ideen add column if not exists status         text not null default 'neu';
+alter table team_social_ideen add column if not exists post_id        text;
+alter table team_social_ideen add column if not exists erstellt       timestamptz not null default now();
+alter table team_social_ideen add column if not exists erstellt_von   text not null default '';
+alter table team_social_ideen add column if not exists geaendert      timestamptz not null default now();
+alter table team_social_ideen add column if not exists geaendert_von  text not null default '';
 create index if not exists team_social_ideen_status on team_social_ideen (status, geaendert desc);
 alter table team_social_ideen enable row level security;
 
@@ -32,14 +49,20 @@ language plpgsql security definer set search_path = public as $$
 declare id text := p ->> 'idee_id';
 begin
   if id is null or id = '' then raise exception 'idee_id fehlt'; end if;
-  insert into team_social_ideen (idee_id, link, titel, quelle, kanal, warum_stark, thema_fuer_uns, status, post_id, erstellt_von, geaendert_von)
-  values (id, p ->> 'link', coalesce(p ->> 'titel', ''), coalesce(p ->> 'quelle', ''), coalesce(p ->> 'kanal', 'LinkedIn'),
+  insert into team_social_ideen (idee_id, art, link, bild_pfad, titel, quelle, kanal, warum_stark, thema_fuer_uns, status, post_id, erstellt_von, geaendert_von)
+  values (id, coalesce(p ->> 'art', 'link'), coalesce(p ->> 'link', ''), coalesce(p ->> 'bild_pfad', ''), coalesce(p ->> 'titel', ''), coalesce(p ->> 'quelle', ''), coalesce(p ->> 'kanal', 'LinkedIn'),
           coalesce(p ->> 'warum_stark', ''), coalesce(p ->> 'thema_fuer_uns', ''), coalesce(p ->> 'status', 'neu'), nullif(p ->> 'post_id', ''), p_von, p_von)
   on conflict (idee_id) do update set
-    link = excluded.link, titel = excluded.titel, quelle = excluded.quelle, kanal = excluded.kanal, warum_stark = excluded.warum_stark,
+    art = excluded.art, link = excluded.link, bild_pfad = excluded.bild_pfad, titel = excluded.titel, quelle = excluded.quelle, kanal = excluded.kanal, warum_stark = excluded.warum_stark,
     thema_fuer_uns = excluded.thema_fuer_uns, status = excluded.status, post_id = excluded.post_id, geaendert = now(), geaendert_von = p_von;
   return id;
 end $$;
+
+-- Öffentlicher Bucket für Bilder zu Ideen (Screenshots fremder Beiträge, eigene Motive): 20 MB je Datei.
+-- Upload nur über signierte Adressen aus n8n; Lesen öffentlich, damit das Portal die Bilder direkt zeigt. Keine Rohvideos hier.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('social-ideen', 'social-ideen', true, 20971520)
+on conflict (id) do nothing;
 
 -- 2) Eigene Videos --------------------------------------------------------------------------------
 create table if not exists team_social_uploads (
@@ -135,6 +158,7 @@ grant execute on function team_upload_status(text, text, text, text, text) to se
 grant execute on function team_papierkorb_ziel(text)                       to service_role;
 notify pgrst, 'reload schema';
 
--- Kontrolle: beide Tabellen da, Bucket da, Agent da?
+-- Kontrolle: beide Tabellen da, beide Buckets da, Agent da? Erwartet: bucket = 1, bild_bucket = 1, agent = 1.
 select (select count(*) from team_social_ideen) as ideen, (select count(*) from team_social_uploads) as uploads,
-       (select count(*) from storage.buckets where id = 'medien-roh') as bucket, (select count(*) from office_agenten where agent_id = 'medien-cutter') as agent;
+       (select count(*) from storage.buckets where id = 'medien-roh') as bucket, (select count(*) from storage.buckets where id = 'social-ideen') as bild_bucket,
+       (select count(*) from office_agenten where agent_id = 'medien-cutter') as agent;

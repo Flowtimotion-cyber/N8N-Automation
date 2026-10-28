@@ -2,14 +2,18 @@
 // (n8n-Workflow „TEAM: Social-Upload“, Webhook team-social). Läuft im n8n-Code-Knoten (eingebettet von
 // social/n8n/bauen-social.mjs) und in Node (Tests). Kein Netzwerk, kein require.
 
-const SOCIAL_AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload_loeschen'];
+const SOCIAL_AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'idee_bild_url', 'upload_url', 'upload_status', 'upload_loeschen'];
 const AGENT_AKTIONEN = ['laden', 'upload_status'];           // Agenten (Medien-Cutter) lesen und melden den Stand
 const KANAELE = ['LinkedIn', 'Instagram', 'YouTube', 'TikTok', 'Facebook', 'Sonstiges'];
 const IDEE_STATUS = ['neu', 'geprüft', 'umgesetzt', 'verworfen'];
 const UPLOAD_STATUS = ['hochgeladen', 'beauftragt', 'geschnitten', 'fehler'];
 const VIDEO_ENDUNGEN = ['mp4', 'mov', 'webm', 'mkv', 'm4v'];
+const BILD_ENDUNGEN = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;                     // 2 GB, wie der Bucket „medien-roh“
-const BUCKET = 'medien-roh';
+const MAX_BILD_BYTES = 20 * 1024 * 1024;                      // 20 MB je Bild im Bucket „social-ideen“
+const BUCKET = 'medien-roh';                                   // privat: Rohvideos
+const BILD_BUCKET = 'social-ideen';                            // öffentlich: Bilder zu Ideen (Screenshots fremder Beiträge, eigene Motive)
+const BILD_PFAD_RE = /^ideen\/\d{4}\/\d{2}\/bild_[a-z0-9]{6,30}_[A-Za-z0-9._-]{1,80}$/;
 
 const txt = (v, n) => String(v == null ? '' : v).replace(/\r\n/g, '\n').trim().slice(0, n);
 const rnd = n => { let s = ''; while (s.length < n) s += Math.random().toString(36).slice(2); return s.slice(0, n); };
@@ -54,19 +58,35 @@ export function socialAnfrage(ich, aktion, daten, jetzt) {
   if (aktion === 'laden') return r;
 
   if (aktion === 'idee_speichern') {
+    // Drei Arten: Link zu einem starken Beitrag, Freitext-Idee ohne Link, Bild (Screenshot oder eigenes Motiv). Mindestens eins davon.
     const link = txt(d.link, 1000);
-    if (!linkGueltig(link)) return fehler(400, 'Bitte einen vollständigen https-Link einfügen (Beitrag, Reel, Artikel oder Profil).');
+    if (link && !linkGueltig(link)) return fehler(400, 'Der Link muss vollständig sein und mit https beginnen (Beitrag, Reel, Artikel oder Profil).');
+    const bild_pfad = BILD_PFAD_RE.test(String(d.bild_pfad || '')) ? String(d.bild_pfad) : '';
+    const titel = txt(d.titel, 200), warum_stark = txt(d.warum_stark, 2000), thema_fuer_uns = txt(d.thema_fuer_uns, 500);
+    if (!link && !bild_pfad && !titel && !warum_stark) return fehler(400, 'Bitte einen Link einfügen, ein Bild hochladen oder die Idee kurz beschreiben.');
+    const art = bild_pfad ? 'bild' : (link ? 'link' : 'idee');
     const status = IDEE_STATUS.includes(d.status) ? d.status : 'neu';
-    const kanal = KANAELE.includes(d.kanal) ? d.kanal : kanalAusLink(link);
+    const kanal = KANAELE.includes(d.kanal) ? d.kanal : (link ? kanalAusLink(link) : 'Sonstiges');
     const id = /^idee_[a-z0-9]{6,30}$/.test(String(d.idee_id || '')) ? String(d.idee_id) : neueId('idee');
-    r.idee = { idee_id: id, link, titel: txt(d.titel, 200), quelle: txt(d.quelle, 200), kanal, warum_stark: txt(d.warum_stark, 2000),
-      thema_fuer_uns: txt(d.thema_fuer_uns, 500), status, post_id: /^p_[a-z0-9]{6,30}$/.test(String(d.post_id || '')) ? String(d.post_id) : '' };
-    if (!r.idee.titel) r.idee.titel = titelAusLink(link);
+    r.idee = { idee_id: id, art, link, bild_pfad, titel, quelle: txt(d.quelle, 200), kanal, warum_stark, thema_fuer_uns, status,
+      post_id: /^p_[a-z0-9]{6,30}$/.test(String(d.post_id || '')) ? String(d.post_id) : '' };
+    if (!r.idee.titel) r.idee.titel = link ? titelAusLink(link) : (warum_stark.slice(0, 80) || (bild_pfad ? 'Bild' : 'Idee'));
     return r;
   }
   if (aktion === 'idee_loeschen') {
     if (!/^idee_[a-z0-9]{6,30}$/.test(String(d.idee_id || ''))) return fehler(400, 'Idee nicht gefunden.');
     r.idee_id = String(d.idee_id);
+    return r;
+  }
+  if (aktion === 'idee_bild_url') {
+    const dateiname = txt(d.dateiname, 200);
+    const groesse = Number(d.groesse) || 0;
+    const e = endung(dateiname);
+    if (!BILD_ENDUNGEN.includes(e)) return fehler(400, 'Bitte eine Bilddatei wählen (' + BILD_ENDUNGEN.map(x => '.' + x).join(', ') + ').');
+    if (groesse <= 0) return fehler(400, 'Die Datei ist leer.');
+    if (groesse > MAX_BILD_BYTES) return fehler(400, 'Das Bild ist größer als 20 MB.');
+    const id = neueId('bild');
+    r.bild = { bucket: BILD_BUCKET, pfad: 'ideen/' + uploadPfad(id, dateiname, jetzt), dateiname, groesse, mime: bildMime(e, d.mime) };
     return r;
   }
   if (aktion === 'upload_url') {
@@ -124,6 +144,18 @@ export function mimeFuer(e, gemeldet) {
   return { mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska' }[e] || 'application/octet-stream';
 }
 
+/** MIME-Typ eines Bildes aus der Endung; was der Browser meldet, zählt nur, wenn es ein Bild-Typ ist. */
+export function bildMime(e, gemeldet) {
+  const g = String(gemeldet || '');
+  if (/^image\/[a-z0-9.+-]+$/i.test(g)) return g.toLowerCase();
+  return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[e] || 'application/octet-stream';
+}
+
+/** Öffentliche Adresse eines Bildes im Bucket social-ideen. */
+export function bildUrl(storageBasis, pfad) {
+  return pfad ? String(storageBasis).replace(/\/+$/, '') + '/object/public/' + BILD_BUCKET + '/' + String(pfad).split('/').map(encodeURIComponent).join('/') : null;
+}
+
 /** Antwort von storage/v1/object/upload/sign/... in eine vollständige PUT-Adresse verwandeln. */
 export function signierteUrl(storageBasis, antwort) {
   const b = antwort && typeof antwort === 'object' ? antwort : {};
@@ -142,12 +174,13 @@ export function auftragsText(u) {
 }
 
 /** Antwort für „laden“: Listen aufbereiten, nichts Sensibles (Tokens gibt es hier nicht, Pfade sind intern). */
-export function ladenAntwort(ideen, uploads, ich) {
+export function ladenAntwort(ideen, uploads, ich, storageBasis) {
   const admin = !!(ich && ich.rolle === 'admin');
-  const I = (ideen || []).filter(x => x && x.idee_id).sort((a, b) => String(b.geaendert || '').localeCompare(String(a.geaendert || '')));
+  const I = (ideen || []).filter(x => x && x.idee_id).sort((a, b) => String(b.geaendert || '').localeCompare(String(a.geaendert || '')))
+    .map(i => ({ ...i, art: i.art || (i.bild_pfad ? 'bild' : (i.link ? 'link' : 'idee')), bild_url: i.bild_pfad ? bildUrl(storageBasis || '', i.bild_pfad) : null }));
   const U = (uploads || []).filter(x => x && x.upload_id && x.status !== 'geloescht').sort((a, b) => String(b.erstellt || '').localeCompare(String(a.erstellt || '')))
     .map(u => ({ upload_id: u.upload_id, dateiname: u.dateiname, groesse: Number(u.groesse) || 0, thema: u.thema, kanal: u.kanal, kontext: u.kontext, status: u.status,
       run_id: u.run_id || null, post_id: u.post_id || null, fehler: u.fehler || null, erstellt: u.erstellt, erstellt_von: u.erstellt_von, aufbewahren_bis: u.aufbewahren_bis,
       pfad: admin || (ich && ich.typ === 'agent') ? u.pfad : undefined, bucket: u.bucket }));
-  return { ok: true, ideen: I, uploads: U, kanaele: KANAELE, idee_status: IDEE_STATUS, max_bytes: MAX_BYTES, stand: new Date().toISOString() };
+  return { ok: true, ideen: I, uploads: U, kanaele: KANAELE, idee_status: IDEE_STATUS, max_bytes: MAX_BYTES, max_bild_bytes: MAX_BILD_BYTES, stand: new Date().toISOString() };
 }

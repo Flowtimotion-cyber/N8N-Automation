@@ -2412,7 +2412,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     return '<div class="card" id="upBox"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🎬 Eigenes Video hochladen</h2><button class="btn sec" id="up_neu">+ Video hochladen</button></div>' +
       '<p class="small muted">Rohvideo rein (Handy, Zoom, Dreh). Der Medien-Cutter schneidet im Momentum-Stil: Untertitel, Bauchbinden, Grafiken, Logo, 9:16 und 16:9. Er legt Entwürfe zur Abnahme ab, veröffentlicht wird nichts ohne Timo.</p><div id="upListe"><p class="empty small">Lädt …</p></div></div>' +
       '<div class="card" id="ideenBox"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">💡 Ideen &amp; starke Mitbewerber-Posts</h2><button class="btn sec" id="id_neu">+ Link einfügen</button></div>' +
-      '<p class="small muted">Beiträge, die gut funktionieren (Mitbewerber, Vorbilder, eigene Treffer): Was ist daran stark, welches Thema wird daraus für uns? Der Social-Planer leitet Themen ab – Text oder Bild kopieren nie.</p>' +
+      '<p class="small muted">Links zu Beiträgen, die gut funktionieren (Mitbewerber, Vorbilder, eigene Treffer), Screenshots oder einfach eine Idee in zwei Sätzen: Was ist daran stark, welches Thema wird daraus für uns? Der Social-Planer leitet Themen ab – Text oder Bild kopieren nie.</p>' +
       '<div class="tools"><select id="id_st"><option value="offen"' + (SF.status === 'offen' ? ' selected' : '') + '>Neu und geprüft</option><option value="alle"' + (SF.status === 'alle' ? ' selected' : '') + '>Alle</option>' + ISTATUS.map(s => '<option value="' + s + '"' + (SF.status === s ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select></div>' +
       '<div id="idListe"><p class="empty small">Lädt …</p></div></div>';
   }
@@ -2435,10 +2435,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   }
   function ideeRow(i) {
     let host = ''; try { host = new URL(i.link).hostname.replace(/^www\./, ''); } catch (e) {}
-    return '<div class="post" data-idee="' + esc(i.idee_id) + '"><div class="date"><span>💡</span></div>' +
-      '<div><div style="font-weight:600"><a href="' + esc(i.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(i.titel || host || 'Link') + ' ↗</a></div>' +
+    const symbol = i.art === 'bild' ? '🖼️' : (i.art === 'idee' ? '✏️' : '💡');
+    const kopf = i.link ? '<a href="' + esc(i.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(i.titel || host || 'Link') + ' ↗</a>' : esc(i.titel || 'Idee');
+    return '<div class="post" data-idee="' + esc(i.idee_id) + '"><div class="date">' + (i.bild_url ? '<img src="' + esc(i.bild_url) + '" alt="" loading="lazy" style="width:56px;height:44px;object-fit:cover;border-radius:8px">' : '<span>' + symbol + '</span>') + '</div>' +
+      '<div><div style="font-weight:600">' + kopf + '</div>' +
       '<div class="meta"><span class="chip">' + esc(i.kanal || '') + '</span><span class="chip">' + esc(i.status || 'neu') + '</span>' + (i.quelle ? '<span>' + esc(i.quelle) + '</span>' : '') + (host ? '<span class="muted">' + esc(host) + '</span>' : '') + '</div>' +
-      (i.warum_stark ? '<div class="small">Stark: ' + esc(i.warum_stark.slice(0, 160)) + (i.warum_stark.length > 160 ? ' …' : '') + '</div>' : '') +
+      (i.warum_stark ? '<div class="small">' + (i.art === 'idee' ? '' : 'Stark: ') + esc(i.warum_stark.slice(0, 160)) + (i.warum_stark.length > 160 ? ' …' : '') + '</div>' : '') +
       (i.thema_fuer_uns ? '<div class="small muted">Für uns: ' + esc(i.thema_fuer_uns.slice(0, 120)) + '</div>' : '') + '</div>' +
       '<div>' + av(i.erstellt_von) + '</div></div>';
   }
@@ -2519,19 +2521,25 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   }
   function ideeDialog(i) {
     const neu = !i;
-    i = i || { link: '', titel: '', quelle: '', kanal: '', warum_stark: '', thema_fuer_uns: '', status: 'neu' };
-    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Starken Beitrag merken' : 'Idee bearbeiten') + '</h2><form id="idf">' +
-      '<div class="f"><label for="id_l">Link (Beitrag, Reel, Artikel, Profil – https)</label><input id="id_l" type="url" required maxlength="1000" placeholder="https://www.linkedin.com/posts/…" value="' + esc(i.link) + '"></div>' +
+    i = i || { link: '', titel: '', quelle: '', kanal: '', warum_stark: '', thema_fuer_uns: '', status: 'neu', bild_pfad: '', bild_url: null };
+    const maxBild = (SD && SD.max_bild_bytes) || 20971520;
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Idee oder starken Beitrag merken' : 'Idee bearbeiten') + '</h2><form id="idf">' +
+      '<p class="small muted">Ein Link, ein Bild oder ein paar Worte reichen. Alles drei geht auch.</p>' +
+      '<div class="f"><label for="id_l">Link (Beitrag, Reel, Artikel, Profil – https)</label><input id="id_l" type="url" maxlength="1000" placeholder="https://www.linkedin.com/posts/…" value="' + esc(i.link) + '"></div>' +
+      '<div class="f"><label for="id_b">Bild (Screenshot oder eigenes Motiv, bis 20 MB)</label><input id="id_b" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif">' +
+      '<div id="id_bv">' + (i.bild_url ? '<img src="' + esc(i.bild_url) + '" alt="" style="max-height:140px;border-radius:8px;margin-top:6px">' : '') + '</div></div>' +
       '<div class="f"><label for="id_t">Worum geht es (kurz)</label><input id="id_t" maxlength="200" value="' + esc(i.titel) + '"></div>' +
       '<div class="f2"><div class="f"><label for="id_q">Quelle / Autor</label><input id="id_q" maxlength="200" placeholder="Firma oder Profilname" value="' + esc(i.quelle) + '"></div>' +
       '<div class="f"><label for="id_k">Kanal</label><select id="id_k"><option value="">automatisch aus dem Link</option>' + opt(upKanaele(), i.kanal) + '</select></div></div>' +
-      '<div class="f"><label for="id_w">Was ist daran stark? (Hook, Aufbau, Bild, Zahl, Ton …)</label><textarea id="id_w" rows="3" maxlength="2000">' + esc(i.warum_stark) + '</textarea></div>' +
+      '<div class="f"><label for="id_w">Die Idee, oder: Was ist an dem Beitrag stark? (Hook, Aufbau, Bild, Zahl, Ton …)</label><textarea id="id_w" rows="3" maxlength="2000">' + esc(i.warum_stark) + '</textarea></div>' +
       '<div class="f"><label for="id_u">Welches Thema wird daraus für uns?</label><input id="id_u" maxlength="500" value="' + esc(i.thema_fuer_uns) + '"></div>' +
       '<div class="f"><label for="id_s">Status</label><select id="id_s">' + opt(ISTATUS, i.status || 'neu') + '</select></div>' +
+      '<div id="id_st" class="small muted" style="min-height:1.2em"></div>' +
       '<p class="small muted">Regel: Wir leiten Themen und Formate ab, wir kopieren keine Texte und keine Bilder.</p>' +
       '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="id_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="id_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(false);
     $('#id_c').onclick = () => dlg.close();
+    $('#id_b').onchange = () => { const f = $('#id_b').files[0]; $('#id_bv').innerHTML = f ? '<img src="' + URL.createObjectURL(f) + '" alt="" style="max-height:140px;border-radius:8px;margin-top:6px">' : ''; };
     if (!neu) $('#id_del').onclick = async () => {
       if (!$('#id_del').dataset.sicher) { $('#id_del').dataset.sicher = '1'; $('#id_del').textContent = 'Wirklich löschen?'; return; }
       try { await socialApi('idee_loeschen', { idee_id: i.idee_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await socialNeu(); } catch (e) { toast(e.message); }
@@ -2539,9 +2547,18 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#idf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       try {
-        await socialApi('idee_speichern', { idee_id: i.idee_id, link: $('#id_l').value.trim(), titel: $('#id_t').value, quelle: $('#id_q').value, kanal: $('#id_k').value, warum_stark: $('#id_w').value, thema_fuer_uns: $('#id_u').value, status: $('#id_s').value });
+        let bild_pfad = i.bild_pfad || '';
+        const f = $('#id_b').files[0];
+        if (f) {
+          if (f.size > maxBild) throw new Error('Das Bild ist größer als 20 MB.');
+          $('#id_st').textContent = 'Bild wird hochgeladen …';
+          const b = await socialApi('idee_bild_url', { dateiname: f.name, groesse: f.size, mime: f.type });
+          await dateiHochladen(b.url, f, b.mime, q => { $('#id_st').textContent = 'Bild wird hochgeladen … ' + Math.round(q * 100) + ' %'; });
+          bild_pfad = b.pfad;
+        }
+        await socialApi('idee_speichern', { idee_id: i.idee_id, link: $('#id_l').value.trim(), bild_pfad, titel: $('#id_t').value, quelle: $('#id_q').value, kanal: $('#id_k').value, warum_stark: $('#id_w').value, thema_fuer_uns: $('#id_u').value, status: $('#id_s').value });
         dlg.close(); toast('Gespeichert'); await socialNeu();
-      } catch (e) { toast(e.message); btn.disabled = false; }
+      } catch (e) { $('#id_st').textContent = ''; toast(e.message); btn.disabled = false; }
     };
   }
 

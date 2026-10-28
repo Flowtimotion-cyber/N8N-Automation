@@ -87,7 +87,8 @@ Request: `POST …/team-social`, Body `{ "token": "…", "aktion": "…", "daten
 | Aktion | Wer | daten | Zweck |
 |---|---|---|---|
 | `laden` | alle aktiven Mitglieder, auch Agenten | – | `ideen` (letzte 200), `uploads` (letzte 50 ohne „geloescht“; `pfad` nur für Admin und Agenten), `kanaele`, `idee_status`, `max_bytes` |
-| `idee_speichern` | Menschen | `idee_id` (leer = neu), `link` (https, Pflicht), `titel`, `quelle`, `kanal` (leer = aus dem Link), `warum_stark`, `thema_fuer_uns`, `status` (neu, geprüft, umgesetzt, verworfen), `post_id` | Link zu einem starken Beitrag merken oder ändern |
+| `idee_speichern` | Menschen | `idee_id` (leer = neu), `link` (https), `bild_pfad` (aus `idee_bild_url`), `titel`, `quelle`, `kanal` (leer = aus dem Link), `warum_stark`, `thema_fuer_uns`, `status` (neu, geprüft, umgesetzt, verworfen), `post_id`. Mindestens Link, Bild oder Text; `art` wird daraus abgeleitet (link, bild, idee) | Link zu einem starken Beitrag, Freitext-Idee oder Bild merken oder ändern |
+| `idee_bild_url` | Menschen | `dateiname`, `groesse`, `mime` | signierte Upload-Adresse für ein Bild (.jpg, .png, .webp, .gif, bis 20 MB) im öffentlichen Bucket `social-ideen`; Antwort enthält `pfad` für `idee_speichern` und `bild_url` |
 | `idee_loeschen` | Menschen | `idee_id` | in den Papierkorb (Art „idee“, 30 Tage) |
 | `upload_url` | Menschen | `dateiname`, `groesse`, `mime`, `thema` (Pflicht), `kanal`, `kontext`, `einwilligung` (muss `true` sein) | legt `team_social_uploads` an und liefert eine signierte Upload-Adresse für den Bucket `medien-roh` (PUT, 2 Stunden gültig). Nur Videodateien (.mp4, .mov, .webm, .mkv, .m4v) bis 2 GB |
 | `upload_status` | Menschen und Agenten | `upload_id`, `status` (hochgeladen, beauftragt, geschnitten, fehler), `run_id`, `fehler` | Stand des Uploads; `beauftragt` kommt mit der `run_id` aus `auftrag_starten` (Office-API, Agent `medien-cutter`, Projekt „Social Media“) |

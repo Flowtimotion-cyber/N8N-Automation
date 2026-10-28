@@ -568,9 +568,11 @@ test('Portal: Social Media – Video hochladen (signierte Adresse, PUT, Auftrag 
       if (b.aktion === 'laden') return j({ ok: true, ideen, uploads, kanaele: ['LinkedIn', 'Instagram', 'YouTube', 'TikTok', 'Facebook', 'Sonstiges'], idee_status: ['neu', 'geprüft', 'umgesetzt', 'verworfen'], max_bytes: 2147483648, stand: '2026-10-28T10:00:00Z' });
       if (b.aktion === 'upload_url') { uploads = [{ upload_id: 'up_neu1', dateiname: b.daten.dateiname, groesse: b.daten.groesse, thema: b.daten.thema, kanal: b.daten.kanal, kontext: b.daten.kontext, status: 'hochladen', erstellt: '2026-10-28T10:00:00Z', erstellt_von: 'm_timo', bucket: 'medien-roh', pfad: '2026/10/up_neu1_' + b.daten.dateiname }, ...uploads]; return j({ ok: true, upload_id: 'up_neu1', bucket: 'medien-roh', pfad: '2026/10/up_neu1_' + b.daten.dateiname, mime: 'video/mp4', url: 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/object/upload/sign/medien-roh/2026/10/up_neu1_test.mp4?token=test', gueltig_sek: 7200 }); }
       if (b.aktion === 'upload_status') { uploads = uploads.map(u => u.upload_id === b.daten.upload_id ? { ...u, status: b.daten.status, run_id: b.daten.run_id || u.run_id } : u); return j({ ok: true, id: b.daten.upload_id, status: b.daten.status }); }
-      if (b.aktion === 'idee_speichern') { ideen.unshift({ idee_id: 'idee_neu1', ...b.daten, erstellt_von: 'm_timo', geaendert: '2026-10-28T10:00:00Z' }); return j({ ok: true, id: 'idee_neu1' }); }
+      if (b.aktion === 'idee_speichern') { ideen.unshift({ idee_id: 'idee_neu' + ideen.length, art: b.daten.bild_pfad ? 'bild' : (b.daten.link ? 'link' : 'idee'), ...b.daten, bild_url: b.daten.bild_pfad ? 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/object/public/social-ideen/' + b.daten.bild_pfad : null, erstellt_von: 'm_timo', geaendert: '2026-10-28T10:00:00Z' }); return j({ ok: true, id: 'idee_neu1' }); }
+      if (b.aktion === 'idee_bild_url') return j({ ok: true, bucket: 'social-ideen', pfad: 'ideen/2026/10/bild_t1_' + b.daten.dateiname, mime: 'image/png', url: 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/object/upload/sign/social-ideen/ideen/2026/10/bild_t1_' + b.daten.dateiname + '?token=bild', gueltig_sek: 7200 });
       return j({ ok: true });
     });
+    await p.route(/supabase\.co\/storage\/v1\/object\/public\//, r => r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64') }));
     await p.route(/supabase\.co\/storage\/v1\/object\/upload\/sign\//, r => { puts.push(r.request().url()); r.fulfill({ status: 200, contentType: 'application/json', body: '{"Key":"medien-roh/2026/10/up_neu1_test.mp4"}' }); });
     await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => { const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
     await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
@@ -590,6 +592,19 @@ test('Portal: Social Media – Video hochladen (signierte Adresse, PUT, Auftrag 
     const idee = gesendet.find(g => g.aktion === 'idee_speichern'); assert.ok(idee, 'idee_speichern gesendet');
     assert.equal(idee.daten.link, 'https://www.linkedin.com/posts/wettbewerber_automatisierung-activity-2'); assert.equal(idee.daten.status, 'neu'); assert.equal(idee.daten.kanal, '', 'Kanal leer = automatisch aus dem Link');
     assert.ok((await text(p, '#ideenBox')).includes('Carousel mit 5 Folien'), 'Liste nach dem Speichern neu geladen');
+    // Freitext-Idee ohne Link, mit Bild (aus PR #49 übernommen): erst idee_bild_url, PUT, dann idee_speichern mit bild_pfad
+    const bildPfad = join(tmpdir(), 'portal-test-bild.png'); writeFileSync(bildPfad, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'));
+    await p.locator('#id_neu').click(); await p.waitForTimeout(200);
+    const bildFeld = await p.$('#id_b'); if (bildFeld.setInputFiles) await bildFeld.setInputFiles(bildPfad); else await bildFeld.uploadFile(bildPfad);
+    await p.locator('#id_w').fill('Vorher/Nachher-Reel aus dem Kursraum, ohne Gesichter');
+    await p.locator('#idf [type=submit]').click(); await p.waitForTimeout(800);
+    const bildUrlAnfrage = gesendet.find(g => g.aktion === 'idee_bild_url'); assert.ok(bildUrlAnfrage, 'idee_bild_url gesendet'); assert.equal(bildUrlAnfrage.daten.dateiname, 'portal-test-bild.png');
+    assert.equal(puts.filter(u => /token=bild$/.test(u)).length, 1, 'ein PUT für das Bild');
+    const freitext = gesendet.filter(g => g.aktion === 'idee_speichern')[1]; assert.ok(freitext, 'zweite Idee gespeichert');
+    assert.equal(freitext.daten.link, ''); assert.equal(freitext.daten.bild_pfad, 'ideen/2026/10/bild_t1_portal-test-bild.png'); assert.match(freitext.daten.warum_stark, /Vorher\/Nachher-Reel/);
+    assert.ok((await text(p, '#ideenBox')).includes('Vorher/Nachher-Reel aus dem Kursraum'), 'Freitext-Idee in der Liste');
+    assert.equal(await p.locator('#idListe img').count(), 1, 'Vorschaubild in der Liste');
+    await shot(p, 'portal-social-idee-bild', vp);
     // Video hochladen: Einwilligung Pflicht, dann signierte Adresse → PUT → Status → Auftrag im KI Office (Testadapter) → Status beauftragt
     await p.locator('#up_neu').click(); await p.waitForTimeout(200);
     const dateiFeld = await p.$('#up_f'); if (dateiFeld.setInputFiles) await dateiFeld.setInputFiles(videoPfad); else await dateiFeld.uploadFile(videoPfad);
@@ -601,7 +616,7 @@ test('Portal: Social Media – Video hochladen (signierte Adresse, PUT, Auftrag 
     await p.evaluate(() => document.querySelector('#upf').requestSubmit()); await p.waitForTimeout(1200);
     const url = gesendet.find(g => g.aktion === 'upload_url'); assert.ok(url, 'upload_url gesendet');
     assert.equal(url.daten.dateiname, 'portal-test-video.mp4'); assert.equal(url.daten.groesse, 2048); assert.equal(url.daten.einwilligung, true); assert.equal(url.daten.thema, 'Werkstatt-Dreh: Warum Routinearbeit teuer ist');
-    assert.equal(puts.length, 1, 'genau ein PUT auf die signierte Adresse'); assert.match(puts[0], /token=test$/);
+    assert.equal(puts.filter(u => /token=test$/.test(u)).length, 1, 'genau ein PUT auf die signierte Video-Adresse');
     assert.deepEqual(gesendet.filter(g => g.aktion === 'upload_status').map(g => g.daten.status), ['hochgeladen', 'beauftragt'], 'Status hochgeladen, dann beauftragt');
     const run = gesendet.find(g => g.aktion === 'upload_status' && g.daten.status === 'beauftragt').daten.run_id; assert.match(String(run), /^run_/, 'run_id aus dem KI Office (Testadapter)');
     const zustand = await (await fetch(S.base + '/api/test/zustand')).json();

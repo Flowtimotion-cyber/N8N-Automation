@@ -523,3 +523,15 @@ Screenshots: `screenshots/*-portal-social-upload-ideen.png`, `*-portal-social-id
 **Reihenfolge beim Einspielen (SETUP.md Abschnitt 14):** (1) `supabase/team_social_ideen_upload.sql` im SQL Editor, Kontrollabfrage `bucket = 1`, `agent = 1`; (2) Workflow „TEAM: Social-Upload“ aus `social/n8n/social.workflow.gen.js` in n8n anlegen, Credential „Supabase account“, aktivieren; (3) PR mergen; (4) als Timo einen Link einfügen und ein kleines Video hochladen, Auftrag unter Freigaben prüfen.
 
 **Offen für Timo (RESTPUNKTE.md):** Transkription lokal oder Cloud, schriftliche Einwilligungs-Vorlage, Löschlauf nach 90 Tagen, Werkzeuge des Medien-Cutters.
+
+**Nachtrag 28.10.2026 (abends): Zusammenführung mit PR #49, Freitext-Ideen und Bilder.** Beim Anlegen des n8n-Workflows fiel auf, dass PR #49 „Ideen-Briefkasten fürs ganze Team“ (27.10., claude.ai-Sitzung, nicht im Vault oder Status vermerkt) dasselbe Thema mit einer Tabelle gleichen Namens, öffentlichem Bucket und aktivem Workflow `gThnlTbObVDF67Wl` gebaut hatte. Timo hat entschieden: #50 ist die Basis. Übernommen aus #49: Freitext-Ideen ohne Link (`art = idee`) und Bilder zu Ideen (`art = bild`, Aktion `idee_bild_url`, öffentlicher Bucket `social-ideen`, 20 MB, Vorschaubild in der Liste). Die SQL zieht fehlende Spalten nach, falls #49s Tabelle schon existiert. PR #49 geschlossen, Workflow `gThnlTbObVDF67Wl` deaktiviert.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `social/test/social.test.mjs` (neu: leere Idee abgelehnt, Freitext ohne Link, Bild ohne Link, kaputter Bildpfad, `idee_bild_url` mit Endung/Größe/Agent-Verbot, `bildUrl`, `laden` mit `bild_url`) | 6 von 6 |
+| Code-Knoten der SDK-Datei (10 Stück) und `node --check`, Portal-Skript `node --check` | bestanden |
+| n8n `validate_workflow` der SDK-Datei | bestanden |
+| Browser (Desktop und Handy): Freitext-Idee mit Bild → `idee_bild_url` → ein PUT mit `token=bild` → `idee_speichern` mit `bild_pfad` und ohne Link, Vorschaubild in der Liste; alle Prüfungen von oben weiterhin | bestanden |
+| `npm run test:office` | 115 von 115 |
+
+Screenshots zusätzlich: `screenshots/*-portal-social-idee-bild.png`.
