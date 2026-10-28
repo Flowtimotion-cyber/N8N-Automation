@@ -175,3 +175,18 @@ Betrifft die Agenten mit Ausführer `claude-code`: `akademie-redakteur`, `vertri
 **Werte ändern:** Grenzen (600 Zeichen, 0,05 € je Run, 1 € je Tag, Modelllisten) stehen oben in `office/lib/kosten.js`. Danach `node office/n8n/bauen.mjs`, Tests (`npm run test:office:unit`), Bündel wie in Schritt 2 einspielen. Einzelne Agenten gezielt: Registry-Feld `freigabe_noetig`, z. B. im SQL Editor `update office_agenten set freigabe_noetig = true where agent_id = 'pa-assistent';` (`false` = nie, `null` = nach Modell).
 
 **Vorsicht beim Einspielen:** Wird der Code-Knoten vor dem SQL ersetzt, scheitert jedes neue `auftrag_starten` (unbekannte Spalte `budget_eur`). Laufende Aufträge stört der Wechsel nicht (der Zustand liegt in Supabase).
+
+## 14. Social-Upload und Ideen-Liste einspielen (Branch `feature/social-upload-ideen`, 28.10.2026, KI-erstellt: Claude Code)
+
+**Noch nicht live.** Timos Wunsch vom 28.10.2026: Im Register „Social Media“ eine Zeile, um eigene Videos hochzuladen (der Medien-Cutter schneidet im Momentum-Stil mit Grafiken), und eine Zeile für Ideen und starke Mitbewerber-Posts (Links). Upload-Ort laut Timo: Supabase Storage.
+
+**Reihenfolge (genau so, sonst sieht das Portal nur Fehlermeldungen):**
+
+1. `supabase/team_social_ideen_upload.sql` im Supabase SQL Editor ausführen (idempotent). Legt `team_social_ideen`, `team_social_uploads`, die Funktionen `team_idee_speichern`, `team_upload_anlegen`, `team_upload_status`, den privaten Bucket `medien-roh` (2 GB je Datei), die Papierkorb-Art „idee“ und den Agenten `medien-cutter` (`freigabe_noetig = true`) an. Die Kontrollabfrage am Ende muss `bucket = 1` und `agent = 1` zeigen.
+2. In n8n den Workflow **„TEAM: Social-Upload“** anlegen: SDK-Datei `social/n8n/social.workflow.gen.js` (erzeugt aus `social/n8n/bauen-social.mjs`, Logik `social/lib/social.js`). Credential in allen HTTP-Knoten: „Supabase account“ (`NpKrSLYxAsarf8ar`, service_role). Webhook-Pfad `team-social`, erlaubte Herkunft `https://flowtimotion-cyber.github.io`. Aktivieren. Portal-API v2 und Office-API werden **nicht** angefasst.
+3. Branch nach `main` (GitHub Pages baut das Portal).
+4. Prüfen: Als Timo im Register „Social Media“ → „+ Link einfügen“ (erscheint in der Liste) → „+ Video hochladen“ mit einer kleinen .mp4 und gesetztem Einwilligungs-Häkchen → Fortschritt, dann Hinweis „Auftrag angelegt, wartet auf Timos Freigabe“ → im KI Office unter Freigaben sichtbar. Datei liegt in Supabase → Storage → `medien-roh/JJJJ/MM/`.
+
+**Was der Browser darf:** nur `POST …/team-social` mit dem Portal-Token und ein `PUT` auf die signierte Adresse (2 h gültig). Kein Supabase-Schlüssel, keine Bucket-Policies nötig.
+
+**Rückweg:** Workflow deaktivieren; das Portal zeigt dann in beiden Karten „noch nicht eingerichtet“, der Rest des Registers läuft weiter. Tabellen und Bucket bleiben.
