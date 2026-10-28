@@ -162,6 +162,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .md{line-height:1.55;overflow-wrap:anywhere}.md h2{font-size:20px;margin:14px 0 6px}.md h3{font-size:17px;margin:12px 0 6px}.md h4{font-size:15px;margin:10px 0 4px}
 .md p{margin:0 0 8px}.md ul,.md ol{margin:0 0 8px;padding-left:22px}.md ul.tasklist{list-style:none;padding-left:4px}.md blockquote{margin:0 0 8px;padding:6px 12px;border-left:3px solid var(--acc);background:#F6F3FE;border-radius:0 8px 8px 0}
 .md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md a.wl{text-decoration:underline dotted}
+.md .tab{overflow-x:auto;margin:0 0 8px}.md .tab table{width:auto;border-collapse:collapse}.md .tab th,.md .tab td{border:1px solid var(--line);padding:5px 9px;vertical-align:top;overflow-wrap:break-word;font-size:inherit;color:inherit;text-transform:none;letter-spacing:normal}.md .tab th{background:var(--soft);font-weight:600}
 .ed .edhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.edmode button{padding:5px 10px;font-size:13px}
 .toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#FAFAFE}
 .toolbar .tb{border:1px solid transparent;background:none;border-radius:7px;padding:4px 9px;cursor:pointer;font-size:14px;min-width:32px}.toolbar .tb:hover{background:#fff;border-color:var(--line)}
@@ -862,16 +863,53 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (m[1] === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === m[2]); return p ? '📁 ' + esc(p.name) : h; }
     const t = TABS.find(x => x[0] === m[2]); return t ? '↪ ' + t[1] : h;
   }
-  const klartext = t => String(t || '').replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  // Tabellen: Kopfzeile, Trennzeile und mindestens eine Zeile, jede beginnt mit | und hat gleich viele Zellen. Sonst bleibt alles Text.
+  // \| ist ein | in der Zelle; in `Code` teilt | die Zelle nicht.
+  const zellen = l => {
+    l = l.replace(/\s+$/, '');
+    if (!l.startsWith('|')) return null;
+    const z = []; let akt = '', code = false;
+    for (let i = 1; i < l.length; i++) {
+      const c = l[i];
+      if (c === '\\' && l[i + 1] === '|') { akt += '|'; i++; continue; }
+      if (c === '`') code = !code;
+      if (c === '|' && !code) { z.push(akt.trim()); akt = ''; continue; }
+      akt += c;
+    }
+    if (akt.trim()) z.push(akt.trim());
+    return z;
+  };
+  const tabelle = (L, i) => {
+    const kopf = zellen(L[i]), trenn = i + 1 < L.length ? zellen(L[i + 1]) : null;
+    if (!kopf || !kopf.length || !trenn || trenn.length !== kopf.length || !trenn.every(c => /^:?-+:?$/.test(c))) return null;
+    const zeilen = [];
+    for (let j = i + 2; j < L.length; j++) { const z = zellen(L[j]); if (!z || z.length !== kopf.length) break; zeilen.push(z); }
+    if (!zeilen.length) return null;
+    return { kopf, zeilen, n: 2 + zeilen.length, ausr: trenn.map(c => c.endsWith(':') ? (c.startsWith(':') ? 'center' : 'right') : '') };
+  };
+  const tabellenKlartext = t => {
+    const L = String(t || '').replace(/\r/g, '').split('\n'), aus = [];
+    for (let i = 0; i < L.length; i++) { const tb = tabelle(L, i); if (tb) { aus.push(...[tb.kopf, ...tb.zeilen].map(z => z.join(' · '))); i += tb.n - 1; } else aus.push(L[i]); }
+    return aus.join('\n');
+  };
+  const klartext = t => tabellenKlartext(t).replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
   function md(text) {
     const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
     let out = '', liste = null, para = [], kasten = false;
     const flushP = () => { if (para.length) { out += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
     const flushL = () => { if (liste) { out += '</' + liste + '>'; liste = null; } };
-    for (const raw of L) {
-      const l = raw.replace(/\s+$/, '');
+    for (let i = 0; i < L.length; i++) {
+      const l = L[i].replace(/\s+$/, '');
       let m;
+      const tb = tabelle(L, i);
+      if (tb) {
+        flushP(); flushL();
+        const zelle = (tag, c, k) => '<' + tag + (tb.ausr[k] ? ' style="text-align:' + tb.ausr[k] + '"' : '') + '>' + mdInline(c) + '</' + tag + '>';
+        out += '<div class="tab"><table><thead><tr>' + tb.kopf.map((c, k) => zelle('th', c, k)).join('') + '</tr></thead><tbody>' +
+          tb.zeilen.map(z => '<tr>' + z.map((c, k) => zelle('td', c, k)).join('') + '</tr>').join('') + '</tbody></table></div>';
+        i += tb.n - 1; continue;
+      }
       if ((m = /^:::\s*(rot|rosa|orange|gelb|gruen|grün|blau|lila|grau|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))?\s*(.*)$/.exec(l.trim()))) {
         flushP(); flushL();
         if (kasten && !m[1] && !m[2]) { out += '</div>'; kasten = false; continue; }
@@ -953,7 +991,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
      ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
      ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
-     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
       .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
@@ -966,7 +1004,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<select class="tb" data-ed="' + id + '" data-a="farbe" title="Textfarbe"><option value="">Farbe</option>' + Object.keys(FARBEN).map(f => '<option value="' + f + '" style="color:' + FARBEN[f] + '">' + f + '</option>').join('') + '</select>' +
       '<select class="tb" data-ed="' + id + '" data-a="hg" title="Hintergrundfarbe für markierten Text"><option value="">Hintergrund</option>' + Object.keys(HINTERGRUND).map(f => '<option value="' + f + '" style="background:' + HINTERGRUND[f] + '">' + f + '</option>').join('') + '</select>' +
       '<select class="tb" data-ed="' + id + '" data-a="kasten" title="Farbigen Kasten um die markierten Zeilen legen, z. B. für ein Unterthema"><option value="">Kasten</option>' + Object.keys(HINTERGRUND).map(f => '<option value="' + f + '" style="background:' + HINTERGRUND[f] + '">' + f + '</option>').join('') + '</select>' +
-      '<select class="tb" data-ed="' + id + '" data-a="groesse" title="Schriftgröße"><option value="">Größe</option><option value="gross">groß</option><option value="klein">klein</option></select>' + btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
+      '<select class="tb" data-ed="' + id + '" data-a="groesse" title="Schriftgröße"><option value="">Größe</option><option value="gross">groß</option><option value="klein">klein</option></select>' + btn('h', 'H', 'Überschrift') + btn('ul', '• Liste', 'Aufzählung') + btn('ol', '1. Liste', 'Nummerierte Liste') + btn('cb', '☐', 'Checkliste') + (opts.tabelle === false ? '' : btn('tab', '▦ Tabelle', 'Tabelle einfügen')) + btn('link', '🔗 Link', 'Link (Strg+K)') + btn('wl', '[[Notiz]]', 'Link auf eine Notiz') +
       btn('hilfe', '?', 'Alle Formatierungen anzeigen') + '</div><div class="hilfebox" id="' + id + '_h" hidden>' + HILFE + '</div>' +
       '<div class="edbody m-' + modus + '" id="' + id + '_b"><textarea id="' + id + '" rows="' + (opts.rows || 12) + '" maxlength="' + (opts.max || 20000) + '" spellcheck="true">' + esc(wert) + '</textarea>' +
       '<div class="md vorschau" id="' + id + '_v"></div></div></div>';
@@ -1018,6 +1056,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       else if (a === 'h') zeilen('## '); else if (a === 'ul') zeilen('- '); else if (a === 'ol') zeilen(i => (i + 1) + '. '); else if (a === 'cb') zeilen('- [ ] ');
       else if (a === 'link') { const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd); if (/^https?:\/\//.test(sel)) setze('[Linktext](', ')', ''); else setze('[', '](https://)', 'Linktext'); }
       else if (a === 'wl') setze('[[', ']]', 'Titel der Notiz');
+      else if (a === 'tab') {
+        const vor = ta.value.slice(0, ta.selectionStart), nach = ta.value.slice(ta.selectionEnd);
+        setze((vor && !vor.endsWith('\n') ? '\n' : '') + '| ', ' | Spalte 2 |\n| --- | --- |\n| Inhalt | Inhalt |' + (nach.startsWith('\n') ? '' : '\n'), 'Spalte 1');
+      }
       else if (a === 'hilfe') { const h = $('#' + id + '_h'); h.hidden = !h.hidden; }
     };
     document.querySelectorAll('[data-ed="' + id + '"]').forEach(b => {
@@ -2353,7 +2395,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       (p.fehler ? '<p class="small" style="color:#8a1c1c">⚠ Letzter Versuch fehlgeschlagen (' + esc(p.versuche || 1) + '/3): ' + esc(p.fehler) + '</p>' : '') +
       '<div class="f"><label for="p_t">Thema</label><input id="p_t" required maxlength="160" value="' + esc(p.thema) + '"></div>' +
       '<div class="f"><label for="p_h">Hook (erste Zeile / erste Sekunde, intern)</label><input id="p_h" maxlength="300" value="' + esc(p.hook) + '"></div>' +
-      editorHtml('p_x', p.text, 'Text / Caption (wird so gepostet)', { rows: 8, max: 4000 }) +
+      editorHtml('p_x', p.text, 'Text / Caption (wird so gepostet)', { rows: 8, max: 4000, tabelle: false }) +
       '<div class="f"><label for="p_g">Hashtags</label><input id="p_g" maxlength="500" placeholder="#ki #weiterbildung #qcg" value="' + esc(p.hashtags) + '"></div>' +
       '<div class="f2"><div class="f"><label for="p_d">Datum</label><input id="p_d" type="date" value="' + esc(p.datum) + '"></div>' +
       '<div class="f"><label for="p_u">Uhrzeit</label><input id="p_u" type="time" value="' + esc(p.uhrzeit) + '"></div>' +
