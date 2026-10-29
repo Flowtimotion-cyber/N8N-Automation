@@ -109,5 +109,6 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | Falls `gpt-5-mini` `response_format: json_object` ablehnt oder abgeschaltet wird: Modellkonstante in `vertrieb/lib/diktat.js` ändern, `npm run vertrieb:bauen`, Workflow per MCP aktualisieren | `vertrieb/lib/diktat.js` |
 | B | Wörterbuch (Fachbegriffe, Namen) pflegen: `WOERTERBUCH` in `vertrieb/lib/diktat.js` | – |
 | C | Sprecher-Trennung (`gpt-4o-transcribe-diarize`) für Mitschnitte, wie in WhisperM | Vorbild WhisperM |
+| B | Register „Diktat“: nach dem ersten echten Speichern mit neuer E-Mail prüfen, ob die Vertriebs-API bei `speichern` die ID liefert (sonst greift die Suche per E-Mail/Name) | `docs/team/index.html`, `dkZiel` |
 | C | Diktat auch für Aufgaben-Kommentare und Notizen außerhalb des Vertriebs anbieten (gleicher Workflow, anderer Speicherort) | Team-Portal |
 
