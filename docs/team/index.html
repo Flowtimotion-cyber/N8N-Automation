@@ -267,6 +267,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .vtab tr.klick{cursor:pointer}.vtab tr.klick:hover td{background:#FAF9FE}
 .vnotiz{border-top:1px solid var(--line);padding:10px 0}.vnotiz .kopf{font-size:12.5px;color:var(--mut);margin-bottom:4px}
 .vbald{border:1px dashed #C9C2EE;background:#F7F5FE;border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--mut);margin:10px 0}
+.vdiktat{border:1px solid #C9C2EE;background:#F7F5FE;border-radius:12px;padding:10px 12px;font-size:13.5px;margin:10px 0}.vdiktat .act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}.vdiktat textarea{width:100%;box-sizing:border-box;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px}.vdiktat [hidden]{display:none!important}.vdiktat .btn.rec{background:var(--red)}.vdiktat .punkt{display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;margin-right:6px;animation:vdpuls 1.2s ease-in-out infinite}@keyframes vdpuls{0%,100%{opacity:1}50%{opacity:.3}}@media (prefers-reduced-motion:reduce){.vdiktat .punkt{animation:none}}
 .vtreffer{border:1px solid var(--line);border-radius:10px;margin-top:4px;max-height:200px;overflow:auto}
 .vtreffer button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:#fff;padding:7px 10px;cursor:pointer}
 .vtreffer button:hover{background:var(--soft)}
@@ -342,7 +343,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['whatsapp', 'WhatsApp'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['skills', 'Skills'], ['tresor', 'Tresor'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['diktat', 'Diktat'], ['whatsapp', 'WhatsApp'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['skills', 'Skills'], ['tresor', 'Tresor'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -471,12 +472,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' + zkKopf() +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
-      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => !['vertrieb', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => !['vertrieb', 'diktat', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
-    if (!V[tab] || (['vertrieb', 'whatsapp'].includes(tab) && !darfVertrieb())) tab = 'start';
+    const V = { vertrieb: vVertrieb, diktat: vDiktat, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
+    if (!V[tab] || (['vertrieb', 'diktat', 'whatsapp'].includes(tab) && !darfVertrieb())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     document.body.dataset.tab = tab;
     V[tab]();
@@ -1349,6 +1350,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   // ---------- Vertrieb (Pipeline aus Twenty CRM) ----------
   // Daten liegen in Twenty (twenty.hm-storage.de); das Portal ist nur die Oberfläche. Schnittstelle: n8n „TEAM: Vertrieb-Pipeline (Twenty)“.
   const VERTRIEB_API = API.replace('team-api-v2', 'team-vertrieb');
+  const DIKTAT_API = API.replace('team-api-v2', 'team-diktat');   // n8n-Workflow „TEAM: Diktat“ (vertrieb/n8n/)
   const TWENTY = 'https://twenty.hm-storage.de';
   const VSTUFEN = [['NEW', '(Noch) kein Termin gebucht', '#9CA3AF'], ['ERSTKONTAKT', 'Fokus Erstkontakt', '#5B6EE6'], ['PITCH', 'Pitch auf KI Flow', '#38BDF8'], ['TIMO_CALL', 'Timo Call', '#7B3FE4'],
     ['UNGUELTIG', 'Ungültiger Kontakt', '#D9452F'], ['NICHT_ERREICHBAR', 'Nicht erreichbar', '#E98A15'], ['SPAETER', 'Später nochmal melden', '#EAB308'], ['NICHT_INTERESSIERT', 'Nicht interessiert', '#D9452F'],
@@ -1476,7 +1478,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         '<div class="f2"><div class="f"><label for="v_art">Art</label><select id="v_art"><option value="anruf">📞 Anruf</option><option value="notiz">📝 Notiz</option><option value="termin">📆 Termin</option><option value="mail">✉️ E-Mail</option></select></div><div></div></div>' +
         '<div class="f"><textarea id="v_ntext" rows="3" maxlength="50000" placeholder="Was wurde besprochen? Nächste Schritte?"></textarea></div>' +
         '<div class="dlgbtns" style="margin-top:-4px"><button type="button" class="btn sec" id="v_nsave">Aktivität speichern</button></div>' +
-        '<div class="vbald">🎙️ <b>Gespräch aufnehmen &amp; zusammenfassen</b> – kommt als Nächstes: Aufnahme oder Transkript hochladen, die KI fasst zusammen und legt die Zusammenfassung hier als Aktivität ab.</div>' +
+        diktatBox() +
         '<div id="v_notizen"><p class="small muted">Lade Aktivitäten …</p></div></div>');
     const dlg = openDlg(true);
     let kontakt = k ? { id: k.id } : {};
@@ -1526,6 +1528,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       } catch (e) { $('#v_notizen').innerHTML = '<p class="small muted">' + esc(e.message) + '</p>'; }
     }
     notizenLaden();
+    diktatAnbinden(c, notizenLaden);
     $('#v_nsave').onclick = async ev => {
       const text = $('#v_ntext').value.trim(); if (text.length < 2) return toast('Bitte kurz aufschreiben, was besprochen wurde.');
       ev.target.disabled = true;
@@ -1533,6 +1536,171 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       catch (e) { toast(e.message); }
       ev.target.disabled = false;
     };
+  }
+
+  // ---------- Diktat (Spracherkennung für Gesprächsnotizen, n8n-Workflow „TEAM: Diktat“) ----------
+  // Aufnahme im Browser (MediaRecorder) oder Audiodatei → n8n → OpenAI-Transkription + KI-Bereinigung → bearbeitbarer Text → Aktivität in Twenty.
+  // Gespeichert wird erst nach Klick auf „Als Aktivität speichern“. Vorbild: WhisperM (Flowtimotion-cyber/WhisperM, MIT).
+  function diktatBox() {
+    return '<div class="vdiktat" id="v_diktat"><div>🎙️ <b>Diktat nach dem Gespräch</b> <span class="small muted">Sprich ein, was besprochen wurde. Die KI schreibt es sauber auf und fasst zusammen. Gespeichert wird erst, wenn du auf „Als Aktivität speichern“ klickst.</span></div>' +
+      '<div class="act"><button type="button" class="btn" id="vd_rec">🎙️ Aufnehmen</button><button type="button" class="btn rec" id="vd_stop" hidden><span class="punkt"></span>Stopp · <span id="vd_zeit">0:00</span></button><button type="button" class="btn sec" id="vd_wahl">Audiodatei wählen</button><input type="file" id="vd_datei" accept="audio/*,video/webm,video/mp4" hidden>' +
+      '<label class="check small" style="margin:0" title="Mitschnitte von Gesprächen nur mit Einwilligung aller Beteiligten (§ 201 StGB)"><input type="checkbox" id="vd_mit"><span>Gesprächsmitschnitt, alle Beteiligten haben zugestimmt</span></label></div>' +
+      '<div id="vd_status" class="small muted" aria-live="polite" style="margin-top:6px"></div>' +
+      '<div id="vd_erg" hidden><div class="f" style="margin-top:8px"><label for="vd_text">Ergebnis (bitte gegenlesen, du kannst es ändern)</label><textarea id="vd_text" rows="9" maxlength="50000"></textarea></div><div class="small muted" id="vd_meta"></div>' +
+      '<details class="small" style="margin:6px 0"><summary>Rohtranskript anzeigen</summary><div id="vd_roh" style="white-space:pre-wrap;margin-top:4px"></div></details>' +
+      '<div class="dlgbtns" style="margin-top:4px;justify-content:flex-start"><button type="button" class="btn" id="vd_save">Als Aktivität speichern</button><button type="button" class="btn sec" id="vd_weg">Verwerfen</button></div></div></div>';
+  }
+  function diktatAnbinden(c, nachSpeichern, opts) {
+    if (!$('#v_diktat')) return;
+    opts = opts || {};
+    if (opts.onErgebnis) $('#vd_save').hidden = true;   // freies Diktat: Zuordnen übernimmt das Speichern
+    const status = t => { const e = $('#vd_status'); if (e) e.textContent = t || ''; };
+    const unterstuetzt = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    if (!unterstuetzt) { $('#vd_rec').disabled = true; status('Aufnahme wird in diesem Browser nicht unterstützt. Du kannst eine Audiodatei wählen.'); }
+    let rec = null, teile = [], start = 0, timer = null, stream = null;
+    const MAX_SEK = 30 * 60;
+    const zeit = () => { const s = Math.round((Date.now() - start) / 1000); const z = $('#vd_zeit'); if (z) z.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); if (s >= MAX_SEK) stopp(); };
+    const mime = () => ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+    async function aufnehmen() {
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch (e) { return status('Kein Zugriff aufs Mikrofon. Bitte im Browser erlauben oder eine Audiodatei wählen.'); }
+      teile = []; const m = mime();
+      try { rec = new MediaRecorder(stream, m ? { mimeType: m } : undefined); } catch (e) { stream.getTracks().forEach(t => t.stop()); return status('Die Aufnahme konnte nicht gestartet werden: ' + e.message); }
+      rec.ondataavailable = e => { if (e.data && e.data.size) teile.push(e.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop()); clearInterval(timer);
+        const dauer = Math.round((Date.now() - start) / 1000), typ = rec.mimeType || m || 'audio/webm', blob = new Blob(teile, { type: typ });
+        if ($('#vd_rec')) { $('#vd_rec').hidden = false; $('#vd_stop').hidden = true; }
+        if (blob.size < 1000 || dauer < 1) return status('Die Aufnahme war zu kurz.');
+        senden(blob, dauer, 'aufnahme.' + (/mp4/.test(typ) ? 'm4a' : /ogg/.test(typ) ? 'ogg' : 'webm'));
+      };
+      start = Date.now(); rec.start(1000); timer = setInterval(zeit, 500); zeit();
+      $('#vd_rec').hidden = true; $('#vd_stop').hidden = false; if (c) dlgGeaendert = true;
+      status('Aufnahme läuft. Sprich deine Notiz ein und klick dann auf Stopp.');
+    }
+    function stopp() { if (rec && rec.state !== 'inactive') rec.stop(); }
+    async function senden(blob, dauer, name) {
+      status('Transkription läuft, das dauert meist ' + (dauer > 120 ? 'eine knappe Minute' : 'einige Sekunden') + ' …');
+      $('#vd_rec').disabled = true; $('#vd_wahl').disabled = true;
+      const fd = new FormData();
+      fd.append('datei', blob, name); fd.append('token', TOKEN); fd.append('chance_id', (c && c.id) || ''); fd.append('chance_name', (c && c.name) || ''); fd.append('kontakt_name', ((c && c.kontakt) || {}).name || '');
+      fd.append('art', $('#v_art') ? $('#v_art').value : 'anruf'); fd.append('modus', $('#vd_mit').checked ? 'gespraech' : 'diktat'); fd.append('dauer_sek', String(dauer || 0));
+      try {
+        const r = await fetch(DIKTAT_API, { method: 'POST', body: fd });
+        let j = null; try { j = await r.json(); } catch (e) {}
+        if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Transkription ist gerade nicht erreichbar. Ist der Workflow „TEAM: Diktat“ in n8n aktiv?');
+        $('#vd_text').value = j.aktivitaet || j.text || ''; $('#vd_roh').textContent = j.roh || '';
+        const min = Math.round(((Number(j.dauer_sek) || dauer || 0) / 60) * 10) / 10;
+        $('#vd_meta').textContent = (j.bereinigt ? 'KI-bereinigt und zusammengefasst' : 'Rohtranskript, die KI-Bereinigung war nicht verfügbar') + (min ? ' · Aufnahme ' + min + ' Min.' : '') + ' · Kosten ' + (j.kosten && typeof j.kosten.usd === 'number' ? j.kosten.usd.toFixed(3) + ' USD (' + j.kosten.hinweis + ')' : 'unbekannt') + (j.hinweis ? ' · ' + j.hinweis : '');
+        $('#vd_erg').hidden = false; if (c) dlgGeaendert = true; status(opts.onErgebnis ? 'Fertig. Lies den Text kurz gegen und ordne ihn rechts einem Lead zu.' : 'Fertig. Lies den Text kurz gegen und speichere ihn dann als Aktivität.');
+        if (opts.onErgebnis) opts.onErgebnis(j, blob, dauer); else $('#vd_text').focus();
+      } catch (e) { status(e.message); }
+      $('#vd_rec').disabled = !unterstuetzt; $('#vd_wahl').disabled = false;
+    }
+    $('#vd_rec').onclick = aufnehmen; $('#vd_stop').onclick = stopp;
+    $('#vd_wahl').onclick = () => $('#vd_datei').click();
+    $('#vd_datei').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; if (f.size > 25 * 1024 * 1024) { status('Die Datei ist größer als 25 MB.'); e.target.value = ''; return; } senden(f, 0, f.name); e.target.value = ''; };
+    $('#vd_weg').onclick = () => { $('#vd_erg').hidden = true; $('#vd_text').value = ''; $('#vd_roh').textContent = ''; status(''); if (opts.onVerwerfen) opts.onVerwerfen(); };
+    $('#vd_save').onclick = async ev => {
+      const text = $('#vd_text').value.trim(); if (text.length < 2) return toast('Der Text ist leer.');
+      ev.target.disabled = true;
+      try { await vApi('notiz', { id: c.id, personId: (c.kontakt || {}).id || '', art: $('#v_art') ? $('#v_art').value : 'anruf', text }); toast('Aktivität in Twenty gespeichert'); c.notizen = (c.notizen || 0) + 1; c.letzterKontakt = new Date().toISOString(); dlgGeaendert = false; $('#vd_erg').hidden = true; $('#vd_text').value = ''; status(''); nachSpeichern(); }
+      catch (e) { toast(e.message); }
+      ev.target.disabled = false;
+    };
+    if (c) $('#dlg').addEventListener('close', () => { try { stopp(); } catch (e) {} }, { once: true });
+    else window.addEventListener('hashchange', () => { try { stopp(); } catch (e) {} }, { once: true });
+    return { stopp };
+  }
+
+  // ---------- Register „Diktat“: freies Diktat, danach Lead wählen oder per E-Mail Kontakt finden/anlegen ----------
+  const DK = { ergebnis: null, ziel: null, kontakt: null, laedt: false };
+  const dkVerlauf = () => { try { return JSON.parse(ls.get('mt-diktate') || '[]'); } catch (e) { return []; } };
+  const dkMerken = e => { const L = [e].concat(dkVerlauf()).slice(0, 10); ls.set('mt-diktate', JSON.stringify(L)); };
+  function vDiktat() {
+    if (!darfVertrieb()) { $('#main').innerHTML = '<div class="card"><p>Das Diktat nutzen Timo, Kurt, Murat und das Vertriebsteam.</p></div>'; return; }
+    const V = dkVerlauf();
+    const minuten = V.reduce((s, e) => s + (Number(e.dauer_sek) || 0), 0) / 60, kosten = V.reduce((s, e) => s + (Number(e.kosten_usd) || 0), 0);
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Diktat</h1><p class="sub">Erst sprechen, dann zuordnen: Die KI schreibt deine Gesprächsnotiz sauber auf und fasst zusammen. Danach wählst du den Lead oder trägst eine E-Mail-Adresse ein; der Kontakt wird in Twenty gefunden oder neu angelegt.</p></div><a class="btn sec" href="#/tab/vertrieb" style="text-decoration:none">Zur Pipeline →</a></div>' +
+      '<div class="grid"><div class="card" style="margin:0"><h2>1. Aufnehmen</h2><div class="f" style="max-width:240px"><label for="v_art">Art der Aktivität</label><select id="v_art"><option value="anruf">📞 Anruf</option><option value="notiz">📝 Notiz</option><option value="termin">📆 Termin</option><option value="mail">✉️ E-Mail</option></select></div>' + diktatBox() + '</div>' +
+      '<div class="card" style="margin:0"><h2>2. Zuordnen</h2><div id="dk_ziel"></div></div></div>' +
+      '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Letzte Diktate (nur in diesem Browser)</h2>' + (V.length ? '<span class="small muted">' + V.length + ' Diktate · ' + (Math.round(minuten * 10) / 10) + ' Min. · ca. ' + kosten.toFixed(3) + ' USD geschätzt</span><button class="btn ghost" id="dk_leeren">Verlauf löschen</button>' : '') + '</div>' +
+      (V.length ? V.map((e, i) => '<div class="vnotiz"><div class="kopf">' + esc(fmtDT(e.zeit)) + ' · ' + esc(e.ziel || 'nicht zugeordnet') + '</div><div class="small" style="white-space:pre-wrap">' + esc(String(e.text || '').slice(0, 400)) + (String(e.text || '').length > 400 ? ' …' : '') + '</div><div class="act" style="margin-top:4px"><button class="btn ghost" data-dkcopy="' + i + '">Text kopieren</button></div></div>').join('') : '<p class="empty">Noch keine Diktate. Die Liste bleibt nur in diesem Browser und enthält keine Audioaufnahmen.</p>') + '</div>';
+    dkZiel();
+    diktatAnbinden(null, () => {}, { onErgebnis: j => { DK.ergebnis = j; dkZiel(); $('#dk_ziel').scrollIntoView({ block: 'nearest' }); }, onVerwerfen: () => { DK.ergebnis = null; dkZiel(); } });
+    document.querySelectorAll('[data-dkcopy]').forEach(b => b.onclick = async () => { const e = V[Number(b.dataset.dkcopy)]; try { await navigator.clipboard.writeText(e.text || ''); toast('Text kopiert'); } catch (x) { window.prompt('Text kopieren:', e.text || ''); } });
+    const l = $('#dk_leeren'); if (l) l.onclick = () => { if (confirm('Verlauf der Diktate in diesem Browser löschen?')) { ls.del('mt-diktate'); vDiktat(); } };
+    if (!VT.d && !DK.laedt) { DK.laedt = true; vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DK.laedt = false; if (tab === 'diktat') dkZiel(); }); }
+  }
+  function dkZiel() {
+    const box = $('#dk_ziel'); if (!box) return;
+    const hatText = !!DK.ergebnis;
+    const z = DK.ziel, k = DK.kontakt;
+    box.innerHTML = (hatText ? '' : '<p class="small muted">Erst aufnehmen. Du kannst den Lead aber schon jetzt auswählen.</p>') +
+      '<div class="f"><label for="dk_q">Lead aus der Pipeline wählen</label><input id="dk_q" placeholder="Name, Firma oder E-Mail eintippen …" autocomplete="off"><div id="dk_treffer"></div></div>' +
+      '<p class="small muted" style="margin:-4px 0 8px">… oder per E-Mail-Adresse: Kontakt wird in Twenty gesucht, sonst neu angelegt.</p>' +
+      '<div class="f"><label for="dk_mail">E-Mail-Adresse</label><div style="display:flex;gap:6px"><input id="dk_mail" type="email" placeholder="name@firma.de" autocomplete="off" style="flex:1"><button type="button" class="btn sec" id="dk_pruef">Prüfen</button></div></div>' +
+      '<div id="dk_neu"></div>' +
+      '<div id="dk_gewaehlt">' + (z ? '<div class="vkontakt"><b>' + esc(z.name || (z.kontakt || {}).name || 'Lead') + '</b> <span class="chip">' + esc(vLabel(z.stage)) + '</span>' + ((z.kontakt || {}).email ? '<div class="small muted">' + esc(z.kontakt.email) + '</div>' : '') + '<div class="small"><a href="#" id="dk_zweg">andere Zuordnung</a></div></div>' : k ? '<div class="vkontakt"><b>' + esc(k.name || 'Kontakt') + '</b> <span class="chip">Kontakt ohne Verkaufschance</span><div class="small muted">' + esc(k.email || '') + '</div><div class="small">Beim Speichern wird eine neue Verkaufschance angelegt. <a href="#" id="dk_zweg">andere Zuordnung</a></div></div>' : '') + '</div>' +
+      '<div class="dlgbtns" style="justify-content:flex-start"><button type="button" class="btn" id="dk_save"' + (hatText && (z || k) ? '' : ' disabled') + '>Als Aktivität in Twenty speichern</button>' + (hatText ? '<button type="button" class="btn sec" id="dk_copy">Nur Text kopieren</button>' : '') + '</div>' +
+      '<div id="dk_status" class="small muted" aria-live="polite"></div>';
+    const status = t => { $('#dk_status').textContent = t || ''; };
+    const zweg = $('#dk_zweg'); if (zweg) zweg.onclick = ev => { ev.preventDefault(); DK.ziel = null; DK.kontakt = null; dkZiel(); };
+    // Lead-Suche in der geladenen Pipeline
+    let t;
+    $('#dk_q').oninput = e => {
+      clearTimeout(t); const q = e.target.value.trim().toLowerCase(); const tr = $('#dk_treffer');
+      if (q.length < 2) { tr.innerHTML = ''; return; }
+      if (!VT.d) { tr.innerHTML = '<p class="small muted">' + (VT.fehler ? esc(VT.fehler) : 'Pipeline lädt noch …') + '</p>'; return; }
+      t = setTimeout(() => {
+        const L = (VT.d.chancen || []).filter(c => [c.name, (c.kontakt || {}).name, (c.kontakt || {}).email, (c.kontakt || {}).telefon, c.firma && c.firma.name].join(' ').toLowerCase().includes(q)).slice(0, 8);
+        tr.innerHTML = L.length ? '<div class="vtreffer">' + L.map((c, i) => '<button type="button" data-dkl="' + i + '"><b>' + esc(c.name || (c.kontakt || {}).name || '–') + '</b> <span class="small muted">' + esc(vLabel(c.stage)) + ((c.kontakt || {}).email ? ' · ' + esc(c.kontakt.email) : '') + '</span></button>').join('') + '</div>' : '<p class="small muted">Kein Lead gefunden. Unten per E-Mail anlegen.</p>';
+        tr.querySelectorAll('[data-dkl]').forEach(b => b.onclick = () => { DK.ziel = L[Number(b.dataset.dkl)]; DK.kontakt = null; dkZiel(); });
+      }, 200);
+    };
+    // E-Mail prüfen: vorhandenen Kontakt (und seine Verkaufschance) finden, sonst Felder für neuen Kontakt
+    $('#dk_pruef').onclick = async () => {
+      const mail = $('#dk_mail').value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail)) return status('Bitte eine gültige E-Mail-Adresse eintragen.');
+      status('Suche in Twenty …'); $('#dk_pruef').disabled = true;
+      try {
+        const chance = ((VT.d && VT.d.chancen) || []).find(c => String((c.kontakt || {}).email || '').toLowerCase() === mail);
+        if (chance) { DK.ziel = chance; DK.kontakt = null; dkZiel(); $('#dk_mail').value = mail; return status('Lead gefunden: ' + (chance.name || chance.kontakt.name)); }
+        const r = await vApi('kontakt_suchen', { q: mail });
+        const kk = (r.kontakte || []).find(x => String(x.email || '').toLowerCase() === mail) || (r.kontakte || [])[0];
+        if (kk) { DK.kontakt = kk; DK.ziel = null; dkZiel(); $('#dk_mail').value = mail; return status('Kontakt gefunden, noch ohne Verkaufschance.'); }
+        DK.ziel = null; DK.kontakt = null; dkZiel(); $('#dk_mail').value = mail;
+        const teil = mail.split('@')[0].split(/[._-]/);
+        $('#dk_neu').innerHTML = '<div class="note" style="margin-bottom:8px">Kein Kontakt mit dieser Adresse. Neu anlegen:</div><div class="f2"><div class="f"><label for="dk_vn">Vorname</label><input id="dk_vn" maxlength="60" value="' + esc(teil[0] ? teil[0][0].toUpperCase() + teil[0].slice(1) : '') + '"></div><div class="f"><label for="dk_nn">Nachname</label><input id="dk_nn" maxlength="80" value="' + esc(teil[1] ? teil[1][0].toUpperCase() + teil[1].slice(1) : '') + '"></div><div class="f"><label for="dk_tel">Telefon</label><input id="dk_tel" type="tel" maxlength="30" placeholder="+49 …"></div><div class="f"><label for="dk_firma">Firma / Name der Verkaufschance</label><input id="dk_firma" maxlength="120"></div></div>';
+        $('#dk_save').disabled = !hatText; status('Beim Speichern werden Kontakt und Verkaufschance in Twenty angelegt.');
+        DK.kontakt = { neu: true, email: mail };
+      } catch (e) { status(e.message); }
+      $('#dk_pruef').disabled = false;
+    };
+    $('#dk_save').onclick = async ev => {
+      const text = ($('#vd_text') && $('#vd_text').value.trim()) || ''; if (text.length < 2) return status('Erst aufnehmen, dann speichern.');
+      ev.target.disabled = true; status('Speichere in Twenty …');
+      try {
+        let ziel = DK.ziel, personId = ziel ? (ziel.kontakt || {}).id || '' : '';
+        if (!ziel) {
+          const kk = DK.kontakt; if (!kk) throw new Error('Bitte einen Lead wählen oder eine E-Mail-Adresse prüfen.');
+          let daten;
+          if (kk.neu) { const vn = $('#dk_vn').value.trim(), nn = $('#dk_nn').value.trim(); if (!vn && !nn) throw new Error('Bitte mindestens Vor- oder Nachname eintragen.'); daten = { id: '', name: $('#dk_firma').value.trim() || (vn + ' ' + nn).trim(), stage: 'NEW', ownerId: '', naechsterFollowup: '', betrag: '', kontakt: { vorname: vn, nachname: nn, email: kk.email, telefon: $('#dk_tel').value } }; }
+          else { daten = { id: '', name: kk.name || '', stage: 'NEW', ownerId: '', naechsterFollowup: '', betrag: '', kontakt: { id: kk.id } }; personId = kk.id; }
+          const r = await vApi('speichern', daten);
+          VT.d = await vApi('liste');
+          ziel = (VT.d.chancen || []).find(c => r && r.id && c.id === r.id) || (VT.d.chancen || []).find(c => String((c.kontakt || {}).email || '').toLowerCase() === String(kk.email || '').toLowerCase()) || (VT.d.chancen || []).find(c => c.name === daten.name);
+          if (!ziel) throw new Error('Die Verkaufschance wurde angelegt, konnte aber nicht wiedergefunden werden. Bitte in der Pipeline nachsehen.');
+          personId = (ziel.kontakt || {}).id || personId;
+        }
+        await vApi('notiz', { id: ziel.id, personId, art: $('#v_art').value, text });
+        dkMerken({ zeit: new Date().toISOString(), ziel: ziel.name || (ziel.kontakt || {}).name || ziel.id, text, dauer_sek: DK.ergebnis && DK.ergebnis.dauer_sek, kosten_usd: DK.ergebnis && DK.ergebnis.kosten ? DK.ergebnis.kosten.usd : 0 });
+        toast('Aktivität bei „' + (ziel.name || 'Lead') + '“ in Twenty gespeichert');
+        DK.ergebnis = null; DK.ziel = null; DK.kontakt = null; ziel.notizen = (ziel.notizen || 0) + 1;
+        vDiktat();
+      } catch (e) { status(e.message); ev.target.disabled = false; }
+    };
+    const cp = $('#dk_copy'); if (cp) cp.onclick = async () => { const tx = $('#vd_text').value; try { await navigator.clipboard.writeText(tx); toast('Text kopiert'); } catch (e) { window.prompt('Text kopieren:', tx); } dkMerken({ zeit: new Date().toISOString(), ziel: 'nur kopiert', text: tx, dauer_sek: DK.ergebnis && DK.ergebnis.dauer_sek, kosten_usd: DK.ergebnis && DK.ergebnis.kosten ? DK.ergebnis.kosten.usd : 0 }); };
   }
 
   // ---------- Dashboard (Übersicht) ----------

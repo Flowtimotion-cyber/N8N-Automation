@@ -18,6 +18,8 @@
     "test:office": "node --test \"office/test/*.test.mjs\"",
     "test:office:unit": "node --test \"office/test/unit.*.test.mjs\" office/test/verarbeitung.test.mjs office/test/n8n-buendel.test.mjs",
     "test:office:browser": "node --test office/test/browser.test.mjs",
-    "test:office:obsidian": "python agenten/test_office_obsidian.py"
+    "test:office:obsidian": "python agenten/test_office_obsidian.py",
+    "test:vertrieb": "node --test 'vertrieb/test/*.test.mjs'",
+    "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs"
   }
 }

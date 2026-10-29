@@ -99,3 +99,16 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | Schriftliche Einwilligungs-Vorlage für Dozenten und Teilnehmer (Aufnahme, KI-Schnitt, Veröffentlichung); das Häkchen beim Upload ist nur der Vermerk | DATENSCHUTZ_AI_ACT.md E |
 | C | Ideen-Links: Vorschaubild/Titel automatisch vom Link holen (og:title) statt Handeingabe; Verknüpfung „daraus wurde Beitrag …“ (`post_id`) im Dialog setzen | `ideeDialog` |
 | B | Bilder im Bucket `social-ideen` beim Löschen einer Idee mitlöschen (heute bleibt die Datei liegen); dazu Lauf für verwaiste Dateien | `idee_loeschen` |
+
+## Ergänzung 29.10.2026: Diktat im Vertrieb
+
+| Prio | Punkt | Bezug |
+|---|---|---|
+| A | Workflow „TEAM: Diktat“ (`Zvn018lfOXFuzenF`) aktivieren und einen echten Satz einsprechen; Ergebnis in n8n prüfen (Binärfeld, Modelle) | SETUP.md Abschnitt Diktat |
+| A | Datenschutzerklärung: OpenAI als Empfänger für Vertriebsnotizen; Teamregel zu Mitschnitten (§ 201 StGB) | DATENSCHUTZ_AI_ACT.md |
+| B | Falls `gpt-5-mini` `response_format: json_object` ablehnt oder abgeschaltet wird: Modellkonstante in `vertrieb/lib/diktat.js` ändern, `npm run vertrieb:bauen`, Workflow per MCP aktualisieren | `vertrieb/lib/diktat.js` |
+| B | Wörterbuch (Fachbegriffe, Namen) pflegen: `WOERTERBUCH` in `vertrieb/lib/diktat.js` | – |
+| C | Sprecher-Trennung (`gpt-4o-transcribe-diarize`) für Mitschnitte, wie in WhisperM | Vorbild WhisperM |
+| B | Register „Diktat“: nach dem ersten echten Speichern mit neuer E-Mail prüfen, ob die Vertriebs-API bei `speichern` die ID liefert (sonst greift die Suche per E-Mail/Name) | `docs/team/index.html`, `dkZiel` |
+| C | Diktat auch für Aufgaben-Kommentare und Notizen außerhalb des Vertriebs anbieten (gleicher Workflow, anderer Speicherort) | Team-Portal |
+

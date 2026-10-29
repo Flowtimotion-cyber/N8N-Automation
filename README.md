@@ -40,6 +40,7 @@ Neben den Kursmodulen enthält das Repo das interne **Team-Portal** der Momentum
 | Tests | `npm run test:office` |
 | Dokumentation (Architektur, Setup, Tests, Sicherheit, Datenschutz/AI Act, Lizenzen, Skills, Betrieb, Bedienung, Löschkonzept, Restpunkte) | `docs/office/*.md` |
 | Anleitung für Agenten am Portal | `agenten/ANLEITUNG.md`, `agenten/team.py` |
+| Diktat im Vertrieb (Spracherkennung → Gesprächsnotiz in Twenty) | `vertrieb/lib/diktat.js`, `vertrieb/n8n/`, `npm run test:vertrieb` |
 
 Regeln: keine Zugangsdaten im Repo; n8n-Workflows werden nicht direkt verändert, sondern als importierbare Dateien geliefert; „Erledigt“ und Freigaben setzen nur Menschen.
 

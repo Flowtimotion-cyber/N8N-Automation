@@ -86,3 +86,12 @@ Nicht abrufbar am 17.10.2026 (DNS-Fehler), auch keine Suchtreffer. Aufbau und In
 ## 7. Ergänzung 17.10.2026: Büroszene
 
 Die neue Büroszene (`docs/office/js/buero.js`) ist eine eigene Umsetzung des allgemeinen Bedienkonzepts „Abteilungen als Plattformen um eine Zentrale, Agenten an Schreibtischen, Statusbadges, Live-Panel“, das bei agents-office (PolyForm Noncommercial 1.0.0 plus Zusatzbedingungen von Sahni.ai) und auf sahni.ai/agentsofficev3 (am 17.10.2026 angesehen) zu sehen ist. Übernommen wurde nichts: kein Code, keine Grafik, keine Texte, kein 3D-Modell; alle Formen sind handgeschriebenes SVG in den Momentum-Farben. Die Zuordnung „Zentrale = Projektübersicht“ ist eine eigene Entscheidung (bei der Referenz steht dort der Notiz-Ordner).
+
+## Ergänzung 29.10.2026: Diktat im Vertrieb
+
+| Komponente | Herkunft/Link | Lizenz | Hinweise | Prüfdatum |
+|---|---|---|---|---|
+| WhisperM (Vorbild) | https://github.com/Flowtimotion-cyber/WhisperM | MIT (laut README, eigenes Repo von Hermetikmarketing) | Nur das Konzept übernommen (Cloud-Transkription + KI-Bereinigung ins Deutsche, Wörterbuch für Fachwörter, n8n-Anbindung). Kein Code, keine Icons, keine Texte kopiert; die Portal-Fassung läuft ohne lokale Python-Installation im Browser und in n8n. | 29.10.2026 |
+| OpenAI Audio API (`gpt-4o-mini-transcribe`) und Chat Completions (`gpt-5-mini`) | https://developers.openai.com/api/docs/guides/speech-to-text (nicht abrufbar aus der Prüfumgebung) | OpenAI Business Terms | Audio verlässt die EU; Standard: kein Training mit API-Daten, Abuse-Monitoring bis 30 Tage (Suchauszüge, siehe oben). Preis ~0,003 USD/Minute laut WhisperM-README und früherer Recherche, nicht erneut verifiziert. | 29.10.2026 |
+| Browser-APIs MediaRecorder / getUserMedia | Web-Standard | – | Keine Fremdbibliothek. Chromium/Firefox: `audio/webm;codecs=opus`, Safari: `audio/mp4`. | 29.10.2026 |
+
