@@ -537,3 +537,18 @@ Screenshots: `screenshots/*-portal-social-upload-ideen.png`, `*-portal-social-id
 Screenshots zusätzlich: `screenshots/*-portal-social-idee-bild.png`.
 
 **n8n (28.10.2026, abends):** Workflow „TEAM: Social-Upload“ als `ZfStqgtH3IZugnv5` angelegt (26 Knoten, Credential „Supabase account“ per `setNodeCredential` gesetzt und mit manuellem Lauf 44187 bestätigt, inaktiv; erster Anlauf `rA6Rc7Ojv5NYyBZe` archiviert). `gThnlTbObVDF67Wl` (PR #49) deaktiviert, PR #49 geschlossen. Live-Test steht aus, bis Timo die SQL ausgeführt hat; dann aktivieren und als Timo einen Link, ein Bild und ein kleines Video als Probe einstellen.
+
+## 30. Nachtrag 29.10.2026: Anleitungs-Video in der Übersicht (Branch `feature/portal-anleitung-video`, KI-erstellt: Claude Code)
+
+Timos Wunsch: Sein Loom-Video, in dem er Kurt das Portal erklärt, soll in der Übersicht für alle sichtbar sein, auch für Neue.
+
+- **Portal (`docs/team/index.html`, `anleitungVideoHtml`, `bindAnleitungVideo`):** Karte „🎬 So funktioniert das Portal – Timo erklärt es in 9½ Minuten“ direkt unter den Kennzahlen, für alle Rollen. Loom-Einbettung (`loom.com/embed/d8374b76435f44bba6bae75895ded4bf`, 4:3, ohne Loom-Kopfleiste, Vollbild erlaubt, `loading="lazy"`) plus Link „In Loom öffnen“. Die Karte ist ein `<details>`: standardmäßig offen, nach dem Zuklappen merkt sich das Gerät den Zustand (`localStorage mt-video-zu`), und der Iframe wird beim Zuklappen entfernt (Video stoppt, kein Datenverkehr). Beim Aufklappen kommt er wieder. Das Video ist öffentlich (Loom-oEmbed liefert Titel „Portal-Übersicht für Teamaufgaben und Social Media“, 570 Sekunden); keine CSP im Portal, kein Supabase, kein n8n.
+- **Falle beim Bauen:** Chrome feuert das `toggle`-Ereignis auch beim ersten Aufbau eines offenen `<details>`. Die erste Fassung baute die Karte im Handler neu und lief damit in eine Endlosschleife (Browsertest: Element 61-mal „detached“). Jetzt bleibt das Element stehen, nur Iframe und Beschriftung wechseln.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Browser (Desktop und Handy, Loom per Route-Stub): Karte mit Titel, genau ein Iframe mit der Video-ID, Klick auf die Kopfzeile → Iframe weg und `mt-video-zu = 1`, zweiter Klick → Iframe wieder da | bestanden |
+| Portal-Skript `node --check` | bestanden |
+| `npm run test:office` | 115 von 115 (Stand main; PR #60 bringt einen weiteren Test) |
+
+Screenshots: `screenshots/*-portal-freigaben-admin.png` zeigen die Karte oben in der Übersicht.
