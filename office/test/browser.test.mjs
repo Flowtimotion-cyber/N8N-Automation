@@ -16,6 +16,8 @@ const neueSeite = async (vp, opts = {}) => {
   p.on('pageerror', e => fehler.push(vp.width + ' ' + opts.name + ' pageerror: ' + e.message));
   // Chromium meldet blockierte Skripte in sandboxed iframes als Konsolenfehler: Bei den HTML-Testartefakten ist genau das erwartet (die Sandbox greift).
   p.on('console', m => { if (m.type() === 'error' && !(opts.netzfehlerErwartet && /Failed to load resource/.test(m.text())) && !/Blocked script execution in '[^']*\/testbilder\/[^']*' because the document's frame is sandboxed/.test(m.text())) fehler.push(vp.width + ' ' + opts.name + ' console: ' + m.text()); });
+  // Das Anleitungs-Video (Loom) in der Portal-Übersicht nie wirklich laden: Stub statt Netz
+  await p.route(/loom\.com\//, r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Loom (Teststub)</title>' }));
   return p;
 };
 const oeffne = async (p, hash, tok = TOKENS.m_timo) => { await p.goto(S.base + '/office/?z=' + tok + hash, { waitUntil: 'networkidle' }); await p.waitForTimeout(250); };
@@ -249,6 +251,15 @@ test('Portal-Übersicht: „Für dich“ bündelt alle Freigaben; Prüfen-Dialog
     await post(S.base, '/api/test/reset', { szenario: 'standard' });
     const a = await portal(vp, TOKENS.m_timo, 'portal-freigaben-admin');
     assert.equal(await a.locator('#freiKarte').count(), 0, 'keine separate Freigabe-Karte mehr');
+    // Anleitungs-Video (Loom) oben in der Übersicht: offen für alle, einklappbar, Zustand bleibt je Gerät
+    assert.ok((await text(a, '#anleitungVideo')).includes('So funktioniert das Portal'), 'Video-Karte mit Titel');
+    assert.equal(await a.locator('#anleitungVideo iframe').count(), 1, 'Loom-Iframe eingebettet');
+    assert.match(await a.locator('#anleitungVideo iframe').getAttribute('src'), /loom\.com\/embed\/d8374b76435f44bba6bae75895ded4bf/);
+    await a.locator('#anleitungVideo summary').click(); await a.waitForTimeout(200);
+    assert.equal(await a.locator('#anleitungVideo iframe').count(), 0, 'eingeklappt: kein Iframe mehr');
+    assert.equal(await a.evaluate(() => localStorage.getItem('mt-video-zu')), '1', 'Zustand gemerkt');
+    await a.locator('#anleitungVideo summary').click(); await a.waitForTimeout(200);
+    assert.equal(await a.locator('#anleitungVideo iframe').count(), 1, 'wieder aufgeklappt');
     const box = await text(a, '#fuerDich .fd-frei');
     for (const s of ['Wartet auf deine Freigabe', 'Auftrag starten: Marketing-Texter', 'E-Mail senden', 'Lillien (Test)', 'Dunkelmodus für das Portal', 'Vorschlag von Kurt']) assert.ok(box.includes(s), 'Freigabe-Abschnitt nennt ' + s);
     await shot(a, 'portal-freigaben-admin', vp);

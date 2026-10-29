@@ -658,6 +658,26 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   }
 
   // ---------- Übersicht ----------
+  // Anleitungs-Video in der Übersicht (Loom, Timo erklärt Kurt das Portal, 29.10.2026). Für alle sichtbar, einklappbar; der Zustand bleibt je Gerät.
+  const ANLEITUNG_VIDEO = { id: 'd8374b76435f44bba6bae75895ded4bf', titel: 'So funktioniert das Portal', dauer: '9½ Minuten' };
+  const anleitungIframe = () => '<iframe src="https://www.loom.com/embed/' + ANLEITUNG_VIDEO.id + '?hide_owner=true&hide_share=true&hideEmbedTopBar=true" title="' + esc(ANLEITUNG_VIDEO.titel) + '" loading="lazy" allow="fullscreen" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"></iframe>';
+  function anleitungVideoHtml() {
+    const zu = ls.get('mt-video-zu') === '1';
+    return '<details class="card" id="anleitungVideo" style="padding:12px 16px"' + (zu ? '' : ' open') + '><summary style="cursor:pointer;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;list-style:none"><span>🎬 ' + esc(ANLEITUNG_VIDEO.titel) + ' – Timo erklärt es in ' + esc(ANLEITUNG_VIDEO.dauer) + '</span><span class="small muted" data-videozu>' + (zu ? 'Video einblenden ▾' : 'Video ausblenden ▴') + '</span></summary>' +
+      '<p class="small muted" style="margin:6px 0 10px">Für alle im Team, auch wenn du neu dazukommst: Aufgaben, Social Media, Vorschläge und das KI Office in einem Rundgang. Fragen dazu gern als Vorschlag oder direkt an Timo.</p>' +
+      '<div data-videobox style="position:relative;padding-bottom:75%;height:0;background:#000;border-radius:10px;overflow:hidden">' + (zu ? '' : anleitungIframe()) + '</div>' +
+      '<p class="small" style="margin:8px 0 0"><a href="https://www.loom.com/share/' + ANLEITUNG_VIDEO.id + '" target="_blank" rel="noopener">In Loom öffnen ↗</a></p></details>';
+  }
+  // Beim Zuklappen fliegt der Iframe raus (Video stoppt, kein Datenverkehr), beim Aufklappen kommt er wieder. Das Element selbst bleibt stehen,
+  // weil Chrome „toggle“ auch beim ersten Aufbau eines offenen <details> feuert und ein Neuaufbau dort eine Endlosschleife wäre.
+  function bindAnleitungVideo() {
+    const d = $('#anleitungVideo'); if (!d) return;
+    d.ontoggle = () => {
+      ls.set('mt-video-zu', d.open ? '0' : '1');
+      const s = d.querySelector('[data-videozu]'); if (s) s.textContent = d.open ? 'Video ausblenden ▴' : 'Video einblenden ▾';
+      const box = d.querySelector('[data-videobox]'); if (box && (box.children.length > 0) !== d.open) box.innerHTML = d.open ? anleitungIframe() : '';
+    };
+  }
   function vStart() {
     const ich = D.ich.mitglied_id;
     const offen = D.aufgaben.filter(a => a.status !== 'Erledigt');
@@ -673,7 +693,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="kpis">' +
       kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
       kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
-      (zurFreigabe.length ? '<div class="card" style="border:2px solid #9b2fc7"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">📣 ' + zurFreigabe.length + (zurFreigabe.length === 1 ? ' Social-Beitrag wartet' : ' Social-Beiträge warten') + ' auf deine Freigabe</h2><button class="btn" data-goto="social">Alle im Plan ansehen →</button></div>' +
+      anleitungVideoHtml() +
+      (zurFreigabe.length ? '<div class="card" style="border:2px solid #9b2fc7"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">📣 ' + zurFreigabe.length + (zurFreigabe.length === 1 ? 'Social-Beitrag wartet' : ' Social-Beiträge warten') + ' auf deine Freigabe</h2><button class="btn" data-goto="social">Alle im Plan ansehen →</button></div>' +
         '<p class="small muted" style="margin:6px 0 4px">Öffnen, Bilder und Text prüfen, dann „Freigeben &amp; planen“. Erst danach wird auf Instagram veröffentlicht.</p>' +
         zurFreigabe.slice(0, 5).map(postRow).join('') + '</div>' : '') +
       '<div id="fuerDich"></div>' +
@@ -686,7 +707,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="card"><h2>Neue Anfragen</h2>' + (anfr.length ? anfr.map(a => '<div style="padding:8px 0;border-top:1px solid var(--line)"><b>' + esc(a.firma || a.name) + '</b> <span class="chip">' + esc(a.status || 'neu') + '</span><div class="small muted">' + esc(a.name) + ' · ' + fmtDT(a.eingegangen) + '</div></div>').join('') : '<p class="empty">Keine Anfragen.</p>') +
       '<button class="btn ghost" data-goto="kurs">Details →</button></div></div></div>' +
       (late.length ? '<div class="card"><h2>Überfällig</h2>' + late.sort(sortAufgaben).map(taskRow).join('') + '</div>' : '');
-    bindTasks(); bindPosts();
+    bindTasks(); bindPosts(); bindAnleitungVideo();
     document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
     const n = $('[data-neu]'); if (n) n.onclick = () => aufgabeDialog(null);
     dashBind();
