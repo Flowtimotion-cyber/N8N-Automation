@@ -44,7 +44,9 @@ test('Workflow-Datei: keine Zugangsdaten, kein Credential-Bezug außer Typ, Webh
 test('Registry in agenten.json und team_office.sql stimmen überein', () => {
   const reg = JSON.parse(readFileSync(new URL('../agenten.json', import.meta.url), 'utf8'));
   const sql = readFileSync(new URL('../../supabase/team_office.sql', import.meta.url), 'utf8');
-  for (const a of reg.agenten) assert.ok(sql.includes("('" + a.agent_id + "', '" + a.name.replace(/'/g, "''") + "'"), a.agent_id + ' fehlt in SQL');
+  // Später hinzugekommene Agenten haben ihren Seed in der Migration, die sie eingeführt hat (z. B. medien-cutter in team_social_ideen_upload.sql).
+  const seeds = sql + readFileSync(new URL('../../supabase/team_social_ideen_upload.sql', import.meta.url), 'utf8');
+  for (const a of reg.agenten) assert.ok(seeds.includes("('" + a.agent_id + "', '" + a.name.replace(/'/g, "''") + "'"), a.agent_id + ' fehlt in SQL');
   assert.ok(/create or replace function team_laden\(\)/.test(sql)); assert.ok(sql.includes("'office_runs'")); assert.ok(sql.includes('enable row level security'));
   for (const a of reg.agenten) assert.ok(['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'].includes(a.modell), a.agent_id);
 });

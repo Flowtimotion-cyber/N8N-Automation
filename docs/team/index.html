@@ -2381,12 +2381,14 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="card" style="padding:12px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b>Unsere Profile:</b>' + PROFILE.map(([n, u, h]) => '<a class="btn sec" style="padding:6px 12px" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(n) + ' · ' + esc(h) + ' ↗</a>').join('') + '</div>' +
       '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt(KANAELE, F.kanal) + '</select><span class="small muted">' +
       SSTATUS.map(s => esc(s) + ': ' + L.filter(p => p.status === s).length).join(' · ') + '</span></div>' +
+      socialKarten() +
       (Object.keys(G).length ? Object.entries(G).map(([k, arr]) => '<div class="card"><h2>' + esc(k) + '</h2>' + arr.map(postRow).join('') + '</div>').join('') : '<div class="card"><p class="empty">Keine kommenden Beiträge.</p></div>') +
       (ohne.length ? '<div class="card"><h2>Ideen ohne Termin</h2>' + ohne.map(postRow).join('') + '</div>' : '') +
       (vorbei.length ? '<div class="card"><details><summary><b>Vergangene Beiträge (' + vorbei.length + ')</b></summary>' + vorbei.map(postRow).join('') + '</details></div>' : '');
     bindPosts();
     $('#neup').onclick = () => postDialog(null);
     $('#fk').onchange = e => { F.kanal = e.target.value; saveF(); vSocial(); };
+    bindSocialKarten();
   }
   function postDialog(p) {
     const neu = !p;
@@ -2430,6 +2432,178 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     };
     if ($('#p_ok')) $('#p_ok').onclick = ev => speichern('Geplant', ev.target);
     $('#pf').onsubmit = ev => { ev.preventDefault(); speichern($('#p_s').value, ev.target.querySelector('[type=submit]')); };
+  }
+
+  // ---------- Social: eigene Videos und Ideen (n8n „TEAM: Social-Upload“, Webhook team-social) ----------
+  // Zwei Bereiche im Register „Social Media“: (1) Rohvideo hochladen → Auftrag an den Medien-Cutter im KI Office,
+  // (2) Links zu starken Beiträgen (Mitbewerber, Vorbilder) als Steinbruch für Themen. Daten liegen in Supabase
+  // (team_social_uploads, team_social_ideen, Bucket medien-roh); der Browser bekommt nur eine signierte Upload-Adresse.
+  const SOCIAL_API = API.replace('team-api-v2', 'team-social');
+  const ISTATUS = ['neu', 'geprüft', 'umgesetzt', 'verworfen'];
+  const UPSTATUS = { hochladen: 'Upload nicht beendet', hochgeladen: 'hochgeladen', beauftragt: 'beim Medien-Cutter', geschnitten: 'Entwurf zur Abnahme', fehler: 'Fehler', geloescht: 'gelöscht' };
+  const SF = { status: ls.get('mt-ideenstatus') || 'offen' };
+  let SD = null, socialCache = null;
+  async function socialApi(aktion, daten) {
+    let r = null, j = null;
+    try { r = await fetch(SOCIAL_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) }); j = await r.json(); } catch (e) {}
+    if (!r || !r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || (r && r.status === 404 ? 'Der Social-Upload ist noch nicht eingerichtet (Workflow „TEAM: Social-Upload“ in n8n fehlt).' : 'Der Social-Upload ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.'));
+    return j;
+  }
+  function socialLaden(frisch) { if (frisch || !socialCache) socialCache = socialApi('laden').catch(e => { socialCache = null; throw e; }); return socialCache; }
+  const fmtBytes = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB';
+  const upKanaele = () => (SD && SD.kanaele) || ['LinkedIn', 'Instagram', 'YouTube', 'TikTok', 'Facebook', 'Sonstiges'];
+  function socialKarten() {
+    return '<div class="card" id="upBox"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🎬 Eigenes Video hochladen</h2><button class="btn sec" id="up_neu">+ Video hochladen</button></div>' +
+      '<p class="small muted">Rohvideo rein (Handy, Zoom, Dreh). Der Medien-Cutter schneidet im Momentum-Stil: Untertitel, Bauchbinden, Grafiken, Logo, 9:16 und 16:9. Er legt Entwürfe zur Abnahme ab, veröffentlicht wird nichts ohne Timo.</p><div id="upListe"><p class="empty small">Lädt …</p></div></div>' +
+      '<div class="card" id="ideenBox"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">💡 Ideen &amp; starke Mitbewerber-Posts</h2><button class="btn sec" id="id_neu">+ Link einfügen</button></div>' +
+      '<p class="small muted">Links zu Beiträgen, die gut funktionieren (Mitbewerber, Vorbilder, eigene Treffer), Screenshots oder einfach eine Idee in zwei Sätzen: Was ist daran stark, welches Thema wird daraus für uns? Der Social-Planer leitet Themen ab – Text oder Bild kopieren nie.</p>' +
+      '<div class="tools"><select id="id_st"><option value="offen"' + (SF.status === 'offen' ? ' selected' : '') + '>Neu und geprüft</option><option value="alle"' + (SF.status === 'alle' ? ' selected' : '') + '>Alle</option>' + ISTATUS.map(s => '<option value="' + s + '"' + (SF.status === s ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select></div>' +
+      '<div id="idListe"><p class="empty small">Lädt …</p></div></div>';
+  }
+  function bindSocialKarten() {
+    $('#up_neu').onclick = () => uploadDialog();
+    $('#id_neu').onclick = () => ideeDialog(null);
+    $('#id_st').onchange = e => { SF.status = e.target.value; ls.set('mt-ideenstatus', SF.status); socialListen(); };
+    socialLaden().then(d => { SD = d; if (tab === 'social') socialListen(); }).catch(e => { if (tab !== 'social') return; const h = '<p class="empty small">' + esc(e.message) + '</p>'; if ($('#upListe')) $('#upListe').innerHTML = h; if ($('#idListe')) $('#idListe').innerHTML = h; });
+  }
+  function uploadRow(u) {
+    const st = UPSTATUS[u.status] || u.status;
+    const warn = u.status === 'fehler' || u.status === 'hochladen';
+    return '<div class="post" data-up="' + esc(u.upload_id) + '" style="cursor:default"><div class="date"><span>🎬</span></div>' +
+      '<div><div style="font-weight:600">' + esc(u.thema || u.dateiname) + '</div><div class="meta"><span class="chip">' + esc(u.kanal || '') + '</span><span class="chip"' + (warn ? ' style="background:#fde2e2;color:#8a1c1c"' : '') + '>' + esc(st) + '</span><span>' + esc(u.dateiname) + ' · ' + fmtBytes(u.groesse || 0) + ' · ' + esc(fmtDT(u.erstellt)) + ' · ' + esc(mitglied(u.erstellt_von).name || u.erstellt_von || '') + '</span></div>' +
+      (u.kontext ? '<div class="small muted">' + esc(u.kontext.slice(0, 160)) + (u.kontext.length > 160 ? ' …' : '') + '</div>' : '') +
+      (u.fehler ? '<div class="small" style="color:#8a1c1c">⚠ ' + esc(u.fehler) + '</div>' : '') + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">' +
+      (u.run_id ? '<a class="btn ghost" href="' + OFFICE + '#/run/' + encodeURIComponent(u.run_id) + '">Im KI Office ↗</a>' : (u.status === 'hochgeladen' || u.status === 'fehler' ? '<button type="button" class="btn ghost" data-upauf="' + esc(u.upload_id) + '">Auftrag an Medien-Cutter</button>' : '')) +
+      (istAdmin() && u.status !== 'geloescht' ? '<button type="button" class="btn ghost" data-updel="' + esc(u.upload_id) + '" style="color:var(--red)">Löschen</button>' : '') + '</div></div>';
+  }
+  function ideeRow(i) {
+    let host = ''; try { host = new URL(i.link).hostname.replace(/^www\./, ''); } catch (e) {}
+    const symbol = i.art === 'bild' ? '🖼️' : (i.art === 'idee' ? '✏️' : '💡');
+    const kopf = i.link ? '<a href="' + esc(i.link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">' + esc(i.titel || host || 'Link') + ' ↗</a>' : esc(i.titel || 'Idee');
+    return '<div class="post" data-idee="' + esc(i.idee_id) + '"><div class="date">' + (i.bild_url ? '<img src="' + esc(i.bild_url) + '" alt="" loading="lazy" style="width:56px;height:44px;object-fit:cover;border-radius:8px">' : '<span>' + symbol + '</span>') + '</div>' +
+      '<div><div style="font-weight:600">' + kopf + '</div>' +
+      '<div class="meta"><span class="chip">' + esc(i.kanal || '') + '</span><span class="chip">' + esc(i.status || 'neu') + '</span>' + (i.quelle ? '<span>' + esc(i.quelle) + '</span>' : '') + (host ? '<span class="muted">' + esc(host) + '</span>' : '') + '</div>' +
+      (i.warum_stark ? '<div class="small">' + (i.art === 'idee' ? '' : 'Stark: ') + esc(i.warum_stark.slice(0, 160)) + (i.warum_stark.length > 160 ? ' …' : '') + '</div>' : '') +
+      (i.thema_fuer_uns ? '<div class="small muted">Für uns: ' + esc(i.thema_fuer_uns.slice(0, 120)) + '</div>' : '') + '</div>' +
+      '<div>' + av(i.erstellt_von) + '</div></div>';
+  }
+  function socialListen() {
+    if (!SD || !$('#upListe')) return;
+    const U = SD.uploads || [];
+    $('#upListe').innerHTML = U.length ? U.slice(0, 8).map(uploadRow).join('') + (U.length > 8 ? '<p class="small muted">… und ' + (U.length - 8) + ' ältere.</p>' : '') : '<p class="empty small">Noch kein Video hochgeladen.</p>';
+    let I = SD.ideen || [];
+    if (SF.status === 'offen') I = I.filter(i => i.status === 'neu' || i.status === 'geprüft'); else if (SF.status !== 'alle') I = I.filter(i => i.status === SF.status);
+    $('#idListe').innerHTML = I.length ? I.slice(0, 30).map(ideeRow).join('') : '<p class="empty small">Noch keine Links gesammelt. Jeder im Team darf hier starke Beiträge einfügen.</p>';
+    document.querySelectorAll('[data-idee]').forEach(e => e.onclick = () => ideeDialog((SD.ideen || []).find(i => i.idee_id === e.dataset.idee)));
+    document.querySelectorAll('[data-upauf]').forEach(b => b.onclick = async () => { b.disabled = true; try { toast(await cutterAuftrag((SD.uploads || []).find(u => u.upload_id === b.dataset.upauf))); await socialNeu(); } catch (e) { toast(e.message); b.disabled = false; } });
+    document.querySelectorAll('[data-updel]').forEach(b => b.onclick = async () => {
+      if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Wirklich löschen? Die Datei ist dann weg.'; return; }
+      b.disabled = true; try { await socialApi('upload_loeschen', { upload_id: b.dataset.updel }); toast('Rohvideo gelöscht'); await socialNeu(); } catch (e) { toast(e.message); b.disabled = false; }
+    });
+  }
+  async function socialNeu() { SD = await socialLaden(true); if (tab === 'social') socialListen(); }
+  // Auftragstext für den Medien-Cutter (gleiche Fassung wie auftragsText in social/lib/social.js)
+  function cutterText(u) {
+    return ['Rohvideo im Momentum-Stil für ' + (u.kanal || 'LinkedIn') + ' schneiden: ' + (u.thema || ''), 'Datei: ' + (u.bucket || 'medien-roh') + '/' + (u.pfad || '(Pfad über upload_id ' + u.upload_id + ' nachschlagen)'), u.kontext ? 'Kontext: ' + u.kontext : '',
+      'Erwartet: 3–5 Clip-Vorschläge mit Zeitmarken als Notiz, dann Rohschnitt mit Untertiteln, Bauchbinden und Logo nach Momentum-Marke in 9:16 und 16:9. Nichts veröffentlichen, alles zur Abnahme.'].filter(Boolean).join('\n').slice(0, 2000);
+  }
+  // Auftrag im KI Office anlegen (Agent medien-cutter, Projekt „Social Media“). Startfreigabe-Regeln greifen wie überall.
+  async function cutterAuftrag(u) {
+    if (!u) throw new Error('Upload nicht gefunden.');
+    const r = await officeApi('auftrag_starten', { agent_id: 'medien-cutter', projekt: 'Social Media', auftrag: cutterText(u), idempotenzschluessel: 'upload-' + u.upload_id,
+      eingabe: { upload_id: u.upload_id, bucket: u.bucket || 'medien-roh', pfad: u.pfad || null, dateiname: u.dateiname, mime: u.mime || null, thema: u.thema, kanal: u.kanal, kontext: u.kontext || '', stil: 'momentum' } });
+    await socialApi('upload_status', { upload_id: u.upload_id, status: 'beauftragt', run_id: r.run_id });
+    return r.status === 'wartet_freigabe' ? 'Auftrag angelegt, wartet auf Timos Freigabe im KI Office.' : 'Auftrag an den Medien-Cutter angelegt.';
+  }
+  // Datei mit der signierten Adresse direkt in den Bucket laden (PUT, mit Fortschritt). Kein Supabase-Schlüssel im Browser.
+  function dateiHochladen(url, datei, mime, fortschritt) {
+    return new Promise((ok, nein) => {
+      const x = new XMLHttpRequest();
+      x.open('PUT', url, true);
+      x.setRequestHeader('Content-Type', mime || datei.type || 'application/octet-stream');
+      x.setRequestHeader('x-upsert', 'false');
+      x.upload.onprogress = ev => { if (ev.lengthComputable && fortschritt) fortschritt(ev.loaded / ev.total); };
+      x.onload = () => x.status >= 200 && x.status < 300 ? ok() : nein(new Error('Upload abgelehnt (' + x.status + ').' + (x.status === 400 || x.status === 403 ? ' Die Upload-Adresse ist abgelaufen oder die Datei passt nicht. Bitte noch einmal versuchen.' : '')));
+      x.onerror = () => nein(new Error('Upload abgebrochen (Netz). Bitte noch einmal versuchen.'));
+      x.send(datei);
+    });
+  }
+  function uploadDialog() {
+    const max = (SD && SD.max_bytes) || 2147483648;
+    $('#dlgInner').innerHTML = '<h2>Eigenes Video hochladen</h2><form id="upf">' +
+      '<div class="f"><label for="up_f">Videodatei (.mp4, .mov, .webm, .mkv – bis 2 GB)</label><input id="up_f" type="file" accept="video/*,.mp4,.mov,.webm,.mkv,.m4v" required></div>' +
+      '<div class="f"><label for="up_t">Thema (worum geht es, eine Zeile)</label><input id="up_t" required minlength="3" maxlength="160" placeholder="z. B. Werkstatt-Dreh: Warum Routinearbeit teuer ist"></div>' +
+      '<div class="f2"><div class="f"><label for="up_k">Kanal</label><select id="up_k">' + opt(upKanaele(), 'LinkedIn') + '</select></div><div class="f"><label>Stil</label><input value="Momentum (Untertitel, Bauchbinden, Logo)" disabled></div></div>' +
+      '<div class="f"><label for="up_x">Kontext für den Schnitt (was passiert, worauf achten, welche Stellen sind stark)</label><textarea id="up_x" rows="3" maxlength="2000"></textarea></div>' +
+      '<div class="f"><label style="display:flex;gap:8px;align-items:flex-start;font-weight:500"><input id="up_e" type="checkbox" required style="margin-top:3px"><span>Die gezeigten Personen sind mit Aufnahme und Veröffentlichung einverstanden (Dozenten, Teilnehmer, Gäste). Ohne Häkchen wird nichts hochgeladen.</span></label></div>' +
+      '<div id="up_s" class="small muted" style="min-height:1.4em"></div><progress id="up_p" max="100" value="0" style="width:100%;display:none"></progress>' +
+      '<p class="small muted">Nach dem Upload entsteht ein Auftrag an den Medien-Cutter im KI Office. Rohmaterial wird 90 Tage aufbewahrt, dann gelöscht.</p>' +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="up_c">Abbrechen</button><button class="btn" type="submit">Hochladen</button></div></form>';
+    const dlg = openDlg(true);
+    $('#up_c').onclick = () => dlg.close();
+    $('#upf').onsubmit = async ev => {
+      ev.preventDefault();
+      const btn = ev.target.querySelector('[type=submit]'); const f = $('#up_f').files[0]; const s = $('#up_s'), p = $('#up_p');
+      if (!f) { toast('Bitte eine Videodatei wählen.'); return; }
+      if (f.size > max) { toast('Die Datei ist größer als 2 GB. Bitte vorher kürzen oder komprimieren.'); return; }
+      if (!$('#up_e').checked) { toast('Ohne das Häkchen zur Einwilligung wird nichts hochgeladen.'); return; }
+      btn.disabled = true; $('#up_c').disabled = true; dlgGeaendert = true;
+      try {
+        s.textContent = 'Upload-Adresse holen …';
+        const u = await socialApi('upload_url', { dateiname: f.name, groesse: f.size, mime: f.type, thema: $('#up_t').value, kanal: $('#up_k').value, kontext: $('#up_x').value, einwilligung: true });
+        p.style.display = ''; s.textContent = 'Lädt hoch … 0 %';
+        await dateiHochladen(u.url, f, u.mime, q => { p.value = Math.round(q * 100); s.textContent = 'Lädt hoch … ' + Math.round(q * 100) + ' %'; });
+        s.textContent = 'Hochgeladen, Auftrag wird angelegt …';
+        await socialApi('upload_status', { upload_id: u.upload_id, status: 'hochgeladen' });
+        let hinweis = 'Video hochgeladen.';
+        try { hinweis = 'Video hochgeladen. ' + await cutterAuftrag({ upload_id: u.upload_id, bucket: u.bucket, pfad: u.pfad, dateiname: f.name, mime: u.mime, thema: $('#up_t').value, kanal: $('#up_k').value, kontext: $('#up_x').value }); }
+        catch (e) { hinweis = 'Video hochgeladen. Auftrag noch nicht angelegt: ' + e.message + ' Du kannst ihn in der Liste mit „Auftrag an Medien-Cutter“ nachholen.'; }
+        dlgGeaendert = false; dlg.close(); toast(hinweis); await socialNeu();
+      } catch (e) { s.textContent = ''; p.style.display = 'none'; toast(e.message); btn.disabled = false; $('#up_c').disabled = false; dlgGeaendert = false; }
+    };
+  }
+  function ideeDialog(i) {
+    const neu = !i;
+    i = i || { link: '', titel: '', quelle: '', kanal: '', warum_stark: '', thema_fuer_uns: '', status: 'neu', bild_pfad: '', bild_url: null };
+    const maxBild = (SD && SD.max_bild_bytes) || 20971520;
+    $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Idee oder starken Beitrag merken' : 'Idee bearbeiten') + '</h2><form id="idf">' +
+      '<p class="small muted">Ein Link, ein Bild oder ein paar Worte reichen. Alles drei geht auch.</p>' +
+      '<div class="f"><label for="id_l">Link (Beitrag, Reel, Artikel, Profil – https)</label><input id="id_l" type="url" maxlength="1000" placeholder="https://www.linkedin.com/posts/…" value="' + esc(i.link) + '"></div>' +
+      '<div class="f"><label for="id_b">Bild (Screenshot oder eigenes Motiv, bis 20 MB)</label><input id="id_b" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif">' +
+      '<div id="id_bv">' + (i.bild_url ? '<img src="' + esc(i.bild_url) + '" alt="" style="max-height:140px;border-radius:8px;margin-top:6px">' : '') + '</div></div>' +
+      '<div class="f"><label for="id_t">Worum geht es (kurz)</label><input id="id_t" maxlength="200" value="' + esc(i.titel) + '"></div>' +
+      '<div class="f2"><div class="f"><label for="id_q">Quelle / Autor</label><input id="id_q" maxlength="200" placeholder="Firma oder Profilname" value="' + esc(i.quelle) + '"></div>' +
+      '<div class="f"><label for="id_k">Kanal</label><select id="id_k"><option value="">automatisch aus dem Link</option>' + opt(upKanaele(), i.kanal) + '</select></div></div>' +
+      '<div class="f"><label for="id_w">Die Idee, oder: Was ist an dem Beitrag stark? (Hook, Aufbau, Bild, Zahl, Ton …)</label><textarea id="id_w" rows="3" maxlength="2000">' + esc(i.warum_stark) + '</textarea></div>' +
+      '<div class="f"><label for="id_u">Welches Thema wird daraus für uns?</label><input id="id_u" maxlength="500" value="' + esc(i.thema_fuer_uns) + '"></div>' +
+      '<div class="f"><label for="id_s">Status</label><select id="id_s">' + opt(ISTATUS, i.status || 'neu') + '</select></div>' +
+      '<div id="id_st" class="small muted" style="min-height:1.2em"></div>' +
+      '<p class="small muted">Regel: Wir leiten Themen und Formate ab, wir kopieren keine Texte und keine Bilder.</p>' +
+      '<div class="dlgbtns">' + (!neu ? '<button type="button" class="btn danger left" id="id_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="id_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(false);
+    $('#id_c').onclick = () => dlg.close();
+    $('#id_b').onchange = () => { const f = $('#id_b').files[0]; $('#id_bv').innerHTML = f ? '<img src="' + URL.createObjectURL(f) + '" alt="" style="max-height:140px;border-radius:8px;margin-top:6px">' : ''; };
+    if (!neu) $('#id_del').onclick = async () => {
+      if (!$('#id_del').dataset.sicher) { $('#id_del').dataset.sicher = '1'; $('#id_del').textContent = 'Wirklich löschen?'; return; }
+      try { await socialApi('idee_loeschen', { idee_id: i.idee_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await socialNeu(); } catch (e) { toast(e.message); }
+    };
+    $('#idf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try {
+        let bild_pfad = i.bild_pfad || '';
+        const f = $('#id_b').files[0];
+        if (f) {
+          if (f.size > maxBild) throw new Error('Das Bild ist größer als 20 MB.');
+          $('#id_st').textContent = 'Bild wird hochgeladen …';
+          const b = await socialApi('idee_bild_url', { dateiname: f.name, groesse: f.size, mime: f.type });
+          await dateiHochladen(b.url, f, b.mime, q => { $('#id_st').textContent = 'Bild wird hochgeladen … ' + Math.round(q * 100) + ' %'; });
+          bild_pfad = b.pfad;
+        }
+        await socialApi('idee_speichern', { idee_id: i.idee_id, link: $('#id_l').value.trim(), bild_pfad, titel: $('#id_t').value, quelle: $('#id_q').value, kanal: $('#id_k').value, warum_stark: $('#id_w').value, thema_fuer_uns: $('#id_u').value, status: $('#id_s').value });
+        dlg.close(); toast('Gespeichert'); await socialNeu();
+      } catch (e) { $('#id_st').textContent = ''; toast(e.message); btn.disabled = false; }
+    };
   }
 
   // ---------- Kurs ----------

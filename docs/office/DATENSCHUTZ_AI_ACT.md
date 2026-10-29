@@ -141,3 +141,16 @@ Spalten: Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | O
 | DSFA | Prüfen: systematische Auswertung von Kommunikation kann DSFA-pflichtig sein (Art. 35), insbesondere bei Beschäftigtenmails | ⬜ juristisch |
 
 Bis diese Punkte geklärt sind, bekommt der PA-Assistent keinen Ausführer mit Postfachzugriff.
+
+## Nachtrag 28.10.2026: Anwendungsfall E, Medien-Cutter (Rohvideos aus dem Portal)
+
+| Punkt | Einordnung | Stand |
+|---|---|---|
+| Verarbeitung | Teammitglieder laden Rohvideos (Drehs, Zoom-Aufzeichnungen, Dozenten-Material) in den privaten Bucket `medien-roh`; der Agent `medien-cutter` transkribiert, schlägt Clip-Stellen vor, schneidet mit Untertiteln, Bauchbinden und Logo und legt Entwürfe zur Abnahme ab | gebaut (Upload, Auftrag), Schnitt-Werkzeuge noch offen |
+| Datenkategorien | Bild und Stimme von Dozenten, Teilnehmern und Gästen; gesprochene Inhalte (ggf. Kunden- oder Betriebsdaten in Zoom-Aufzeichnungen) | – |
+| Rechtsgrundlage | Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, bei Veröffentlichung zusätzlich § 22 KUG) der gezeigten Personen; beim Upload ist der Vermerk Pflicht, die schriftliche Einwilligung (Vorlage) ist organisatorisch zu ergänzen | ⬜ organisatorisch |
+| Modellaufruf | Transkription: lokal (Whisper auf Timos Rechner) oder Cloud (ElevenLabs Scribe = Drittlandtransfer, AV-Vertrag nötig). Clip-Auswahl über Claude: nur Transkript-Auszüge, keine Videodaten, an das Modell | ⬜ Entscheidung Timo (Steckbrief v2, Punkt 3) |
+| Datenminimierung | Browser bekommt nur eine signierte Upload-Adresse (2 h), nie einen Supabase-Schlüssel; Teammitglieder sehen keinen Speicherpfad; Rohmaterial 90 Tage, dann Löschung (LOESCHKONZEPT.md Abschnitt 5) | technisch |
+| Transparenz | Dozenten und Teilnehmer vor Aufnahmen informieren, dass KI-gestützt geschnitten wird; keine KI-Veränderung von Personen (Stimme, Gesicht) | ⬜ organisatorisch |
+| AI Act | Kein Hochrisiko; Art. 50 (Kennzeichnung) berührt, sobald KI-generierte Elemente (Avatar, synthetische Stimme) in veröffentlichte Clips kommen → Kennzeichnung im Beitrag | eingeordnet |
+| Veröffentlichung | Immer Freigabe durch Timo (Social-Plan, Status „Geplant“); der Agent veröffentlicht nie | technisch (bestehende Regel) |

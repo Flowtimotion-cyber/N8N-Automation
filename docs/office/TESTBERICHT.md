@@ -499,3 +499,41 @@ Timos Wunsch: Unter „Kurs & Teilnehmer“ soll es ein Register der Kursteilneh
 Screenshots: `screenshots/*-portal-teilnehmer-register.png`, `*-portal-teilnehmer-dialog.png`.
 
 **Datenschutz:** Das Register enthält Personendaten und Förderangaben (Bildungsgutschein). Sichtbar ist es nur für Timo und die Dozenten, gespeichert wird es in Supabase wie die übrigen Teamdaten. Gehört ins Löschkonzept (z. B. Löschen nach Ende der Aufbewahrungsfrist der Maßnahme). Offen für Timo bzw. den Datenschutz-Check.
+
+## 28. Nachtrag 28.10.2026: Social Media – eigene Videos hochladen und Ideen-Liste (Branch `feature/social-upload-ideen`, KI-erstellt: Claude Code)
+
+Timos Wunsch (Portal-Aufgabe `a_mvrzfqb4ca093f`): Im Register „Social Media“ eine Zeile, um eigene Videos hochzuladen, die der Agent im Momentum-Stil schneidet und mit Grafiken für Social Media versieht, und eine Zeile für Ideen und starke Posts von Mitbewerbern (Links). Upload-Ort laut Timo: Supabase Storage. n8n wird erst nach Timos Ja angefasst.
+
+- **Supabase (`supabase/team_social_ideen_upload.sql`, nach `team_teilnehmer.sql`):** Tabellen `team_social_ideen` (Link, Titel, Quelle, Kanal, warum stark, Thema für uns, Status neu/geprüft/umgesetzt/verworfen) und `team_social_uploads` (Pfad im Bucket, Dateiname, Größe, Thema, Kanal, Kontext, Einwilligung mit Zeitpunkt, Status, Run, `aufbewahren_bis` = 90 Tage). Funktionen `team_idee_speichern`, `team_upload_anlegen` (verweigert ohne Einwilligung), `team_upload_status`. Privater Storage-Bucket `medien-roh` (2 GB je Datei, keine Policies: nur service_role und signierte URLs). Papierkorb kennt die Art „idee“. Agent `medien-cutter` in der Registry mit `freigabe_noetig = true` (jeder Schnittauftrag wartet auf Timo).
+- **n8n, neuer Workflow „TEAM: Social-Upload“ (Webhook `team-social`), Portal-API v2 unberührt:** Logik in `social/lib/social.js` (Rechte, Eingaben, Pfade, Antworten), Generator `social/n8n/bauen-social.mjs` → `social/n8n/social.workflow.gen.js` nach dem Muster der WhatsApp-Inbox (PR #45). Aktionen `laden`, `idee_speichern`, `idee_loeschen`, `upload_url` (legt den Eintrag an und holt eine signierte Upload-Adresse, 2 h), `upload_status`, `upload_loeschen` (nur Admin: Datei aus dem Bucket, Eintrag „geloescht“). Agenten dürfen nur `laden` und `upload_status`. API-Vertrag in BESTANDSAUFNAHME.md (Nachtrag 28.10.).
+- **Portal (`docs/team/index.html`, Register Social Media):** Karte „🎬 Eigenes Video hochladen“ mit Dialog (Videodatei bis 2 GB, Thema, Kanal, fester Stil „Momentum“, Kontext für den Schnitt, Pflicht-Häkchen Einwilligung, Fortschrittsbalken). Ablauf: `upload_url` → PUT der Datei auf die signierte Adresse (XMLHttpRequest, kein Supabase-Schlüssel im Browser) → `upload_status` hochgeladen → `auftrag_starten` an `medien-cutter` (Office-API, Projekt „Social Media“, Eingabe mit `upload_id`, `bucket`, `pfad`, Thema, Kanal, Kontext) → `upload_status` beauftragt mit `run_id`. Scheitert der Auftrag (z. B. Agent noch nicht angelegt), bleibt der Upload mit dem Knopf „Auftrag an Medien-Cutter“ zum Nachholen. Liste zeigt Status (hochgeladen, beim Medien-Cutter, Entwurf zur Abnahme, Fehler), Link ins KI Office, Löschen nur für Timo (zwei Klicks). Karte „💡 Ideen & starke Mitbewerber-Posts“ mit Dialog (Link https Pflicht, Titel, Quelle, Kanal automatisch aus dem Link, warum stark, Thema für uns, Status), Filter (Standard: neu und geprüft), Papierkorb-Löschen. Ist der Workflow noch nicht eingerichtet, zeigen beide Karten einen ruhigen Hinweis, der Rest des Registers läuft weiter.
+- **Agent `medien-cutter`:** in `office/agenten.json` und im SQL-Seed; Werkzeuge `medien_lesen`, `video_schnitt`, `medien_entwurf_ablegen` sind noch zu bauen (Steckbrief v2, Restpunkt A). Der Registry-Test liest Seeds jetzt aus `team_office.sql` und `team_social_ideen_upload.sql`.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `node --test social/test/social.test.mjs`: Zugang (401, Agent 403 beim Schreiben), Ideen (nur https, Kanal aus dem Link, unbekannter Status → neu, Ersatztitel), Upload (nur Video, 0 Bytes, über 2 GB, Einwilligung muss `true` sein, Thema Pflicht, Pfad `JJJJ/MM/<id>_<name>`, MIME), Status (run_id-Format, löschen nur Admin), Helfer, `laden` (sortiert, ohne gelöschte, Pfad nur Admin/Agent) | 5 von 5 |
+| Code-Knoten der SDK-Datei (9 Stück) als Funktionskörper geparst, SDK-Datei `node --check` | bestanden |
+| Portal-Skript (`index.html`) `node --check` | bestanden |
+| Browser (Desktop und Handy, Chrome über puppeteer-core): beide Karten mit Daten, verworfene Ideen standardmäßig ausgeblendet, Filter „Alle“, Idee einfügen (`idee_speichern` mit Link, Status neu, Kanal leer = automatisch), Upload ohne Häkchen → keine Upload-Adresse, mit Häkchen → `upload_url` (Dateiname, 2048 Bytes, Einwilligung true) → genau ein PUT mit `token=test` → `upload_status` hochgeladen → Run im Office-Testadapter (`agent_id` medien-cutter, Projekt Social Media, `eingabe.upload_id`, Auftragstext „Momentum-Stil“) → `upload_status` beauftragt mit `run_id`; keine JavaScript-Fehler | bestanden |
+| `npm run test:office` | 115 von 115 |
+| Live gegen Supabase und n8n | **nicht geprüft** (Workflow noch nicht angelegt, SQL noch nicht ausgeführt; Reihenfolge unten) |
+
+Screenshots: `screenshots/*-portal-social-upload-ideen.png`, `*-portal-social-idee-dialog.png`, `*-portal-social-upload-dialog.png`.
+
+**Reihenfolge beim Einspielen (SETUP.md Abschnitt 14):** (1) `supabase/team_social_ideen_upload.sql` im SQL Editor, Kontrollabfrage `bucket = 1`, `agent = 1`; (2) Workflow „TEAM: Social-Upload“ aus `social/n8n/social.workflow.gen.js` in n8n anlegen, Credential „Supabase account“, aktivieren; (3) PR mergen; (4) als Timo einen Link einfügen und ein kleines Video hochladen, Auftrag unter Freigaben prüfen.
+
+**Offen für Timo (RESTPUNKTE.md):** Transkription lokal oder Cloud, schriftliche Einwilligungs-Vorlage, Löschlauf nach 90 Tagen, Werkzeuge des Medien-Cutters.
+
+**Nachtrag 28.10.2026 (abends): Zusammenführung mit PR #49, Freitext-Ideen und Bilder.** Beim Anlegen des n8n-Workflows fiel auf, dass PR #49 „Ideen-Briefkasten fürs ganze Team“ (27.10., claude.ai-Sitzung, nicht im Vault oder Status vermerkt) dasselbe Thema mit einer Tabelle gleichen Namens, öffentlichem Bucket und aktivem Workflow `gThnlTbObVDF67Wl` gebaut hatte. Timo hat entschieden: #50 ist die Basis. Übernommen aus #49: Freitext-Ideen ohne Link (`art = idee`) und Bilder zu Ideen (`art = bild`, Aktion `idee_bild_url`, öffentlicher Bucket `social-ideen`, 20 MB, Vorschaubild in der Liste). Die SQL zieht fehlende Spalten nach, falls #49s Tabelle schon existiert. PR #49 geschlossen, Workflow `gThnlTbObVDF67Wl` deaktiviert.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `social/test/social.test.mjs` (neu: leere Idee abgelehnt, Freitext ohne Link, Bild ohne Link, kaputter Bildpfad, `idee_bild_url` mit Endung/Größe/Agent-Verbot, `bildUrl`, `laden` mit `bild_url`) | 6 von 6 |
+| Code-Knoten der SDK-Datei (10 Stück) und `node --check`, Portal-Skript `node --check` | bestanden |
+| n8n `validate_workflow` der SDK-Datei | bestanden |
+| Browser (Desktop und Handy): Freitext-Idee mit Bild → `idee_bild_url` → ein PUT mit `token=bild` → `idee_speichern` mit `bild_pfad` und ohne Link, Vorschaubild in der Liste; alle Prüfungen von oben weiterhin | bestanden |
+| `npm run test:office` | 115 von 115 |
+
+Screenshots zusätzlich: `screenshots/*-portal-social-idee-bild.png`.
+
+**n8n (28.10.2026, abends):** Workflow „TEAM: Social-Upload“ als `ZfStqgtH3IZugnv5` angelegt (26 Knoten, Credential „Supabase account“ per `setNodeCredential` gesetzt und mit manuellem Lauf 44187 bestätigt, inaktiv; erster Anlauf `rA6Rc7Ojv5NYyBZe` archiviert). `gThnlTbObVDF67Wl` (PR #49) deaktiviert, PR #49 geschlossen. Live-Test steht aus, bis Timo die SQL ausgeführt hat; dann aktivieren und als Timo einen Link, ein Bild und ein kleines Video als Probe einstellen.

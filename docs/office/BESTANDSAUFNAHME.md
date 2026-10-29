@@ -78,3 +78,20 @@ Chat-Assistent `TJ5E1KT5MvzxvoD9` (gpt-5-mini, siehe `assistent/workflow.js`), W
 | 6 | n8n-Workflow „TEAM: Office-API“ als SDK-Code und Import-JSON, Adapter n8n/Test/Stubs | Backend-Vertrag, importierbar nach Freigabe durch Timo |
 | 7 | Tests (Unit, Integration, Browser mit Screenshots) und Pflicht-Prüfungen 1–8 | Testbericht |
 | 8 | Agenten-Registry, Claude-Code-Subagenten, Doku (Architektur, Setup, Sicherheit, Datenschutz/AI Act, Lizenzen, Skills, Betrieb, Bedienung, Löschkonzept, Restpunkte) | Abgabe |
+
+## Nachtrag 28.10.2026: API-Vertrag „TEAM: Social-Upload“ (Webhook `team-social`, KI-erstellt: Claude Code)
+
+Eigener Workflow neben der Portal-API v2 (die bleibt unberührt). Logik in `social/lib/social.js` (getestet), Workflow aus `social/n8n/bauen-social.mjs` → `social/n8n/social.workflow.gen.js`.
+Request: `POST …/team-social`, Body `{ "token": "…", "aktion": "…", "daten": { … } }`. Antwort wie bei der Portal-API.
+
+| Aktion | Wer | daten | Zweck |
+|---|---|---|---|
+| `laden` | alle aktiven Mitglieder, auch Agenten | – | `ideen` (letzte 200), `uploads` (letzte 50 ohne „geloescht“; `pfad` nur für Admin und Agenten), `kanaele`, `idee_status`, `max_bytes` |
+| `idee_speichern` | Menschen | `idee_id` (leer = neu), `link` (https), `bild_pfad` (aus `idee_bild_url`), `titel`, `quelle`, `kanal` (leer = aus dem Link), `warum_stark`, `thema_fuer_uns`, `status` (neu, geprüft, umgesetzt, verworfen), `post_id`. Mindestens Link, Bild oder Text; `art` wird daraus abgeleitet (link, bild, idee) | Link zu einem starken Beitrag, Freitext-Idee oder Bild merken oder ändern |
+| `idee_bild_url` | Menschen | `dateiname`, `groesse`, `mime` | signierte Upload-Adresse für ein Bild (.jpg, .png, .webp, .gif, bis 20 MB) im öffentlichen Bucket `social-ideen`; Antwort enthält `pfad` für `idee_speichern` und `bild_url` |
+| `idee_loeschen` | Menschen | `idee_id` | in den Papierkorb (Art „idee“, 30 Tage) |
+| `upload_url` | Menschen | `dateiname`, `groesse`, `mime`, `thema` (Pflicht), `kanal`, `kontext`, `einwilligung` (muss `true` sein) | legt `team_social_uploads` an und liefert eine signierte Upload-Adresse für den Bucket `medien-roh` (PUT, 2 Stunden gültig). Nur Videodateien (.mp4, .mov, .webm, .mkv, .m4v) bis 2 GB |
+| `upload_status` | Menschen und Agenten | `upload_id`, `status` (hochgeladen, beauftragt, geschnitten, fehler), `run_id`, `fehler` | Stand des Uploads; `beauftragt` kommt mit der `run_id` aus `auftrag_starten` (Office-API, Agent `medien-cutter`, Projekt „Social Media“) |
+| `upload_loeschen` | Admin | `upload_id` | Datei aus dem Bucket löschen, Eintrag auf „geloescht“ |
+
+Der Browser bekommt nie einen Supabase-Schlüssel: Er lädt die Datei mit der signierten Adresse direkt in den Bucket (XMLHttpRequest PUT mit Fortschritt). Die Rechteprüfung passiert in n8n (`socialAnfrage`).

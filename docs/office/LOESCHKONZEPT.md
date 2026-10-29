@@ -38,3 +38,14 @@ Stand: 17.10.2026 · Orientierung an DIN 66398 (Datenarten → Löschklassen →
 Die Löschaktion erzeugt im Office selbst keinen Eintrag (der Run ist weg). Als Nachweis dienen die n8n-Fehlerausführungen nicht (Erfolge werden nicht gespeichert). Restpunkt: schlankes Lösch-Protokoll (Zeit, Admin, Anzahl, Run-IDs ohne Inhalte) in einer eigenen Tabelle.
 
 Pflichtprüfung 7 (`office/test/verarbeitung.test.mjs`) belegt, dass Run, Ereignisse, Artefakte, Freigaben, Idempotenzschlüssel, Rückmelde-Schlüssel und gespiegelte Verlaufseinträge gemeinsam gelöscht werden und Ablageorte zurückgemeldet werden.
+
+## 5. Nachtrag 28.10.2026: Rohvideos und Ideen-Links im Social-Register (KI-erstellt: Claude Code)
+
+| Datenart | Wo | Personenbezug | Startzeitpunkt | Regelfrist (Vorschlag) | Umsetzung |
+|---|---|---|---|---|---|
+| Rohvideos (Dozenten, Teilnehmer, Gäste im Bild und Ton) | Supabase Storage, Bucket `medien-roh` (privat) | ja, stark (Bild, Stimme, Inhalte) | Upload | **90 Tage** (`team_social_uploads.aufbewahren_bis`), fertige Entwürfe leben als Social-Beitrag weiter | Heute: Admin löscht im Portal („Löschen“ beim Upload) oder per `upload_loeschen`. **Offen:** Lauf, der Dateien mit `aufbewahren_bis < heute` löscht (Restpunkt) |
+| Upload-Eintrag (Thema, Kontext, Dateiname, wer, Einwilligung mit Zeitpunkt, Run) | `team_social_uploads` | Uploader; Einwilligungs-Nachweis | Upload | wie Video + 1 Jahr als Nachweis der Einwilligung (Status `geloescht`, Pfad bleibt ohne Datei) | nur Admin |
+| Ideen-Links (fremde Beiträge, Autor/Firma als Quelle), Freitext-Ideen | `team_social_ideen` | Dritte (öffentliche Profile), Erfasser | Erfassung | solange genutzt; `verworfen` nach 180 Tagen aufräumen | Papierkorb (`idee_loeschen`, 30 Tage), danach weg |
+| Bilder zu Ideen (Screenshots fremder Beiträge, eigene Motive) | Supabase Storage, Bucket `social-ideen` (**öffentlich**, 20 MB) | möglich (Personen auf Screenshots) | Upload | wie die Idee; keine Rohvideos und keine Aufnahmen von Teilnehmern hier (dafür `medien-roh`) | **Offen:** Datei wird beim Löschen der Idee nicht mitgelöscht (Restpunkt) |
+
+Einwilligung: Beim Upload ist das Häkchen „Die gezeigten Personen sind mit Aufnahme und Veröffentlichung einverstanden“ Pflicht (`einwilligung_am` wird gespeichert). Das ersetzt keine schriftliche Einwilligung der Dozenten; die Vorlage dafür ist ein Restpunkt (DATENSCHUTZ_AI_ACT.md, Anwendungsfall E).
