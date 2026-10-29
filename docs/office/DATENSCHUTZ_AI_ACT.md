@@ -154,3 +154,19 @@ Bis diese Punkte geklärt sind, bekommt der PA-Assistent keinen Ausführer mit P
 | Transparenz | Dozenten und Teilnehmer vor Aufnahmen informieren, dass KI-gestützt geschnitten wird; keine KI-Veränderung von Personen (Stimme, Gesicht) | ⬜ organisatorisch |
 | AI Act | Kein Hochrisiko; Art. 50 (Kennzeichnung) berührt, sobald KI-generierte Elemente (Avatar, synthetische Stimme) in veröffentlichte Clips kommen → Kennzeichnung im Beitrag | eingeordnet |
 | Veröffentlichung | Immer Freigabe durch Timo (Social-Plan, Status „Geplant“); der Agent veröffentlicht nie | technisch (bestehende Regel) |
+
+## Ergänzung 29.10.2026: Diktat im Vertrieb (Spracherkennung)
+
+| Anwendungsfall | Rolle (Art. 3) | Risikokategorie | Transparenz | Menschliche Aufsicht | Bewertung |
+|---|---|---|---|---|---|
+| G. Diktat nach dem Gespräch: Vertriebsperson spricht ihre Notiz ein; Transkription (OpenAI) und Bereinigung/Zusammenfassung (OpenAI) | Betreiber | Minimalrisiko; keine Bewertung von Personen, keine automatisierte Entscheidung | Portal kennzeichnet KI-bereinigte Texte und zeigt Rohtranskript | Text ist vor dem Speichern bearbeitbar; gespeichert wird nur nach Klick | aktiv (nach Aktivierung des Workflows) |
+| H. Gesprächsmitschnitt (Häkchen „alle Beteiligten haben zugestimmt“) | Betreiber | wie G; zusätzlich § 201 StGB (Vertraulichkeit des Wortes) und Art. 13 DSGVO gegenüber dem Gesprächspartner | Hinweis im Portal und in der Aktivität | wie G | **nur mit dokumentierter Einwilligung aller Beteiligten**; Standard ist das Diktat ohne Mitschnitt |
+
+| Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | Offener Punkt | Verantwortlich |
+|---|---|---|---|---|---|---|
+| Rechtsgrundlage für Kontaktdaten und Gesprächsinhalte in Twenty | DSGVO Art. 6 Abs. 1 lit. b/f | ja | 🔶 wie bisherige Vertriebsnotizen; Diktat ändert die Datenart nicht, nur den Eingabeweg | – | Datenschutzerklärung für Interessenten: OpenAI als Empfänger für Gesprächsnotizen ergänzen | Timo |
+| Drittlandtransfer Audio und Text an OpenAI | Art. 44 ff.; DPF (siehe oben) | ja | ⬜ | – | OpenAI-DPA, EU-Projekt (`eu.api.openai.com`) prüfen; bis dahin Datensparsamkeit: keine Namen Dritter im Diktat, die nicht nötig sind | Timo |
+| Keine Speicherung von Audio | Art. 5 Abs. 1 lit. c, e | ja | ✅ n8n speichert Erfolgsausführungen nicht; Audio wird nur durchgereicht; Browser hält die Aufnahme nur im Arbeitsspeicher | `vertrieb/n8n/diktat.workflow.gen.js` (Einstellungen), Workflow-Settings | Fehlerausführungen (14 Tage) können Audio enthalten: `EXECUTIONS_DATA_MAX_AGE` setzen | Timo |
+| Mitschnitte nur mit Einwilligung | § 201 StGB; Art. 6, 13 DSGVO | ja | ✅ Standard ist Diktat ohne Mitschnitt; Mitschnitt nur über Häkchen mit Hinweis; Kennzeichnung in der Aktivität | Portal-Dialog, `aktivitaetBauen` | Kurze Teamregel schriftlich | Timo |
+| Zugriff nur Vertriebsrollen | Art. 25, 32 | ja | ✅ serverseitig (`diktatAnfrage`), Tests | `vertrieb/test/diktat.test.mjs` | – | – |
+

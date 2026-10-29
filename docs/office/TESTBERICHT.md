@@ -552,3 +552,15 @@ Timos Wunsch: Sein Loom-Video, in dem er Kurt das Portal erklärt, soll in der �
 | `npm run test:office` | 115 von 115 (Stand main; PR #60 bringt einen weiteren Test) |
 
 Screenshots: `screenshots/*-portal-freigaben-admin.png` zeigen die Karte oben in der Übersicht.
+
+## 31. Diktat im Vertrieb (29.10.2026)
+
+| Befehl | Ergebnis |
+|---|---|
+| `node --test vertrieb/test/diktat.test.mjs` | 6/6: Rechte (401/403 je Rolle und Status), Eingabegrenzen (25 MB, 30 Min., Dateityp), Prompts, robustes Lesen der Modellantwort (Codezaun, Text drumherum, kaputtes JSON → Rohtranskript), Kosten nur geschätzt, Aktivitätstext |
+| `node --test vertrieb/test/diktat.browser.test.mjs` | 6/6 (Playwright mit Fake-Mikrofon): Desktop und Mobil Aufnahme → Stopp → Ergebnis → als Aktivität gespeichert und in der Liste sichtbar; Dateiupload; Fehlerfälle keine Sprache (422), Dienst gestört (502), ohne KI-Bereinigung (Rohtranskript mit Hinweis), Datei > 25 MB, Workflow nicht aktiv (404 → Hinweis); Rolle `team` sieht den Vertrieb nicht; Tastatur (Enter startet, Escape bleibt bei laufender Aufnahme blockiert wie überall im Portal, „Abbrechen“ fragt nach und stoppt); keine JavaScript-Fehler. 11 Screenshots `docs/office/screenshots/*-vertrieb-diktat-*.png` |
+| `npm run test:office` | 115/115 weiterhin grün (Testserver um `/api/vertrieb` und `/api/diktat` ergänzt) |
+| n8n, Workflow `Zvn018lfOXFuzenF`, manuelle Läufe 48101 und 48102 (Pin-Daten statt Supabase/OpenAI) | Code-Knoten laufen in der echten n8n-Sandbox: ungültiger Token → 401 über „Antwort senden“; Erfolgspfad mit gepinnter Transkription und Modellantwort → 200 mit `aktivitaet`, `kosten.hinweis` „geschätzt“, Modelle |
+
+**Ungetestet (kein Zugang bzw. Workflow inaktiv):** echter Aufruf mit Audiodatei über den aktiven Webhook (Binärfeld-Name des Webhook-Knotens bei multipart, OpenAI-Transkription mit `gpt-4o-mini-transcribe`, `gpt-5-mini` mit `response_format: json_object`), Twenty-Notiz über die Vertriebs-API, Mikrofon auf echten Handys (iOS Safari liefert `audio/mp4`, wird akzeptiert). Erster echter Test: SETUP.md, Abschnitt Diktat.
+

@@ -9,6 +9,8 @@
 //   http://127.0.0.1:8787/team/               Team-Portal (spricht produktiv mit n8n; lokal nur mit Umleitung im Browsertest)
 //   POST /api/office      Office-API  { token, aktion, daten }
 //   POST /api/team        Portal-API-Nachbildung (nur aktion laden)
+//   POST /api/vertrieb    Vertriebs-API-Nachbildung (liste, details, notiz, kontakt_suchen, speichern, stufe) mit synthetischen Chancen
+//   POST /api/diktat      Diktat-API-Nachbildung (multipart: datei, token, …) mit festem Beispieltext statt OpenAI
 //   GET  /api/test/zustand, POST /api/test/zeit {sek}, POST /api/test/wartung, POST /api/test/neustart, POST /api/test/reset {szenario}
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -17,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { testSpeicher, TOKENS, tokenVonAgent } from './testdaten.mjs';
 import { Speicher, zufallsQuelle } from './speicher.mjs';
 import { TestAdapter } from '../adapter/test.js';
+import { vertriebDaten, vertriebAntwort, multipartLesen, diktatAntwortMock } from '../../vertrieb/dev/mock.mjs';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const DOCS = resolve(hier, '..', '..', 'docs');
@@ -27,6 +30,7 @@ const TEMPO = Number(arg('tempo', 10));          // virtuelle Sekunden je realer
 let szenario = arg('szenario', 'standard');
 
 let welt = testSpeicher({ szenario });
+let VD = vertriebDaten(Date.now());
 const WARTUNG_ALLE_SEK = 300;
 let naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000;
 const wartung = () => welt.speicher.aufruf({ aktion: 'wartung', intern: true });
@@ -44,6 +48,7 @@ if (TEMPO > 0) setInterval(() => zeitVor(0.5 * TEMPO), 500).unref();
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8', '.md': 'text/markdown; charset=utf-8', '.mp4': 'video/mp4', '.woff2': 'font/woff2' };
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Testadapter': '1' }); res.end(JSON.stringify(obj)); };
 const body = req => new Promise(ok => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e6) req.destroy(); }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch (e) { ok({ _ungueltig: true }); } }); });
+const rohBody = req => new Promise(ok => { const t = []; let n = 0; req.on('data', c => { n += c.length; if (n > 30e6) req.destroy(); else t.push(c); }); req.on('end', () => ok(Buffer.concat(t))); });
 
 function portalLaden(tok) {
   // Nachbildung der Portal-API v2 für den lokalen Browsertest: nur Lesen, nur Menschen, nur die Felder, die das Portal braucht.
@@ -72,6 +77,16 @@ const server = createServer(async (req, res) => {
       const [code, antwort] = portalLaden(String(b.token || ''));
       return json(res, code, antwort);
     }
+    if (url.pathname === '/api/vertrieb' && req.method === 'POST') {
+      const b = await body(req);
+      const [code, antwort] = vertriebAntwort(b, welt.speicher.T.team_mitglieder, VD, welt.uhr.ms);
+      return json(res, code, antwort);
+    }
+    if (url.pathname === '/api/diktat' && req.method === 'POST') {
+      const mp = multipartLesen(await rohBody(req), req.headers['content-type']);
+      const [code, antwort] = diktatAntwortMock(mp, welt.speicher.T.team_mitglieder, welt.uhr.ms);
+      return json(res, code, antwort);
+    }
     if (url.pathname.startsWith('/api/test/')) {
       const was = url.pathname.slice('/api/test/'.length);
       if (was === 'zustand') return json(res, 200, { ok: true, szenario, jetzt: welt.uhr.iso(), tempo: TEMPO, tabellen: welt.speicher.T, externe: welt.speicher.externe, ausgefuehrt: welt.adapter.ausgefuehrt, protokoll: welt.speicher.protokoll.slice(-50), tokens: TOKENS });
@@ -80,7 +95,7 @@ const server = createServer(async (req, res) => {
       if (was === 'zeit') { zeitVor(Math.max(0, Number(b.sek) || 0)); return json(res, 200, { ok: true, jetzt: welt.uhr.iso() }); }
       if (was === 'wartung') { welt.adapter.laufen(); const r = wartung(); return json(res, r.code, r.antwort); }
       if (was === 'neustart') { const r = neustart(); return json(res, 200, { ok: true, wartung: r.antwort }); }
-      if (was === 'reset') { szenario = b.szenario === 'leer' ? 'leer' : 'standard'; welt = testSpeicher({ szenario }); naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000; return json(res, 200, { ok: true, szenario }); }
+      if (was === 'reset') { szenario = b.szenario === 'leer' ? 'leer' : 'standard'; welt = testSpeicher({ szenario }); VD = vertriebDaten(Date.now()); naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000; return json(res, 200, { ok: true, szenario }); }
       return json(res, 404, { ok: false });
     }
     if (url.pathname.startsWith('/api/')) return json(res, 405, { ok: false, fehler: 'Methode nicht erlaubt oder unbekannter Pfad.' });
