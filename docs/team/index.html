@@ -562,6 +562,16 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#v_ber').onchange = ev => { vBereich = ev.target.value; liste(); };
     $('#v_grp').onchange = ev => { vGruppe = ev.target.checked; ls.set('mt-vgruppe', vGruppe ? '1' : ''); liste(); };
   }
+  // Vorschlag annehmen (Admin): Aufgabe im Portal-Projekt anlegen, Vorschlag auf „geplant“ setzen. Genutzt vom Vorschlags-Dialog und von „Für dich“.
+  async function vorschlagAnnehmen(v, antwort) {
+    const titel = 'Portal: ' + (v.titel || '');
+    const beschreibung = (v.text || '') + '\n\nAus dem Vorschlag von ' + mitglied(v.autor).name + ' (Bereich ' + (v.bereich || 'Sonstiges') + ').';
+    const namen = projektNamen();
+    const projekt = namen.find(n => /team[\s-]?portal/i.test(n)) || namen[0] || '';
+    const r = await api('aufgabe_speichern', { titel, beschreibung, verantwortlich: D.ich.mitglied_id, deadline: '', prio: 2, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
+    await api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: v.titel, text: v.text, bereich: v.bereich, status: 'geplant', antwort: antwort || v.antwort || '', aufgabe_id: r.id || '' });
+    return r;
+  }
   function vorschlagDialog(v) {
     const neu = !v, admin = istAdmin();
     v = v || { titel: '', text: '', bereich: 'Sonstiges', status: 'neu', autor: D.ich.mitglied_id, antwort: '' };
@@ -587,11 +597,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const auf = $('#v_auf'); if (auf) auf.onclick = async () => {
       auf.disabled = true;
       try {
-        const titel = 'Portal: ' + $('#v_t').value;
-        const beschreibung = ($('#v_x').value || '') + '\n\nAus dem Vorschlag von ' + mitglied(v.autor).name + ' (Bereich ' + $('#v_b').value + ').';
-        const projekt = projektNamen().includes('Team-Portal') ? 'Team-Portal' : (projektNamen()[0] || '');
-        const r = await api('aufgabe_speichern', { titel, beschreibung, verantwortlich: D.ich.mitglied_id, deadline: '', prio: 2, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
-        await api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value, status: 'geplant', antwort: $('#v_a') ? $('#v_a').value : (v.antwort || ''), aufgabe_id: r.id || '' });
+        await vorschlagAnnehmen(Object.assign({}, v, { titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value }), $('#v_a') ? $('#v_a').value : (v.antwort || ''));
         dlg.close(); toast('Aufgabe angelegt und Vorschlag auf „geplant“ gesetzt'); await laden(true);
       } catch (e) { toast(e.message); auf.disabled = false; }
     };
@@ -2989,6 +2995,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         else P.freigabe.push({ typ: 'agent', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (hatLink ? ' · mit Vorschau-Link' : ''), aufgabe: a, wichtig: /prüfen|freigeb|frage|entscheid/i.test(a.titel) });
       }
     }
+    // 1b) Neue Vorschläge fürs Portal: Timo entscheidet (annehmen → Aufgabe, ablehnen); bis dahin stehen sie hier
+    if (admin) for (const v of (D.vorschlaege || [])) if (v.status === 'neu')
+      P.freigabe.push({ typ: 'vorschlag', zeit: v.erstellt, titel: v.titel, text: 'Vorschlag von ' + mitglied(v.autor).name + ' · ' + (v.bereich || 'Sonstiges') + (Array.isArray(v.stimmen) && v.stimmen.length > 1 ? ' · ' + v.stimmen.length + '× „Finde ich gut“' : ''), vorschlag: v, wichtig: true });
     // 2) Freigaben und Rückfragen aus dem KI Office
     if (off) {
       const reg = id => (off.agenten || []).find(g => g.agent_id === id) || {};
@@ -3037,7 +3046,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     for (const x of Object.values(proA)) P.geaendert.push({ typ: 'aufgabe', zeit: x.zeit, titel: x.a.titel, text: (x.n > 1 ? x.n + ' neue Einträge, zuletzt ' : '') + mitglied(x.letzt.autor).name + ': ' + fdKurz(x.letzt.text), aufgabe: x.a });
     for (const k of Object.keys(P)) { P[k].sort((x, y) => fdZeit(y.zeit) - fdZeit(x.zeit)); P[k].forEach(p => { p.neu = fdZeit(p.zeit) >= seit; }); }
     // Freigaben: formelle Office-Freigaben und Agenten-Aufgaben mit „prüfen/freigeben/Frage“ zuerst, „Wird getestet“ danach
-    const rang = p => p.typ === 'formal' ? 0 : (p.typ === 'agent' && p.wichtig) ? 1 : p.typ === 'agent' ? 2 : 3;
+    const rang = p => p.typ === 'formal' ? 0 : p.typ === 'vorschlag' ? 1 : (p.typ === 'agent' && p.wichtig) ? 1 : p.typ === 'agent' ? 2 : 3;
     P.freigabe.sort((x, y) => rang(x) - rang(y) || fdZeit(y.zeit) - fdZeit(x.zeit));
     return P;
   }
@@ -3073,22 +3082,23 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 
   // Prüfen-Dialog: Inhalt lesen (Beschreibung, Vorschau-Links, verknüpfte Notizen, Verlauf) und direkt entscheiden.
   function fdPruefen(p, off) {
-    const admin = istAdmin(), a = p.aufgabe, r = p.run || {}, f = p.freigabe;
+    const admin = istAdmin(), a = p.aufgabe, r = p.run || {}, f = p.freigabe, v = p.vorschlag || {};
     const reg = id => ((off && off.agenten) || []).find(g => g.agent_id === id) || {};
     const artefakte = r.run_id ? ((off && off.artefakte) || []).filter(x => x.run_id === r.run_id) : [];
     const V = a ? (D.verlauf || []).filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').slice(-5) : [];
-    const quellen = [a && a.beschreibung, ...V.map(v => v.text), r.auftrag, r.zusammenfassung, f && f.inhalt_vorschau, p.frage, ...artefakte.map(x => (x.ablageort || '') + ' ' + (x.zusammenfassung || ''))].filter(Boolean).join('\n');
+    const quellen = [a && a.beschreibung, ...V.map(v => v.text), r.auftrag, r.zusammenfassung, f && f.inhalt_vorschau, p.frage, v.text, ...artefakte.map(x => (x.ablageort || '') + ' ' + (x.zusammenfassung || ''))].filter(Boolean).join('\n');
     const links = [...new Set((quellen.match(/https?:\/\/[^\s<>()"'\]]+/g) || []).map(u => u.replace(/[.,;:!?]+$/, '')))].slice(0, 6);
     const titel = new Set();
     for (const m of quellen.matchAll(/\[\[([^\]]+)\]\]/g)) titel.add(m[1].trim().toLowerCase());
     for (const m of quellen.matchAll(/Notiz [„"]([^“”"]+)[“”"]/g)) titel.add(m[1].trim().toLowerCase());
     const notizen = (D.notizen || []).filter(n => titel.has(String(n.titel).trim().toLowerCase())).slice(0, 3);
-    const art = { test: 'Aufgabe zum Prüfen', agent: 'Aufgabe von einem Agenten', bericht: 'Bericht eines Agenten (zur Kenntnis)', run: 'Agenten-Ergebnis zum Abnehmen', formal: 'Freigabe im KI Office', frage: 'Rückfrage eines Agenten' }[p.typ] || '';
+    const art = { test: 'Aufgabe zum Prüfen', agent: 'Aufgabe von einem Agenten', bericht: 'Bericht eines Agenten (zur Kenntnis)', run: 'Agenten-Ergebnis zum Abnehmen', formal: 'Freigabe im KI Office', frage: 'Rückfrage eines Agenten', vorschlag: 'Neuer Vorschlag fürs Portal' }[p.typ] || '';
     let inhalt = '';
     if (a) inhalt += '<div class="md">' + md(a.beschreibung || '_(keine Beschreibung)_') + '</div>';
     if (p.typ === 'run') inhalt += '<p class="small muted" style="margin:0">Auftrag</p><div class="md">' + md(r.auftrag || '') + '</div><p class="small muted" style="margin:10px 0 0">Zusammenfassung des Agenten</p><div class="md">' + md(r.zusammenfassung || '_(keine)_') + '</div>' +
       (artefakte.length ? '<p class="small muted" style="margin:10px 0 0">Ergebnisse</p>' + artefakte.map(x => '<div class="small">📄 <b>' + esc(x.titel) + '</b> [' + esc(x.art) + ']' + (x.ablageort ? ' · ' + esc(x.ablageort) : '') + '</div>').join('') : '');
     if (p.typ === 'formal') inhalt += '<div class="md">' + md(f.inhalt_vorschau || r.auftrag || '') + '</div>';
+    if (p.typ === 'vorschlag') inhalt += '<div class="md">' + md(v.text || '_(kein Text)_') + '</div><p class="small muted" style="margin:8px 0 0">Von ' + esc(mitglied(v.autor).name) + ' · Bereich ' + esc(v.bereich || 'Sonstiges') + ' · ' + esc(fmtDT(v.erstellt)) + (Array.isArray(v.stimmen) && v.stimmen.length ? ' · „Finde ich gut“: ' + esc(v.stimmen.map(id => mitglied(id).name).join(', ')) : '') + '</p>';
     if (p.typ === 'frage') inhalt += '<div class="note"><b>Frage:</b> ' + esc(p.frage || '–') + '</div><p class="small muted" style="margin:10px 0 0">Ursprünglicher Auftrag</p><div class="md">' + md(r.auftrag || '') + '</div>';
     const linkHtml = links.length ? '<div class="fd-links">' + links.map((u, i) => '<a class="btn' + (i ? ' sec' : '') + '" href="' + esc(u) + '" target="_blank" rel="noopener" title="' + esc(u) + '">' + (i ? '↗ ' + esc(u.replace(/^https?:\/\//, '').slice(0, 40)) : '↗ Vorschau öffnen') + (/id-preview--[^/]*\.lovable\.app/i.test(u) ? ' (Lovable-Login nötig)' : '') + '</a>').join('') + '</div>' + (links.some(u => /id-preview--[^/]*\.lovable\.app/i.test(u)) && !notizen.length ? '<p class="small muted" style="margin:-4px 0 8px">Die Lovable-Vorschau öffnet sich nur, wenn du bei Lovable angemeldet bist. Den Text zum Gegenlesen findest du unten in der Beschreibung oder in einer verknüpften Notiz.</p>' : '') : '';
     const genannt = (D.aufgaben || []).filter(x => (!a || x.aufgabe_id !== a.aufgabe_id) && x.status !== 'Erledigt' && String(x.titel || '').length >= 12 && quellen.includes(x.titel)).slice(0, 6);
@@ -3100,9 +3110,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (p.typ === 'bericht') { ja = '✓ Gelesen (Erledigt)'; hinweis = 'Der Bericht wird als gelesen abgehakt. Wenn er Aufgaben nennt, öffnest du sie oben über „Genannte Aufgaben“.'; }
     else if (p.typ === 'test' || p.typ === 'agent') { ja = '✅ Freigeben (Erledigt)'; nein = '↩ Änderungen wünschen'; hinweis = p.typ === 'agent' ? 'Freigeben setzt die Aufgabe auf „Erledigt“. Der Agent macht dann weiter, zum Beispiel veröffentlicht er. Änderungswünsche gehen als Kommentar an den Agenten.' : 'Freigeben setzt die Aufgabe auf „Erledigt“. Änderungswünsche setzen sie zurück auf „In Arbeit“.'; }
     else if (p.typ === 'run') { ja = '✅ Abnehmen'; nein = '↩ Zurückweisen'; hinweis = 'Die Abnahme wird im KI Office beim Run vermerkt.'; }
+    else if (p.typ === 'vorschlag') { if (admin) { ja = '✅ Annehmen (geplant, Aufgabe anlegen)'; nein = 'Ablehnen'; hinweis = 'Annehmen setzt den Vorschlag auf „geplant“ und legt dazu eine Aufgabe im Portal-Projekt an, die du dann zuweisen kannst. Dein Kommentar geht als Antwort an die Person, die den Vorschlag gemacht hat. Ablehnen braucht eine kurze Begründung.'; } }
     else if (p.typ === 'formal') { if (admin) { ja = f.aktion === 'auftrag_start' ? '✅ Start freigeben' : '✅ Freigeben'; nein = 'Ablehnen'; hinweis = f.aktion === 'auftrag_start' ? 'Der Agent startet sofort. Die Freigabe gilt genau einmal und nur für diesen Text.' : 'Die Freigabe gilt 24 Stunden und genau einmal, nur für diesen Inhalt.'; } else hinweis = 'Freigeben kann nur Timo.'; }
     else if (p.typ === 'frage') { ja = '➤ Antwort senden'; hinweis = 'Der Agent arbeitet mit deiner Antwort weiter.'; }
-    const ziel = a ? '<button type="button" class="btn ghost" id="fd_auf">Ganze Aufgabe öffnen</button>' : (r.run_id ? '<a class="btn ghost" href="' + OFFICE + '#/run/' + encodeURIComponent(r.run_id) + '">Im KI Office öffnen</a>' : '');
+    const ziel = a ? '<button type="button" class="btn ghost" id="fd_auf">Ganze Aufgabe öffnen</button>' : (r.run_id ? '<a class="btn ghost" href="' + OFFICE + '#/run/' + encodeURIComponent(r.run_id) + '">Im KI Office öffnen</a>' : (v.vorschlag_id ? '<button type="button" class="btn ghost" id="fd_vor">Im Register öffnen</button>' : ''));
     $('#dlgInner').innerHTML = '<p class="small muted" style="margin:0">' + esc(art) + (r.agent_id ? ' · ' + esc(reg(r.agent_id).name || r.agent_id) : '') + (a && a.projekt ? ' · ' + esc(a.projekt) : '') + '</p><h2 style="margin-top:2px">' + esc(p.titel) + '</h2>' +
       linkHtml + genanntHtml + '<div class="fd-inhalt">' + inhalt + notizHtml + verlaufHtml + '</div>' +
       '<form id="fdf" style="margin-top:12px">' + (ja || nein ? '<div class="f"><label for="fd_k">' + (p.typ === 'frage' ? 'Deine Antwort' : 'Kommentar (bei Änderungswunsch oder Ablehnung Pflicht)') + '</label><textarea id="fd_k" rows="3" maxlength="2000"></textarea></div>' : '') +
@@ -3111,6 +3122,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     openDlg(true);
     $('#fd_x').onclick = () => $('#dlg').close();
     const fa = $('#fd_auf'); if (fa) fa.onclick = () => { $('#dlg').close(); aufgabeDialog(a); };
+    const fv = $('#fd_vor'); if (fv) fv.onclick = () => { $('#dlg').close(); vorschlagDialog(v); };
     $('#dlgInner').querySelectorAll('[data-fdgen]').forEach(b => b.onclick = () => {
       const x = (D.aufgaben || []).find(y => y.aufgabe_id === b.dataset.fdgen); if (!x) return;
       $('#dlg').close();
@@ -3131,12 +3143,14 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       if (p.typ === 'bericht') fertig('Als gelesen abgehakt', k => api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', kommentar: 'Gelesen' + (k ? ': ' + k : '') })));
       else if (p.typ === 'test' || p.typ === 'agent') fertig('Freigegeben', k => api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', kommentar: 'Freigegeben' + (k ? ': ' + k : '') })));
       else if (p.typ === 'run') fertig('Abgenommen', k => officeApi('run_abnehmen', { run_id: r.run_id, abgenommen: true, kommentar: k }));
+      else if (p.typ === 'vorschlag') { if (admin) fertig('Aufgabe angelegt und Vorschlag auf „geplant“ gesetzt', k => vorschlagAnnehmen(v, k)); }
       else if (p.typ === 'formal') fertig(f.aktion === 'auftrag_start' ? 'Start freigegeben' : 'Freigabe erteilt', k => officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: 'erteilt', begruendung: k }));
       else if (p.typ === 'frage') { if (pflicht()) fertig('Antwort gesendet', k => officeApi('antwort', { run_id: r.run_id, text: k })); }
     };
     const fn = $('#fd_nein'); if (fn) fn.onclick = () => {
       if (!pflicht()) return;
       if (p.typ === 'agent') fertig('Änderungswunsch gesendet', k => api('kommentar', { aufgabe_id: a.aufgabe_id, text: 'Änderungswunsch: ' + k }));
+      else if (p.typ === 'vorschlag') fertig('Vorschlag abgelehnt', k => api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: v.titel, text: v.text, bereich: v.bereich, status: 'abgelehnt', antwort: k }));
       else if (p.typ === 'test') fertig('Zurück an ' + mitglied(a.verantwortlich).name, k => api('aufgabe_speichern', Object.assign({}, a, { status: 'In Arbeit', kommentar: 'Zurück zur Überarbeitung: ' + k })));
       else if (p.typ === 'run') fertig('Zurückgewiesen', k => officeApi('run_abnehmen', { run_id: r.run_id, abgenommen: false, kommentar: k }));
       else if (p.typ === 'formal') fertig('Abgelehnt', k => officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: 'abgelehnt', begruendung: k }));
