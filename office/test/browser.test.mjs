@@ -261,7 +261,7 @@ test('Portal-Übersicht: „Für dich“ bündelt alle Freigaben; Prüfen-Dialog
     await a.locator('#anleitungVideo summary').click(); await a.waitForTimeout(200);
     assert.equal(await a.locator('#anleitungVideo iframe').count(), 1, 'wieder aufgeklappt');
     const box = await text(a, '#fuerDich .fd-frei');
-    for (const s of ['Wartet auf deine Freigabe', 'Auftrag starten: Marketing-Texter', 'E-Mail senden', 'Lillien (Test)']) assert.ok(box.includes(s), 'Freigabe-Abschnitt nennt ' + s);
+    for (const s of ['Wartet auf deine Freigabe', 'Auftrag starten: Marketing-Texter', 'E-Mail senden', 'Lillien (Test)', 'Dunkelmodus für das Portal', 'Vorschlag von Kurt']) assert.ok(box.includes(s), 'Freigabe-Abschnitt nennt ' + s);
     await shot(a, 'portal-freigaben-admin', vp);
     await a.locator('#fuerDich .fd-z', { hasText: 'Auftrag starten: Marketing-Texter' }).first().click(); await a.waitForTimeout(200);
     const dlg = await text(a, '#dlgInner');
@@ -280,11 +280,58 @@ test('Portal-Übersicht: „Für dich“ bündelt alle Freigaben; Prüfen-Dialog
     const k2 = await text(l, '#fuerDich');
     assert.ok(k2.includes('Auftrag starten: Marketing-Texter'), 'Lillien sieht ihren wartenden Auftrag');
     assert.ok(!k2.includes('E-Mail senden'), 'fremde Freigaben sieht Lillien nicht');
+    assert.ok(!k2.includes('Dunkelmodus für das Portal'), 'neue Vorschläge sieht nur Timo in „Für dich“');
     await l.locator('#fuerDich .fd-z', { hasText: 'Auftrag starten' }).first().click(); await l.waitForTimeout(200);
     assert.ok((await text(l, '#dlgInner')).includes('Freigeben kann nur Timo'), 'Hinweis für Teammitglieder');
     assert.equal(await l.locator('#fd_ja').count(), 0, 'keine Entscheidungsknöpfe für andere');
     await shot(l, 'portal-freigaben-team', vp);
     await l.close();
+  }
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+});
+
+test('Portal-Übersicht: neue Vorschläge in „Für dich“ annehmen (Aufgabe + geplant) oder ablehnen (Begründung Pflicht)', async t => {
+  if (!B) return t.skip();
+  for (const vp of [DESKTOP, MOBIL]) {
+    await post(S.base, '/api/test/reset', { szenario: 'standard' });
+    const p = await neueSeite(vp, { name: 'portal-vorschlag-fuer-dich' });
+    const gesendet = [];
+    await p.route(/n8n\.hm-storage\.de\/webhook\/team-api-v2/, async r => {
+      const b = JSON.parse(r.request().postData() || '{}'); const j = body => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      if (b.aktion !== 'laden') gesendet.push({ aktion: b.aktion, daten: b.daten });
+      if (b.aktion === 'aufgabe_speichern') return j({ ok: true, id: 'a_neu_v' });
+      if (b.aktion === 'vorschlag_speichern') return j({ ok: true, id: b.daten.vorschlag_id });
+      const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() });
+    });
+    await p.route(/n8n\.hm-storage\.de\/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+    await p.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/start', { waitUntil: 'networkidle' }); await p.waitForTimeout(1800);
+    const mehr = p.locator('#fuerDich [data-fdmehr="freigabe"]'); if (await mehr.count()) { await mehr.click(); await p.waitForTimeout(150); }
+    // Annehmen
+    await p.locator('#fuerDich .fd-z', { hasText: 'Dunkelmodus für das Portal' }).first().click(); await p.waitForTimeout(200);
+    const dlg = await text(p, '#dlgInner');
+    for (const s of ['Neuer Vorschlag fürs Portal', 'Abends angenehmer', 'Von Kurt', 'Annehmen (geplant, Aufgabe anlegen)', 'Ablehnen', 'Im Register öffnen']) assert.ok(dlg.includes(s), 'Vorschlags-Dialog nennt ' + s);
+    await shot(p, 'portal-vorschlag-fuer-dich', vp);
+    await p.locator('#fd_k').fill('Gute Idee, kommt in die nächste Runde.');
+    await p.locator('#fd_ja').click(); await p.waitForTimeout(1200);
+    const auf = gesendet.find(g => g.aktion === 'aufgabe_speichern'); assert.ok(auf, 'Aufgabe angelegt');
+    assert.equal(auf.daten.titel, 'Portal: Dunkelmodus für das Portal'); assert.equal(auf.daten.status, 'Geplant'); assert.match(auf.daten.beschreibung, /Aus dem Vorschlag von Kurt/);
+    const vs = gesendet.find(g => g.aktion === 'vorschlag_speichern'); assert.ok(vs, 'Vorschlag gespeichert');
+    assert.equal(vs.daten.vorschlag_id, 'v_t4'); assert.equal(vs.daten.status, 'geplant'); assert.equal(vs.daten.aufgabe_id, 'a_neu_v'); assert.equal(vs.daten.antwort, 'Gute Idee, kommt in die nächste Runde.');
+    // Ablehnen: ohne Begründung bleibt der Dialog offen, mit Begründung geht der Vorschlag auf „abgelehnt“
+    await p.waitForTimeout(800);
+    // „mehr anzeigen“ ist ein Umschalter: nach dem Neuladen bleibt die Liste aufgeklappt, also nur klicken, wenn der Eintrag fehlt
+    let box2 = await text(p, '#fuerDich');
+    if (!box2.includes('Arbeitszeit-Formular verbreitern')) { const mehr2 = p.locator('#fuerDich [data-fdmehr="freigabe"]'); if (await mehr2.count()) { await mehr2.click(); await p.waitForTimeout(150); box2 = await text(p, '#fuerDich'); } }
+    assert.ok(box2.includes('Arbeitszeit-Formular verbreitern'), 'Box nach dem Annehmen zeigt die übrigen Vorschläge');
+    await p.locator('#fuerDich .fd-z', { hasText: 'Arbeitszeit-Formular verbreitern' }).first().click(); await p.waitForTimeout(200);
+    await p.locator('#fd_nein').click(); await p.waitForTimeout(150);
+    assert.ok(await p.evaluate(() => document.querySelector('#dlg').open), 'Ablehnen ohne Begründung bleibt im Dialog');
+    await p.locator('#fd_k').fill('Das Formular passt sich schon der Fensterbreite an.');
+    await p.locator('#fd_nein').click(); await p.waitForTimeout(1200);
+    const ab = gesendet.filter(g => g.aktion === 'vorschlag_speichern').pop();
+    assert.equal(ab.daten.vorschlag_id, 'v_t1'); assert.equal(ab.daten.status, 'abgelehnt'); assert.match(ab.daten.antwort, /Fensterbreite/);
+    assert.equal(gesendet.filter(g => g.aktion === 'aufgabe_speichern').length, 1, 'Ablehnen legt keine Aufgabe an');
+    await p.close();
   }
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
 });

@@ -538,6 +538,23 @@ Screenshots zusätzlich: `screenshots/*-portal-social-idee-bild.png`.
 
 **n8n (28.10.2026, abends):** Workflow „TEAM: Social-Upload“ als `ZfStqgtH3IZugnv5` angelegt (26 Knoten, Credential „Supabase account“ per `setNodeCredential` gesetzt und mit manuellem Lauf 44187 bestätigt, inaktiv; erster Anlauf `rA6Rc7Ojv5NYyBZe` archiviert). `gThnlTbObVDF67Wl` (PR #49) deaktiviert, PR #49 geschlossen. Live-Test steht aus, bis Timo die SQL ausgeführt hat; dann aktivieren und als Timo einen Link, ein Bild und ein kleines Video als Probe einstellen.
 
+## 29. Nachtrag 29.10.2026: Neue Vorschläge in „Für dich“ und Telegram-Hinweis an Timo (Branch `feature/vorschlaege-fuer-dich`, KI-erstellt: Claude Code)
+
+Timos Frage: Es waren neue Vorschläge (Verbesserungsanfragen) im Portal, aber keine Freigabe-Anfrage kam bei ihm an. Befund: Das Register „Vorschläge“ hatte keine Freigabe-Stufe und keine Benachrichtigung; neue Vorschläge standen nur im Register, die Box „Für dich“ kannte sie nicht. Timo: „Ja, einbauen.“
+
+- **Portal (`docs/team/index.html`):** Neue Vorschläge (Status „neu“) erscheinen für den Admin in „Für dich“ unter „Wartet auf deine Freigabe“, gleich hinter den Office-Freigaben. Der Prüfen-Dialog zeigt Text, Autor, Bereich, Datum und „Finde ich gut“-Stimmen, dazu „Im Register öffnen“. **Annehmen** legt eine Aufgabe „Portal: …“ im Portal-Projekt an (Projektname mit „Team-Portal“, sonst das erste Projekt) und setzt den Vorschlag auf „geplant“; der Kommentar wird die Antwort an die Person. **Ablehnen** braucht eine Begründung und setzt „abgelehnt“. Die Logik steckt in `vorschlagAnnehmen()`, die auch der Vorschlags-Dialog nutzt (vorher dort doppelt; nebenbei behoben: die Projektsuche verglich mit „Team-Portal“, das Projekt heißt aber „Team Portal - Wartung & Entwicklung“, deshalb landeten Aufgaben im ersten Projekt). Teammitglieder sehen Vorschläge weiterhin nur im Register.
+- **n8n „TEAM: Vorschlag-Hinweis (Telegram)“ (`kommunikation/n8n/vorschlag-hinweis.workflow.js`, ID `s8OfrONvk8JKXTrs`):** alle 10 Minuten `team_vorschlaege` mit Status „neu“ und `erstellt` nach dem zuletzt gemeldeten Zeitstempel (Gedächtnis `staticData.seit`, erster Lauf: letzte 24 Stunden), Namen aus `team_mitglieder`, eine Telegram-Nachricht an Timo (Chat wie „Arbeitszeiten – Freitag Bitte um Freigabe“) mit Titel, Autor, Bereich, Kurztext und Link auf Übersicht → „Für dich“. Keine Datenbankänderung, Portal-API v2 unberührt. Hinweis: `staticData` wird nur bei produktiven Läufen gespeichert; ein manueller Testlauf meldet dieselben Vorschläge beim ersten produktiven Lauf noch einmal.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Browser (Desktop und Handy): Timo sieht „Dunkelmodus für das Portal“ und „Vorschlag von Kurt“ in „Für dich“; Lillien sieht sie dort nicht; Dialog mit Text, „Von Kurt“, beiden Knöpfen und „Im Register öffnen“; Annehmen → `aufgabe_speichern` (Titel „Portal: …“, Status Geplant, Beschreibung nennt den Autor) und `vorschlag_speichern` (geplant, `aufgabe_id`, Antwort = Kommentar); Ablehnen ohne Begründung bleibt im Dialog, mit Begründung → `vorschlag_speichern` (abgelehnt), keine Aufgabe | bestanden |
+| Portal-Skript `node --check`, Workflow-Datei `node --check`, n8n `validate_workflow` (6 Knoten) | bestanden |
+| `npm run test:office` | 116 von 116 |
+| n8n: Workflow angelegt, Telegram-Credential vom Import gesetzt, Supabase-Credential per `setNodeCredential` nachgezogen, manueller Lauf | siehe unten |
+
+Screenshots: `screenshots/*-portal-vorschlag-fuer-dich.png`.
+
+**n8n-Lauf 46840 (manuell, 29.10.2026 13:09 UTC):** Zeitfenster seit 28.10. 13:09, „Neue Vorschläge“ antwortet 200 mit leerer Liste (Supabase-Credential wirkt), Kette endet sauber ohne Nachricht. Workflow danach aktiviert (alle 10 Minuten). Telegram-Versand noch nicht beobachtet, weil kein Vorschlag mit Status „neu“ aus den letzten 24 Stunden vorlag; der erste echte Vorschlag ist der Live-Test.
 ## 30. Nachtrag 29.10.2026: Anleitungs-Video in der Übersicht (Branch `feature/portal-anleitung-video`, KI-erstellt: Claude Code)
 
 Timos Wunsch: Sein Loom-Video, in dem er Kurt das Portal erklärt, soll in der Übersicht für alle sichtbar sein, auch für Neue.

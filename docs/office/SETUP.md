@@ -192,3 +192,12 @@ Betrifft die Agenten mit Ausführer `claude-code`: `akademie-redakteur`, `vertri
 **Rückweg:** Workflow deaktivieren; das Portal zeigt dann in beiden Karten „noch nicht eingerichtet“, der Rest des Registers läuft weiter. Tabellen und Bucket bleiben.
 
 **Zusammenführung mit PR #49 (28.10.2026, Timos Entscheidung „#50 als Basis“):** PR #49 „Ideen-Briefkasten fürs ganze Team“ (27.10., claude.ai-Sitzung) hatte dasselbe Thema mit einer Karte „Ideen & Material“, Tabelle `team_social_ideen` in anderem Aufbau, öffentlichem Bucket `social-ideen` und dem n8n-Workflow „TEAM: Social-Ideen-API (Portal)“ (`gThnlTbObVDF67Wl`). Übernommen in #50: Freitext-Ideen ohne Link und Bild-Uploads (gleicher Bucket-Name `social-ideen`). Nicht übernommen: Videos im öffentlichen Bucket (hier privat mit Einwilligung), interner Lese-Workflow `jxssRs6T9gZQCYTR` (Agenten lesen über `laden`). PR #49 wurde geschlossen, der Workflow `gThnlTbObVDF67Wl` deaktiviert; beides bleibt in n8n und GitHub nachlesbar.
+
+## 15. Vorschläge in „Für dich“ und Telegram-Hinweis (Branch `feature/vorschlaege-fuer-dich`, 29.10.2026, KI-erstellt: Claude Code)
+
+**Live seit 29.10.2026.** Neue Vorschläge aus dem Register „Vorschläge“ erscheinen für Timo in der Box „Für dich“ (Annehmen → Aufgabe im Portal-Projekt + „geplant“, Ablehnen mit Begründung). Dazu der n8n-Workflow **„TEAM: Vorschlag-Hinweis (Telegram)“** (`s8OfrONvk8JKXTrs`, Quelle `kommunikation/n8n/vorschlag-hinweis.workflow.js`): alle 10 Minuten neue Vorschläge (Status „neu“, jünger als der zuletzt gemeldete) per Telegram an Timo, Chat wie bei „Arbeitszeiten – Freitag Bitte um Freigabe“.
+
+- Keine SQL nötig, Portal-API v2 unberührt. Gedächtnis im Workflow (`staticData.seit`), erster Lauf meldet die letzten 24 Stunden.
+- Import per MCP: Telegram-Credential („Telegram Dialyse“) wurde automatisch gesetzt, die beiden Supabase-Knoten per `setNodeCredential` nachgezogen (Falle wie in Abschnitt 14).
+- Rückweg: Workflow deaktivieren; die Box „Für dich“ zeigt Vorschläge weiterhin, nur ohne Nachricht.
+- Nicht abgedeckt: Vorschläge, die beim Einschalten älter als 24 Stunden waren, werden nicht gemeldet; sie stehen aber in „Für dich“.
