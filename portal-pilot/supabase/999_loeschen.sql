@@ -16,6 +16,10 @@
 --   VORHER:  1. 990_export.sql ausführen und den Export dem Kunden übergeben.
 --            2. Prüfen, dass du im RICHTIGEN Supabase-Projekt bist (Projektname oben links).
 --            3. n8n-Workflows dieses Kunden deaktivieren (sonst laufen sie ins Leere).
+--            4. Falls Option 120 (Social) eingespielt war: in Supabase unter Storage die beiden Buckets
+--               "medien-roh" und "social-ideen" leeren ("Empty bucket") und löschen. Das "delete from
+--               storage.objects" unten entfernt nur die Datenbankzeilen, nicht die Dateien selbst.
+--               Alternativ reicht es, am Ende das ganze Supabase-Projekt zu löschen (siehe DANACH).
 --   DANACH:  Supabase-Projekt pausieren oder löschen (Settings → General), n8n-Credential löschen,
 --            Löschung mit Datum im Löschprotokoll vermerken.
 --
@@ -40,11 +44,13 @@ begin
     raise exception 'Nichts gelöscht. Sicherheitsabfrage steht auf "%". Zum Löschen den Kopfkommentar lesen und die Bestätigung eintragen.', bestaetigung;
   end if;
 
-  -- 1) Storage-Buckets der Option Social (nur bei Supabase): erst die Dateien, dann die Buckets
+  -- 1) Storage-Buckets der Option Social (nur bei Supabase): erst die Objektzeilen, dann die Buckets.
+  --    Achtung: Das löscht nur die Datenbankzeilen. Die Dateien im Storage vorher über die Oberfläche
+  --    entfernen ("Empty bucket"), oder danach das Projekt löschen.
   if to_regclass('storage.objects') is not null then
     delete from storage.objects where bucket_id in ('medien-roh', 'social-ideen');
     delete from storage.buckets where id in ('medien-roh', 'social-ideen');
-    raise notice 'Storage-Buckets medien-roh und social-ideen samt Dateien gelöscht.';
+    raise notice 'Storage-Buckets medien-roh und social-ideen aus der Datenbank entfernt (Dateien vorher über Storage → Empty bucket löschen).';
   end if;
 
   -- 2) Trigger auf Tabellen, die bleiben könnten (zur Sicherheit, bevor die Tabellen fallen)

@@ -14,7 +14,8 @@
 --
 -- Pflicht oder Option?  PFLICHT.
 -- Wovon hängt sie ab?   001_basis.sql (Tabellen) und 002_einstellungen.sql (Stichdatum, Einstellungen).
--- Was kommt danach?     Optionen 100 bis 150 nach Bedarf, dann 900_seed_musterfirma.sql oder 910_erster_admin.sql.
+-- Was kommt danach?     900_seed_musterfirma.sql oder 910_erster_admin.sql, danach Optionen 100 bis 150 nach Bedarf
+--                       (gleiche Reihenfolge wie in der README, Abschnitt 2).
 -- Mehrfach ausführbar?  Ja (create or replace).
 --
 -- Schlüssel im JSON (gleich wie im Original, damit die n8n-Workflows unverändert passen):
@@ -123,6 +124,10 @@ revoke all on function team_laden()                    from public, anon, authen
 revoke all on function team_laden_plus()               from public, anon, authenticated;
 grant execute on function team_laden()      to service_role;
 grant execute on function team_laden_plus() to service_role;
+-- Die beiden Hilfsfunktionen braucht nur team_laden() selbst (läuft als Besitzer, security definer);
+-- der Server soll sie nicht direkt aufrufen können.
+revoke all on function team_laden_optional(text, text) from service_role;
+revoke all on function team_laden_office_fenster()     from service_role;
 
 -- Kontrolle: muss 23 Schlüssel zeigen, darunter mitglieder, projekte, aufgaben, papierkorb, teilnehmer
 select jsonb_object_keys(team_laden_plus()) as schluessel order by 1;

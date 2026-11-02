@@ -157,7 +157,7 @@ dbTest('Zweites Einspielen von 001 bis 900: nichts doppelt, Zugangscodes und Fir
   assert.equal(d.papierkorb.length, 1);
   assert.deepEqual(Object.fromEntries(d.mitglieder.map(m => [m.mitglied_id, m.token])), tokens1, 'Zugangscodes unverändert');
   assert.equal(d.einstellungen.firma, 'Eigener Name GmbH', 'Seed überschreibt einen geänderten Firmennamen nicht');
-  assert.equal(sql(`select count(*) from team_einstellungen`), '6');
+  assert.equal(sql(`select count(*) from team_einstellungen`), '8');
   sql(`select team_einstellung_setzen('firma', '"Musterfirma GmbH"')`);
 });
 
@@ -313,7 +313,11 @@ dbTest('Option 120: Veröffentlichungs-Queue (fällig, erledigt, Fehler), Ideen,
   assert.equal(sql(`select status from team_social_uploads where upload_id = 'u1'`), 'hochgeladen');
   const e = sql(`select team_loeschen('idee', 'i1', 'mf-anna')`);
   assert.equal(sql(`select team_wiederherstellen('${e}')`), 'i1');
-  assert.equal(sql(`select count(*) from information_schema.schemata where schema_name = 'storage'`), '0', 'lokal kein Storage-Schema; Bucket-Teil wird übersprungen');
+  // Lokal gibt es meist kein Storage-Schema (Bucket-Teil der 120 wird übersprungen); existiert storage.buckets
+  // doch (z. B. Supabase CLI), muss die Option den Bucket angelegt haben.
+  if (sql(`select to_regclass('storage.buckets') is null`) === 'f') {
+    assert.equal(sql(`select count(*) from storage.buckets where id in ('medien-roh', 'social-ideen')`), '2', 'Buckets der Option 120 angelegt');
+  }
 });
 
 dbTest('Option 130: Zuweisung einer Aufgabe landet in der Benachrichtigungs-Warteschlange; Eingang idempotent; Signatur fail closed', () => {
@@ -382,7 +386,7 @@ dbTest('990: Export enthält alle vorhandenen Tabellen, aber keine Zugangscodes 
   for (const m of e.tabellen.team_mitglieder) assert.equal('token' in m, false, 'kein Token im Export');
   assert.ok(!JSON.stringify(e).includes('streng-geheim'));
   assert.equal(e.tabellen.team_aufgaben.length, 13);
-  assert.equal(e.tabellen.team_einstellungen.length, 6);
+  assert.equal(e.tabellen.team_einstellungen.length, 8);
 });
 
 dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts übrig; zweiter Lauf ist harmlos', () => {
@@ -416,7 +420,9 @@ test('PII-Scan: keine Firmen-, Personen- oder Zugangsdaten im Paket', () => {
     /llhwmz/i, /hm-storage/i, /github\.io/i, /\d{9,}/, /eyJ/, /sk-/i, /\+49/
   ];
   const treffer = [];
-  for (const f of readdirSync(SQL_ORDNER).sort()) {
+  const zuScannen = readdirSync(SQL_ORDNER).sort();   // alle Dateien im Paket, ausdrücklich auch README.md
+  assert.ok(zuScannen.includes('README.md'), 'README.md liegt im Paket und wird mitgescannt');
+  for (const f of zuScannen) {
     const zeilen = readFileSync(join(SQL_ORDNER, f), 'utf8').split('\n');
     zeilen.forEach((z, i) => { for (const m of muster) if (m.test(z)) treffer.push(`${f}:${i + 1} (${m}) ${z.trim().slice(0, 80)}`); });
   }

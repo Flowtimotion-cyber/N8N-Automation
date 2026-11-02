@@ -16,8 +16,17 @@
 -- =====================================================================================================
 
 -- 0) Erweiterung für Zufallswerte (Zugangscodes). Bei Supabase ist pgcrypto schon aktiv (Schema "extensions"),
---    dann passiert hier nichts. Lokal landet die Erweiterung im Schema "public".
-create extension if not exists pgcrypto;
+--    dann passiert hier nichts. Gibt es das Schema "extensions" (Supabase), landet die Erweiterung dort;
+--    lokal ohne dieses Schema im Schema "public". Alle Funktionen, die gen_random_bytes oder hmac nutzen
+--    (team_token_neu, kom_wa_signatur_ok), haben deshalb search_path = public, extensions.
+do $$
+begin
+  if exists (select 1 from pg_namespace where nspname = 'extensions') then
+    create extension if not exists pgcrypto with schema extensions;
+  else
+    create extension if not exists pgcrypto;
+  end if;
+end $$;
 
 -- Zugangscode erzeugen: 24 Zufallsbytes, als 48 Hex-Zeichen. Das Portal erwartet 20 bis 64 Hex-Zeichen.
 -- search_path enthält "extensions", damit gen_random_bytes bei Supabase und lokal gefunden wird.
@@ -35,12 +44,20 @@ create table if not exists team_mitglieder (
   funktion      text,                              -- z. B. "Vertrieb", "Buchhaltung", frei
   rolle         text not null default 'team',      -- admin | team | dozent | vertrieb | agent (siehe team_einstellungen.rollen)
   typ           text not null default 'mensch',    -- mensch | agent
-  status        text not null default 'eingeladen',-- eingeladen | aktiv | inaktiv
+  status        text not null default 'eingeladen' -- eingeladen | aktiv | gesperrt (so kennen es Portal und Server)
+                check (status in ('eingeladen', 'aktiv', 'gesperrt')),
   token         text unique,                       -- persönlicher Zugangscode (Login-Link ?z=<token>)
   whatsapp_ok   boolean default false,             -- Einwilligung für Nachrichten per WhatsApp (nur mit Option 130)
   registriert   timestamptz,
   zuletzt_aktiv timestamptz
 );
+-- Nachrüsten des Status-Checks, falls die Tabelle aus einer älteren Fassung ohne Check stammt
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conrelid = 'public.team_mitglieder'::regclass and conname = 'team_mitglieder_status_check') then
+    alter table team_mitglieder add constraint team_mitglieder_status_check check (status in ('eingeladen', 'aktiv', 'gesperrt'));
+  end if;
+end $$;
 
 -- 2) Projekte ----------------------------------------------------------------------------------------
 create table if not exists team_projekte (

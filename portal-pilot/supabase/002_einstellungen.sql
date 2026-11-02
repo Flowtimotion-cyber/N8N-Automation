@@ -3,7 +3,8 @@
 -- =====================================================================================================
 -- Was macht diese Datei?
 --   Legt die Tabelle team_einstellungen an. Dort steht alles, was je Firma anders ist (Firmenname,
---   Kurzname, Räume, Rollen, Stichtag der Arbeitszeit-Abrechnung, Pilot-Ende). Die n8n-Workflows des
+--   Kurzname, Räume, Rollen, Stichtag der Arbeitszeit-Abrechnung, Pilot-Ende, freigeschaltete Module,
+--   Projekt für den Wochenstand). Die n8n-Workflows des
 --   Piloten lesen diese Werte im ersten Knoten über team_einstellung('<schluessel>'); nichts davon
 --   steckt mehr fest im Code.
 -- Pflicht oder Option?  PFLICHT.
@@ -16,6 +17,7 @@
 --   select team_einstellung_setzen('raeume', '["Vertrieb", "Verwaltung", "Produktion"]');
 --   select team_einstellung_setzen('stichdatum_abrechnung', '"2026-01-01"');
 --   select team_einstellung_setzen('pilot_ende', '"2027-02-28"');
+--   select team_einstellung_setzen('module', '{"zeit": true, "social": false, "system": false, "kurs": false}');
 -- Achtung: Werte sind JSON. Text braucht also doppelte Anführungszeichen innerhalb der einfachen.
 -- =====================================================================================================
 
@@ -43,7 +45,11 @@ insert into team_einstellungen (schluessel, wert, beschreibung) values
     ]'::jsonb,
      'Rollen des Portals mit Beschreibung. Die Rechte selbst prüft der Server (n8n); die Namen hier müssen zu team_mitglieder.rolle passen.'),
   ('pilot_ende', 'null'::jsonb,
-     'Geplantes Ende des Piloten (JJJJ-MM-TT). Danach: Export (990_export.sql) und Löschung (999_loeschen.sql). null = offen.')
+     'Geplantes Ende des Piloten (JJJJ-MM-TT). Danach: Export (990_export.sql) und Löschung (999_loeschen.sql). null = offen.'),
+  ('module',    '{"zeit": false, "social": false, "system": false, "kurs": false}'::jsonb,
+     'Welche Optionen das Portal zeigt und der Server erlaubt; true = an. Beispiel: select team_einstellung_setzen(''module'', ''{"zeit": true}'');'),
+  ('firmenwissen_projekt', 'null'::jsonb,
+     'Projektname, in den der Wochenstand seine Notizen legt; null = kein Wochenstand')
 on conflict (schluessel) do nothing;
 
 -- Lesen: liefert den JSON-Wert oder null, wenn der Schlüssel fehlt.
@@ -82,5 +88,5 @@ grant execute on function team_einstellung(text)                      to service
 grant execute on function team_einstellungen_alle()                   to service_role;
 grant execute on function team_einstellung_setzen(text, jsonb, text)  to service_role;
 
--- Kontrolle: muss 6 Zeilen zeigen (firma, kurzname, pilot_ende, raeume, rollen, stichdatum_abrechnung)
+-- Kontrolle: muss 8 Zeilen zeigen (firma, firmenwissen_projekt, kurzname, module, pilot_ende, raeume, rollen, stichdatum_abrechnung)
 select schluessel, wert, beschreibung from team_einstellungen order by schluessel;

@@ -13,8 +13,8 @@ eigene Produktivsystem verwenden. Die Datenbank ist von außen nicht erreichbar;
 | Datei | Pflicht? | Was sie macht |
 |---|---|---|
 | `001_basis.sql` | **Pflicht** | Grundaufbau: Mitglieder, Projekte, Aufgaben mit Verlauf, Notizen mit Versionen, Vorschläge, Systeme, Papierkorb |
-| `002_einstellungen.sql` | **Pflicht** | Tabelle `team_einstellungen`: Firmenname, Kurzname, Räume, Rollen, Stichtag, Pilot-Ende |
-| `003_team_laden.sql` | **Pflicht** | Die Lesefunktion `team_laden()`, die der Server bei jeder Anfrage aufruft |
+| `002_einstellungen.sql` | **Pflicht** | Tabelle `team_einstellungen`: Firmenname, Kurzname, Räume, Rollen, Stichtag, Pilot-Ende, Module, Wochenstand-Projekt |
+| `003_team_laden.sql` | **Pflicht** | Die Lesefunktionen `team_laden()` / `team_laden_plus()` (der Server ruft bei jeder Anfrage `team_laden_plus()`) |
 | `100_option_arbeitszeit.sql` | Option | Register „Arbeitszeit“: Zeiterfassung, Vertragsstunden, Monatsabschlüsse |
 | `110_option_teilnehmer.sql` | Option | Register „Teilnehmer“: Personenliste mit Prüfpunkten (Haken) |
 | `120_option_social.sql` | Option | Register „Social Media“: Beitragsplan mit Freigabe, Ideen-Liste, eigene Videos |
@@ -63,7 +63,7 @@ Nach jeder Datei zeigt der SQL-Editor unten die Kontrollabfrage:
 | Nach Datei | Erwartetes Ergebnis |
 |---|---|
 | `001_basis.sql` | Liste mit 9 Tabellennamen, alle beginnen mit `team_` |
-| `002_einstellungen.sql` | 6 Zeilen: `firma`, `kurzname`, `pilot_ende`, `raeume`, `rollen`, `stichdatum_abrechnung` |
+| `002_einstellungen.sql` | 8 Zeilen: `firma`, `firmenwissen_projekt`, `kurzname`, `module`, `pilot_ende`, `raeume`, `rollen`, `stichdatum_abrechnung` |
 | `003_team_laden.sql` | 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb` |
 | `900_seed_musterfirma.sql` | 4 Zeilen mit Name, Rolle, Status und Zugangscode (siehe Abschnitt 5) |
 | `910_erster_admin.sql` | 1 Zeile mit dem neuen Admin und seinem Zugangscode |
@@ -122,7 +122,19 @@ select team_einstellung_setzen('kurzname', '"Beispiel"');
 select team_einstellung_setzen('raeume', '["Vertrieb", "Verwaltung", "Produktion"]');
 select team_einstellung_setzen('stichdatum_abrechnung', '"2026-01-01"');
 select team_einstellung_setzen('pilot_ende', '"2027-02-28"');
+select team_einstellung_setzen('module', '{"zeit": true, "social": false, "system": false, "kurs": false}');
+select team_einstellung_setzen('firmenwissen_projekt', '"Firmenwissen"');
 ```
+
+| Schlüssel | Bedeutung | Standard |
+|---|---|---|
+| `firma`, `kurzname` | Name der Firma im Portal, Kurzform für Überschrift und Browser-Tab | `Meine Firma`, `Portal` |
+| `raeume` | Bereiche der Firma für die Option KI Office | `[]` |
+| `rollen` | Rollen mit Beschreibung; Rechte prüft der Server | 5 Rollen |
+| `stichdatum_abrechnung` | Ab wann die Option Arbeitszeit Monate abrechnet | `null` (aus) |
+| `pilot_ende` | Geplantes Ende des Piloten | `null` (offen) |
+| `module` | Welche Optionen der Server erlaubt: `zeit`, `social`, `system`, `kurs`; `true` = an. Einschalten: `select team_einstellung_setzen('module', '{"zeit": true}');` (fehlende Schlüssel gelten als aus) | alle `false` |
+| `firmenwissen_projekt` | Projektname, in den der Wochenstand seine Notizen legt | `null` (kein Wochenstand) |
 
 Alle Werte ansehen: `select * from team_einstellungen order by schluessel;`
 
@@ -138,6 +150,10 @@ Alle Werte ansehen: `select * from team_einstellungen order by schluessel;`
 4. **Löschen:** `999_loeschen.sql` öffnen, den Kopfkommentar zweimal lesen, Projektname in Supabase prüfen. Dann in der
    Zeile `bestaetigung text := 'NEIN';` das Wort `NEIN` durch `JA, ALLES LOESCHEN` ersetzen und ausführen. Solange
    `NEIN` drinsteht, passiert nichts. Die Kontrollabfragen am Ende müssen leer sein.
+   War die Option 120 (Social Media) eingespielt: **vorher** in Supabase unter **Storage** die beiden Buckets
+   `medien-roh` und `social-ideen` leeren („Empty bucket“) und löschen. Die Datei entfernt nur die Datenbankzeilen
+   der Buckets (`delete from storage.objects`), nicht die Videos und Bilder selbst. Wer das Projekt in Schritt 5
+   ohnehin löscht, kann sich diesen Handgriff sparen; beim bloßen Pausieren nicht.
 5. **Aufräumen:** Supabase-Projekt pausieren oder löschen, das n8n-Credential des Kunden löschen, die Löschung mit Datum
    im Löschprotokoll vermerken. Backups beim Anbieter verschwinden erst nach dessen Frist.
 
@@ -149,8 +165,10 @@ Zugangscodes bleiben, ein geänderter Firmenname wird nicht überschrieben.
 **Was ist, wenn ich eine Option später brauche?** Einfach einspielen. Die Lesefunktion erkennt die neuen Tabellen von
 selbst; an den Pflichtdateien änderst du nichts.
 
-**Woher weiß das Portal, welche Register es zeigt?** Das steuert die Oberfläche (eigene Konfiguration des Frontends).
-Die Datenbank liefert für nicht eingespielte Bereiche einfach leere Listen.
+**Woher weiß das Portal, welche Register es zeigt?** Zwei Schalter, die zusammenpassen müssen: Die Oberfläche hat
+eigene Schalter in `config/mandant.json` (was angezeigt wird). Der Server erlaubt Aktionen einer Option nur, wenn
+`module` in `team_einstellungen` sie freigibt, zum Beispiel `select team_einstellung_setzen('module', '{"zeit": true}');`
+(siehe Abschnitt 6). Die Datenbank liefert für nicht eingespielte Bereiche einfach leere Listen.
 
 **Darf ich die Tabellen im Supabase-Table-Editor direkt bearbeiten?** Lieber nicht, außer zum Nachsehen. Änderungen
 an Aufgaben, Notizen und Mitgliedern gehören ins Portal, damit Verlauf und Versionen stimmen.
