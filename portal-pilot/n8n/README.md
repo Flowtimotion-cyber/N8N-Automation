@@ -62,7 +62,7 @@ Der Teil vor `/portal-api` ist der Wert für `n8n_basis_url` in der Konfiguratio
 curl -i -X POST "https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api" -H "Content-Type: application/json" -d '{"aktion":"laden","token":"kein-gueltiger-token"}'
 ```
 
-Erwartet: `HTTP 401` und eine Antwort mit `"ok":false` und dem Satz „Dein Zugang ist ungültig …“. Kommt das, läuft die Kette bis zur Datenbank (der Token wird gegen die Mitgliederliste geprüft). Kommt `404`, ist der Workflow nicht aktiv oder die Adresse stimmt nicht. Kommt `500` oder keine Antwort, schau in die Supabase-Knoten (falsches Credential, Funktion `team_laden` fehlt).
+Erwartet: `HTTP 401` und eine Antwort mit `"ok":false` und dem Satz „Dein Zugang ist ungültig …“. Kommt das, läuft die Kette bis zur Datenbank (der Token wird gegen die Mitgliederliste geprüft). Kommt `404`, ist der Workflow nicht aktiv oder die Adresse stimmt nicht. Kommt `500` oder keine Antwort, schau in die Supabase-Knoten (falsches Credential, Funktion `team_laden_plus` fehlt).
 
 Test mit gültigem Zugang: dasselbe mit dem echten Token eines Admins (aus der Tabelle `team_mitglieder` in Supabase). Erwartet: `"ok":true` und deine Aufgaben, Projekte usw. Token nicht in Chats oder Tickets einfügen.
 
@@ -72,7 +72,7 @@ Test mit gültigem Zugang: dasselbe mit dem echten Token eines Admins (aus der T
 
 Die Workflows rufen diese Dinge in Supabase auf. Das ist die Schnittstelle zur Datenbank-Sitzung:
 
-- `rpc/team_laden` (POST, Body `{}`): liefert **ein JSON-Objekt** mit den Listen `mitglieder`, `aufgaben`, `verlauf`, `projekte`, `notizen`, `vorschlaege`, `zeiten`, `abrechnung`, `systeme`, `social`, `community`, `papierkorb`, `notiz_versionen`, `teilnehmer`, `tn_spalten`. Fehlende optionale Tabellen = leere Liste. **Das Original ruft `team_laden_plus` auf**, die Pilot-Fassung ruft `team_laden`; wenn die Endfassung `papierkorb` und `notiz_versionen` nicht enthält, ist der Papierkorb im Portal leer.
+- `rpc/team_laden_plus` (POST, Body `{}`): liefert **ein JSON-Objekt** mit den Listen `mitglieder`, `aufgaben`, `verlauf`, `projekte`, `notizen`, `vorschlaege`, `zeiten`, `abrechnung`, `systeme`, `social`, `community`, `papierkorb`, `notiz_versionen`, `teilnehmer`, `tn_spalten` und dem Objekt `einstellungen`. Fehlende optionale Tabellen = leere Liste. Die Funktion kommt aus `portal-pilot/supabase/003_team_laden.sql` (dort ist `team_laden_plus` = `team_laden` plus Papierkorb, Notiz-Versionen, Teilnehmer).
 - Tabelle `team_einstellungen(schluessel text, wert jsonb)`: wird per PostgREST gelesen (Knoten `Einstellungen laden`). Ist sie nicht da oder leer, laufen die Workflows mit Standardwerten.
 - `rpc/team_loeschen(p_art, p_id, p_von)` und `rpc/team_wiederherstellen(p_eintrag)` für den Papierkorb.
 - Tabellen: `team_mitglieder`, `team_aufgaben`, `team_aufgaben_verlauf`, `team_projekte`, `team_notizen`, `team_vorschlaege` (Stufe 1). Alles Weitere nur, wenn ein Modul eingeschaltet wird (siehe Tabelle unten).
@@ -93,7 +93,7 @@ Die Portal-API kennt 34 Aktionen. Der Aufruf ist immer ein POST mit `{"aktion": 
 
 | Aktion | Wer darf | Stufe 1 | Tabelle / Funktion |
 |---|---|---|---|
-| `laden` | alle Aktiven (Agenten bekommen eine kleinere Antwort) | ja | liest alles über `team_laden` |
+| `laden` | alle Aktiven (Agenten bekommen eine kleinere Antwort) | ja | liest alles über `team_laden_plus` |
 | `profil` | jede Person für sich (Aktivierung per Einladungslink) | ja | `team_mitglieder` |
 | `aufgabe_speichern` | alle (Agent: „Erledigt“ wird zu „Wird getestet“) | ja | `team_aufgaben`, `team_aufgaben_verlauf` |
 | `aufgabe_loeschen` | Admin oder wer sie angelegt hat | ja | Papierkorb über `team_loeschen` |
@@ -102,11 +102,11 @@ Die Portal-API kennt 34 Aktionen. Der Aufruf ist immer ein POST mit `{"aktion": 
 | `projekt_loeschen` | Admin (nur ungenutzte Projekte) | ja | `team_projekte` |
 | `notiz_speichern` | alle (Agent darf) | ja | `team_notizen` |
 | `notiz_loeschen` | Admin oder Autor | ja | Papierkorb über `team_loeschen` |
-| `notiz_versionen` | alle | ja | Versionsliste aus `team_laden` |
+| `notiz_versionen` | alle | ja | Versionsliste aus `team_laden_plus` |
 | `vorschlag_speichern` | alle (Status und Antwort nur Admin; Agent darf) | ja | `team_vorschlaege` |
 | `vorschlag_stimme` | alle | ja | `team_vorschlaege` |
 | `vorschlag_loeschen` | Admin oder Autor (solange „neu“) | ja | Papierkorb über `team_loeschen` |
-| `papierkorb` | Admin sieht alles, andere nur Eigenes | ja | Papierkorb-Liste aus `team_laden` |
+| `papierkorb` | Admin sieht alles, andere nur Eigenes | ja | Papierkorb-Liste aus `team_laden_plus` |
 | `papierkorb_wiederherstellen` | Admin oder wer gelöscht hat | ja | `team_wiederherstellen` |
 | `mitglied_speichern` | Admin | ja | `team_mitglieder` |
 | `zeit_speichern` | alle Menschen | nein (Modul `zeit`) | `team_zeiten` |
@@ -150,7 +150,7 @@ Credential-Namen (nicht ersetzbar, bitte genau so anlegen): `Supabase (Pilot)` (
 
 - **Jeder Klick im Portal ist eine Ausführung.** Das Portal lädt beim Öffnen alles und jedes Speichern ist ein weiterer Aufruf. Bei vier Personen sind das schnell mehrere hundert Ausführungen pro Woche. Welcher Tarif der Instanz zugrunde liegt, ist nicht bekannt: Schau im n8n-Konto unter „Usage“ nach, wie viele Ausführungen im Monat enthalten sind, und rechne grob nach.
 - **Der Hinweis-Workflow läuft stündlich** (rund 720 Ausführungen im Monat, auch wenn nichts passiert; im Original waren es 10 Minuten). Bei einem kleinen Tarif zählt das mit. Entweder gar nicht aktivieren oder auf Werktage tagsüber beschränken.
-- Jeder Aufruf lädt die **ganze** Datenbank (`team_laden`). Bei vier Personen ist das unkritisch, bei sehr vielen Notizen oder Aufgaben wird es langsamer.
+- Jeder Aufruf lädt die **ganze** Datenbank (`team_laden_plus`). Bei vier Personen ist das unkritisch, bei sehr vielen Notizen oder Aufgaben wird es langsamer.
 - Webhook-Antworten haben bei n8n Cloud eine Zeitgrenze. Die Schreibkette ist kurz und bleibt weit darunter.
 - Auf n8n Cloud gibt es kein Dateisystem und keine Server-Umgebungsvariablen. Die Workflows brauchen beides nicht. `$vars` wird nicht benutzt, `require(...)` kommt in keinem Code-Knoten vor.
 
@@ -181,9 +181,15 @@ Ausführlich mit Zeilen: `PRUEFUNG.md`. Das Wichtigste in Kürze:
 2. **Zugangs-Token wurden mit `Math.random()` erzeugt**, das ist nicht für Geheimnisse gedacht. Der Pilot nimmt dafür den Zufallsgenerator des Systems (`crypto`), mit Rückfall auf die alte Methode, falls er in n8n nicht zur Verfügung steht. Ob er auf n8n Cloud verfügbar ist, konnte ich nicht prüfen.
 3. **Das Original speicherte fehlgeschlagene Ausführungen komplett (`all`).** Darin liegen Anfrage und Token. Im Pilot ist das aus.
 4. **Der Admin bekommt in der Antwort die Zugangs-Token aller Mitglieder.** Das ist gewollt (Einladungslinks weitergeben), bleibt unverändert. Folge: Wer das Admin-Konto übernimmt, kommt an alle anderen Zugänge.
-5. **Der Webhook-Schutz „erlaubter Ursprung“ gilt nur für Browser.** Mit `curl` kann jeder die Adresse aufrufen. Schutz ist allein der Token (mindestens 20 Zeichen, bei neuen Zugängen 32 Zeichen). Es gibt keine Bremse gegen massenhaftes Raten, und jede Anfrage, auch eine ungültige, lädt die ganze Datenbank. Empfehlung: Webhook-Adresse nicht streuen; bei Bedarf später eine leichte Vorprüfung vor `team_laden` setzen.
+5. **Der Webhook-Schutz „erlaubter Ursprung“ gilt nur für Browser.** Mit `curl` kann jeder die Adresse aufrufen. Schutz ist allein der Token (mindestens 20 Zeichen, bei neuen Zugängen 32 Zeichen). Es gibt keine Bremse gegen massenhaftes Raten, und jede Anfrage, auch eine ungültige, lädt die ganze Datenbank. Empfehlung: Webhook-Adresse nicht streuen; bei Bedarf später eine leichte Vorprüfung vor `team_laden_plus` setzen.
 6. **`.first()`-Falle:** Alle Stellen geprüft. Alle laufen in Knoten, die genau einen Datensatz haben oder nur einmal je Durchlauf laufen. Nichts geändert. Details in `PRUEFUNG.md`.
 7. **`require(`:** nirgends.
 8. **Mehrere Schreibschritte ohne Transaktion** (z. B. Aufgabe speichern und danach Verlaufseintrag): bricht der zweite Schritt ab, ist die Aufgabe gespeichert, der Verlaufseintrag fehlt. Die Antwort meldet dann einen Fehler.
 9. **Im Original wurde der Zeitstempel „bis hier gemeldet“ vor dem Versand gespeichert.** Schlug der Versand fehl, ging die Meldung verloren. In der Hinweis-Vorlage wird er erst nach dem Versand gemerkt.
 10. **Telefonnummern wurden bei neuen Aufgaben im Zwischenergebnis weitergereicht** (für WhatsApp). Im Pilot entfernt.
+
+## Abgleich mit dem Datenbankpaket (02.11.2026, abends)
+
+- `team_laden_plus` ist die richtige Funktion (Papierkorb und Notiz-Versionen kommen nur dort). Im Datenbankpaket (`portal-pilot/supabase/003_team_laden.sql`) liefert sie zusätzlich `einstellungen`; die Workflows lesen die Einstellungen außerdem direkt aus `team_einstellungen` (Knoten „Einstellungen laden“), beides passt.
+- Einstellungsschlüssel, die das Datenbankpaket anlegt: `firma`, `kurzname`, `stichdatum_abrechnung`, `raeume`, `rollen`, `pilot_ende`. Zwei weitere nutzen die Workflows optional, mit Standardwert, wenn sie fehlen: `module` (Objekt, z. B. `{"zeit": true}`; Standard: alles aus) und `firmenwissen_projekt` (Projektname für die Wochenstand-Notiz; Standard: keine Anlage). Beide lassen sich mit `team_einstellung_setzen('module', '{"zeit": true}')` setzen.
+- `rollen`: die Workflows akzeptieren eine Liste von Texten oder von Objekten mit `rolle`/`id`; das Datenbankpaket liefert Objekte. Passt.

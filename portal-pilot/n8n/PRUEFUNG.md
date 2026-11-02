@@ -53,7 +53,7 @@ Zeilennummern beziehen sich auf den Code des jeweiligen Original-Knotens (veröf
 | Workflow | – | Knoten `Einstellungen laden` eingefügt (liest `team_einstellungen`, mit `alwaysOutputData`, damit eine leere Tabelle die Kette nicht stoppt) | – | neu |
 | Workflow | – | Datentabellen-Knoten `Lernstand lesen`, `Chatfragen lesen`, `Anfragen lesen` entfernt | 3 Knoten | Weiche führt direkt zu `Antwort bauen` |
 | Workflow | – | Knoten `WhatsApp schicken?` und `WhatsApp an zuständige Person` entfernt | 2 Knoten | `Gespeichert?` führt direkt zu `Gespeichert` |
-| Workflow | – | `team_laden_plus` wird `team_laden` (Vorgabe des Auftrags) | `…/rpc/team_laden_plus` | `…/rpc/team_laden` |
+| Workflow | – | `team_laden_plus` bleibt (nach Abgleich mit `003_team_laden.sql`: nur dort sind Papierkorb und Notiz-Versionen) | `…/rpc/team_laden_plus` | `…/rpc/team_laden_plus` |
 | Workflow | – | Webhook-Pfad, erlaubter Ursprung, Supabase-Adresse, Credential-Verweis | `team-api-v2`, Ursprung und Projekt des Originals | Platzhalter; Credential nur als Name `Supabase (Pilot)` ohne ID |
 | Einstellungen | – | `errorWorkflow` entfernt; Ausführungsdaten aus (Erfolg und Fehler), Zeitzone Europe/Berlin | Fehler: `all` | beide `none` |
 

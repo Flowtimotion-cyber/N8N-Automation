@@ -30,7 +30,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/rpc/team_laden",
+        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/rpc/team_laden_plus",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "supabaseApi",
         "sendBody": true,
