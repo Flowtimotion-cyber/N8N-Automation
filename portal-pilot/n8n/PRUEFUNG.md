@@ -128,3 +128,35 @@ Ergebnis:
 - Treffer gibt es nur in diesem Bericht (6 Zeilen; `README.md` hat keine), und zwar ausschließlich als erklärender Text (Hinweis auf das, was entfernt wurde, Namen der Original-Workflows, maskierte Namen).
 - Zusätzlich gesucht, ohne Treffer außer den erklärten: `agent-claude`, `m_timo`, `2026-10-05`, `MOMENTUM26`, `require(`. Erklärte Restwörter in der Portal-API: `whatsapp_ok` (Datenbankfeld der Mitglieder), `kurs_community` (Tabelle hinter dem ausgeschalteten Modul `kurs`), das Wort „WhatsApp“ in einem Kommentar.
 - Keine Telefonnummer, keine Chat-ID, keine Supabase-Projekt-ID, keine Portal-Adresse des Originals in den Zieldateien.
+
+## 7. Abgleich beim Zusammenführen (03.11.2026, Branch `feature/portal-pilot`)
+
+Geändert wurde nur der Code der Knoten „Anfrage prüfen“ und „Antwort bauen“ in `portal-api.workflow.json`; Knoten, Verbindungen, Einstellungen und die drei anderen Workflows sind unverändert. Zeilennummern beziehen sich auf den Code des Knotens „Anfrage prüfen“ in der Fassung vor der Änderung.
+
+| Knoten | Zeile(n) | Änderung | vorher | nachher |
+|---|---|---|---|---|
+| Anfrage prüfen | 44, 70 | Ländervorwahl als Konstante aus der Einstellung `landesvorwahl` (Standard 49); Beispielnummer im Fehlertext ohne Pluszeichen | feste Vorwahl 49 im Code, Beispielnummer mit Pluszeichen im Fehlertext | `'+' + LANDESVORWAHL + s.slice(1)`, `z. B. 0049 170 …` |
+| Anfrage prüfen | 82, 364 | Vorschlags-Bereich: Liste aus der Einstellung `vorschlag_bereiche` (unbekannt → „Sonstiges“), ohne Liste freier Text bis 40 Zeichen; beim Bearbeiten ohne Angabe bleibt der alte Bereich | feste Liste mit zwölf Registernamen | `listeAus('vorschlag_bereiche')`, `ausListe(…)` |
+| Anfrage prüfen | 192, 196 | Social-Kanal: Liste aus der Einstellung `social_kanaele`, sonst freier Text bis 40 Zeichen | feste Liste mit acht Kanälen (darunter ein Markenname, der im Pilot nicht vorkommen darf) | `listeAus('social_kanaele')` |
+| Anfrage prüfen | 138, 167 | `geaendert_von` bei `aufgabe_speichern` und `kommentar` (Spalte in `001_basis.sql` ergänzt) | nur `geaendert` | `geaendert, geaendert_von: ich.mitglied_id` |
+| Anfrage prüfen | 479, 481 | Zugangscodes neuer Mitglieder und bei „neuer Link“: 48 Hex-Zeichen wie `team_token_neu()` | `rnd(32)` | `rnd(48)` |
+| Antwort bauen | 26 | Antwort `einstellungen` enthält zusätzlich `vorschlag_bereiche` und `social_kanaele` (Listen, bereinigt) | sechs Felder | acht Felder |
+
+Geprüft nach der Änderung: alle Code-Knoten lassen sich übersetzen (`AsyncFunction`), `einsetzen.mjs` läuft, JSON gültig; `node --test portal-pilot/test/*.test.mjs` grün, darunter `server.test.mjs` (Speicher) und `ende-zu-ende.test.mjs` (lokaler PostgreSQL mit `001`–`003`, `900`, `100`, `120`), beide mit genau diesem Workflow-Code über `dev/n8n-laufzeit.mjs`.
+
+Nachgebildet werden in `dev/n8n-laufzeit.mjs` nur die n8n-Funktionen, die der Workflow nutzt: `$('Knoten').first()/.all()/.item`, `$input.all()/.first()`, `$json` in Ausdrücken `={{ … }}`, die Knoten-Typen webhook, httpRequest (mit `fullResponse`/`neverError`/`responseFormat text`), code (`runOnceForAllItems`), switch (Ausdruck), if (boolean true), respondToWebhook, splitInBatches (Ausgang 0 = fertig, Ausgang 1 = Schleife) sowie `alwaysOutputData` und `executeOnce`. Ob n8n Cloud sich in Randfällen anders verhält (z. B. Reihenfolge bei mehreren Ausgängen, Umgang mit `text/plain`-Bodies), bleibt ein Punkt für den ersten Praxistest.
+
+### Original-Workflows, die nicht übernommen wurden (nur hier, nicht im Paket)
+
+| Teil | Original-Workflow (ID in der Original-Instanz) |
+|---|---|
+| KI Office (API, Ausführer, Wartung) | `NuK6m10yIGKMRWxC` (Office-API), `UbQ5nph8FIUSrasi` (Text-KI), `D0jPTU1LjNzhGfyI` (Orchestrierer), `KwRsEDr743IGDPJ1` (Verwaltung-Status) |
+| Portal-Assistent (Chatfragen, KI) | `TJ5E1KT5MvzxvoD9` |
+| Erinnerungen und Monatsabschluss Arbeitszeit | `QwVgLNfbjDtUOPqD` (Freitag-Freigabe), `gV6jrDNtJhgKbqpp` (Monatsabschluss) |
+| Webseiten-Statistik | `mkgTfndZQnmnpsdW` |
+| Vertriebs-Pipeline (CRM) und Diktat | `cWDiokGOeQT5uFsY`, `Zvn018lfOXFuzenF` |
+| Social (Upload, Veröffentlichen) | `ZfStqgtH3IZugnv5`, `p6DSEWCr344R0Nlt` |
+| WhatsApp (Inbox, Hinweise, Bot) | `PUrXB6zVrUjUpbGh`, `QG7TlVF1CzjlmnDf`, `DVGX3cltu2qbqLJE` |
+| Kurs (Störungswächter, Klassenbuch) | `aZgKgrnuzjmG9Mjr`, `nej6aYHT2S7Ztip2`, `rQcqNn8EqBmW5yYa` |
+
+Die drei Quellen der Pilot-Workflows im Original: Portal-API `kMuDaDmT9rCN5Vs2`, Wochenstand `f0AG5NxtwzSyDr2c`, Vorschlag-Hinweis `s8OfrONvk8JKXTrs`.

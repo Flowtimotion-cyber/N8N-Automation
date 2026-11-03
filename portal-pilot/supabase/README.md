@@ -63,7 +63,7 @@ Nach jeder Datei zeigt der SQL-Editor unten die Kontrollabfrage:
 | Nach Datei | Erwartetes Ergebnis |
 |---|---|
 | `001_basis.sql` | Liste mit 9 Tabellennamen, alle beginnen mit `team_` |
-| `002_einstellungen.sql` | 8 Zeilen: `firma`, `firmenwissen_projekt`, `kurzname`, `module`, `pilot_ende`, `raeume`, `rollen`, `stichdatum_abrechnung` |
+| `002_einstellungen.sql` | 10 Zeilen: `firma`, `firmenwissen_projekt`, `kurzname`, `module`, `pilot_ende`, `raeume`, `rollen`, `social_kanaele`, `stichdatum_abrechnung`, `vorschlag_bereiche` |
 | `003_team_laden.sql` | 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb` |
 | `900_seed_musterfirma.sql` | 4 Zeilen mit Name, Rolle, Status und Zugangscode (siehe Abschnitt 5) |
 | `910_erster_admin.sql` | 1 Zeile mit dem neuen Admin und seinem Zugangscode |
@@ -91,8 +91,10 @@ Erwartet: 4, 3, 12.
 Jedes Teammitglied hat einen persönlichen Zugangscode (Token). Der Login-Link ist
 
 ```
-<Adresse des Portals>?z=<token>
+<Adresse des Portals>#z=<token>
 ```
+
+Das Doppelkreuz ist Absicht: Den Teil hinter `#` schickt der Browser nie an einen Server und nie in ein Protokoll.
 
 Beim Seed (`900`) und beim ersten Admin (`910`) werden die Codes zufällig erzeugt und am Ende angezeigt. Später zeigst
 du sie jederzeit wieder an mit
@@ -135,6 +137,9 @@ select team_einstellung_setzen('firmenwissen_projekt', '"Firmenwissen"');
 | `pilot_ende` | Geplantes Ende des Piloten | `null` (offen) |
 | `module` | Welche Optionen der Server erlaubt: `zeit`, `social`, `system`, `kurs`; `true` = an. Einschalten: `select team_einstellung_setzen('module', '{"zeit": true}');` (fehlende Schlüssel gelten als aus) | alle `false` |
 | `firmenwissen_projekt` | Projektname, in den der Wochenstand seine Notizen legt | `null` (kein Wochenstand) |
+| `vorschlag_bereiche` | Liste der Bereiche, die man einem Vorschlag zuordnen kann (Auswahl im Portal). Leere Liste = freier Text | 7 Einträge (die Register der Stufe 1 und „Sonstiges“) |
+| `social_kanaele` | Kanäle, die der Server bei Social-Beiträgen annimmt. Leere Liste = jeder Name. Die Auswahlliste der Oberfläche steht in `config/mandant.js` | `[]` |
+| `landesvorwahl` | Optional: Ländervorwahl ohne Plus für Telefonnummern, die mit 0 beginnen | nicht angelegt (Server nimmt 49) |
 
 Alle Werte ansehen: `select * from team_einstellungen order by schluessel;`
 
@@ -166,9 +171,11 @@ Zugangscodes bleiben, ein geänderter Firmenname wird nicht überschrieben.
 selbst; an den Pflichtdateien änderst du nichts.
 
 **Woher weiß das Portal, welche Register es zeigt?** Zwei Schalter, die zusammenpassen müssen: Die Oberfläche hat
-eigene Schalter in `config/mandant.json` (was angezeigt wird). Der Server erlaubt Aktionen einer Option nur, wenn
+eigene Schalter in `config/mandant.js` (`register`, was angezeigt wird). Der Server erlaubt Aktionen einer Option nur, wenn
 `module` in `team_einstellungen` sie freigibt, zum Beispiel `select team_einstellung_setzen('module', '{"zeit": true}');`
-(siehe Abschnitt 6). Die Datenbank liefert für nicht eingespielte Bereiche einfach leere Listen.
+(siehe Abschnitt 6). Die Oberfläche zeigt ein Register nur, wenn **beide** Schalter an sind. Die Datenbank liefert für nicht
+eingespielte Bereiche einfach leere Listen. Beide Schalter nebeneinander erklärt der Abschnitt „Module an- und ausschalten“
+in `portal-pilot/README.md`.
 
 **Darf ich die Tabellen im Supabase-Table-Editor direkt bearbeiten?** Lieber nicht, außer zum Nachsehen. Änderungen
 an Aufgaben, Notizen und Mitgliedern gehören ins Portal, damit Verlauf und Versionen stimmen.

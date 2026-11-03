@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import vm from 'node:vm';
 import { PILOT } from './hilfe.mjs';
 
-const SCHLUESSEL = ['firma', 'kurzname', 'logo', 'farben', 'n8n_basis_url', 'portal_url', 'register', 'anleitung_video', 'standard_projekt', 'sprache'];
+const SCHLUESSEL = ['firma', 'kurzname', 'logo', 'farben', 'n8n_basis_url', 'portal_url', 'register', 'social_kanaele', 'anleitung_video', 'standard_projekt', 'sprache'];
 const REGISTER = ['uebersicht', 'aufgaben', 'projekte', 'notizen', 'vorschlaege', 'team', 'arbeitszeit', 'social', 'vertrieb', 'whatsapp', 'kurs', 'systeme', 'skills', 'tresor', 'webseite', 'office'];
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -24,6 +24,8 @@ function pruefe(k, name) {
   assert.ok(k.anleitung_video === '' || /^https:\/\//.test(k.anleitung_video), name + ': anleitung_video leer oder https-Adresse');
   assert.equal(k.sprache, 'de');
   assert.ok(k.logo === '' || !/^https?:/.test(k.logo), name + ': logo ist ein relativer Pfad unter frontend/ (oder leer)');
+  assert.ok(Array.isArray(k.social_kanaele) && k.social_kanaele.every(x => typeof x === 'string' && x.trim() && x.length <= 40), name + ': social_kanaele ist eine Liste kurzer Texte (leer = freies Textfeld)');
+  assert.equal(new Set(k.social_kanaele).size, k.social_kanaele.length, name + ': social_kanaele ohne Doppelte');
 }
 
 const beispiel = JSON.parse(readFileSync(join(PILOT, 'config', 'mandant.example.json'), 'utf8'));

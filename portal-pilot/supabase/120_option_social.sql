@@ -29,7 +29,7 @@
 create table if not exists team_social (
   post_id        text primary key,
   datum          text,                             -- JJJJ-MM-TT
-  kanal          text,                             -- Instagram | LinkedIn | Facebook | YouTube | TikTok | ...
+  kanal          text,                             -- Kanalname, z. B. LinkedIn | Newsletter | Webseite / Blog | ... (Liste: team_einstellungen.social_kanaele)
   thema          text,
   text           text,
   status         text,                             -- Idee | In Arbeit | Zur Freigabe | Geplant | Veröffentlicht
@@ -54,8 +54,9 @@ alter table team_social add column if not exists veroeffentlicht_am timestamptz;
 create index if not exists team_social_faellig on team_social (status, datum);
 
 -- Fällige Beiträge holen und im selben Schritt sperren (kein Doppelposten, auch wenn zwei Läufe überlappen).
--- Nur Kanäle, die n8n bedienen kann, nur mit Freigabe durch einen Menschen, nur ohne Plattform-ID.
-create or replace function social_faellig(p_kanaele text[] default array['Instagram']) returns setof team_social
+-- Nur Kanäle, die der aufrufende Workflow bedienen kann (er übergibt die Liste), nur mit Freigabe durch einen Menschen,
+-- nur ohne Plattform-ID. Ohne Liste liefert die Funktion nichts.
+create or replace function social_faellig(p_kanaele text[] default array[]::text[]) returns setof team_social
 language plpgsql security definer set search_path = public as $$
 begin
   return query
@@ -110,7 +111,7 @@ create table if not exists team_social_ideen (
   bild_pfad      text not null default '',         -- Pfad im öffentlichen Bucket social-ideen
   titel          text not null default '',         -- worum geht es (kurz)
   quelle         text not null default '',         -- Autor / Firma / Profil
-  kanal          text not null default 'LinkedIn', -- LinkedIn, Instagram, YouTube, TikTok, Sonstiges
+  kanal          text not null default 'LinkedIn', -- Kanalname wie in team_social
   warum_stark    text not null default '',         -- was daran gut ist (Hook, Aufbau, Bild, Zahl ...)
   thema_fuer_uns text not null default '',         -- welches Thema wir daraus machen könnten
   status         text not null default 'neu',      -- neu | geprüft | umgesetzt | verworfen

@@ -28,13 +28,13 @@
 -- Eine Konversation je Kanal und Kontakt (WhatsApp: Nummer, Website: Session-ID)
 create table if not exists kom_konversationen (
   konversation_id   text primary key,                   -- 'wa:<nummer>' oder 'web:<session>'
-  kanal             text not null,                      -- whatsapp | website | instagram
+  kanal             text not null,                      -- whatsapp | website
   kontakt_extern    text not null,                      -- Nummer bzw. Session-ID
   kontakt_name      text,                               -- Profilname aus dem Kanal, falls übermittelt
   telefon_e164      text,                               -- internationale Schreibweise, nur bei WhatsApp
   marke             text not null default 'offen',      -- Produktlinie oder Marke, frei wählbar; 'offen' = noch unklar
-  twenty_person_id  text,                               -- Person im CRM (optional)
-  twenty_chance_id  text,                               -- Verkaufschance im CRM (optional)
+  crm_person_id     text,                               -- Person im CRM (optional)
+  crm_chance_id     text,                               -- Verkaufschance im CRM (optional)
   modus             text not null default 'ki',         -- ki | mensch (KI pausiert)
   status            text not null default 'offen',      -- offen | wartet_auf_team | erledigt
   zugewiesen        text references team_mitglieder (mitglied_id) on delete set null,
@@ -131,7 +131,7 @@ begin
     'erstkontakt', v_row.begruesst_am is null,
     'modus', v_row.modus,
     'marke', v_row.marke,
-    'twenty_person_id', v_row.twenty_person_id
+    'crm_person_id', v_row.crm_person_id
   );
 end $$;
 

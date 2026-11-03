@@ -11,7 +11,7 @@
 -- Mehrfach ausführbar?  Ja. Beim zweiten Mal wird nichts doppelt angelegt und kein Zugangscode geändert.
 --
 -- ZUGANGSCODES: Die Codes (Token) werden beim Einspielen zufällig erzeugt. Die letzte Abfrage dieser
---   Datei zeigt sie an: name, rolle, token. Der Login-Link lautet <Portal-Adresse>?z=<token>.
+--   Datei zeigt sie an: name, rolle, token. Der Login-Link lautet <Portal-Adresse>#z=<token>.
 --   Später jederzeit wieder anzeigen mit:  select name, rolle, token from team_mitglieder order by name;
 -- Musterdaten wieder entfernen: 999_loeschen.sql löscht alles (auch die Tabellen), oder gezielt
 --   delete from team_mitglieder where mitglied_id like 'mf-%';  (und ebenso für die anderen Tabellen).
@@ -39,20 +39,20 @@ insert into team_projekte (projekt_id, name, beschreibung, status, farbe, verant
   ('mf-p3', 'Interne Verbesserungen',  'Kleine Verbesserungen im Alltag: Vorlagen, Ablage, Abläufe.',                  'geplant', '#e76f51', 'mf-ben',   3, '[]'::jsonb)
 on conflict (projekt_id) do nothing;
 
--- 3) Aufgaben (Deadlines relativ zum Tag des Einspielens)
+-- 3) Aufgaben (Deadlines relativ zum Tag des Einspielens). Label: nur Werte aus der Liste der Portal-API (LABELS) oder null.
 insert into team_aufgaben (aufgabe_id, titel, beschreibung, status, prio, label, projekt, verantwortlich, erstellt_von, deadline, erstellt, geaendert, erledigt_am) values
-  ('mf-a01', 'Zugangslinks an alle verteilen',          'Jedes Teammitglied bekommt seinen persönlichen Link. Bitte nicht weiterleiten.',        'Erledigt',      1, 'Start',    'Onboarding Pilot',       'mf-anna',  'mf-anna',  to_char(current_date - 20, 'YYYY-MM-DD'), now() - interval '25 days', now() - interval '20 days', now() - interval '20 days'),
+  ('mf-a01', 'Zugangslinks an alle verteilen',          'Jedes Teammitglied bekommt seinen persönlichen Link. Bitte nicht weiterleiten.',        'Erledigt',      1, null,       'Onboarding Pilot',       'mf-anna',  'mf-anna',  to_char(current_date - 20, 'YYYY-MM-DD'), now() - interval '25 days', now() - interval '20 days', now() - interval '20 days'),
   ('mf-a02', 'Erstes Teammeeting im Portal planen',     'Tagesordnung als Notiz anlegen, Aufgaben daraus ableiten.',                            'Erledigt',      2, null,       'Onboarding Pilot',       'mf-ben',   'mf-anna',  to_char(current_date - 10, 'YYYY-MM-DD'), now() - interval '22 days', now() - interval '9 days',  now() - interval '9 days'),
-  ('mf-a03', 'Rückmeldungen zur ersten Woche sammeln',  'Was läuft gut, was stört? Als Vorschlag im Portal eintragen.',                         'In Arbeit',     2, 'Feedback', 'Onboarding Pilot',       'mf-clara', 'mf-anna',  to_char(current_date + 5,  'YYYY-MM-DD'), now() - interval '12 days', now() - interval '2 days',  null),
+  ('mf-a03', 'Rückmeldungen zur ersten Woche sammeln',  'Was läuft gut, was stört? Als Vorschlag im Portal eintragen.',                         'In Arbeit',     2, '💬 Zu besprechen', 'Onboarding Pilot',       'mf-clara', 'mf-anna',  to_char(current_date + 5,  'YYYY-MM-DD'), now() - interval '12 days', now() - interval '2 days',  null),
   ('mf-a04', 'Profil ausfüllen (E-Mail prüfen)',        'Unter Team: eigenes Profil öffnen, E-Mail kontrollieren, speichern.',                  'Offen',         3, null,       'Onboarding Pilot',       'mf-dan',   'mf-anna',  to_char(current_date + 7,  'YYYY-MM-DD'), now() - interval '12 days', now() - interval '12 days', null),
-  ('mf-a05', 'Anfrage Beispiel AG beantworten',         'Angebot für 10 Lizenzen gewünscht, Rückruf am Vormittag bevorzugt.',                   'In Arbeit',     1, 'Angebot',  'Kundenanfragen',         'mf-ben',   'mf-clara', to_char(current_date + 1,  'YYYY-MM-DD'), now() - interval '3 days',  now() - interval '1 day',   null),
-  ('mf-a06', 'Rückruf Probe KG vereinbaren',            'Hat per Formular angefragt, möchte einen Termin für eine Vorführung.',                 'Offen',         2, 'Rückruf',  'Kundenanfragen',         'mf-clara', 'mf-clara', to_char(current_date + 2,  'YYYY-MM-DD'), now() - interval '2 days',  now() - interval '2 days',  null),
-  ('mf-a07', 'Angebot Test GmbH nachfassen',            'Angebot ist seit 14 Tagen draußen, freundlich nachhaken.',                             'Wartet',        2, 'Angebot',  'Kundenanfragen',         'mf-ben',   'mf-ben',   to_char(current_date + 3,  'YYYY-MM-DD'), now() - interval '15 days', now() - interval '4 days',  null),
-  ('mf-a08', 'FAQ für häufige Anfragen schreiben',      'Die fünf häufigsten Fragen mit Antworten als Notiz, später auf die Webseite.',         'Geplant',       3, 'Text',     'Kundenanfragen',         'mf-clara', 'mf-anna',  to_char(current_date + 14, 'YYYY-MM-DD'), now() - interval '6 days',  now() - interval '6 days',  null),
-  ('mf-a09', 'Vorlage für Angebote vereinheitlichen',   'Eine Vorlage für alle, mit Platzhaltern für Kunde, Leistung, Preis.',                  'In Arbeit',     2, 'Vorlage',  'Interne Verbesserungen', 'mf-ben',   'mf-ben',   to_char(current_date + 10, 'YYYY-MM-DD'), now() - interval '8 days',  now() - interval '1 day',   null),
+  ('mf-a05', 'Anfrage Beispiel AG beantworten',         'Angebot für 10 Lizenzen gewünscht, Rückruf am Vormittag bevorzugt.',                   'In Arbeit',     1, '🔥 Hohe Prio', 'Kundenanfragen',         'mf-ben',   'mf-clara', to_char(current_date + 1,  'YYYY-MM-DD'), now() - interval '3 days',  now() - interval '1 day',   null),
+  ('mf-a06', 'Rückruf Probe KG vereinbaren',            'Hat per Formular angefragt, möchte einen Termin für eine Vorführung.',                 'Offen',         2, null,       'Kundenanfragen',         'mf-clara', 'mf-clara', to_char(current_date + 2,  'YYYY-MM-DD'), now() - interval '2 days',  now() - interval '2 days',  null),
+  ('mf-a07', 'Angebot Test GmbH nachfassen',            'Angebot ist seit 14 Tagen draußen, freundlich nachhaken.',                             'Wartet',        2, 'wartet auf..', 'Kundenanfragen',         'mf-ben',   'mf-ben',   to_char(current_date + 3,  'YYYY-MM-DD'), now() - interval '15 days', now() - interval '4 days',  null),
+  ('mf-a08', 'FAQ für häufige Anfragen schreiben',      'Die fünf häufigsten Fragen mit Antworten als Notiz, später auf die Webseite.',         'Geplant',       3, null,       'Kundenanfragen',         'mf-clara', 'mf-anna',  to_char(current_date + 14, 'YYYY-MM-DD'), now() - interval '6 days',  now() - interval '6 days',  null),
+  ('mf-a09', 'Vorlage für Angebote vereinheitlichen',   'Eine Vorlage für alle, mit Platzhaltern für Kunde, Leistung, Preis.',                  'In Arbeit',     2, '🗂️ Zu klären', 'Interne Verbesserungen', 'mf-ben',   'mf-ben',   to_char(current_date + 10, 'YYYY-MM-DD'), now() - interval '8 days',  now() - interval '1 day',   null),
   ('mf-a10', 'Ablage für Kundenunterlagen aufräumen',   'Alte Ordner archivieren, einheitliche Benennung festlegen.',                           'Geplant',       3, null,       'Interne Verbesserungen', 'mf-dan',   'mf-anna',  to_char(current_date + 21, 'YYYY-MM-DD'), now() - interval '5 days',  now() - interval '5 days',  null),
-  ('mf-a11', 'Checkliste Urlaubsvertretung testen',     'Neue Checkliste einmal in der Praxis durchspielen und Lücken notieren.',               'Wird getestet', 2, 'Test',     'Interne Verbesserungen', 'mf-clara', 'mf-ben',   to_char(current_date + 4,  'YYYY-MM-DD'), now() - interval '9 days',  now() - interval '1 day',   null),
-  ('mf-a12', 'Portal-Schulung für neue Kollegen',       'Kurze Einführung (30 Minuten) vorbereiten: Aufgaben, Notizen, Vorschläge.',            'Offen',         2, 'Start',    'Onboarding Pilot',       'mf-anna',  'mf-anna',  to_char(current_date + 30, 'YYYY-MM-DD'), now() - interval '1 day',   now() - interval '1 day',   null)
+  ('mf-a11', 'Checkliste Urlaubsvertretung testen',     'Neue Checkliste einmal in der Praxis durchspielen und Lücken notieren.',               'Wird getestet', 2, null,       'Interne Verbesserungen', 'mf-clara', 'mf-ben',   to_char(current_date + 4,  'YYYY-MM-DD'), now() - interval '9 days',  now() - interval '1 day',   null),
+  ('mf-a12', 'Portal-Schulung für neue Kollegen',       'Kurze Einführung (30 Minuten) vorbereiten: Aufgaben, Notizen, Vorschläge.',            'Offen',         2, null,       'Onboarding Pilot',       'mf-anna',  'mf-anna',  to_char(current_date + 30, 'YYYY-MM-DD'), now() - interval '1 day',   now() - interval '1 day',   null)
 on conflict (aufgabe_id) do nothing;
 
 -- 4) Verlauf zu den Aufgaben (nur beim ersten Einspielen; die Tabelle hat laufende Nummern)
@@ -104,7 +104,7 @@ insert into team_papierkorb (eintrag_id, art, objekt_id, titel, daten, geloescht
   ('mf-pk1', 'aufgabe', 'mf-a13', 'Rückruf Probe KG vereinbaren (doppelt)',
    jsonb_build_object(
      'aufgabe_id', 'mf-a13', 'titel', 'Rückruf Probe KG vereinbaren (doppelt)', 'beschreibung', 'Versehentlich zweimal angelegt.',
-     'status', 'Offen', 'prio', 2, 'label', 'Rückruf', 'projekt', 'Kundenanfragen', 'verantwortlich', 'mf-clara', 'erstellt_von', 'mf-ben',
+     'status', 'Offen', 'prio', 2, 'label', '', 'projekt', 'Kundenanfragen', 'verantwortlich', 'mf-clara', 'erstellt_von', 'mf-ben',
      'deadline', to_char(current_date + 2, 'YYYY-MM-DD'), 'agent_geeignet', false,
      'erstellt', now() - interval '2 days', 'geaendert', now() - interval '2 days', 'erledigt_am', null,
      '_verlauf', jsonb_build_array(jsonb_build_object('aufgabe_id', 'mf-a13', 'autor', 'mf-ben', 'art', 'kommentar',
@@ -121,5 +121,5 @@ select (select count(*) from team_mitglieder)       as mitglieder,
        (select count(*) from team_vorschlaege)      as vorschlaege,
        (select count(*) from team_papierkorb)       as papierkorb;
 
--- ... und die ZUGANGSCODES (Login-Link: <Portal-Adresse>?z=<token>)
+-- ... und die ZUGANGSCODES (Login-Link: <Portal-Adresse>#z=<token>)
 select name, rolle, status, token from team_mitglieder order by rolle, name;

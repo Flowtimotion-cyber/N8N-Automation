@@ -46,7 +46,7 @@ create table if not exists team_mitglieder (
   typ           text not null default 'mensch',    -- mensch | agent
   status        text not null default 'eingeladen' -- eingeladen | aktiv | gesperrt (so kennen es Portal und Server)
                 check (status in ('eingeladen', 'aktiv', 'gesperrt')),
-  token         text unique,                       -- persönlicher Zugangscode (Login-Link ?z=<token>)
+  token         text unique,                       -- persönlicher Zugangscode (Login-Link #z=<token>)
   whatsapp_ok   boolean default false,             -- Einwilligung für Nachrichten per WhatsApp (nur mit Option 130)
   registriert   timestamptz,
   zuletzt_aktiv timestamptz
@@ -88,6 +88,8 @@ create table if not exists team_aufgaben (
   geaendert      timestamptz default now(),
   erledigt_am    timestamptz
 );
+-- Wer zuletzt geändert hat (seit dem Abgleich mit der Portal-API; ältere Tabellen bekommen die Spalte nachgerüstet)
+alter table team_aufgaben add column if not exists geaendert_von text;   -- mitglied_id
 create index if not exists team_aufgaben_projekt on team_aufgaben (projekt);
 create index if not exists team_aufgaben_verantw on team_aufgaben (verantwortlich);
 

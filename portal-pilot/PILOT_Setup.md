@@ -1,0 +1,439 @@
+# Pilot-Portal einrichten: Schritt für Schritt
+
+Diese Anleitung bringt das Pilot-Portal für **einen** Kunden in Betrieb. Du brauchst dafür kein Entwicklerwissen, nur die drei
+Konten unten, einen Texteditor und etwa zwei bis drei Stunden. Jeder Schritt sagt dir, was du danach siehst. Siehst du etwas anderes,
+bleib bei dem Schritt stehen und lies den Hinweis dazu; geh nicht weiter.
+
+Die drei Teile des Portals und ihre Reihenfolge:
+
+1. **Datenbank** (Supabase): hier liegen die Daten des Kunden.
+2. **Schnittstelle** (n8n Cloud): hier läuft die Portal-API, die zwischen Oberfläche und Datenbank vermittelt.
+3. **Oberfläche** (eine HTML-Datei plus Konfiguration): das, was das Team im Browser sieht.
+
+Grundregel für den ganzen Pilot: **Jeder Kunde bekommt ein eigenes Supabase-Projekt und ein eigenes n8n-Projekt.** Nichts davon teilt
+sich mit einem anderen Kunden oder mit unserem eigenen Betrieb.
+
+---
+
+## 0. Was du brauchst
+
+| Was | Wofür | Wo bekommst du es |
+|---|---|---|
+| Ein **Supabase-Konto** | Datenbank des Kunden | supabase.com, kostenlos anlegen; Pro-Plan für den Pilot empfohlen (siehe Schritt 1) |
+| Zugang zur **n8n-Cloud-Instanz** | Portal-API | die Instanz aus der n8n-Partnerschaft; du brauchst Rechte, Workflows und Credentials anzulegen |
+| Ein Ort für **statische Dateien** | Oberfläche | GitHub-Konto (GitHub Pages) oder Cloudflare-Konto (Cloudflare Pages); jeder andere Webspace mit https geht auch |
+| **Node** ab Version 18 auf deinem Rechner | zwei kleine Skripte (`einsetzen.mjs` für die Workflows, optional der Testserver) | nodejs.org, LTS-Version; Prüfung im Terminal: `node --version` |
+| Den Ordner `portal-pilot/` aus diesem Repo | alle Dateien | als ZIP herunterladen oder das Repo klonen |
+| Vom Kunden: Firmenname, Kurzname, Logo (SVG oder PNG), zwei Farben, Name und E-Mail der ersten Admin-Person, das gewünschte Kürzel (z. B. `ifa`) | Konfiguration | per Mail erfragen |
+
+Bevor du anfängst: Abschnitt 6 (Pflichthinweise) lesen. Zwei Dinge müssen **vor dem ersten echten Datensatz** erledigt sein: der
+Auftragsverarbeitungsvertrag und die Datenschutzinformation für die Mitarbeitenden.
+
+---
+
+## 1. Supabase-Projekt anlegen
+
+1. Auf supabase.com anmelden, oben „New project“ wählen.
+2. Organisation: eine eigene Organisation für den Kunden anlegen (Name = Kundenname). So bleibt alles sauber getrennt und lässt
+   sich am Ende als Ganzes löschen.
+3. Projektname: `portal-<kürzel>` (z. B. `portal-ifa`).
+4. **Region: EU (Frankfurt)** wählen. Das ist Pflicht (Datenschutz: Daten bleiben in der EU).
+5. Datenbank-Passwort: eines erzeugen lassen und im Passwort-Manager ablegen. Du brauchst es im Alltag nicht.
+6. **Plan: Pro** wird empfohlen. Der kostenlose Plan pausiert das Projekt nach einer Woche ohne Zugriff und hat keine täglichen
+   Backups; beides passt nicht zu einem Pilot mit echten Daten. Der Pro-Plan kostet laut Supabase-Preisliste etwa 25 US-Dollar im
+   Monat je Organisation (Stand beim Schreiben; bitte auf der Preisseite nachsehen).
+7. „Create new project“. Das Anlegen dauert ein bis zwei Minuten.
+
+**Danach siehst du:** die Projektübersicht mit grünem Status „Active“ und links das Menü mit „Table Editor“, „SQL Editor“,
+„Storage“, „Project Settings“.
+
+8. Links unten **Project Settings → API** (in neueren Oberflächen: „Project Settings → Data API“ und „API Keys“) öffnen. Dort stehen:
+   - die **Project URL** (`https://<projekt-id>.supabase.co`). Die Projekt-ID ist der Teil vor `.supabase.co`, 20 Kleinbuchstaben.
+     Notiere sie, du brauchst sie in Schritt 3.
+   - die Schlüssel. Du brauchst **nur den `service_role`-Schlüssel** (manchmal „Secret key“ genannt, beginnt mit `eyJ…` oder `sb_secret_…`).
+
+**Wichtig:** Der `service_role`-Schlüssel darf **nur in n8n** hinterlegt werden (Schritt 3), sonst nirgends: nicht in einer Datei im
+Repo, nicht in der Oberfläche, nicht in einem Chat, nicht in einer Mail. Wer ihn hat, kann alles in der Datenbank lesen und ändern.
+Der `anon`-Schlüssel wird im Pilot gar nicht gebraucht.
+
+**Danach siehst du:** die Projekt-ID in deinen Notizen und den Schlüssel noch gar nicht kopiert (du kopierst ihn erst in Schritt 3
+direkt in n8n).
+
+---
+
+## 2. Datenbank einspielen
+
+Die Dateien liegen in `portal-pilot/supabase/`. Die genaue Beschreibung jeder Datei steht in `supabase/README.md`; hier die kurze Form.
+
+1. In Supabase links **SQL Editor** öffnen, „New query“.
+2. Die Datei `001_basis.sql` in einem Texteditor öffnen, **alles** markieren und kopieren, in den SQL-Editor einfügen, **Run**.
+
+   **Danach siehst du:** unten eine Tabelle mit 9 Zeilen, alle Namen beginnen mit `team_`. Steht dort ein roter Fehler, nicht
+   weitermachen, sondern den Fehlertext kopieren und nachfragen.
+
+3. Genauso `002_einstellungen.sql`.
+
+   **Danach siehst du:** 10 Zeilen mit `schluessel` (unter anderem `firma`, `kurzname`, `module`, `rollen`, `vorschlag_bereiche`).
+
+4. Genauso `003_team_laden.sql`.
+
+   **Danach siehst du:** 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb`.
+
+5. Jetzt **eine** von zwei Dateien:
+   - **Für den echten Kunden:** `910_erster_admin.sql`. Vorher in der Datei die zwei Platzhalter `HIER_NAME` und `HIER_MAIL` durch
+     Name und Firmen-Mail der Admin-Person ersetzen (die einfachen Anführungszeichen stehen lassen). Dann einfügen und Run.
+   - **Nur zum Zeigen und Testen:** `900_seed_musterfirma.sql` (erfundenes Team „Musterfirma GmbH“). Für den Kunden-Pilot nicht
+     nehmen, sonst stehen Musterdaten im echten Portal.
+
+   **Danach siehst du:** eine Zeile (910) beziehungsweise vier Zeilen (900) mit Name, Rolle, Status und einem 48 Zeichen langen
+   Zugangscode (`token`). Dieser Code ist der Zugang der Person. Kopiere ihn noch nicht irgendwohin; du liest ihn in Schritt 5 wieder aus.
+
+6. Kontrollabfrage: neue Query, eingeben und Run:
+
+   ```sql
+   select jsonb_array_length(team_laden_plus() -> 'mitglieder') as mitglieder,
+          jsonb_array_length(team_laden_plus() -> 'projekte')   as projekte,
+          jsonb_array_length(team_laden_plus() -> 'aufgaben')   as aufgaben;
+   ```
+
+   **Danach siehst du:** `1 / 0 / 0` beim ersten Admin, `4 / 3 / 12` bei den Musterdaten.
+
+7. Firma und Kurzname setzen (die doppelten Anführungszeichen innerhalb der einfachen sind nötig):
+
+   ```sql
+   select team_einstellung_setzen('firma',    '"Beispiel GmbH"');
+   select team_einstellung_setzen('kurzname', '"Beispiel"');
+   ```
+
+   **Danach siehst du:** je Zeile eine Antwort mit `schluessel` und `wert`. Diese Werte zeigt das Portal später im Fenstertitel und in
+   der Übersicht; sie haben Vorrang vor der Konfigurationsdatei.
+
+8. Optional das Pilot-Ende eintragen, damit es in den Einstellungen steht: `select team_einstellung_setzen('pilot_ende', '"2027-02-28"');`
+
+Die Optionen `100` bis `150` (Arbeitszeit, Teilnehmer, Social Media, Kommunikation, KI Office, Kurs) spielst du im Pilot **nicht** ein.
+Sie bleiben aus; das Einschalten später beschreibt `README.md`, Abschnitt „Module an- und ausschalten“.
+
+---
+
+## 3. n8n Cloud: die Portal-API
+
+### 3a. Importdateien erzeugen
+
+Im Terminal, im Ordner des Repos (dort, wo der Ordner `portal-pilot/` liegt):
+
+```bash
+node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --origin https://portal.beispiel.de --ausgabe fertig/ifa/
+```
+
+- `--supabase`: die Projekt-ID aus Schritt 1 (nur die ID, oder die ganze Adresse).
+- `--kuerzel`: das Kürzel des Kunden, nur Kleinbuchstaben, Ziffern, Bindestrich. Es wird Teil der Webhook-Adresse.
+- `--origin`: die Adresse, unter der die Oberfläche später liegt, **ohne Pfad** (bei Cloudflare Pages z. B. `https://portal-ifa.pages.dev`,
+  bei GitHub Pages die Pages-Adresse des Kontos ohne den Repo-Pfad, oder die eigene Domain wie `https://portal.beispiel.de`). Nur von dieser Adresse aus darf der Browser die
+  Schnittstelle aufrufen. Du legst sie hier schon fest, Schritt 4 muss dann dazu passen.
+- `--ausgabe`: ein Ordner für die fertigen Dateien. **Nicht ins Repo committen** (er enthält die Supabase-Adresse des Kunden).
+
+**Danach siehst du:** vier Zeilen `geschrieben: fertig/ifa/…workflow.json` und den Satz „Fertig. Webhook-Pfad der Portal-API: ifa/portal-api“.
+Steht dort ein Fehler, ist meist die Projekt-ID oder die Adresse falsch geschrieben; die Meldung sagt, welche.
+
+### 3b. Credential anlegen
+
+1. In n8n links „Credentials“ (oder „Home → Credentials“) → „Create credential“ (manchmal „Add credential“).
+2. Typ **Supabase API** suchen und wählen.
+3. Name genau: `Supabase (Pilot)` (so heißt es in den Workflows; ein anderer Name wird nicht zugeordnet).
+4. **Host**: `https://DEINE-PROJEKT-ID.supabase.co`. **Service Role Secret**: jetzt in Supabase (Project Settings → API) den
+   `service_role`-Schlüssel kopieren und hier einfügen. Speichern.
+
+**Danach siehst du:** das Credential in der Liste, oft mit grünem Haken „Connection tested successfully“. Zeigt n8n Rot, ist Host oder
+Schlüssel falsch (häufig: der `anon`-Schlüssel statt `service_role`).
+
+Wenn die Instanz ein Projekt je Kunde erlaubt: Credential und Workflows in ein **eigenes n8n-Projekt** mit dem Kundennamen legen.
+
+### 3c. Fehler-Workflow importieren
+
+1. „Workflows“ → „Create workflow“ → oben rechts die drei Punkte → **Import from file** → `fertig/ifa/fehler-workflow.workflow.json`.
+2. Die vier Supabase-Knoten nacheinander öffnen und bei „Credential“ jeweils `Supabase (Pilot)` wählen. Speichern (Strg+S).
+3. **Nicht aktivieren.** Ein Fehler-Workflow läuft von selbst, sobald ein anderer Workflow ihn eingetragen hat.
+
+**Danach siehst du:** den Workflow `PORTAL: Fehler-Workflow (Pilot) [ifa]` in der Liste, Status „Inactive“. Das ist richtig so.
+
+### 3d. Portal-API importieren und einstellen
+
+1. Wieder „Import from file“ → `fertig/ifa/portal-api.workflow.json`.
+2. Die drei Supabase-Knoten `Team-Daten laden`, `Einstellungen laden`, `In Supabase schreiben` öffnen, Credential `Supabase (Pilot)` wählen.
+3. Oben rechts die drei Punkte → **Settings**:
+   - „Error Workflow“: `PORTAL: Fehler-Workflow (Pilot) [ifa]`.
+   - „Save successful production executions“: **Do not save**.
+   - „Save failed production executions“: **Do not save**.
+   - „Save manual executions“: **aus**.
+   - „Save execution progress“: aus. Zeitzone: Europe/Berlin.
+   Die Datei bringt diese Werte mit; prüfe trotzdem jede Zeile. Grund: Gespeicherte Ausführungen enthalten die Anfragen des Portals
+   samt Zugangscodes und Texten. Im Pilot wird davon nichts gespeichert.
+4. Speichern.
+
+**Danach siehst du:** 16 Knoten auf der Fläche, keine roten Warndreiecke an den Supabase-Knoten, in den Settings die vier Werte wie oben.
+
+### 3e. Aktivieren und Webhook-Adresse ablesen
+
+1. Oben rechts den Schalter **Active** einschalten (neuere Oberflächen: „Publish“). Bestätigen.
+2. Den Knoten **Team-API** (ganz links) öffnen. Dort stehen „Test URL“ und **Production URL**. Du brauchst die Production URL. Sie sieht so aus:
+
+   `https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api`
+
+   Der Teil bis einschließlich `ifa` ist später der Wert `n8n_basis_url` in der Konfiguration der Oberfläche:
+   `https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa`.
+
+**Danach siehst du:** den Workflow mit grünem „Active“, und du hast die Production URL notiert.
+
+### 3f. Zwei Tests mit curl
+
+Im Terminal (die Adresse durch deine Production URL ersetzen):
+
+```bash
+curl -i -X POST "https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api" -H "Content-Type: application/json" -d '{"aktion":"laden","token":"kein-gueltiger-token"}'
+```
+
+**Danach siehst du:** in der ersten Zeile `HTTP/2 401` und darunter `{"ok":false,"fehler":"Dein Zugang ist ungültig. …"}`.
+Das ist das gewünschte Ergebnis: Die Kette läuft bis zur Datenbank (der Code wird gegen die Mitgliederliste geprüft) und weist den
+falschen Code ab.
+
+- Kommt `404`: der Workflow ist nicht aktiv oder die Adresse stimmt nicht (Test-URL statt Production-URL?).
+- Kommt `500` oder `503` („Die Daten konnten gerade nicht geladen werden“): das Credential passt nicht, oder `003_team_laden.sql`
+  fehlt. In n8n den Knoten `Team-Daten laden` einzeln testen.
+
+Zweiter Test, die Herkunftsprüfung (CORS). Der Browser schickt vor dem eigentlichen Aufruf eine Anfrage mit `Origin`; n8n antwortet nur
+für die erlaubte Herkunft mit dem passenden Header:
+
+```bash
+curl -i -X OPTIONS "https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api" -H "Origin: https://portal.beispiel.de" -H "Access-Control-Request-Method: POST"
+```
+
+**Danach siehst du:** einen Header `access-control-allow-origin: https://portal.beispiel.de` (genau deine Adresse aus `--origin`).
+Wiederhole den Aufruf mit einer anderen Herkunft, z. B. `-H "Origin: https://www.example.com"`: dann darf dieser Header **nicht**
+mit dieser Adresse kommen. Fehlt der Header auch bei der richtigen Herkunft, ist `--origin` in Schritt 3a falsch gewesen: Datei neu
+erzeugen, Workflow neu importieren (den alten vorher löschen oder umbenennen).
+
+Ein Test mit gültigem Zugang (Code eines Admins aus Schritt 2) geht genauso mit `"token":"<code>"` und liefert `"ok":true` mit den
+Daten. Den Code danach nicht im Terminal-Verlauf liegen lassen (`history -c` oder das Terminal schließen).
+
+---
+
+## 4. Oberfläche
+
+### 4a. `config/mandant.js` ausfüllen
+
+Die Oberfläche besteht aus `frontend/index.html`, `frontend/assets/logo.svg` und `config/mandant.js`. Öffne `config/mandant.js` im
+Texteditor und ersetze die Werte. Die Vorlage mit allen Feldern ist `config/mandant.example.json`; beide müssen dieselben Felder haben.
+
+| Feld | Eintragen |
+|---|---|
+| `firma` | Firmenname (zeigt das Portal, solange der Server keinen liefert; Schritt 2.7 hat Vorrang) |
+| `kurzname` | Kurzform, z. B. „Beispiel“ |
+| `logo` | `assets/logo.svg`, dann die Datei `frontend/assets/logo.svg` durch das Logo des Kunden ersetzen (SVG oder PNG, dann `assets/logo.png` eintragen). Leer lassen = Kurzname als Text |
+| `farben.primaer`, `farben.akzent` | zwei Farben als `#rrggbb`, z. B. aus dem Logo |
+| `n8n_basis_url` | aus Schritt 3e, z. B. `https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa`, **ohne** Schrägstrich am Ende |
+| `portal_url` | die Adresse der Oberfläche **mit** Schrägstrich am Ende, z. B. `https://portal.beispiel.de/frontend/` oder `https://portal-ifa.pages.dev/frontend/` |
+| `register` | für den Pilot so lassen: Übersicht, Aufgaben, Projekte, Notizen, Vorschläge, Team auf `true`, alles andere `false` |
+| `social_kanaele` | `[]` lassen (nur für die Option Social Media) |
+| `anleitung_video` | leer, oder die https-Einbettungsadresse eines Erklärvideos |
+| `standard_projekt` | leer, oder der Name des Projekts, das bei neuen Aufgaben vorbelegt ist |
+| `sprache` | `de` |
+
+Platzhalter, die danach **nicht mehr** in der Datei stehen dürfen: `DEINE-INSTANZ`, `PILOTKUERZEL`, `DEINE-ADRESSE`.
+
+**Danach siehst du:** beim Öffnen von `frontend/index.html` direkt von der Festplatte (Doppelklick) die Anmeldeseite mit Logo und
+Firmenname des Kunden. Anmelden geht von der Festplatte aus noch nicht (die Herkunft `file://` ist in n8n nicht erlaubt), das kommt in
+Schritt 5.
+
+### 4b. Hosting
+
+Die Oberfläche sind drei statische Dateien. Sie brauchen keinen Server, nur einen Ort mit https. Zwei bewährte Wege:
+
+**Weg A: GitHub Pages in einem eigenen privaten Repo**
+
+1. Auf github.com → „New repository“, Name `portal-ifa`, **Private**, ohne README. Erstellen.
+2. In das leere Repo die drei Ordner hochladen: „Add file → Upload files“, den Inhalt von `portal-pilot/frontend/` und
+   `portal-pilot/config/` so ablegen, dass es im Repo `frontend/index.html`, `frontend/assets/logo.svg`, `config/mandant.js` gibt.
+   Nichts anderes hochladen (keine SQL-Dateien, keine Workflows). Commit.
+3. Repo-Einstellungen → **Pages** → „Build and deployment“: Source „Deploy from a branch“, Branch `main`, Ordner `/ (root)`. Speichern.
+   GitHub Pages aus einem privaten Repo braucht einen GitHub-Pro- oder Team-Plan; im kostenlosen Plan muss das Repo öffentlich sein.
+   Öffentlich wäre nur die Oberfläche (ohne Daten, ohne Schlüssel), aber mit Firmenname und n8n-Adresse. Für den Pilot ist ein
+   privates Repo mit Pro-Plan der saubere Weg.
+4. Nach ein bis zwei Minuten steht unter Pages die Adresse der Seite: die Pages-Adresse deines Kontos plus `/portal-ifa/`. Die Oberfläche
+   liegt dann unter dieser Adresse plus `frontend/`. Das ist deine `portal_url` (Schritt 4a); die Herkunft für n8n (Schritt 3a) ist nur
+   der Teil bis zum ersten Schrägstrich nach dem Host, ohne `/portal-ifa/`.
+
+**Weg B: Cloudflare Pages**
+
+1. Auf dash.cloudflare.com → „Workers & Pages“ → „Create“ → „Pages“ → „Upload assets“ (direkter Upload, ohne Git).
+2. Projektname `portal-ifa`. Den Ordner mit `frontend/` und `config/` hochladen (als ZIP oder Ordner). Deploy.
+3. Die Adresse lautet `https://portal-ifa.pages.dev`, die Oberfläche liegt unter `https://portal-ifa.pages.dev/frontend/`. Eigene
+   Domain geht unter „Custom domains“.
+4. Zugriffsschutz, falls gewünscht: „Cloudflare Access“ kann die Seite zusätzlich hinter einen Login legen; für den Pilot reicht der
+   persönliche Zugangscode.
+
+Bei beiden Wegen gilt: **Die Herkunft (Schema + Host, ohne Pfad) muss genau der Angabe `--origin` aus Schritt 3a entsprechen**, sonst
+blockt der Browser jeden Aufruf der Schnittstelle (Fehlermeldung „Keine Verbindung“ im Portal, in der Browser-Konsole „CORS“).
+Hast du dich vertan: Schritt 3a mit der richtigen Adresse wiederholen und den Workflow neu importieren.
+
+**Danach siehst du:** die Anmeldeseite unter der öffentlichen Adresse, mit Logo und Firmenname, über https.
+
+---
+
+## 5. Erster Login
+
+1. In Supabase, SQL Editor: `select name, rolle, status, token from team_mitglieder order by name;`
+
+   **Danach siehst du:** die Admin-Person mit ihrem 48-stelligen Code.
+
+2. Den Link bauen: `<portal_url>#z=<code>`, zum Beispiel `https://portal-ifa.pages.dev/frontend/#z=ab12…`. Das Doppelkreuz ist Absicht:
+   Den Teil hinter `#` schickt der Browser nie an einen Server und nie in ein Protokoll.
+3. Den Link selbst im Browser öffnen (erst du, dann die Admin-Person des Kunden; Weitergabe nur persönlich, siehe Pflichthinweis 6).
+
+**Danach siehst du** (Checkliste, alles muss zutreffen):
+
+- [ ] Die Adresszeile zeigt den Code **nicht** mehr (er wurde übernommen und entfernt).
+- [ ] Der Fenstertitel lautet „Team-Portal · <Firma aus Schritt 2.7>“.
+- [ ] Oben rechts Name und Rolle „Admin“.
+- [ ] Sechs Register: Übersicht, Aufgaben, Projekte, Notizen, Vorschläge, Team. Keine weiteren.
+- [ ] Übersicht: „Guten Morgen/Tag, <Name>“, Kennzahlen (bei leerer Datenbank alles 0), kein Hinweis auf „KI Office“, kein Video (außer du hast eines eingetragen).
+- [ ] Register Team: die Admin-Person mit „Verwalten“ und „Link kopieren“; unten „Auf diesem Gerät abmelden“.
+- [ ] Register Aufgaben → „+ Neue Aufgabe“ → eine Testaufgabe anlegen → sie erscheint in der Liste. In Supabase (Table Editor →
+      `team_aufgaben`) steht die Zeile.
+- [ ] Die Testaufgabe öffnen, Status „Erledigt“, speichern. In `team_aufgaben_verlauf` stehen „Angelegt“ und „Status: Offen → Erledigt“.
+- [ ] Auf dem Handy (oder Browserfenster schmal ziehen): keine waagerechte Scrollleiste der Seite; die Register-Leiste zeigt rechts
+      einen Pfeil und lässt sich wischen.
+- [ ] Browser-Konsole (F12) ohne rote Fehler.
+
+Trifft ein Punkt nicht zu: „Keine Verbindung“ → Schritt 3f und 4b (CORS, Adresse). Anmeldeseite trotz Link → Code falsch kopiert oder
+Status `gesperrt`. Register fehlen → `register` in `mandant.js`.
+
+4. Weitere Mitglieder legt die Admin-Person jetzt im Portal unter **Team → Neues Teammitglied** an. Für jede Person entsteht ein
+   eigener Link („Link kopieren“), den sie **persönlich** bekommt (nicht in Gruppenchats). Beim ersten Öffnen trägt die Person ihre
+   E-Mail ein; danach ist der Zugang aktiv.
+
+---
+
+## 6. Pilot-Standard und Pflichthinweise
+
+### Pilot-Standard
+
+| Einstellung | Wert im Pilot | Wo |
+|---|---|---|
+| Register | Übersicht, Aufgaben, Projekte, Notizen, Vorschläge, Team | `config/mandant.js` |
+| Module | alle aus (`zeit`, `social`, `system`, `kurs` = false) | `team_einstellungen.module` |
+| Zeiterfassung, WhatsApp, KI-Funktionen, Social, Chat-Hinweise | aus, nicht eingespielt | Optionen `100`–`150` nicht einspielen; Wochenstand und Vorschlag-Hinweis in n8n nicht importieren oder nicht aktivieren |
+| Ausführungsdaten in n8n | nicht speichern (Erfolg und Fehler) | Workflow-Settings |
+| Region | EU (Frankfurt) | Supabase |
+| Service-Role-Schlüssel | nur im n8n-Credential | n8n |
+| Zugangscodes | 48 Zeichen, im Link hinter `#`, persönlich weitergeben | Portal |
+| Pilotdauer | 4 Wochen, danach Export und Löschung binnen 30 Tagen | Abschnitt 8 |
+
+### Pflichthinweise für den Kunden (aus der Datenschutzprüfung)
+
+Diese neun Punkte gehören in das Vorgespräch mit dem Kunden und, wo angegeben, **vor** den ersten echten Datensatz. Sie sind keine
+Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
+
+1. **Vor dem ersten echten Datensatz: Auftragsverarbeitungsvertrag (AVV) unterschrieben.** Der Kunde ist Verantwortlicher, wir sind
+   Auftragsverarbeiter. Der Kunde hat die Liste der Unterauftragnehmer gelesen: Supabase (Datenbank, Region Frankfurt), n8n GmbH
+   (n8n Cloud, Schnittstelle), der Hosting-Anbieter der Oberfläche (GitHub oder Cloudflare oder der gewählte Webspace).
+2. **Datenschutzinformation für die Mitarbeitenden (Art. 13 DSGVO), bevor der erste Zugangslink verteilt wird.** Inhalt: Zweck
+   (Aufgaben- und Projektorganisation im Team), Daten (Name, Firmen-E-Mail, optional Telefon, Aufgaben, Notizen, Kommentare,
+   Vorschläge, Zeitpunkt der letzten Anmeldung), Empfänger und Unterauftragnehmer (siehe 1), Drittland (keines vorgesehen; Hosting-
+   Anbieter prüfen), Fristen (Pilotende plus 30 Tage, siehe 8), Rechte (Auskunft, Berichtigung, Löschung, Widerspruch) und die
+   Ansprechperson beim Kunden.
+3. **Zeiterfassung:** Betriebsrat beziehungsweise Betriebsvereinbarung klären, bevor die Option Arbeitszeit eingeschaltet wird. Das
+   Modul bleibt aus, bis der Kunde das schriftlich bestätigt.
+4. **WhatsApp:** nur mit Einwilligung je Person; Standard ist aus (Option 130 nicht eingespielt, Register aus). Das Feld „Handynummer“
+   im Profil darf leer bleiben.
+5. **KI-Funktionen:** Standard aus. Wird später etwas eingeschaltet (Assistent, KI Office), vorher Hinweis an die Mitarbeitenden auf
+   den KI-Anbieter (Sitz in den USA) und die Regel: keine sensiblen Daten in KI-Funktionen.
+6. **Persönlicher Link:** nicht weitergeben, nicht in Gruppenchats, nicht in Ticketsysteme. Auf fremden oder geteilten Geräten „Auf
+   diesem Gerät abmelden“ nutzen. Bei Verdacht auf Weitergabe: Admin erzeugt unter Team → Verwalten → „Neuen Zugangslink erzeugen“
+   einen neuen Link; der alte ist sofort ungültig.
+7. **Selbstbetrieb** (wenn der Kunde Supabase, n8n und Hosting selbst betreibt): eigene Konten, Zwei-Faktor-Anmeldung bei allen drei
+   Anbietern, EU-Region, eigene AVVs mit den drei Anbietern.
+8. **Pilotende:** Export und Löschung nach Abschnitt 8, danach schriftliche Löschbestätigung an den Kunden.
+9. **Kundenseitig:** Eintrag im Verzeichnis der Verarbeitungstätigkeiten; Prüfung, ob eine Datenschutz-Folgenabschätzung nötig ist
+   (Schwellenprüfung; bei Aufgabenverwaltung ohne Leistungsbewertung und ohne Zeiterfassung in der Regel nicht).
+
+---
+
+## 7. Betrieb während des Pilots
+
+### Ausführungsbudget in n8n Cloud
+
+Jeder Aufruf der Portal-API ist **eine Ausführung** in n8n Cloud: jedes Öffnen des Portals, jeder Hintergrund-Reload (alle
+10 Minuten je offenem Tab, nur bei sichtbarem Tab), jedes Speichern, jeder Klick auf „Finde ich gut“. Rechenbeispiel für 4 Personen:
+
+| Was | je Person und Tag | 4 Personen, 20 Arbeitstage |
+|---|---|---|
+| Portal 8 Stunden offen und sichtbar: 6 Reloads je Stunde | 48 | 3 840 |
+| Öffnen, Speichern, Kommentare, Stimmen (geschätzt) | 30 | 2 400 |
+| Summe | 78 | **rund 6 200 im Monat** |
+
+Im Alltag ist der Tab selten acht Stunden sichtbar (versteckte Tabs laden nicht), realistisch sind 2 000 bis 4 000 Ausführungen im
+Monat. Welcher Tarif der Partner-Instanz zugrunde liegt, ist nicht bekannt. **Vor dem Start im n8n-Konto unter „Usage“ nachsehen,**
+wie viele Ausführungen im Monat enthalten sind, und in der zweiten Pilotwoche den Zähler prüfen. Reicht es nicht: Reload-Abstand in
+`frontend/index.html` erhöhen (Zeile `const RELOAD_MS = 10 * 60000`) oder die Begleit-Workflows (Wochenstand, Hinweis) nicht aktivieren.
+
+### Backups
+
+Supabase Pro macht tägliche Backups (7 Tage). Für den Pilot zusätzlich einmal pro Woche `990_export.sql` ausführen und das JSON
+verschlüsselt ablegen (Passwort-ZIP), damit ein Stand unabhängig vom Anbieter existiert. Nach dem Pilot diese Kopien löschen (Abschnitt 8).
+
+### Zugangscode sperren oder erneuern
+
+- **Sperren:** Portal → Team → Verwalten → Zugang „gesperrt“. Oder in Supabase: `update team_mitglieder set status = 'gesperrt' where email = '…';`
+- **Neuer Link:** Portal → Team → Verwalten → „Neuen Zugangslink erzeugen“. Oder: `update team_mitglieder set token = team_token_neu() where email = '…';`
+  Der alte Link ist sofort ungültig; wer ihn noch offen hat, wird beim nächsten Klick abgemeldet.
+- **Admin-Zugang verloren:** `select name, token from team_mitglieder where rolle = 'admin';` im SQL-Editor zeigt die Codes.
+
+### Was du bei Störungen prüfst
+
+1. Portal zeigt „Keine Verbindung“: in n8n ist der Workflow aktiv? `curl`-Test aus Schritt 3f. Herkunft (CORS) wie in Schritt 4b?
+2. Portal zeigt „Dein Zugang ist ungültig“: Status der Person in `team_mitglieder`, Code neu erzeugen.
+3. Im Portal erscheint eine Notiz „Störung TT.MM.JJJJ“: der Fehler-Workflow hat einen Fehler eines Workflows protokolliert; Text lesen,
+   meist ein abgelaufener Schlüssel oder eine fehlende Tabelle.
+4. „Modul nicht aktiviert“: ein Register ist in `mandant.js` an, das Modul auf dem Server aber aus (siehe `README.md`, „Module an- und
+   ausschalten“). Im Pilot gewollt für alle Optionen.
+
+---
+
+## 8. Pilotende: Übergabe und Löschung
+
+Reihenfolge einhalten. Ziel: Der Kunde hat seine Daten, bei uns und bei den Anbietern bleibt nichts zurück, und der Kunde hat das
+schriftlich. Frist: Löschung binnen 30 Tagen nach Pilotende.
+
+1. **Workflows aus:** in n8n die Portal-API und die Begleit-Workflows deaktivieren.
+
+   **Danach siehst du:** die Workflows mit „Inactive“; das Portal zeigt „Keine Verbindung“.
+
+2. **Export:** in Supabase `990_export.sql` komplett ausführen. Die letzte Zelle enthält das ganze JSON. Zelle anklicken, kopieren, als
+   `export-<kunde>-<datum>.json` speichern. Wer Excel-Tabellen will: die `select`-Zeilen am Ende der Datei einzeln ausführen und je
+   Ergebnis „Download CSV“. Zugangscodes sind absichtlich nicht im Export.
+
+   **Danach siehst du:** eine JSON-Datei, in der die Mitglieder, Aufgaben und Notizen des Kunden vorkommen, aber kein `token`.
+
+3. **Übergabe:** Export verschlüsselt an den Kunden (ZIP mit Passwort, Passwort über einen anderen Kanal), Empfang schriftlich
+   bestätigen lassen. Danach die eigene Kopie und die Wochen-Sicherungen aus Abschnitt 7 löschen.
+
+4. **Datenbank löschen:** `999_loeschen.sql` öffnen, den Kopfkommentar zweimal lesen, in Supabase den Projektnamen oben links prüfen.
+   In der Zeile `bestaetigung text := 'NEIN';` das `NEIN` durch `JA, ALLES LOESCHEN` ersetzen, ausführen.
+
+   **Danach siehst du:** die Kontrollabfragen am Ende sind leer (keine `team_`-Tabellen mehr).
+
+5. **Buckets:** nur falls die Option Social Media eingespielt war: Supabase → Storage → Buckets `medien-roh` und `social-ideen` leeren
+   und löschen. Im Pilot-Standard gibt es sie nicht.
+
+6. **Supabase-Projekt löschen:** Project Settings → General → „Delete project“. Danach die Organisation des Kunden löschen (Organization
+   Settings). Backups beim Anbieter verschwinden nach dessen Frist (7 Tage im Pro-Plan).
+
+   **Danach siehst du:** das Projekt ist aus der Liste verschwunden.
+
+7. **n8n aufräumen:** das n8n-Projekt des Kunden mit allen Workflows löschen und das Credential `Supabase (Pilot)` löschen (es zeigt
+   ohnehin auf ein gelöschtes Projekt). Gibt es kein eigenes Projekt: die vier Workflows und das Credential einzeln löschen.
+
+8. **Oberfläche vom Netz:** das GitHub-Repo oder das Cloudflare-Pages-Projekt löschen.
+
+9. **Löschbestätigung** an den Kunden: Datum, was gelöscht wurde (Supabase-Projekt, n8n-Workflows und -Credential, Hosting, eigene
+   Export-Kopien), Hinweis auf die Backup-Frist des Anbieters. Eine Kopie der Bestätigung im eigenen Löschprotokoll ablegen.

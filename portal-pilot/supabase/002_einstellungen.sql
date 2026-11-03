@@ -4,7 +4,7 @@
 -- Was macht diese Datei?
 --   Legt die Tabelle team_einstellungen an. Dort steht alles, was je Firma anders ist (Firmenname,
 --   Kurzname, Räume, Rollen, Stichtag der Arbeitszeit-Abrechnung, Pilot-Ende, freigeschaltete Module,
---   Projekt für den Wochenstand). Die n8n-Workflows des
+--   Projekt für den Wochenstand, Bereiche für Vorschläge, Kanäle für Social Media). Die n8n-Workflows des
 --   Piloten lesen diese Werte im ersten Knoten über team_einstellung('<schluessel>'); nichts davon
 --   steckt mehr fest im Code.
 -- Pflicht oder Option?  PFLICHT.
@@ -49,7 +49,11 @@ insert into team_einstellungen (schluessel, wert, beschreibung) values
   ('module',    '{"zeit": false, "social": false, "system": false, "kurs": false}'::jsonb,
      'Welche Optionen das Portal zeigt und der Server erlaubt; true = an. Beispiel: select team_einstellung_setzen(''module'', ''{"zeit": true}'');'),
   ('firmenwissen_projekt', 'null'::jsonb,
-     'Projektname, in den der Wochenstand seine Notizen legt; null = kein Wochenstand')
+     'Projektname, in den der Wochenstand seine Notizen legt; null = kein Wochenstand'),
+  ('vorschlag_bereiche', '["Übersicht", "Aufgaben", "Projekte", "Notizen", "Vorschläge", "Team", "Sonstiges"]'::jsonb,
+     'Bereiche, die man einem Vorschlag zuordnen kann (Auswahl in der Oberfläche; der Server macht Unbekanntes zu Sonstiges). Leere Liste = freier Text.'),
+  ('social_kanaele', '[]'::jsonb,
+     'Kanäle für die Option Social Media, z. B. ["LinkedIn", "Newsletter"]. Leere Liste = der Server nimmt jeden Kanalnamen an; die Anzeige-Liste steht in config/mandant.js (social_kanaele).')
 on conflict (schluessel) do nothing;
 
 -- Lesen: liefert den JSON-Wert oder null, wenn der Schlüssel fehlt.
@@ -88,5 +92,5 @@ grant execute on function team_einstellung(text)                      to service
 grant execute on function team_einstellungen_alle()                   to service_role;
 grant execute on function team_einstellung_setzen(text, jsonb, text)  to service_role;
 
--- Kontrolle: muss 8 Zeilen zeigen (firma, firmenwissen_projekt, kurzname, module, pilot_ende, raeume, rollen, stichdatum_abrechnung)
+-- Kontrolle: muss 10 Zeilen zeigen (firma, firmenwissen_projekt, kurzname, module, pilot_ende, raeume, rollen, social_kanaele, stichdatum_abrechnung, vorschlag_bereiche)
 select schluessel, wert, beschreibung from team_einstellungen order by schluessel;

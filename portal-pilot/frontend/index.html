@@ -19,8 +19,11 @@ header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0
 .who b{color:var(--ink)}
 .bar{height:3px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
 .logotext{font-weight:800;font-size:18px;color:var(--acc);white-space:nowrap}
-nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 0 0;scrollbar-width:none}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 0 0;scrollbar-width:none;scroll-behavior:smooth}
 nav.tabs::-webkit-scrollbar{display:none}
+/* Auf schmalen Bildschirmen scrollt die Leiste seitlich: rechts ein Verlauf mit Pfeil als Hinweis, der am Ende verschwindet (Klasse .ende, gesetzt vom Skript) */
+.tabwrap{position:relative}
+@media (max-width:700px){.tabwrap::after{content:'›';position:absolute;right:-2px;top:8px;bottom:0;width:44px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:22px;font-weight:700;color:var(--acc);background:linear-gradient(90deg,rgba(255,255,255,0),#fff 55%);pointer-events:none;transition:opacity .2s}.tabwrap.ende::after{opacity:0}nav.tabs{padding-right:36px}}
 nav.tabs button{border:0;background:none;padding:9px 14px 11px;font-weight:600;color:var(--mut);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
 nav.tabs button.on{color:var(--acc);border-bottom-color:var(--acc)}
 main{padding:30px 0 60px}
@@ -316,9 +319,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   'use strict';
   // ---------- Mandant (aus ../config/mandant.js) ----------
   const M = window.MANDANT || {};
-  const KURZ = String(M.kurzname || 'Team').trim() || 'Team';
-  const FIRMA = String(M.firma || KURZ).trim() || KURZ;
+  // Firma und Kurzname: aus mandant.js; liefert der Server in „einstellungen“ eigene Werte (team_einstellungen), gelten die (siehe einstellungenUebernehmen)
+  let KURZ = String(M.kurzname || 'Team').trim() || 'Team';
+  let FIRMA = String(M.firma || KURZ).trim() || KURZ;
   const REG = Object.assign({ uebersicht: true, aufgaben: true, projekte: true, notizen: true, vorschlaege: true, team: true }, M.register || {});
+  // Social-Kanäle aus der Konfiguration (social_kanaele); leer = freier Text im Beitrag (der Server nimmt dann jeden Kanalnamen an)
+  const KANAELE_KONFIG = (Array.isArray(M.social_kanaele) ? M.social_kanaele : []).filter(k => typeof k === 'string' && k.trim()).map(k => k.trim().slice(0, 40)).slice(0, 40);
   // Alle Webhook-Adressen hängen an einer Basis: n8n_basis_url + '/portal-api' (Pflicht), '/team-vertrieb', '/team-inbox', '/office-api' (nur bei eingeschaltetem Register)
   const BASIS = String(M.n8n_basis_url || '').replace(/\/+$/, '');
   const API = BASIS + '/portal-api';
@@ -335,16 +341,25 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
   const BOARD = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet'];
   const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
-  const KANAELE = ['LinkedIn', 'Facebook', 'YouTube', 'TikTok', 'Newsletter', 'Webseite / Blog', 'Sonstiges'];
+  // Kanalliste: Konfiguration zuerst, sonst die Liste des Servers (Einstellung social_kanaele), sonst leer = freies Textfeld
+  const kanaele = () => KANAELE_KONFIG.length ? KANAELE_KONFIG : ((D && D.einstellungen && Array.isArray(D.einstellungen.social_kanaele)) ? D.einstellungen.social_kanaele : []);
   const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
-  const ROLLEN = { admin: 'Admin', dozent: 'Fachleitung / Technik', vertrieb: 'Vertrieb', team: 'Team' };
+  // Rollen, die man vergeben kann: admin und team immer; weitere aus der Einstellung „rollen“ des Servers (Objekte mit rolle/titel), siehe einstellungenUebernehmen
+  const ROLLEN_TITEL = { admin: 'Admin', team: 'Team', dozent: 'Fachleitung / Technik', vertrieb: 'Vertrieb' };
+  let ROLLEN = { admin: 'Admin', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
   // Register: interner Schlüssel, Beschriftung, Schalter in mandant.js („register“). Ausgeschaltete Register erscheinen nirgends und rufen keine API auf.
   const ALLE_TABS = [['start', 'Übersicht', 'uebersicht'], ['aufgaben', 'Aufgaben', 'aufgaben'], ['projekte', 'Projekte', 'projekte'], ['zeit', 'Arbeitszeit', 'arbeitszeit'], ['notizen', 'Notizen', 'notizen'], ['social', 'Social Media', 'social'], ['vertrieb', 'Vertrieb', 'vertrieb'], ['whatsapp', 'WhatsApp', 'whatsapp'], ['kurs', 'Kurs & Teilnehmer', 'kurs'], ['systeme', 'Systeme', 'systeme'], ['skills', 'Skills', 'skills'], ['tresor', 'Tresor', 'tresor'], ['web', 'Webseite', 'webseite'], ['vorschlaege', 'Vorschläge', 'vorschlaege'], ['office', 'KI Office', 'office'], ['team', 'Team', 'team']];
-  const an = k => { const x = ALLE_TABS.find(y => y[0] === k); return !!x && REG[x[2]] === true; };
-  const TABS = ALLE_TABS.filter(([k]) => an(k)).map(([k, l]) => [k, l]);
-  const START_TAB = TABS.length ? TABS[0][0] : 'start';
+  // Register mit Modul auf dem Server: nur sichtbar, wenn der Konfig-Schalter UND die Einstellung „module“ (team_einstellungen) an sind.
+  // Meldet der Server „Modul nicht aktiviert“ (403), landet das Modul in MODUL_AUS und das Register verschwindet bis zum nächsten Laden.
+  const MODUL_VON_TAB = { zeit: 'zeit', social: 'social', systeme: 'system', kurs: 'kurs' };
+  const MODUL_VON_AKTION = a => /^(zeit_|woche_|zeiten_|vertrag_|monat_)/.test(a) ? 'zeit' : /^social_/.test(a) ? 'social' : /^system_/.test(a) ? 'system' : /^(tn_|teilnehmer|community_)/.test(a) ? 'kurs' : '';
+  const MODUL_AUS = new Set();
+  const modulAn = m => { if (MODUL_AUS.has(m)) return false; const mo = D && D.einstellungen && D.einstellungen.module; return mo && typeof mo === 'object' ? mo[m] === true : true; };
+  const an = k => { const x = ALLE_TABS.find(y => y[0] === k); return !!x && REG[x[2]] === true && (!MODUL_VON_TAB[k] || modulAn(MODUL_VON_TAB[k])); };
+  const tabs = () => ALLE_TABS.filter(([k]) => an(k)).map(([k, l]) => [k, l]);
+  const startTab = () => { const t = tabs(); return t.length ? t[0][0] : 'start'; };
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -369,13 +384,13 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   tokenLesen();
 
   let D = null;            // Daten vom Server
-  let tab = ls.get('mt-tab') || START_TAB;
+  let tab = ls.get('mt-tab') || startTab();
   const F = Object.assign({ person: 'ich', projekt: '', status: 'offen', q: '', ansicht: 'liste', kanal: '' }, JSON.parse(ls.get('mt-filter') || '{}'));
 
   // ---------- Helfer ----------
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); };
+  const toast = t => { if (t && t === toast.leise) { toast.leise = ''; return; } const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); };
   const heute = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
   const dDate = s => s ? new Date(s + 'T00:00:00') : null;
   const fmtD = s => { if (!s) return ''; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? dDate(s) : new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -398,9 +413,35 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   async function api(aktion, daten) {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
     let j = null; try { j = await r.json(); } catch (e) {}
-    if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; err.daten = j; throw err; }
+    if (!r.ok || !j || j.ok === false) {
+      const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; err.daten = j;
+      // 401: der Zugang gilt nicht mehr (gesperrt, neuer Link, Code falsch): immer abmelden, egal bei welcher Aktion
+      if (r.status === 401) { ls.del('mt-token'); TOKEN = null; D = null; if ($('#dlg').open) $('#dlg').close(); ohneZugang(err.message); err.abgemeldet = true; }
+      // 403 „Modul nicht aktiviert“: das Register verschwindet, statt eines Toasts steht ein Hinweis in der Übersicht
+      if (r.status === 403 && j && j.modul_nicht_aktiviert) { const m = MODUL_VON_AKTION(aktion) || MODUL_VON_TAB[tab] || ''; if (m) MODUL_AUS.add(m); modulHinweis = err.message; toast.leise = err.message; if ($('#dlg').open) $('#dlg').close(); if (D && !D.setup) render(); err.modul = true; }
+      throw err;
+    }
     return j;
   }
+  let modulHinweis = '';
+  // Einstellungen des Servers (Feld „einstellungen“ der Antwort „laden“): Firma, Kurzname, Rollen, Module, Listen
+  function einstellungenUebernehmen() {
+    const E = (D && D.einstellungen && typeof D.einstellungen === 'object') ? D.einstellungen : {};
+    const firma = String(E.firma || '').trim(), kurz = String(E.kurzname || '').trim();
+    if (kurz) KURZ = kurz.slice(0, 60);
+    if (firma) FIRMA = firma.slice(0, 120); else if (kurz && !String(M.firma || '').trim()) FIRMA = KURZ;
+    document.title = 'Team-Portal · ' + FIRMA;
+    const R = { admin: 'Admin', team: 'Team' };
+    for (const r of (Array.isArray(E.rollen) ? E.rollen : [])) {
+      const k = r && typeof r === 'object' ? String(r.rolle || r.id || r.name || '') : String(r || '');
+      if (!k || k === 'agent' || !/^[a-z_]{2,30}$/.test(k)) continue;
+      R[k] = (r && typeof r === 'object' && r.titel) ? String(r.titel).slice(0, 40) : (ROLLEN_TITEL[k] || k);
+    }
+    ROLLEN = R;
+    MODUL_AUS.clear();
+  }
+  // Bereiche für Vorschläge: Liste des Servers (Einstellung vorschlag_bereiche), sonst die sichtbaren Register plus „Sonstiges“
+  const vbereiche = () => { const l = (D && D.einstellungen && Array.isArray(D.einstellungen.vorschlag_bereiche)) ? D.einstellungen.vorschlag_bereiche.filter(b => typeof b === 'string' && b.trim()) : []; return l.length ? l : tabs().map(([, l]) => l).concat(['Sonstiges']); };
 
   // ---------- Adressen (jede Seite, Notiz, Aufgabe, jedes Projekt hat eine eigene URL) ----------
   let ziel = null;
@@ -440,11 +481,16 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   window.addEventListener('hashchange', nachHash);
   window.addEventListener('popstate', nachHash);
 
+  let zuletztGeladen = 0, filterGeprueft = false;
   async function laden(still) {
     if (!TOKEN) return ohneZugang();
     try {
       D = await api('laden');
+      zuletztGeladen = Date.now();
+      einstellungenUebernehmen();
       if (D.setup) return einrichten();
+      // Erster Start ohne gespeicherten Filter: Admin ohne eigene offene Aufgaben sieht „Alles Offene“ statt einer leeren Liste
+      if (!filterGeprueft) { filterGeprueft = true; if (!ls.get('mt-filter') && istAdmin() && !(D.aufgaben || []).some(a => a.verantwortlich === D.ich.mitglied_id && a.status !== 'Erledigt')) F.person = ''; }
       render();
     } catch (e) {
       if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
@@ -456,7 +502,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   function ohneZugang(msg) {
     $('#app').innerHTML = '<div class="center"><div style="margin-bottom:18px">' + logoHtml(48) + '</div><div class="card"><h2>Team-Portal</h2>' +
       '<p>' + esc(msg || 'Diese Seite ist nur für das Team von ' + FIRMA + '.') + '</p><p class="muted">Öffne den persönlichen Link, den du von deinem Admin bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p>' +
-      '<form id="codef" style="margin-top:14px"><div class="f"><label for="code">Oder den Zugangscode hier einfügen</label><input id="code" autocomplete="off" placeholder="32 Zeichen aus deinem Link"></div><button class="btn" type="submit">Anmelden</button></form></div></div>';
+      '<form id="codef" style="margin-top:14px"><div class="f"><label for="code">Oder den Zugangscode hier einfügen</label><input id="code" autocomplete="off" placeholder="Code aus deinem Zugangslink"></div><button class="btn" type="submit">Anmelden</button></form></div></div>';
     $('#codef').onsubmit = ev => {
       ev.preventDefault();
       const c = /([a-f0-9]{20,64})/i.exec($('#code').value || '');
@@ -470,14 +516,15 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#app').innerHTML = '<div class="center"><div style="margin-bottom:18px">' + logoHtml(48) + '</div><div class="card">' +
       '<h2>Willkommen, ' + esc(i.name) + '!</h2><p class="muted">Bevor es losgeht: Trag einmal deine Kontaktdaten ein. Sie sind nur für das Team von ' + esc(FIRMA) + ' sichtbar.</p>' +
       '<form id="setup"><div class="f"><label for="s_mail">E-Mail-Adresse</label><input id="s_mail" type="email" required autocomplete="email" value="' + esc(i.email) + '"></div>' +
-      '<div class="f"><label for="s_tel">Handynummer (für WhatsApp)</label><input id="s_tel" type="tel" autocomplete="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
-      '<label class="check"><input type="checkbox" id="s_wa"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Ich möchte per WhatsApp benachrichtigt werden, wenn mir jemand eine Aufgabe zuweist. Abbestellen geht jederzeit hier im Portal unter „Team“.</span></label>' +
+      '<div class="f"><label for="s_tel">Handynummer (optional' + (an('whatsapp') ? ', für WhatsApp' : '') + ')</label><input id="s_tel" type="tel" autocomplete="tel" placeholder="mit Ländervorwahl, z. B. 0049 170 1234567" value="' + esc(i.telefon) + '"></div>' +
+      // WhatsApp-Einwilligung nur, wenn das Register WhatsApp an ist (im Pilot aus: Standard ist keine Einwilligung)
+      (an('whatsapp') ? '<label class="check"><input type="checkbox" id="s_wa"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Ich möchte per WhatsApp benachrichtigt werden, wenn mir jemand eine Aufgabe zuweist. Abbestellen geht jederzeit hier im Portal unter „Team“.</span></label>' : '') +
       '<p class="small muted">Gespeichert werden Name, E-Mail, Telefonnummer und deine Aufgaben, damit das Team zusammenarbeiten kann.</p>' +
       '<button class="btn" type="submit">Speichern und loslegen</button></form></div></div>';
     $('#setup').onsubmit = async ev => {
       ev.preventDefault();
       const b = ev.submitter || ev.target.querySelector('button'); b.disabled = true;
-      try { await api('profil', { email: $('#s_mail').value, telefon: $('#s_tel').value, whatsapp_ok: $('#s_wa').checked }); await laden(); }
+      try { await api('profil', { email: $('#s_mail').value, telefon: $('#s_tel').value, whatsapp_ok: !!($('#s_wa') && $('#s_wa').checked) }); await laden(); }
       catch (e) { toast(e.message); b.disabled = false; }
     };
   }
@@ -487,16 +534,18 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow">' + logoHtml() + '<span class="htitle">Team-Portal</span>' + (an('zeit') ? zkKopf() : '') +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
-      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => !['vertrieb', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<div class="tabwrap"><nav class="tabs" role="tablist" aria-label="Register (auf dem Handy seitlich wischen)">' + tabs().filter(([k]) => !['vertrieb', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
     const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
-    if (!V[tab] || !an(tab) || (['vertrieb', 'whatsapp'].includes(tab) && !darfVertrieb())) { tab = START_TAB; ls.set('mt-tab', tab); }
+    if (!V[tab] || !an(tab) || (['vertrieb', 'whatsapp'].includes(tab) && !darfVertrieb())) { tab = startTab(); ls.set('mt-tab', tab); }
+    tabsScrollen();
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     document.body.dataset.tab = tab;
-    if (!TABS.length) { $('#main').innerHTML = '<div class="card"><h2>Kein Register eingeschaltet</h2><p>In <code>mandant.js</code> unter „register“ mindestens ein Register auf <code>true</code> setzen.</p></div>'; return; }
+    if (!tabs().length) { $('#main').innerHTML = '<div class="card"><h2>Kein Register eingeschaltet</h2><p>In <code>mandant.js</code> unter „register“ mindestens ein Register auf <code>true</code> setzen.</p></div>'; return; }
     V[tab]();
+    if (modulHinweis) { $('#main').insertAdjacentHTML('afterbegin', '<div class="note warn" style="margin-bottom:14px">' + esc(modulHinweis) + ' Das Register ist deshalb ausgeblendet. Freischalten kann die Leitung über die Einstellung „module“.</div>'); modulHinweis = ''; }
     if (tab === 'start') { officeCache = null; fuerDichKarte(); }
     if (ziel) {
       const z = ziel; ziel = null;
@@ -506,9 +555,16 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
 
 
+  // Register-Leiste: auf schmalen Bildschirmen scrollt sie seitlich; der Pfeil rechts (CSS .tabwrap::after) verschwindet am Ende, das aktive Register wird ins Bild geholt
+  function tabsScrollen() {
+    const w = $('.tabwrap'), n = $('nav.tabs'); if (!w || !n) return;
+    const pruefen = () => w.classList.toggle('ende', n.scrollWidth - n.clientWidth - n.scrollLeft < 4);
+    n.onscroll = pruefen; pruefen();
+    const b = n.querySelector('button.on'); if (b && b.scrollIntoView) { try { b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {} }
+  }
+
   // ---------- Vorschläge (Änderungswünsche am Portal) ----------
   const VSTATUS = ['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];
-  const VBEREICHE = TABS.map(([, l]) => l).concat(['Sonstiges']);
   let vFilter = ls.get('mt-vfilter') || 'offen';
   let vSuche = '', vBereich = '', vTag = '', vGruppe = !!ls.get('mt-vgruppe');
   const vChip = st => '<span class="chip vs-' + esc(String(st).replace(/\s/g, '-')) + '">' + esc(st) + '</span>';
@@ -517,10 +573,11 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const alleV = (D.vorschlaege || []).slice();
     const offen = v => ['neu', 'geplant', 'in Arbeit'].includes(v.status);
     const n = st => alleV.filter(v => v.status === st).length;
-    // Schlagworte: #Wort im Titel oder Text (Unicode-Buchstaben, Ziffern, _ und -), z. B. #Arbeitszeit oder #FracEncoder
+    // Schlagworte: #Wort im Titel oder Text (Unicode-Buchstaben, Ziffern, _ und -), z. B. #Arbeitszeit oder #Datenexport
     const tagsVon = v => { const s = new Set(); String((v.titel || '') + ' ' + (v.text || '')).replace(/(^|[\s(,;])#([\p{L}\d][\p{L}\d_-]{1,29})/gu, (m, a, t) => { s.add(t.toLowerCase()); return m; }); return [...s]; };
     const nachStatus = v => vFilter === 'alle' ? true : vFilter === 'offen' ? offen(v) : v.status === vFilter;
     const tagListe = (() => { const z = {}; alleV.filter(nachStatus).forEach(v => tagsVon(v).forEach(t => { z[t] = (z[t] || 0) + 1; })); return Object.entries(z).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24); })();
+    const VBEREICHE = vbereiche();
     const bereicheVorhanden = [...new Set(alleV.filter(nachStatus).map(v => v.bereich || 'Sonstiges'))].sort((a, b) => VBEREICHE.indexOf(a) - VBEREICHE.indexOf(b));
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Die Leitung entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
       '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu'), 'neu') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
@@ -587,7 +644,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Vorschlag' : darf ? 'Vorschlag bearbeiten' : 'Vorschlag') + '</h2><form id="vf">' +
       '<div class="f"><label for="v_t">Was soll sich ändern? (kurzer Titel)</label><input id="v_t" required maxlength="160" value="' + esc(v.titel) + '" placeholder="z. B. Aufgaben nach Deadline sortieren"' + ro + '></div>' +
       '<div class="f"><label for="v_x">Beschreibung (warum, wie soll es aussehen?)</label><textarea id="v_x" rows="6" maxlength="8000"' + ro + '>' + esc(v.text) + '</textarea></div>' +
-      '<div class="f2"><div class="f"><label for="v_b">Bereich</label><select id="v_b"' + ro + '>' + opt(VBEREICHE, v.bereich) + '</select></div>' +
+      '<div class="f2"><div class="f"><label for="v_b">Bereich</label><select id="v_b"' + ro + '>' + opt(vbereiche().concat(v.bereich && !vbereiche().includes(v.bereich) ? [v.bereich] : []), v.bereich) + '</select></div>' +
       (admin ? '<div class="f"><label for="v_s">Status</label><select id="v_s">' + opt(VSTATUS, v.status) + '</select></div>' : (!neu ? '<div class="f"><label>Status</label><div style="padding:8px 0">' + vChip(v.status) + '</div></div>' : '')) + '</div>' +
       (admin && !neu ? '<div class="f"><label for="v_a">Antwort an das Team</label><textarea id="v_a" rows="3" maxlength="4000" placeholder="z. B. Gute Idee, kommt nächste Woche.">' + esc(v.antwort || '') + '</textarea></div>' : (!neu && v.antwort ? '<div class="antw" style="background:var(--tint);border-radius:10px;padding:8px 12px;margin-bottom:10px"><b>' + esc((v.antwort_von ? mitglied(v.antwort_von) : erstesAdmin()).name) + ':</b> ' + esc(v.antwort) + '</div>' : '')) +
       (!neu ? '<p class="small muted">Von ' + esc(mitglied(v.autor).name) + ' am ' + fmtD(String(v.erstellt || '').slice(0, 10)) + (darf || admin ? '' : ' · Ändern kann der Verfasser, solange der Vorschlag neu ist, oder ein Admin.') + '</p>' : '<p class="small muted">Du unterstützt deinen eigenen Vorschlag automatisch. Die anderen sehen ihn sofort.</p>') +
@@ -605,7 +662,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       try {
         const titel = 'Portal: ' + $('#v_t').value;
         const beschreibung = ($('#v_x').value || '') + '\n\nAus dem Vorschlag von ' + mitglied(v.autor).name + ' (Bereich ' + $('#v_b').value + ').';
-        const projekt = projektNamen().includes('Team-Portal') ? 'Team-Portal' : (projektNamen().includes(STANDARD_PROJEKT) ? STANDARD_PROJEKT : (projektNamen()[0] || ''));
+        const projekt = projektNamen().includes(STANDARD_PROJEKT) ? STANDARD_PROJEKT : (projektNamen()[0] || '');
         const r = await api('aufgabe_speichern', { titel, beschreibung, verantwortlich: D.ich.mitglied_id, deadline: '', prio: 2, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
         await api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value, status: 'geplant', antwort: $('#v_a') ? $('#v_a').value : (v.antwort || ''), aufgabe_id: r.id || '' });
         dlg.close(); toast('Aufgabe angelegt und Vorschlag auf „geplant“ gesetzt'); await laden(true);
@@ -837,7 +894,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (m[1] === 'notiz') { const n = (D.notizen || []).find(x => x.notiz_id === m[2]); return n ? '📄 ' + esc(n.titel) : h; }
     if (m[1] === 'aufgabe') { const a = (D.aufgaben || []).find(x => x.aufgabe_id === m[2]); return a ? '☑ ' + esc(a.titel) : h; }
     if (m[1] === 'projekt') { const p = (D.projekte || []).find(x => x.projekt_id === m[2]); return p ? '📁 ' + esc(p.name) : h; }
-    const t = TABS.find(x => x[0] === m[2]); return t ? '↪ ' + t[1] : h;
+    const t = tabs().find(x => x[0] === m[2]); return t ? '↪ ' + t[1] : h;
   }
   // Tabellen: Kopfzeile, Trennzeile und mindestens eine Zeile, jede beginnt mit | und hat gleich viele Zellen. Sonst bleibt alles Text.
   // \| ist ein | in der Zelle; in `Code` teilt | die Zelle nicht.
@@ -1445,7 +1502,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       b.innerHTML = '<div class="f"><label for="v_ks">Vorhandenen Kontakt im CRM suchen</label><input id="v_ks" placeholder="Name oder E-Mail (mind. 2 Zeichen)" autocomplete="off"><div id="v_kt"></div></div>' +
         '<p class="small muted" style="margin:-4px 0 6px">… oder neuen Kontakt anlegen:</p>' +
         '<div class="f2"><div class="f"><label for="v_kv">Vorname</label><input id="v_kv" maxlength="60"></div><div class="f"><label for="v_kn">Nachname</label><input id="v_kn" maxlength="80"></div>' +
-        '<div class="f"><label for="v_ke">E-Mail</label><input id="v_ke" type="email" maxlength="120"></div><div class="f"><label for="v_kp">Telefon</label><input id="v_kp" type="tel" maxlength="30" placeholder="+49 …"></div></div>';
+        '<div class="f"><label for="v_ke">E-Mail</label><input id="v_ke" type="email" maxlength="120"></div><div class="f"><label for="v_kp">Telefon</label><input id="v_kp" type="tel" maxlength="30" placeholder="mit Ländervorwahl"></div></div>';
       let t;
       $('#v_ks').oninput = e => {
         clearTimeout(t); const q = e.target.value.trim();
@@ -2188,7 +2245,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const gruppe = arr => { const g = {}; arr.forEach(p => { const d = dDate(p.datum); const k = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }); (g[k] = g[k] || []).push(p); }); return g; };
     const G = gruppe(kommend);
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Social-Media-Plan</h1><p class="sub">Ideen sammeln, Termine festlegen, Status verfolgen.</p></div><button class="btn" id="neup">+ Beitrag</button></div>' +
-      '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt(KANAELE, F.kanal) + '</select><span class="small muted">' +
+      '<div class="tools"><select id="fk"><option value="">Alle Kanäle</option>' + opt([...new Set(kanaele().concat((D.social || []).map(p => p.kanal).filter(Boolean)))], F.kanal) + '</select><span class="small muted">' +
       SSTATUS.map(s => esc(s) + ': ' + L.filter(p => p.status === s).length).join(' · ') + '</span></div>' +
       (Object.keys(G).length ? Object.entries(G).map(([k, arr]) => '<div class="card"><h2>' + esc(k) + '</h2>' + arr.map(postRow).join('') + '</div>').join('') : '<div class="card"><p class="empty">Keine kommenden Beiträge.</p></div>') +
       (ohne.length ? '<div class="card"><h2>Ideen ohne Termin</h2>' + ohne.map(postRow).join('') + '</div>' : '') +
@@ -2199,7 +2256,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
   function postDialog(p) {
     const neu = !p;
-    p = p || { thema: '', text: '', datum: '', uhrzeit: '', kanal: KANAELE[0], format: 'Bild', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '', medien: '', hook: '', hashtags: '', quelle: '' };
+    p = p || { thema: '', text: '', datum: '', uhrzeit: '', kanal: kanaele()[0] || '', format: 'Bild', status: 'Idee', verantwortlich: D.ich.mitglied_id, link: '', medien: '', hook: '', hashtags: '', quelle: '' };
     $('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neuer Beitrag' : 'Beitrag bearbeiten') + '</h2><form id="pf">' +
       (p.permalink ? '<p class="small">✅ Veröffentlicht' + (p.veroeffentlicht_am ? ' am ' + new Date(p.veroeffentlicht_am).toLocaleString('de-DE') : '') + ' · <a href="' + esc(p.permalink) + '" target="_blank" rel="noopener">Beitrag ansehen ↗</a></p>' : '') +
       (p.fehler ? '<p class="small" style="color:#8a1c1c">⚠ Letzter Versuch fehlgeschlagen (' + esc(p.versuche || 1) + '/3): ' + esc(p.fehler) + '</p>' : '') +
@@ -2209,7 +2266,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="f"><label for="p_g">Hashtags</label><input id="p_g" maxlength="500" placeholder="#beispiel #branche" value="' + esc(p.hashtags) + '"></div>' +
       '<div class="f2"><div class="f"><label for="p_d">Datum</label><input id="p_d" type="date" value="' + esc(p.datum) + '"></div>' +
       '<div class="f"><label for="p_u">Uhrzeit</label><input id="p_u" type="time" value="' + esc(p.uhrzeit) + '"></div>' +
-      '<div class="f"><label for="p_k">Kanal</label><select id="p_k">' + opt(KANAELE, p.kanal) + '</select></div>' +
+      '<div class="f"><label for="p_k">Kanal</label>' + (kanaele().length ? '<select id="p_k">' + opt(kanaele().concat(p.kanal && !kanaele().includes(p.kanal) ? [p.kanal] : []), p.kanal) + '</select>' : '<input id="p_k" maxlength="40" placeholder="z. B. Newsletter" value="' + esc(p.kanal) + '">') + '</div>' +
       '<div class="f"><label for="p_f">Format</label><select id="p_f">' + opt(SFORMATE, p.format || 'Bild') + '</select></div>' +
       '<div class="f"><label for="p_s">Status</label><select id="p_s">' + opt(SSTATUS, p.status) + '</select></div>' +
       '<div class="f"><label for="p_v">Zuständig</label><select id="p_v">' + personOpts(p.verantwortlich) + '</select></div></div>' +
@@ -2654,14 +2711,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   function profilDialog() {
     const i = D.mitglieder.find(p => p.mitglied_id === D.ich.mitglied_id) || D.ich;
     $('#dlgInner').innerHTML = '<h2>Meine Daten</h2><form id="mf"><div class="f"><label for="m_e">E-Mail-Adresse</label><input id="m_e" type="email" required value="' + esc(i.email) + '"></div>' +
-      '<div class="f"><label for="m_t">Handynummer</label><input id="m_t" type="tel" placeholder="+49 170 1234567" value="' + esc(i.telefon) + '"></div>' +
-      '<label class="check"><input type="checkbox" id="m_w"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Per WhatsApp benachrichtigen, wenn mir jemand eine Aufgabe zuweist.</span></label>' +
+      '<div class="f"><label for="m_t">Handynummer</label><input id="m_t" type="tel" placeholder="mit Ländervorwahl, z. B. 0049 170 1234567" value="' + esc(i.telefon) + '"></div>' +
+      (an('whatsapp') ? '<label class="check"><input type="checkbox" id="m_w"' + (i.whatsapp_ok ? ' checked' : '') + '><span>Per WhatsApp benachrichtigen, wenn mir jemand eine Aufgabe zuweist.</span></label>' : '') +
       '<div class="dlgbtns" style="margin-top:14px"><button type="button" class="btn sec" id="m_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(false);
     $('#m_c').onclick = () => dlg.close();
     $('#mf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-      try { await api('profil', { email: $('#m_e').value, telefon: $('#m_t').value, whatsapp_ok: $('#m_w').checked }); dlg.close(); toast('Gespeichert'); await laden(true); }
+      try { await api('profil', { email: $('#m_e').value, telefon: $('#m_t').value, whatsapp_ok: !!($('#m_w') && $('#m_w').checked) }); dlg.close(); toast('Gespeichert'); await laden(true); }
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
@@ -2691,14 +2748,20 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     };
   }
 
-  // Daten alle 2 Minuten im Hintergrund auffrischen, wenn kein Dialog offen ist
-  setInterval(() => {
+  // Daten alle 10 Minuten im Hintergrund auffrischen, nur bei sichtbarem Tab und ohne offenen Dialog. Jede Anfrage ist eine Ausführung in n8n Cloud
+  // und lädt die ganze Datenbank; deshalb selten. Wer nach längerer Pause zurückkommt (Tab wieder sichtbar oder Fenster im Fokus), bekommt sofort frische Daten.
+  const RELOAD_MS = 10 * 60000, PAUSE_MS = 5 * 60000;
+  const auffrischen = () => {
     // Nicht neu aufbauen, solange jemand tippt oder im eingebetteten KI Office arbeitet (Fokus im iframe): render() würde das iframe neu laden
     // und einen dort offenen Dialog (z. B. „Auftrag an Agent“) schließen.
     const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA|IFRAME)$/.test(a.tagName);
     // Im Tresor nie neu aufbauen: Das würde Eingabe, Schlüssel und Ausgabe löschen (die Seite braucht keine Daten).
-    if (D && !D.setup && tab !== 'tresor' && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
-  }, 120000);
+    if (D && !D.setup && TOKEN && tab !== 'tresor' && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
+  };
+  setInterval(auffrischen, RELOAD_MS);
+  const nachPause = () => { if (document.visibilityState === 'visible' && zuletztGeladen && Date.now() - zuletztGeladen > PAUSE_MS) auffrischen(); };
+  document.addEventListener('visibilitychange', nachPause);
+  window.addEventListener('focus', nachPause);
   // Pfad-Links (Notizen, Aufgaben, Vorschläge): file:///C:/Ordner/Datei, \\Server\Freigabe oder C:\Ordner → Windows-Pfad in die Zwischenablage
   document.addEventListener('click', ev => {
     const a = ev.target.closest && ev.target.closest('a.pfad'); if (!a) return;

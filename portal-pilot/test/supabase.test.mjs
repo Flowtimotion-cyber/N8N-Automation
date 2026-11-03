@@ -157,7 +157,7 @@ dbTest('Zweites Einspielen von 001 bis 900: nichts doppelt, Zugangscodes und Fir
   assert.equal(d.papierkorb.length, 1);
   assert.deepEqual(Object.fromEntries(d.mitglieder.map(m => [m.mitglied_id, m.token])), tokens1, 'Zugangscodes unverändert');
   assert.equal(d.einstellungen.firma, 'Eigener Name GmbH', 'Seed überschreibt einen geänderten Firmennamen nicht');
-  assert.equal(sql(`select count(*) from team_einstellungen`), '8');
+  assert.equal(sql(`select count(*) from team_einstellungen`), '10');
   sql(`select team_einstellung_setzen('firma', '"Musterfirma GmbH"')`);
 });
 
@@ -292,11 +292,12 @@ dbTest('Option 110: Haken setzen und zurücknehmen, Teilnehmer in team_laden_plu
 
 dbTest('Option 120: Veröffentlichungs-Queue (fällig, erledigt, Fehler), Ideen, Uploads nur mit Einwilligung', () => {
   sql(`insert into team_social (post_id, datum, uhrzeit, kanal, thema, status, freigegeben_von) values
-       ('s1', '2020-01-01', '09:00', 'Instagram', 'Fällig und freigegeben', 'Geplant', 'mf-anna'),
-       ('s2', '2020-01-01', '09:00', 'Instagram', 'Ohne Freigabe', 'Geplant', null),
-       ('s3', '2099-01-01', '09:00', 'Instagram', 'In der Zukunft', 'Geplant', 'mf-anna')`);
-  assert.equal(sql(`select string_agg(post_id, ',') from social_faellig()`), 's1');
-  assert.equal(sql(`select count(*) from social_faellig()`), '0', 'gesperrt, solange in_arbeit_seit frisch ist');
+       ('s1', '2020-01-01', '09:00', 'Kanal A', 'Fällig und freigegeben', 'Geplant', 'mf-anna'),
+       ('s2', '2020-01-01', '09:00', 'Kanal A', 'Ohne Freigabe', 'Geplant', null),
+       ('s3', '2099-01-01', '09:00', 'Kanal A', 'In der Zukunft', 'Geplant', 'mf-anna')`);
+  assert.equal(sql(`select count(*) from social_faellig()`), '0', 'ohne Kanalliste nichts');
+  assert.equal(sql(`select string_agg(post_id, ',') from social_faellig(array['Kanal A'])`), 's1');
+  assert.equal(sql(`select count(*) from social_faellig(array['Kanal A'])`), '0', 'gesperrt, solange in_arbeit_seit frisch ist');
   sql(`select social_erledigt('s1', 'plattform-1', 'https://www.example.com/post/1')`);
   assert.equal(sql(`select status || '|' || link from team_social where post_id = 's1'`), 'Veröffentlicht|https://www.example.com/post/1');
   sql(`update team_social set freigegeben_von = 'mf-anna' where post_id = 's2'`);
@@ -386,7 +387,7 @@ dbTest('990: Export enthält alle vorhandenen Tabellen, aber keine Zugangscodes 
   for (const m of e.tabellen.team_mitglieder) assert.equal('token' in m, false, 'kein Token im Export');
   assert.ok(!JSON.stringify(e).includes('streng-geheim'));
   assert.equal(e.tabellen.team_aufgaben.length, 13);
-  assert.equal(e.tabellen.team_einstellungen.length, 8);
+  assert.equal(e.tabellen.team_einstellungen.length, 10);
 });
 
 dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts übrig; zweiter Lauf ist harmlos', () => {
@@ -415,9 +416,11 @@ dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts �
 const DATEIEN = readdirSync(SQL_ORDNER).filter(f => f.endsWith('.sql')).sort();
 
 test('PII-Scan: keine Firmen-, Personen- oder Zugangsdaten im Paket', () => {
+  // Wortliste zerlegt, damit diese Datei beim Scan über ganz portal-pilot/ (test/pii.test.mjs) selbst sauber bleibt
+  const w = (...t) => new RegExp(t.join(''), 'i');
   const muster = [
-    /momentum/i, /hermetik/i, /timo/i, /kurt/i, /murat/i, /karsten/i, /lillien/i, /immo-job/i, /qcg/i, /azav/i,
-    /llhwmz/i, /hm-storage/i, /github\.io/i, /\d{9,}/, /eyJ/, /sk-/i, /\+49/
+    w('mom', 'entum'), w('herm', 'etik'), w('ti', 'mo'), w('ku', 'rt'), w('mu', 'rat'), w('kar', 'sten'), w('lil', 'lien'), w('immo', '-job'), w('q', 'cg'), w('az', 'av'),
+    w('llh', 'wmz'), w('hm-', 'storage'), w('github', '\\.io'), w('twe', 'nty'), w('insta', 'gram'), w('tele', 'gram'), /\d{9,}/, /eyJ/, /sk-/i, w('\\+', '49')
   ];
   const treffer = [];
   const zuScannen = readdirSync(SQL_ORDNER).sort();   // alle Dateien im Paket, ausdrücklich auch README.md

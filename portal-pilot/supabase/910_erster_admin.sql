@@ -13,7 +13,8 @@
 --      Die einfachen Anführungszeichen stehen lassen.
 --   2. Optional: Firmenname und Kurzname setzen (Zeilen unter "Optional").
 --   3. Datei ausführen. Die letzte Zeile der Ausgabe zeigt den Zugangscode (token).
---      Login-Link: <Portal-Adresse>?z=<token>   -  bitte nur persönlich weitergeben, nie in einen Gruppenchat.
+--      Login-Link: <Portal-Adresse>#z=<token>   -  bitte nur persönlich weitergeben, nie in einen Gruppenchat.
+--      (Doppelkreuz, nicht Fragezeichen: den Teil hinter # schickt der Browser nie an einen Server.)
 -- Zugangscode später wieder anzeigen:  select name, rolle, token from team_mitglieder order by name;
 -- Zugangscode erneuern (alter Link wird ungültig):
 --      update team_mitglieder set token = team_token_neu() where email = 'HIER_MAIL';

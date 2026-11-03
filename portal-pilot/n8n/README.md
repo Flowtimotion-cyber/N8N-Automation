@@ -2,7 +2,7 @@
 
 Diese Ordner enthält die n8n-Workflows für die Pilot-Kopie des Team-Portals (Planer und Übersicht: Aufgaben, Projekte, Notizen, Vorschläge, Team). Sie laufen auf **n8n Cloud** und sprechen mit **einem eigenen Supabase-Projekt je Kunden**.
 
-**Stand:** gebaut und im Code mit Testdaten durchgespielt, aber **noch nicht in n8n importiert**. Was dabei noch schiefgehen kann, steht in `PRUEFUNG.md`.
+**Stand:** gebaut, mit dem Testserver (`portal-pilot/dev/server.mjs`) Ende-zu-Ende gegen einen lokalen PostgreSQL mit den Migrationen aus `supabase/` durchgespielt (Oberfläche → dieser Workflow-Code → echte SQL), aber **noch nicht in n8n Cloud importiert**. Was dabei noch schiefgehen kann, steht in `PRUEFUNG.md`. Die Schritt-für-Schritt-Anleitung für den Kunden ist `portal-pilot/PILOT_Setup.md`.
 
 ## Was ist drin
 
@@ -81,9 +81,12 @@ Die Workflows rufen diese Dinge in Supabase auf. Das ist die Schnittstelle zur D
 
 | Schlüssel | Wirkung | Standard, wenn nicht gesetzt |
 |---|---|---|
-| `module` | Schaltet Module ein, z. B. `{"zeit": true}`. Mögliche Schlüssel: `zeit`, `social`, `system`, `kurs`. **Neu vorgeschlagen**, bitte mit der Datenbank-Sitzung abgleichen. | alles aus |
+| `module` | Schaltet Module ein, z. B. `{"zeit": true}`. Mögliche Schlüssel: `zeit`, `social`, `system`, `kurs`. Wird von `002_einstellungen.sql` angelegt (alles aus). Die Oberfläche zeigt ein Register nur, wenn zusätzlich ihr Schalter in `config/mandant.js` an ist (siehe `portal-pilot/README.md`, „Module an- und ausschalten“). | alles aus |
 | `stichdatum_abrechnung` | Beginn der Arbeitszeit-Abrechnung, z. B. `"2026-12-01"` (nur Modul `zeit`) | 1. Januar des laufenden Jahres |
-| `rollen` | Liste zusätzlicher Rollen, die man im Team vergeben darf, z. B. `["dozent"]`. `admin` und `team` gehen immer. | nur `admin`, `team` |
+| `rollen` | Rollen, die man im Team vergeben darf: Liste von Texten oder von Objekten `{"rolle": …, "titel": …}` (so legt sie `002_einstellungen.sql` an; die Oberfläche zeigt den Titel). `admin` und `team` gehen immer, `agent` nie über diese Liste. | nur `admin`, `team` |
+| `vorschlag_bereiche` | Liste der Bereiche für Vorschläge. Gesetzt: unbekannte Bereiche werden „Sonstiges“. Leer oder fehlend: freier Text bis 40 Zeichen. | frei |
+| `social_kanaele` | Liste der Kanäle für Social-Beiträge (Modul `social`). Gesetzt: unbekannte Kanäle werden „Sonstiges“. Leer oder fehlend: jeder Kanalname bis 40 Zeichen. | frei |
+| `landesvorwahl` | Ländervorwahl ohne Plus für Telefonnummern, die mit 0 beginnen (Aktion `profil`). | 49 |
 | `firma`, `kurzname`, `raeume`, `pilot_ende` | gehen unverändert an die Oberfläche (Feld `einstellungen` in der Antwort `laden`); `kurzname` und `firma` stehen außerdem in den Startnotizen des Wochenstands | leer |
 | `firmenwissen_projekt` | `true` oder ein Projektname. Nur dann legt der Wochenstand beim ersten Lauf ein Projekt mit zwei neutralen Startnotizen („Aktuelles“, „Über uns“) an. **Neu vorgeschlagen.** | nichts wird angelegt |
 
@@ -156,20 +159,16 @@ Credential-Namen (nicht ersetzbar, bitte genau so anlegen): `Supabase (Pilot)` (
 
 ## Was nicht enthalten ist
 
-Diese Teile aus dem Original gehören **nicht** zum Pilot. Sie liegen weiter in der Original-n8n-Instanz (IDs dort):
+Diese Teile aus dem Original gehören **nicht** zum Pilot und wurden nicht übernommen (Namen und Kennungen der Original-Workflows stehen
+nur im Prüfbericht `PRUEFUNG.md`, nicht in diesem Paket):
 
-| Teil | Original-Workflow (ID) |
-|---|---|
-| KI Office (API, Ausführer, Wartung) | `NuK6m10yIGKMRWxC` (Office-API), `UbQ5nph8FIUSrasi` (Text-KI), `D0jPTU1LjNzhGfyI` (Orchestrierer), `KwRsEDr743IGDPJ1` (Verwaltung-Status) |
-| Portal-Assistent (Chatfragen, KI) | `TJ5E1KT5MvzxvoD9` |
-| Erinnerungen und Monatsabschluss Arbeitszeit | `QwVgLNfbjDtUOPqD` (Freitag-Freigabe), `gV6jrDNtJhgKbqpp` (Monatsabschluss) |
-| Webseiten-Statistik | `mkgTfndZQnmnpsdW` |
-| Vertrieb-Pipeline (Twenty) und Diktat | `cWDiokGOeQT5uFsY`, `Zvn018lfOXFuzenF` |
-| Social (Upload, Veröffentlichen) | `ZfStqgtH3IZugnv5`, `p6DSEWCr344R0Nlt` |
-| WhatsApp (Inbox, Hinweise, Bot) | `PUrXB6zVrUjUpbGh`, `QG7TlVF1CzjlmnDf`, `DVGX3cltu2qbqLJE` |
-| Kurs (Störungswächter, Klassenbuch) | `aZgKgrnuzjmG9Mjr`, `nej6aYHT2S7Ztip2`, `rQcqNn8EqBmW5yYa` |
-
-Die drei Quellen dieser Pilot-Workflows im Original: Portal-API `kMuDaDmT9rCN5Vs2`, Wochenstand `f0AG5NxtwzSyDr2c`, Vorschlag-Hinweis `s8OfrONvk8JKXTrs`.
+- KI Office (API, Ausführer, Wartung) und der Portal-Assistent (Chatfragen mit KI)
+- Erinnerungen und Monatsabschluss der Arbeitszeit
+- Webseiten-Statistik
+- Vertriebs-Pipeline (CRM-Anbindung) und Diktat
+- Social Media (Upload, Veröffentlichen)
+- WhatsApp (Inbox, Hinweise, Bot)
+- Kurs (Störungswächter, Klassenbuch)
 
 Aktionen der ausgeschalteten Module sind in der Portal-API noch vorhanden (so bleibt die Oberfläche kompatibel), antworten aber mit „Modul nicht aktiviert“.
 
@@ -181,12 +180,23 @@ Ausführlich mit Zeilen: `PRUEFUNG.md`. Das Wichtigste in Kürze:
 2. **Zugangs-Token wurden mit `Math.random()` erzeugt**, das ist nicht für Geheimnisse gedacht. Der Pilot nimmt dafür den Zufallsgenerator des Systems (`crypto`), mit Rückfall auf die alte Methode, falls er in n8n nicht zur Verfügung steht. Ob er auf n8n Cloud verfügbar ist, konnte ich nicht prüfen.
 3. **Das Original speicherte fehlgeschlagene Ausführungen komplett (`all`).** Darin liegen Anfrage und Token. Im Pilot ist das aus.
 4. **Der Admin bekommt in der Antwort die Zugangs-Token aller Mitglieder.** Das ist gewollt (Einladungslinks weitergeben), bleibt unverändert. Folge: Wer das Admin-Konto übernimmt, kommt an alle anderen Zugänge.
-5. **Der Webhook-Schutz „erlaubter Ursprung“ gilt nur für Browser.** Mit `curl` kann jeder die Adresse aufrufen. Schutz ist allein der Token (mindestens 20 Zeichen, bei neuen Zugängen 32 Zeichen). Es gibt keine Bremse gegen massenhaftes Raten, und jede Anfrage, auch eine ungültige, lädt die ganze Datenbank. Empfehlung: Webhook-Adresse nicht streuen; bei Bedarf später eine leichte Vorprüfung vor `team_laden_plus` setzen.
+5. **Der Webhook-Schutz „erlaubter Ursprung“ gilt nur für Browser.** Mit `curl` kann jeder die Adresse aufrufen. Schutz ist allein der Token (mindestens 20 Zeichen; neue Zugänge bekommen 48 Hex-Zeichen, genau wie `team_token_neu()` in der Datenbank). Es gibt keine Bremse gegen massenhaftes Raten, und jede Anfrage, auch eine ungültige, lädt die ganze Datenbank. Empfehlung: Webhook-Adresse nicht streuen; bei Bedarf später eine leichte Vorprüfung vor `team_laden_plus` setzen.
 6. **`.first()`-Falle:** Alle Stellen geprüft. Alle laufen in Knoten, die genau einen Datensatz haben oder nur einmal je Durchlauf laufen. Nichts geändert. Details in `PRUEFUNG.md`.
 7. **`require(`:** nirgends.
 8. **Mehrere Schreibschritte ohne Transaktion** (z. B. Aufgabe speichern und danach Verlaufseintrag): bricht der zweite Schritt ab, ist die Aufgabe gespeichert, der Verlaufseintrag fehlt. Die Antwort meldet dann einen Fehler.
 9. **Im Original wurde der Zeitstempel „bis hier gemeldet“ vor dem Versand gespeichert.** Schlug der Versand fehl, ging die Meldung verloren. In der Hinweis-Vorlage wird er erst nach dem Versand gemerkt.
 10. **Telefonnummern wurden bei neuen Aufgaben im Zwischenergebnis weitergereicht** (für WhatsApp). Im Pilot entfernt.
+
+## Abgleich mit Oberfläche und Datenbankpaket (03.11.2026)
+
+Beim Zusammenführen der drei Stränge (`feature/portal-pilot`) wurde der Code der Portal-API an vier Stellen geändert; Details mit Zeilen in `PRUEFUNG.md`, Abschnitt 7:
+
+- `vorschlag_speichern`: Bereich aus der Einstellung `vorschlag_bereiche` oder freier Text (vorher feste Liste mit Registern, die es im Pilot nicht gibt).
+- `social_speichern`: Kanal aus der Einstellung `social_kanaele` oder freier Text (vorher feste Liste).
+- `aufgabe_speichern` und `kommentar` setzen `geaendert_von` (Spalte seit `001_basis.sql`), damit „zuletzt geändert von“ auch bei Aufgaben stimmt.
+- Neue Zugangscodes haben 48 Hex-Zeichen (`rnd(48)`) wie `team_token_neu()`; Ländervorwahl als Konstante (Einstellung `landesvorwahl`).
+
+Der Testserver `portal-pilot/dev/server.mjs` führt seitdem **diesen** Code aus (keine Nachbildung mehr): `dev/n8n-laufzeit.mjs` bildet `$('Knoten')`, `$input`, `$json`, Weiche, Wenn, Schleife und Antwortknoten nach, `dev/postgrest.mjs` die Supabase-Aufrufe (im Speicher oder gegen einen lokalen PostgreSQL mit den Migrationen aus `supabase/`). Was der Testserver antwortet, antwortet der Workflow.
 
 ## Abgleich mit dem Datenbankpaket (02.11.2026, abends)
 

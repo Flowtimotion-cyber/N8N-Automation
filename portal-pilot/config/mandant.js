@@ -27,6 +27,7 @@ window.MANDANT = {
     "webseite": false,
     "office": false
   },
+  "social_kanaele": [],
   "anleitung_video": "",
   "standard_projekt": "",
   "sprache": "de"
