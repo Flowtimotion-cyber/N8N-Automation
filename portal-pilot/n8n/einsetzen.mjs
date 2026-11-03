@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Setzt die Platzhalter in den Pilot-Workflows ein und schreibt fertige Importdateien.
 // Keine Abhängigkeiten, läuft mit Node 18 oder neuer.
+// Verarbeitet alle *.workflow.json neben dem Skript (Pflicht und Begleit-Workflows) und zusätzlich die Vorlagen in
+// optional/ (z. B. „Feedback lesen“); die landen im Unterordner optional/ des Ausgabeordners.
 //
 // Beispiel:
 //   node portal-pilot/n8n/einsetzen.mjs --supabase abcdefghijklmnop --kuerzel ifa \
@@ -70,6 +72,9 @@ const tief = (x) => {
 
 const dateien = fs.readdirSync(hier).filter(f => f.endsWith('.workflow.json')).sort();
 if (!dateien.length) { console.error('Keine *.workflow.json neben dem Skript gefunden.'); process.exit(1); }
+// Vorlagen in optional/ (relativer Pfad bleibt in der Ausgabe erhalten)
+const optionalOrdner = path.join(hier, 'optional');
+if (fs.existsSync(optionalOrdner)) for (const f of fs.readdirSync(optionalOrdner).filter(f => f.endsWith('.workflow.json')).sort()) dateien.push(path.join('optional', f));
 
 const ausgabe = path.resolve(args.ausgabe);
 fs.mkdirSync(ausgabe, { recursive: true });
@@ -87,6 +92,7 @@ for (const f of dateien) {
   // Kontrolle: keine fremde Supabase-Adresse
   const fremd = [...text.matchAll(/https:\/\/([a-z0-9]+)\.supabase\.co/g)].map(m => m[1]).filter(p => p !== projekt);
   if (fremd.length) { console.error(f + ': fremde Supabase-Adresse gefunden: ' + [...new Set(fremd)].join(', ')); fehler++; continue; }
+  fs.mkdirSync(path.dirname(path.join(ausgabe, f)), { recursive: true });
   fs.writeFileSync(path.join(ausgabe, f), text, 'utf8');
   console.log('geschrieben: ' + path.join(ausgabe, f));
 }

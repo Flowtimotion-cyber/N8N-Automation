@@ -12,7 +12,8 @@ Diese Ordner enthält die n8n-Workflows für die Pilot-Kopie des Team-Portals (P
 | `fehler-workflow.workflow.json` | Springt an, wenn ein anderer Workflow einen Fehler hat. Schreibt eine Notiz „Störung TT.MM.JJJJ“ ins Portal und kann eine E-Mail schicken (ausgeschaltet). | ja, empfohlen |
 | `wochenstand.workflow.json` | Schreibt montags um 7 Uhr eine Notiz mit dem Stand der Vorwoche (erledigt, neu, fällig, überfällig). Ohne KI. | optional |
 | `hinweis-vorschlaege.workflow.json` | Vorlage: schickt eine E-Mail an die Admins, wenn jemand einen Vorschlag einträgt. E-Mail-Knoten ist **ausgeschaltet**. | optional |
-| `einsetzen.mjs` | Kleines Skript: trägt Supabase-Projekt, Kürzel und Portal-Adresse ein und schreibt fertige Importdateien. | ja |
+| `optional/feedback-lesen.workflow.json` | Vorlage „PILOT: Feedback lesen (intern, Claude)“: **manueller Trigger, kein Webhook, kein Zeitplan.** Liest Vorschläge (neu oder in den letzten 7 Tagen geändert), Kommentare und Berichte der letzten 7 Tage (mit Aufgabentitel und Projekt) und Störungsnotizen der letzten 14 Tage und baut ein Element mit `zusammenfassung` und `eintraege` (Art, Zeit, Bereich/Projekt, Rolle des Verfassers, Text, Status, ID). Rollen statt Namen: der Knoten `Mitglieder` holt nur ID, Rolle, Typ, Status. Läuft nur von Hand in n8n oder über den n8n-Connector der Claude-App (MCP). Nie aktivieren (geht auch nicht). | optional (Feedbackschleife, `PILOT_Setup.md` Abschnitt 8) |
+| `einsetzen.mjs` | Kleines Skript: trägt Supabase-Projekt, Kürzel und Portal-Adresse ein und schreibt fertige Importdateien, auch für die Vorlagen in `optional/` (landen in `optional/` des Ausgabeordners). | ja |
 
 ## Reihenfolge: so bringst du alles in n8n Cloud
 
@@ -27,7 +28,8 @@ node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --
 - `--origin`: die Adresse, unter der das Portal liegt, **ohne Pfad** (nur `https://…`). Nur von dieser Adresse aus darf der Browser die Schnittstelle aufrufen.
 - Optional: `--portal-url` (voller Link zum Portal für E-Mails) und `--absender` (Absender der E-Mails).
 
-Das Skript prüft, dass kein Platzhalter übrig bleibt, und schreibt vier fertige Dateien in den Ausgabeordner. Die fertigen Dateien enthalten keine Zugangsdaten; trotzdem nicht öffentlich ablegen (Supabase-Adresse des Kunden).
+Das Skript prüft, dass kein Platzhalter übrig bleibt, und schreibt vier fertige Dateien in den Ausgabeordner, dazu
+`optional/feedback-lesen.workflow.json`. Die fertigen Dateien enthalten keine Zugangsdaten; trotzdem nicht öffentlich ablegen (Supabase-Adresse des Kunden).
 
 **Schritt 1: Credentials in n8n anlegen** (links unten „Credentials“ → „Create credential“):
 
@@ -68,6 +70,8 @@ Test mit gültigem Zugang: dasselbe mit dem echten Token eines Admins (aus der T
 
 **Schritt 8: Optional Wochenstand und Hinweis.** Import wie oben. Beim Wochenstand: Credential wählen, Error Workflow eintragen, aktivieren. Beim Hinweis zuerst die Hinweise unten lesen.
 
+**Schritt 9: Optional „Feedback lesen“ (Feedbackschleife).** `optional/feedback-lesen.workflow.json` importieren, in den fünf Supabase-Knoten `Supabase (Pilot)` wählen, Settings prüfen, **nicht aktivieren** (es gibt keinen Trigger außer dem manuellen). Probelauf: „Execute workflow“, der Knoten `Liste bauen` zeigt die Liste. Wie Claude darüber liest und im Portal antwortet (Werkzeug `portal-pilot/agent/feedback.mjs`, zweiter n8n-Connector): `PILOT_Setup.md`, Abschnitt 8.
+
 ## Was die Datenbank liefern muss
 
 Die Workflows rufen diese Dinge in Supabase auf. Das ist die Schnittstelle zur Datenbank-Sitzung:
@@ -88,7 +92,7 @@ Die Workflows rufen diese Dinge in Supabase auf. Das ist die Schnittstelle zur D
 | `social_kanaele` | Liste der Kanäle für Social-Beiträge (Modul `social`). Gesetzt: unbekannte Kanäle werden „Sonstiges“. Leer oder fehlend: jeder Kanalname bis 40 Zeichen. | frei |
 | `landesvorwahl` | Ländervorwahl ohne Plus für Telefonnummern, die mit 0 beginnen (Aktion `profil`). | 49 |
 | `firma`, `kurzname`, `raeume`, `pilot_ende` | gehen unverändert an die Oberfläche (Feld `einstellungen` in der Antwort `laden`); `kurzname` und `firma` stehen außerdem in den Startnotizen des Wochenstands | leer |
-| `firmenwissen_projekt` | `true` oder ein Projektname. Nur dann legt der Wochenstand beim ersten Lauf ein Projekt mit zwei neutralen Startnotizen („Aktuelles“, „Über uns“) an. **Neu vorgeschlagen.** | nichts wird angelegt |
+| `firmenwissen_projekt` | `true` oder ein Projektname. Nur dann legt der Wochenstand beim ersten Lauf ein Projekt mit zwei neutralen Startnotizen („Aktuelles“, „Über uns“) an. Geht als Text auch an die Oberfläche und an das Feedback-Werkzeug (Notiz „Was sich geändert hat“ landet in diesem Projekt, sonst in „Pilot-Verbesserungen“). | nichts wird angelegt |
 
 ## Alle Aktionen der Portal-API
 
@@ -96,7 +100,7 @@ Die Portal-API kennt 34 Aktionen. Der Aufruf ist immer ein POST mit `{"aktion": 
 
 | Aktion | Wer darf | Stufe 1 | Tabelle / Funktion |
 |---|---|---|---|
-| `laden` | alle Aktiven (Agenten bekommen eine kleinere Antwort) | ja | liest alles über `team_laden_plus` |
+| `laden` | alle Aktiven (Agenten bekommen eine kleinere Antwort: keine Kontaktdaten, keine Codes, keine Zeiten, kein Papierkorb; Vorschläge nur mit der Zahl der Stimmen) | ja | liest alles über `team_laden_plus` |
 | `profil` | jede Person für sich (Aktivierung per Einladungslink) | ja | `team_mitglieder` |
 | `aufgabe_speichern` | alle (Agent: „Erledigt“ wird zu „Wird getestet“) | ja | `team_aufgaben`, `team_aufgaben_verlauf` |
 | `aufgabe_loeschen` | Admin oder wer sie angelegt hat | ja | Papierkorb über `team_loeschen` |
@@ -106,7 +110,7 @@ Die Portal-API kennt 34 Aktionen. Der Aufruf ist immer ein POST mit `{"aktion": 
 | `notiz_speichern` | alle (Agent darf) | ja | `team_notizen` |
 | `notiz_loeschen` | Admin oder Autor | ja | Papierkorb über `team_loeschen` |
 | `notiz_versionen` | alle | ja | Versionsliste aus `team_laden_plus` |
-| `vorschlag_speichern` | alle (Status und Antwort nur Admin; Agent darf) | ja | `team_vorschlaege` |
+| `vorschlag_speichern` | alle (Status und Antwort: Admin; Agent beantwortet fremde Vorschläge mit Status `nachfrage`/`geplant`/`abgelehnt` und Antwort, ändert Titel, Text, Bereich nicht und setzt nie `umgesetzt`; siehe `PRUEFUNG.md` Abschnitt 9) | ja | `team_vorschlaege` |
 | `vorschlag_stimme` | alle | ja | `team_vorschlaege` |
 | `vorschlag_loeschen` | Admin oder Autor (solange „neu“) | ja | Papierkorb über `team_loeschen` |
 | `papierkorb` | Admin sieht alles, andere nur Eigenes | ja | Papierkorb-Liste aus `team_laden_plus` |
@@ -148,6 +152,8 @@ Das Skript `einsetzen.mjs` ersetzt diese Platzhalter. Direkt in n8n eintragen mu
 | `HIER_ABSENDER_EMAIL` | E-Mail-Knoten (ausgeschaltet) | `--absender`, sonst ein erkennbarer Dummy |
 
 Credential-Namen (nicht ersetzbar, bitte genau so anlegen): `Supabase (Pilot)` (Typ Supabase API) und `E-Mail (Pilot)` (Typ SMTP).
+
+Vorschlagsstatus, die die Portal-API kennt: `neu`, `nachfrage` (Rückfrage an den Verfasser, bleibt offen), `geplant`, `in Arbeit`, `umgesetzt`, `abgelehnt`.
 
 ## Hinweise zu n8n Cloud
 

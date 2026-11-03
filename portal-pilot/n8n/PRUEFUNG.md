@@ -170,3 +170,34 @@ Geändert wurde nur die Funktion `rnd` im Code des Knotens „Anfrage prüfen“
 | Anfrage prüfen | `rnd`: Rückfall auf `Math.random()` entfernt. Fehlt `globalThis.crypto.getRandomValues`, bricht der Knoten mit einem klaren Fehler ab, statt still schwache Zugangscodes zu erzeugen. Betroffen ist jede Aktion, die eine neue ID oder einen Zugangscode erzeugt (neue Aufgabe, Notiz, Projekt, Mitglied, „Neuer Zugangslink“); der Fehler-Workflow legt dann eine Störungs-Notiz an. | `try { … getRandomValues … } catch { z = null }`, dann `z ? z[i] % 16 : Math.floor(Math.random() * 16)` | `throw new Error('crypto nicht verfügbar: Zugangscodes können nicht sicher erzeugt werden')`, sonst `z[i] % 16` |
 
 Geprüft danach: Code des Knotens extrahiert und mit `node --check` übersetzt (ok); `einsetzen.mjs` mit Testwerten in einen Ordner außerhalb des Repos gelaufen (vier Dateien, kein Platzhalter übrig); `node --test portal-pilot/test/*.test.mjs` ohne Postgres und Playwright grün (22 bestanden, 50 übersprungen), darunter `server.test.mjs` mit genau diesem Code und der PII-Scan über die geänderten Dokumente. Hinweis für den Testserver: `globalThis.crypto` gibt es in Node ab Version 20 ohne Schalter (Node 18 nur mit `--experimental-global-webcrypto`); ob der Code-Knoten in n8n Cloud `globalThis.crypto` sieht, bleibt Punkt des ersten Praxistests (Abschnitt 5).
+
+## 9. Feedbackschleife (03.11.2026, zweiter Teil): Rechte des Agenten in „Anfrage prüfen“
+
+Anlass: Rückmeldungen der Tester sollen vom KI-Werkzeug Claude im Portal beantwortet werden, als Mitglied mit Rolle `agent`. Vor der
+Änderung durfte ein Agent `vorschlag_speichern` zwar aufrufen (`AGENT_DARF`), lief bei fremden Vorschlägen aber in die Sperre
+„Ändern kann nur, wer den Vorschlag geschrieben hat …“ (Zeile 368 der Fassung vom Vormittag), und Status und Antwort setzte nur `istAdmin`.
+Ein Agent konnte Vorschläge also nicht beantworten. Geändert wurde nur der Code der Knoten „Anfrage prüfen“ und „Antwort bauen“ in
+`portal-api.workflow.json` (per Skript, JSON mit 2 Leerzeichen zurückgeschrieben; Knoten, Verbindungen, Settings unverändert).
+
+| Knoten | Änderung | vorher | nachher |
+|---|---|---|---|
+| Anfrage prüfen | Statusliste `VSTATUS` um `nachfrage` ergänzt (Rückfrage an den Verfasser, bleibt offen); neue Konstante `AGENT_VSTATUS = ['nachfrage', 'geplant', 'abgelehnt']` | `['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt']` | `['neu', 'nachfrage', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt']` |
+| Anfrage prüfen | `vorschlag_speichern`: Der Vorschlag wird zuerst gesucht (404 wie bisher). Ist der Aufrufer ein Agent und der Vorschlag nicht sein eigener neuer, gilt ein eigener Zweig: nur `status` aus `AGENT_VSTATUS` (sonst 403) und `antwort` (bis 4000 Zeichen) werden geschrieben, dazu `antwort_von` = Agent und `geaendert`; Titel, Text, Bereich, `aufgabe_id` bleiben unberührt; ohne Status und Antwort 400; ist der Vorschlag `umgesetzt`, 403. Alles andere (Menschen, eigene neue Vorschläge des Agenten) läuft wie vorher: Titelprüfung, Sperre für Fremde, Status und Antwort nur Admin. | 403 für Agenten bei fremden Vorschlägen | Agent beantwortet, setzt nie `umgesetzt` oder `in Arbeit` |
+| Antwort bauen | Agenten-Antwort enthält `vorschlaege` (Felder: `vorschlag_id`, `titel`, `text`, `bereich`, `status`, `autor`, `antwort`, `antwort_von`, `aufgabe_id`, `stimmen_anzahl`, `erstellt`, `geaendert`; **nicht** die Liste `stimmen`, damit der Agent nicht sieht, wer gestimmt hat) und der Regeltext nennt die drei Status | ohne Vorschläge | mit Vorschlägen |
+| Antwort bauen | `einstellungen.firmenwissen_projekt` (Text; `true` wird „Firmenwissen“, sonst leer) für alle Rollen, damit das Feedback-Werkzeug weiß, in welches Projekt „Was sich geändert hat“ gehört | acht Felder | neun Felder |
+
+Was der Agent danach darf und nicht darf, noch einmal gegen den Code geprüft (Zeilen der neuen Fassung von „Anfrage prüfen“):
+
+- Zeile 67: `AGENT_DARF` unverändert (`aufgabe_speichern`, `kommentar`, `notiz_speichern`, `projekt_speichern`, `social_speichern`, `vorschlag_speichern`). Alle anderen Aktionen, darunter **jedes Löschen** (`aufgabe_loeschen`, `notiz_loeschen`, `vorschlag_loeschen`, `projekt_loeschen`, `social_loeschen`, `system_loeschen`, `zeit_loeschen`, `tn_loeschen`), `papierkorb`, `papierkorb_wiederherstellen`, `mitglied_speichern`, `vertrag_speichern`, Arbeitszeit, Kurs, Community: 403.
+- Zeile 138: `aufgabe_speichern` mit Status „Erledigt“ wird für Agenten „Wird getestet“; `erledigt_am` wird nicht gesetzt.
+- Zeile 159, 173: Kommentare des Agenten haben die Art `bericht` (im Portal als Bericht sichtbar).
+- `vorschlag_speichern`: siehe Tabelle; nie `umgesetzt`, nie `in Arbeit`, kein Ändern von Titel, Text, Bereich, keine Aufgaben-Verknüpfung.
+- `notiz_speichern`: unverändert für alle Rollen (Konfliktprüfung über `stand`); der Agent nutzt sie nur für „Was sich geändert hat“.
+- `projekt_speichern`: unverändert; der Agent legt höchstens das Projekt „Pilot-Verbesserungen“ (oder das aus `firmenwissen_projekt`) an, wenn es fehlt.
+- „Antwort bauen“, Agenten-Zweig: `mitglieder` nur mit `mitglied_id`, `name`, `rolle`, `typ`, `funktion` (keine `token`, `email`, `telefon`), keine `zeiten`, `abrechnung`, `papierkorb`, `notiz_versionen`, `community`, `teilnehmer`. Der Agent-Token sieht also keine fremden Zugangscodes.
+
+Was Claude (das KI-Werkzeug) damit sieht: über die Portal-API alles, was ein Agent bei `laden` bekommt (Aufgaben, Verlauf, Projekte, Notizen, Vorschläge, Mitgliederliste mit Namen und Rollen, keine Kontaktdaten, keine Codes). Die Vorlage „Feedback lesen“ und die Textausgabe des Werkzeugs ersetzen Namen durch Rollen; Namen, die Tester selbst in einen Kommentar schreiben, bleiben im Text.
+
+Neu dazu, außerhalb der Portal-API: `optional/feedback-lesen.workflow.json` (nur GET, manueller Trigger, `alwaysOutputData` und `executeOnce` an allen HTTP-Knoten, damit leere Ergebnisse die Kette nicht stoppen; die Filter `or=(status.eq.neu,geaendert.gt.…)` und `titel=like.St*rung*` sind PostgREST-Syntax und im Testserver nachgebildet, in echtem n8n Cloud **nicht verifiziert**), `agent/feedback.mjs` (Zugang nur aus `PILOT_PORTAL_API` und `PILOT_AGENT_TOKEN`, Unterschrift an jeder Antwort, Status nur `geplant`/`abgelehnt`/`nachfrage`), Vorschlagsstatus `nachfrage` in der Oberfläche (Liste, Filter „Offen“, Kennzahl, Chip), Seed und `910` mit Agent-Mitglied.
+
+Geprüft danach: alle Code-Knoten übersetzen (`AsyncFunction`, `node --check`), `einsetzen.mjs` mit Testwerten (fünf Dateien, kein Platzhalter), `node --test portal-pilot/test/*.test.mjs` in der Cloud mit PostgreSQL 16 und Playwright: alle Tests grün (83), PII-Scan leer (Ausnahme nur für die vereinbarte Unterschrift „… von <Anbieter>“).

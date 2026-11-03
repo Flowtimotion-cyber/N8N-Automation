@@ -11,7 +11,8 @@ export const TOKENS = {
   'mf-anna': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3a',   // Admin, aktiv
   'mf-ben': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3b',    // Team, aktiv
   'mf-clara': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3c',  // Team, aktiv
-  'mf-dan': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3d'     // Team, eingeladen (noch ohne Profil)
+  'mf-dan': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3d',    // Team, eingeladen (noch ohne Profil)
+  'mf-claude': 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3e'  // KI-Agent (Rolle agent, Typ agent), aktiv: Zugang des Feedback-Werkzeugs
 };
 
 // Einstellungen wie 002_einstellungen.sql, mit den Werten, die 900_seed_musterfirma.sql setzt
@@ -45,12 +46,14 @@ export function testDaten(jetztIso) {
     { mitglied_id: 'mf-anna', name: 'Anna Muster', email: 'anna.muster@musterfirma.example', telefon: null, funktion: 'Geschäftsführung', rolle: 'admin', typ: 'mensch', status: 'aktiv', token: TOKENS['mf-anna'], whatsapp_ok: false, registriert: vor(30), zuletzt_aktiv: vor(0, 1) },
     { mitglied_id: 'mf-ben', name: 'Ben Beispiel', email: 'ben.beispiel@musterfirma.example', telefon: null, funktion: 'Vertrieb', rolle: 'team', typ: 'mensch', status: 'aktiv', token: TOKENS['mf-ben'], whatsapp_ok: false, registriert: vor(28), zuletzt_aktiv: vor(0, 3) },
     { mitglied_id: 'mf-clara', name: 'Clara Probe', email: 'clara.probe@musterfirma.example', telefon: null, funktion: 'Kundenservice', rolle: 'team', typ: 'mensch', status: 'aktiv', token: TOKENS['mf-clara'], whatsapp_ok: false, registriert: vor(27), zuletzt_aktiv: vor(1) },
-    { mitglied_id: 'mf-dan', name: 'Dan Test', email: 'dan.test@musterfirma.example', telefon: null, funktion: 'Verwaltung', rolle: 'team', typ: 'mensch', status: 'eingeladen', token: TOKENS['mf-dan'], whatsapp_ok: false, registriert: null, zuletzt_aktiv: null }
+    { mitglied_id: 'mf-dan', name: 'Dan Test', email: 'dan.test@musterfirma.example', telefon: null, funktion: 'Verwaltung', rolle: 'team', typ: 'mensch', status: 'eingeladen', token: TOKENS['mf-dan'], whatsapp_ok: false, registriert: null, zuletzt_aktiv: null },
+    { mitglied_id: 'mf-claude', name: 'Claude (KI)', email: '', telefon: null, funktion: 'KI-Werkzeug (Rückmeldungen)', rolle: 'agent', typ: 'agent', status: 'aktiv', token: TOKENS['mf-claude'], whatsapp_ok: false, registriert: vor(14), zuletzt_aktiv: null }
   ];
   const team_projekte = [
     { projekt_id: 'mf-p1', name: 'Onboarding Pilot', beschreibung: 'Einführung des Team-Portals: Zugänge, erste Aufgaben, Rückmeldungen sammeln.', status: 'aktiv', farbe: '#4f6df5', verantwortlich: 'mf-anna', reihenfolge: 1, links: [{ titel: 'Anleitung Portal', url: 'https://www.example.com/anleitung' }], geaendert: vor(0) },
     { projekt_id: 'mf-p2', name: 'Kundenanfragen', beschreibung: 'Eingehende Anfragen bearbeiten, Angebote nachfassen, Rückrufe planen.', status: 'aktiv', farbe: '#2a9d8f', verantwortlich: 'mf-clara', reihenfolge: 2, links: [], geaendert: vor(0) },
-    { projekt_id: 'mf-p3', name: 'Interne Verbesserungen', beschreibung: 'Kleine Verbesserungen im Alltag: Vorlagen, Ablage, Abläufe.', status: 'geplant', farbe: '#e76f51', verantwortlich: 'mf-ben', reihenfolge: 3, links: [], geaendert: vor(0) }
+    { projekt_id: 'mf-p3', name: 'Interne Verbesserungen', beschreibung: 'Kleine Verbesserungen im Alltag: Vorlagen, Ablage, Abläufe.', status: 'geplant', farbe: '#e76f51', verantwortlich: 'mf-ben', reihenfolge: 3, links: [], geaendert: vor(0) },
+    { projekt_id: 'mf-p4', name: 'Pilot-Verbesserungen', beschreibung: 'Rückmeldungen der Tester und was daraus am Portal geändert wurde (Notiz „Was sich geändert hat“).', status: 'aktiv', farbe: '#1FA9B0', verantwortlich: 'mf-anna', reihenfolge: 4, links: [], geaendert: vor(0) }
   ];
   const A = (aufgabe_id, titel, beschreibung, status, prio, label, projekt, verantwortlich, erstellt_von, deadlineTage, erstelltTage, geaendertTage, erledigtTage) =>
     ({ aufgabe_id, titel, beschreibung, status, prio, label, projekt, verantwortlich, erstellt_von, deadline: datum(deadlineTage), agent_geeignet: false, erstellt: vor(erstelltTage), geaendert: vor(geaendertTage), erledigt_am: erledigtTage == null ? null : vor(erledigtTage), geaendert_von: null });
@@ -90,7 +93,8 @@ export function testDaten(jetztIso) {
   const team_notizen = [
     { notiz_id: 'mf-n1', titel: 'Willkommen im Portal', inhalt: 'Hallo Team,\n\nhier sammeln wir Aufgaben, Projekte und Notizen an einem Ort.\n\n- Aufgaben: was zu tun ist, wer es macht, bis wann\n- Notizen: Wissen, das bleiben soll (siehe [[Arbeitsweise]])\n- Vorschläge: was am Portal besser werden soll\n\nFragen gern an Anna.', projekt: 'Onboarding Pilot', autor: 'mf-anna', geaendert_von: 'mf-anna', erstellt: vor(25), geaendert: vor(20) },
     { notiz_id: 'mf-n2', titel: 'Arbeitsweise', inhalt: '## So arbeiten wir mit Aufgaben\n\n1. Jede Aufgabe hat genau eine verantwortliche Person.\n2. Status ehrlich halten: Offen, Geplant, In Arbeit, Wartet, Wird getestet, Erledigt.\n3. Wer etwas erledigt, schreibt einen kurzen Kommentar dazu.\n4. Deadlines sind Zusagen, keine Wünsche.', projekt: 'Onboarding Pilot', autor: 'mf-anna', geaendert_von: 'mf-ben', erstellt: vor(24), geaendert: vor(15) },
-    { notiz_id: 'mf-n3', titel: 'Protokoll Kickoff', inhalt: 'Teilnehmer: Anna, Ben, Clara\n\nBeschlüsse:\n- Portal wird 8 Wochen getestet, danach Entscheidung.\n- Kundenanfragen laufen ab sofort als Aufgaben im Projekt „Kundenanfragen“.\n- Verbesserungswünsche als Vorschlag eintragen, nicht per Mail.\n\nOffen: Schulung für Dan, sobald er startet.', projekt: 'Onboarding Pilot', autor: 'mf-ben', geaendert_von: 'mf-ben', erstellt: vor(10), geaendert: vor(10) }
+    { notiz_id: 'mf-n3', titel: 'Protokoll Kickoff', inhalt: 'Teilnehmer: Anna, Ben, Clara\n\nBeschlüsse:\n- Portal wird 8 Wochen getestet, danach Entscheidung.\n- Kundenanfragen laufen ab sofort als Aufgaben im Projekt „Kundenanfragen“.\n- Verbesserungswünsche als Vorschlag eintragen, nicht per Mail.\n\nOffen: Schulung für Dan, sobald er startet.', projekt: 'Onboarding Pilot', autor: 'mf-ben', geaendert_von: 'mf-ben', erstellt: vor(10), geaendert: vor(10) },
+    { notiz_id: 'mf-n4', titel: 'Was sich geändert hat', inhalt: 'Hier steht, was aus den Rückmeldungen des Teams am Portal geändert wurde. Neueste Einträge unten, immer mit Datum.\n\nRückmeldungen (Vorschläge, Kommentare) werden vom KI-Werkzeug Claude gelesen und beantwortet; Änderungen am Portal rollt die Leitung nach Freigabe aus.', projekt: 'Pilot-Verbesserungen', autor: 'mf-anna', geaendert_von: 'mf-anna', erstellt: vor(14), geaendert: vor(14) }
   ];
   const team_vorschlaege = [
     { vorschlag_id: 'mf-v1', titel: 'Dunkler Modus fürs Portal', text: 'Abends ist der helle Hintergrund anstrengend. Ein dunkler Modus wäre angenehm.', bereich: 'Übersicht', status: 'neu', autor: 'mf-ben', stimmen: ['mf-clara', 'mf-anna'], antwort: '', antwort_von: null, aufgabe_id: null, erstellt: vor(6), geaendert: vor(6) },

@@ -90,8 +90,9 @@ Die Dateien liegen in `portal-pilot/supabase/`. Die genaue Beschreibung jeder Da
    - **Nur zum Zeigen und Testen:** `900_seed_musterfirma.sql` (erfundenes Team „Musterfirma GmbH“). Für den Kunden-Pilot nicht
      nehmen, sonst stehen Musterdaten im echten Portal.
 
-   **Danach siehst du:** eine Zeile (910) beziehungsweise vier Zeilen (900) mit Name, Rolle, Status und einem 48 Zeichen langen
-   Zugangscode (`token`). Dieser Code ist der Zugang der Person. Kopiere ihn noch nicht irgendwohin; du liest ihn in Schritt 5 wieder aus.
+   **Danach siehst du:** eine Zeile (910) beziehungsweise fünf Zeilen (900, darunter der KI-Agent „Claude (KI)“) mit Name, Rolle, Status
+   und einem 48 Zeichen langen Zugangscode (`token`). Dieser Code ist der Zugang der Person. Kopiere ihn noch nicht irgendwohin; du liest
+   ihn in Schritt 5 wieder aus. Das Agent-Mitglied für die Rückmeldungen der Tester legst du beim echten Kunden in Abschnitt 8a an.
 
 6. Kontrollabfrage: neue Query, eingeben und Run:
 
@@ -101,7 +102,7 @@ Die Dateien liegen in `portal-pilot/supabase/`. Die genaue Beschreibung jeder Da
           jsonb_array_length(team_laden_plus() -> 'aufgaben')   as aufgaben;
    ```
 
-   **Danach siehst du:** `1 / 0 / 0` beim ersten Admin, `4 / 3 / 12` bei den Musterdaten.
+   **Danach siehst du:** `1 / 0 / 0` beim ersten Admin, `5 / 4 / 12` bei den Musterdaten.
 
 7. Firma und Kurzname setzen (die doppelten Anführungszeichen innerhalb der einfachen sind nötig):
 
@@ -139,7 +140,8 @@ node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --
   also eine Ebene über dem Repo-Ordner), denn er enthält die Supabase-Adresse des Kunden und darf **nie committet** werden. Legst du
   ihn doch ins Repo, dann als `portal-pilot/fertig/…`: dieser Ordner steht in `portal-pilot/.gitignore` und wird nicht mit eingecheckt.
 
-**Danach siehst du:** vier Zeilen `geschrieben: …/portal-fertig/ifa/…workflow.json` und den Satz „Fertig. Webhook-Pfad der Portal-API: ifa/portal-api“.
+**Danach siehst du:** fünf Zeilen `geschrieben: …/portal-fertig/ifa/…workflow.json` (vier Workflows und die Vorlage
+`optional/feedback-lesen.workflow.json` für Abschnitt 8) und den Satz „Fertig. Webhook-Pfad der Portal-API: ifa/portal-api“.
 Steht dort ein Fehler, ist meist die Projekt-ID oder die Adresse falsch geschrieben; die Meldung sagt, welche.
 
 ### 3b. Credential anlegen
@@ -349,7 +351,8 @@ Status `gesperrt`. Register fehlen → `register` in `mandant.js`.
 | Region | EU (Frankfurt) | Supabase |
 | Service-Role-Schlüssel | nur im n8n-Credential | n8n |
 | Zugangscodes | 48 Zeichen, im Link hinter `#`, persönlich weitergeben | Portal |
-| Pilotdauer | 4 Wochen, danach Export und Löschung binnen 30 Tagen | Abschnitt 8 |
+| Pilotdauer | 4 Wochen, danach Export und Löschung binnen 30 Tagen | Abschnitt 9 |
+| Rückmeldungen der Tester | Vorschläge und Kommentare im Portal; gelesen und beantwortet mit dem KI-Werkzeug Claude als Mitglied „Claude (KI)“, Antwort binnen eines Werktags | Abschnitt 8 |
 
 ### Pflichthinweise für den Kunden (aus der Datenschutzprüfung)
 
@@ -359,19 +362,21 @@ Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
 1. **Vor dem ersten echten Datensatz: Auftragsverarbeitungsvertrag (AVV) unterschrieben.** Der Kunde ist Verantwortlicher, wir sind
    Auftragsverarbeiter. Der Kunde hat die Liste der Unterauftragnehmer gelesen: Supabase (Datenbank, Region Frankfurt), n8n GmbH
    (n8n Cloud, Schnittstelle; Region der Instanz laut Schritt 3b eintragen), der Hosting-Anbieter der Oberfläche (GitHub oder Cloudflare
-   oder der gewählte Webspace). Dazu gehört der Zugriffskreis aus Schritt 3b: welche Personen bei uns Instanz, Projekt und Credential
-   sehen.
+   oder der gewählte Webspace) und der Anbieter des KI-Werkzeugs Claude (Anthropic, Sitz in den USA), weil Rückmeldungen der Tester
+   damit gelesen und beantwortet werden (Abschnitt 8; Satz dafür steht in 8g). Dazu gehört der Zugriffskreis aus Schritt 3b: welche
+   Personen bei uns Instanz, Projekt und Credential sehen.
 2. **Datenschutzinformation für die Mitarbeitenden (Art. 13 DSGVO), bevor der erste Zugangslink verteilt wird.** Inhalt: Zweck
    (Aufgaben- und Projektorganisation im Team), Daten (Name, Firmen-E-Mail, optional Telefon, Aufgaben, Notizen, Kommentare,
-   Vorschläge, Zeitpunkt der letzten Anmeldung), Empfänger und Unterauftragnehmer (siehe 1), Drittland (keines vorgesehen; Hosting-
-   Anbieter prüfen), Fristen (Pilotende plus 30 Tage, siehe 8), Rechte (Auskunft, Berichtigung, Löschung, Widerspruch) und die
+   Vorschläge, Zeitpunkt der letzten Anmeldung), Empfänger und Unterauftragnehmer (siehe 1), der Satz zu den Rückmeldungen aus 8g,
+   Drittland (KI-Anbieter in den USA für die Rückmeldungen; Hosting-Anbieter prüfen), Fristen (Pilotende plus 30 Tage, siehe 9), Rechte (Auskunft, Berichtigung, Löschung, Widerspruch) und die
    Ansprechperson beim Kunden.
 3. **Zeiterfassung:** Betriebsrat beziehungsweise Betriebsvereinbarung klären, bevor die Option Arbeitszeit eingeschaltet wird. Das
    Modul bleibt aus, bis der Kunde das schriftlich bestätigt.
 4. **WhatsApp:** nur mit Einwilligung je Person; Standard ist aus (Option 130 nicht eingespielt, Register aus). Das Feld „Handynummer“
    im Profil darf leer bleiben.
-5. **KI-Funktionen:** Standard aus. Wird später etwas eingeschaltet (Assistent, KI Office), vorher Hinweis an die Mitarbeitenden auf
-   den KI-Anbieter (Sitz in den USA) und die Regel: keine sensiblen Daten in KI-Funktionen.
+5. **KI-Funktionen:** Im Portal Standard aus (kein Assistent, kein KI Office). Die einzige KI im Pilot ist die Feedbackschleife
+   (Abschnitt 8): Vorschläge und Kommentare werden mit dem KI-Werkzeug Claude gelesen und beantwortet. Dafür vorher der Hinweis an die
+   Mitarbeitenden (Satz in 8g) und die Regel: keine sensiblen Daten in Vorschläge und Kommentare schreiben.
 6. **Persönlicher Link:** nicht weitergeben, nicht in Gruppenchats, nicht in Ticketsysteme. Auf fremden oder geteilten Geräten „Auf
    diesem Gerät abmelden“ nutzen. Bei Verdacht auf Weitergabe: Admin erzeugt unter Team → Verwalten → „Neuen Zugangslink erzeugen“
    einen neuen Link; der alte ist sofort ungültig. Zwei Dinge dazu klar sagen: Der Zugangscode bleibt im Browser gespeichert, bis
@@ -380,7 +385,7 @@ Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
    kein Zugriff durch Dritte.
 7. **Selbstbetrieb** (wenn der Kunde Supabase, n8n und Hosting selbst betreibt): eigene Konten, Zwei-Faktor-Anmeldung bei allen drei
    Anbietern, EU-Region, eigene AVVs mit den drei Anbietern.
-8. **Pilotende:** Export und Löschung nach Abschnitt 8, danach schriftliche Löschbestätigung an den Kunden.
+8. **Pilotende:** Export und Löschung nach Abschnitt 9, danach schriftliche Löschbestätigung an den Kunden.
 9. **Kundenseitig:** Eintrag im Verzeichnis der Verarbeitungstätigkeiten; Prüfung, ob eine Datenschutz-Folgenabschätzung nötig ist
    (Schwellenprüfung; bei Aufgabenverwaltung ohne Leistungsbewertung und ohne Zeiterfassung in der Regel nicht).
 
@@ -422,7 +427,7 @@ Kalender), danach jede Woche. Reicht es nicht: Reload-Abstand in
 ### Backups
 
 Supabase Pro macht tägliche Backups (7 Tage). Für den Pilot zusätzlich einmal pro Woche `990_export.sql` ausführen und das JSON
-verschlüsselt ablegen (Passwort-ZIP), damit ein Stand unabhängig vom Anbieter existiert. Nach dem Pilot diese Kopien löschen (Abschnitt 8).
+verschlüsselt ablegen (Passwort-ZIP), damit ein Stand unabhängig vom Anbieter existiert. Nach dem Pilot diese Kopien löschen (Abschnitt 9).
 
 ### Zugangscode sperren oder erneuern
 
@@ -458,11 +463,172 @@ verschlüsselt ablegen (Passwort-ZIP), damit ein Stand unabhängig vom Anbieter 
 sagst du dem Kunden zu, nicht mehr.
 
 **So melden Tester Fehler:** im Portal im Register Vorschläge (Bereich „Sonstiges“: was sie getan haben, was sie erwartet haben, was
-sie gesehen haben) oder per E-Mail an die Ansprechperson. Keine Screenshots mit einem Zugangscode in der Adresszeile.
+sie gesehen haben) oder per E-Mail an die Ansprechperson. Keine Screenshots mit einem Zugangscode in der Adresszeile. Wie die
+Rückmeldungen gelesen, beantwortet und zu Verbesserungen werden, steht in Abschnitt 8.
 
 ---
 
-## 8. Pilotende: Übergabe und Löschung
+## 8. Rückmeldungen der Tester: Lesen, Antworten, Verbessern
+
+Die Tester melden sich an drei Stellen: als **Vorschlag** im Register Vorschläge (mit Status und Antwort), als **Kommentar** an einer
+Aufgabe, und bei Störungen schreibt der Fehler-Workflow eine **Störungsnotiz** („Störung TT.MM.JJJJ“). Diese drei Kanäle liest Claude
+Code, das KI-Werkzeug, mit dem wir das Portal bauen, und antwortet **im Portal** als eigenes Mitglied **„Claude (KI)“** (Rolle `agent`,
+mit 🤖-Kennzeichen). Jede Antwort endet mit „— Claude (KI-Werkzeug von Hermetikmarketing)“, damit die Tester wissen, wer schreibt.
+
+Was das Mitglied darf, prüft die Portal-API bei jedem Aufruf (Code-Knoten „Anfrage prüfen“): lesen, Vorschläge beantworten (Status
+`nachfrage`, `geplant`, `abgelehnt` und eine Antwort), Kommentare und Notizen schreiben. Es darf **nichts löschen**, nie „Erledigt“
+setzen (daraus wird „Wird getestet“), nie „umgesetzt“ setzen, keine Mitglieder verwalten, und es sieht keine Zugangscodes und keine
+Kontaktdaten. In Claudes Notizen stehen Rollen (Admin, Team), keine Namen.
+
+### 8a. Das Agent-Mitglied anlegen (einmalig)
+
+- **Mit Musterdaten (900):** schon da, Name „Claude (KI)“, dazu das Projekt „Pilot-Verbesserungen“ mit der Notiz „Was sich geändert hat“.
+- **Echter Kunde (910):** in `910_erster_admin.sql` den Block „Agent-Mitglied anlegen“ einschalten: die Zeile
+  `agent_anlegen boolean := false;` auf `true` ändern und die Datei (noch einmal) ausführen. Das legt den Agenten, das Projekt
+  „Pilot-Verbesserungen“ und die Notiz „Was sich geändert hat“ an. Mehrfach ausführen ist unschädlich.
+
+  **Danach siehst du:** zwei Zeilen: die Admin-Person und „Claude (KI)“ (Rolle `agent`, Status `aktiv`), je mit einem 48-stelligen Code.
+
+Der Code des Agenten ist **kein Login-Link**. Er ist der Zugang des Werkzeugs auf deinem Rechner (8b). Später wieder anzeigen:
+`select name, token from team_mitglieder where typ = 'agent';`. Sperren wie bei jeder Person: im Portal unter Team oder per
+`update team_mitglieder set status = 'gesperrt' where typ = 'agent';`.
+
+### 8b. Zugangscode nur als Umgebungsvariable (auf deinem Rechner)
+
+Das Werkzeug `portal-pilot/agent/feedback.mjs` liest zwei Werte aus der Umgebung. Sie stehen **nie** in einer Datei, nie im Chat, nie
+im Repo:
+
+- `PILOT_PORTAL_API`: die Adresse der Portal-API, also `n8n_basis_url` aus Schritt 3e plus `/portal-api`, zum Beispiel
+  `https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api`.
+- `PILOT_AGENT_TOKEN`: der Code des Agenten aus 8a.
+
+**Windows** (PowerShell oder Eingabeaufforderung; danach ein **neues** Terminal öffnen, erst dort gilt es):
+
+```bash
+setx PILOT_PORTAL_API "https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api"
+```
+
+```bash
+setx PILOT_AGENT_TOKEN "HIER-DEN-CODE-EINFUEGEN"
+```
+
+**Mac** (Terminal; die zwei Zeilen am Ende der Datei `~/.zshrc` eintragen, dann Terminal neu öffnen):
+
+```bash
+export PILOT_PORTAL_API="https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api"
+```
+
+```bash
+export PILOT_AGENT_TOKEN="HIER-DEN-CODE-EINFUEGEN"
+```
+
+Prüfung, im Ordner des Repos:
+
+```bash
+node portal-pilot/agent/feedback.mjs lesen
+```
+
+**Danach siehst du:** eine Liste „Rückmeldungen im Pilot-Portal, Stand …“ mit neuen Vorschlägen, Kommentaren der letzten 7 Tage und
+Störungsnotizen, überall Rollen statt Namen. Kommt „PILOT_AGENT_TOKEN fehlt“, gilt die Variable noch nicht (Terminal neu öffnen). Kommt
+„Dein Zugang ist ungültig“, ist der Code falsch kopiert oder der Agent gesperrt. Kommt „gehört keinem Agent-Mitglied“, hast du den Code
+einer Person eingetragen; das Werkzeug schreibt nur als Agent.
+
+### 8c. Vorlage „Feedback lesen“ in n8n importieren (inaktiv lassen)
+
+`einsetzen.mjs` (Schritt 3a) schreibt zusätzlich `optional/feedback-lesen.workflow.json` in den Ausgabeordner. Diese Vorlage liest
+dieselben drei Kanäle direkt aus der Datenbank und baut eine kompakte Liste: je Eintrag Art, Zeit, Bereich oder Projekt, Rolle des
+Verfassers, Text, Status, ID. Sie hat **keinen Webhook und keinen Zeitplan**: Sie läuft nur, wenn jemand sie in n8n von Hand startet
+oder Claude sie über den Connector (8d) ausführt.
+
+1. „Import from file“ → `../portal-fertig/ifa/optional/feedback-lesen.workflow.json`.
+2. Die fünf Supabase-Knoten (`Vorschläge`, `Verlauf`, `Aufgaben`, `Störungsnotizen`, `Mitglieder`) öffnen und `Supabase (Pilot)` wählen.
+   Alle fünf lesen nur (GET); der Knoten `Mitglieder` holt nur ID, Rolle, Typ und Status, keine Namen.
+3. Settings wie in 3d prüfen (Ausführungsdaten nicht speichern, Europe/Berlin). Speichern.
+4. **Nicht aktivieren.** Es gibt nichts zu aktivieren; der Schalter bleibt aus.
+5. Probelauf: „Execute workflow“ (oder „Test workflow“) klicken und den letzten Knoten `Liste bauen` öffnen.
+
+**Danach siehst du:** im Knoten `Liste bauen` ein Element mit `zusammenfassung` (Zählung: neue Vorschläge, Kommentare, Störungen) und
+`eintraege` (die Liste). Bei leerem Portal sind die Zahlen 0 und die Liste leer, das ist richtig. Ein roter Knoten heißt fast immer:
+Credential nicht gewählt.
+
+### 8d. Zweiter n8n-Connector in der Claude-App
+
+Claude bekommt in der Claude-App einen eigenen Connector auf die n8n-Cloud-Instanz des Piloten (getrennt von unserem eigenen n8n). Über
+ihn kann Claude Workflows lesen und die Vorlage aus 8c ausführen. Mehr nicht: Es gibt keinen offenen Webhook, und das Antworten läuft
+über das Werkzeug aus 8b auf deinem Rechner.
+
+1. **API-Schlüssel in n8n anlegen:** n8n Cloud → unten links Settings → **n8n API** → „Create an API key“. Name `Claude Pilot ifa`,
+   Ablaufdatum: Pilotende. Erscheint eine Liste **Scopes** (Rechte), nur anhaken: Workflows lesen (`workflow:read`), Ausführungen lesen
+   (`execution:read`) und Workflows ausführen (`workflow:execute`). Fehlt die Liste, hat der Schlüssel alle Rechte der Instanz: dann
+   trotzdem anlegen, aber Ablaufdatum setzen, den Schlüssel nur in der Claude-App hinterlegen (nirgends sonst), und im Chat gilt die
+   Regel „nur den Workflow „PILOT: Feedback lesen“ ausführen, nichts ändern“. Den Schlüssel einmal kopieren; n8n zeigt ihn nur einmal.
+2. **Connector in der Claude-App:** im Chat das **Plus-Menü** (unten links im Eingabefeld) → „Connectors“ (oder Einstellungen →
+   Connectors) → „Connector hinzufügen“ → **n8n** wählen. Name `n8n Pilot ifa` (damit er nicht mit unserem eigenen n8n-Connector
+   verwechselt wird), Instanz-URL `https://DEINE-INSTANZ.app.n8n.cloud`, API-Schlüssel aus 1. Speichern. Der Schlüssel bleibt in der
+   Claude-App; er gehört nicht in dieses Repo und nicht in den Chat.
+3. **Prüfung im Chat:** „Zeig mir die Workflows im Pilot“ muss die Liste mit `PORTAL: Portal-API (Pilot) [ifa]` und
+   `PILOT: Feedback lesen (intern, Claude) [ifa]` liefern. „Lies das Feedback im Pilot“ führt die Vorlage aus und fasst die Liste zusammen.
+
+**Danach siehst du:** den Connector in der Liste der Claude-App mit grünem Status, und im n8n-Workflow „Feedback lesen“ nach dem
+Probelauf keine gespeicherte Ausführung (Settings aus 3d).
+
+Beide Wege lesen dasselbe: Weg 1 ist der Connector (Claude-App, Vorlage aus 8c), Weg 2 ist `feedback.mjs lesen` (Claude Code auf
+deinem Rechner, über die Portal-API). Geantwortet wird immer über Weg 2.
+
+### 8e. Antwortregeln
+
+- **Binnen eines Werktags** bekommt jede Rückmeldung eine Antwort im Portal (das ist die Zusage aus Abschnitt 7).
+- **Angenommen:** Status `geplant` mit Termin („kommt bis Freitag mit dem nächsten Update“).
+- **Nachgefragt:** Status `nachfrage` mit der konkreten Frage; der Vorschlag bleibt offen, bis der Verfasser antwortet (Kommentar oder
+  Vorschlag ergänzen).
+- **Abgelehnt:** Status `abgelehnt` mit Grund („gehört nicht in den Pilot-Umfang“, „Modul bleibt aus, siehe Pflichthinweis 3“).
+- **Entscheidungen zu Umfang, Kosten und Daten bleiben bei dir.** Claude darf Kleinigkeiten (Texte, Anzeige, Sortierung, Fehler)
+  selbst als `geplant` zusagen und offensichtlich Fremdes selbst ablehnen. Alles, was den Pilot-Umfang erweitert, Module einschaltet,
+  neue Daten erhebt oder Geld kostet, bekommt erst `nachfrage` („wird mit der Leitung besprochen“) und dann deine Entscheidung.
+- **„umgesetzt“** setzt nur du, im Portal, nachdem die Änderung ausgerollt ist (8f).
+- **Rollen statt Namen** in allen Notizen von Claude; Tester werden nicht bewertet, Rückmeldungen werden nicht einzelnen Personen
+  zugeordnet. Störungsnotizen werden nur gelesen, nicht beantwortet; die Behebung steht in „Was sich geändert hat“.
+- Die Befehle dazu (jeweils mit Unterschrift):
+
+```bash
+node portal-pilot/agent/feedback.mjs antworten <vorschlag_id> --status geplant --text "Kommt bis Freitag mit dem nächsten Update."
+```
+
+```bash
+node portal-pilot/agent/feedback.mjs kommentar <aufgabe_id> --text "Danke, wir prüfen das bis morgen."
+```
+
+### 8f. Ausrollen: nur nach deiner Freigabe
+
+1. Claude baut die Änderung im Repo (Branch, Tests grün, Testserver).
+2. Du gibst frei (im Chat oder im Pull Request).
+3. Einspielen **genau nach Abschnitt 7, „Änderungen und Support während des Pilots“**: zuerst im Testserver prüfen, Kunden am Vortag
+   informieren, außerhalb der Arbeitszeit der Tester, vorher sichern, dann Workflow oder Oberfläche ersetzen, `curl`-Test, Checkliste
+   aus Schritt 5.
+4. Danach trägt Claude ein, was sich geändert hat (Notiz „Was sich geändert hat“ im Projekt „Pilot-Verbesserungen“, oder im Projekt aus
+   der Einstellung `firmenwissen_projekt`, falls gesetzt; die Notiz wird angelegt, falls sie fehlt):
+
+```bash
+node portal-pilot/agent/feedback.mjs aenderungen --text "Vorschläge lassen sich jetzt nach Bereich ordnen (Vorschlag 2 aus der ersten Woche)."
+```
+
+5. Du setzt den Vorschlag im Portal auf „umgesetzt“.
+
+### 8g. Datenschutz: AVV und Datenschutzinformation
+
+Dieser Satz gehört in die Unterauftragnehmer-Liste des AVV (Pflichthinweis 1) und in die Datenschutzinformation für die Mitarbeitenden
+(Pflichthinweis 2), **bevor** der erste Zugangslink verteilt wird:
+
+> Rückmeldungen im Portal (Vorschläge, Kommentare an Aufgaben, Störungsmeldungen) werden von Hermetikmarketing mit dem KI-Werkzeug
+> Claude (Anbieter Anthropic, USA) gelesen und beantwortet. Antworten sind im Portal als Mitglied „Claude (KI)“ gekennzeichnet. Bitte
+> keine sensiblen Daten in Vorschläge und Kommentare schreiben.
+
+Dazu im Vorgespräch: Die Texte der Rückmeldungen (nicht die ganze Datenbank) gehen an den KI-Anbieter; Namen der Verfasser werden
+vorher durch Rollen ersetzt, soweit sie nicht im Text selbst stehen. Was Claude sieht, steht in `n8n/PRUEFUNG.md`, Abschnitt 9.
+
+---
+
+## 9. Pilotende: Übergabe und Löschung
 
 Reihenfolge einhalten. Ziel: Der Kunde hat seine Daten, bei uns und bei den Anbietern bleibt nichts zurück, und der Kunde hat das
 schriftlich. Frist: Löschung binnen 30 Tagen nach Pilotende.

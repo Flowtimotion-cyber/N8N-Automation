@@ -10,6 +10,8 @@
 //   POST   rpc/team_loeschen                             Body { p_art, p_id, p_von }     (Papierkorb)
 //   POST   rpc/team_wiederherstellen                     Body { p_eintrag }
 //   POST   rpc/team_tn_haken                             Body { p_tn, p_spalte, p_wert, p_datum, p_von }   (nur Modul kurs)
+// Dazu die Lesepfade der Begleit-Workflows (Feedback lesen, Fehler-Workflow): GET <tabelle>?select=…&<spalte>=<op>.<wert>&or=(…)&order=<spalte>.asc|desc&limit=n
+//   mit den Operatoren eq, neq, gt, gte, lt, lte, in, like (* = Platzhalter), ilike.
 // Tabellen: team_mitglieder, team_aufgaben, team_aufgaben_verlauf, team_projekte, team_notizen, team_vorschlaege, team_zeiten,
 //   team_abrechnung, team_social, team_systeme, team_teilnehmer, team_tn_spalten, kurs_community.
 // Antworten wie PostgREST: 200 mit JSON (GET, rpc), 201/204 ohne Body bei return=minimal, Fehler als { code, message, details, hint }
@@ -25,7 +27,13 @@ const NAME = /^[a-z_][a-z0-9_]*$/;
 const antwort = (statusCode, json, text) => ({ statusCode, headers: { 'content-type': 'application/json; charset=utf-8' }, json, text: text !== undefined ? text : (json === undefined ? '' : JSON.stringify(json)) });
 const fehler = (statusCode, code, message, details) => antwort(statusCode, { code, message, details: details || null, hint: null });
 
-/** Zerlegt „tabelle?select=a,b&pk=eq.x“ in { tabelle, select, filter: [{ spalte, op, werte }] }. */
+const OPS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'like', 'ilike'];
+function filterLesen(spalte, v) {
+  if (!NAME.test(spalte)) throw new Error('Ungültige Spalte: ' + spalte);
+  const m = new RegExp('^(' + OPS.join('|') + ')\\.(.*)$', 's').exec(v); if (!m) throw new Error('Filter nicht nachgebildet: ' + spalte + '=' + v);
+  return { spalte, op: m[1], werte: m[1] === 'in' ? m[2].replace(/^\(|\)$/g, '').split(',').map(x => decodeURIComponent(x)) : [m[2]] };
+}
+/** Zerlegt „tabelle?select=a,b&pk=eq.x&or=(a.eq.1,b.gt.2)&order=c.desc&limit=5“ in { tabelle, select, filter: [{ spalte, op, werte } | { oder: [...] }], order, limit }. */
 export function pfadLesen(pfad) {
   const [tab, q] = pfad.split('?');
   const r = { tabelle: tab, select: null, filter: [] };
@@ -33,13 +41,32 @@ export function pfadLesen(pfad) {
   for (const [k, v] of new URLSearchParams(q || '')) {
     if (k === 'select') r.select = v.split(',').map(s => s.trim()).filter(Boolean);
     else if (k === 'on_conflict' || k === 'order' || k === 'limit') r[k] = v;
-    else {
-      if (!NAME.test(k)) throw new Error('Ungültige Spalte: ' + k);
-      const m = /^(eq|in)\.(.*)$/s.exec(v); if (!m) throw new Error('Filter nicht nachgebildet: ' + k + '=' + v);
-      r.filter.push({ spalte: k, op: m[1], werte: m[1] === 'in' ? m[2].replace(/^\(|\)$/g, '').split(',').map(x => decodeURIComponent(x)) : [m[2]] });
-    }
+    else if (k === 'or') {
+      // or=(spalte.op.wert,spalte.op.wert): Werte ohne Komma und ohne Klammern (so benutzen es die Workflows)
+      const teile = v.replace(/^\(|\)$/g, '').split(',').map(t => { const i = t.indexOf('.'); if (i < 1) throw new Error('or-Filter nicht lesbar: ' + v); return filterLesen(t.slice(0, i), t.slice(i + 1)); });
+      r.filter.push({ oder: teile });
+    } else r.filter.push(filterLesen(k, v));
   }
   return r;
+}
+/** Vergleich eines Zeilenwerts mit einem Filter (Betriebsart Speicher), Textvergleich wie PostgREST bei Text- und Zeitspalten. */
+function filterPasst(z, f) {
+  if (f.oder) return f.oder.some(g => filterPasst(z, g));
+  const w = z[f.spalte] == null ? null : String(z[f.spalte]); const v = f.werte[0];
+  if (f.op === 'in') return f.werte.map(String).includes(String(w));
+  if (f.op === 'eq') return w === v;
+  if (f.op === 'neq') return w !== v;
+  if (w == null) return false;
+  if (f.op === 'gt') return w > v; if (f.op === 'gte') return w >= v; if (f.op === 'lt') return w < v; if (f.op === 'lte') return w <= v;
+  const re = new RegExp('^' + v.split('*').map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', f.op === 'ilike' ? 'is' : 's');
+  return re.test(w);
+}
+/** Sortierung und Begrenzung wie PostgREST (order=spalte.asc|desc, limit=n), Betriebsart Speicher. */
+function ordnen(rows, p) {
+  let L = rows;
+  if (p.order) { const [sp, ri] = p.order.split('.'); if (!NAME.test(sp)) throw new Error('Ungültige Sortierspalte: ' + sp); const f = ri === 'desc' ? -1 : 1; L = L.slice().sort((a, b) => { const x = a[sp] == null ? '' : String(a[sp]), y = b[sp] == null ? '' : String(b[sp]); return x < y ? -f : x > y ? f : 0; }); }
+  if (p.limit !== undefined) { const n = Number(p.limit); if (!(n >= 0)) throw new Error('Ungültiges limit: ' + p.limit); L = L.slice(0, n); }
+  return L;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -67,10 +94,10 @@ export class SpeicherRest {
     const L = this.tabelle(p.tabelle);
     if (!L) this.wirf(404, 'PGRST205', "Could not find the table 'public." + p.tabelle + "' in the schema cache");
     const pk = PK[p.tabelle];
-    const passt = z => p.filter.every(f => f.werte.map(String).includes(String(z[f.spalte])));
+    const passt = z => p.filter.every(f => filterPasst(z, f));
     const minimal = /return=minimal/.test(kopf.prefer || '');
     if (methode === 'GET') {
-      const rows = L.filter(passt).map(z => p.select ? Object.fromEntries(p.select.map(s => [s, z[s] === undefined ? null : z[s]])) : kopie(z));
+      const rows = ordnen(L.filter(passt), p).map(z => p.select ? Object.fromEntries(p.select.map(s => [s, z[s] === undefined ? null : z[s]])) : kopie(z));
       return antwort(200, rows);
     }
     if (methode === 'POST') {
@@ -234,12 +261,21 @@ export class PostgresRest {
     const tab = p.tabelle; const spalten = this.spaltenVon(tab);
     const unbekannt = Object.keys(body).filter(k => !spalten.includes(k));
     if (['POST', 'PATCH'].includes(methode) && unbekannt.length) return fehler(400, 'PGRST204', "Could not find the '" + unbekannt[0] + "' column of '" + tab + "' in the schema cache");
-    for (const f of p.filter) if (!spalten.includes(f.spalte)) return fehler(400, 'PGRST204', "Could not find the '" + f.spalte + "' column");
-    const wo = p.filter.length ? ' where ' + p.filter.map(f => f.op === 'eq' ? `t.${f.spalte} = ${this.lit(f.werte[0])}` : `t.${f.spalte} = any(array[${f.werte.map(v => this.lit(v)).join(',')}]::text[])`).join(' and ') : '';
+    const flach = f => f.oder ? f.oder.flatMap(flach) : [f];
+    for (const f of p.filter.flatMap(flach)) if (!spalten.includes(f.spalte)) return fehler(400, 'PGRST204', "Could not find the '" + f.spalte + "' column");
+    const OP = { eq: '=', neq: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=', like: 'like', ilike: 'ilike' };
+    const bed = f => f.oder ? '(' + f.oder.map(bed).join(' or ') + ')'
+      : f.op === 'in' ? `t.${f.spalte}::text = any(array[${f.werte.map(v => this.lit(v)).join(',')}]::text[])`
+      : /like/.test(f.op) ? `t.${f.spalte}::text ${OP[f.op]} ${this.lit(f.werte[0].split('*').join('%'))}`
+      : `t.${f.spalte} ${OP[f.op]} ${this.lit(f.werte[0])}`;
+    const wo = p.filter.length ? ' where ' + p.filter.map(bed).join(' and ') : '';
     const minimal = /return=minimal/.test(kopf.prefer || '');
     if (methode === 'GET') {
       const sel = p.select ? p.select.map(s => { if (!spalten.includes(s)) { const e = new Error(s); e.rest = fehler(400, 'PGRST204', "Could not find the '" + s + "' column"); throw e; } return 't.' + s; }).join(', ') : 't.*';
-      return antwort(200, JSON.parse(this.sql(`select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from (select ${sel} from ${tab} t${wo}) x`).trim()));
+      let ord = '';
+      if (p.order) { const [sp, ri] = p.order.split('.'); if (!spalten.includes(sp)) return fehler(400, 'PGRST204', "Could not find the '" + sp + "' column"); ord = ` order by t.${sp} ${ri === 'desc' ? 'desc' : 'asc'}`; }
+      const lim = p.limit !== undefined ? ` limit ${Math.max(0, Math.floor(Number(p.limit)) || 0)}` : '';
+      return antwort(200, JSON.parse(this.sql(`select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) from (select ${sel} from ${tab} t${wo}${ord}${lim}) x`).trim()));
     }
     if (methode === 'POST') {
       const keys = Object.keys(body); if (!keys.length) return fehler(400, 'PGRST102', 'Leerer Body');

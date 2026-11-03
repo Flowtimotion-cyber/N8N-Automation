@@ -223,7 +223,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .vs .t{font-weight:700;cursor:pointer}.vs .t:hover{color:var(--acc)}
 .vs .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--mut);margin-top:4px}
 .vs .antw{background:var(--tint);border-radius:10px;padding:8px 12px;margin-top:8px;font-size:14px}
-.chip.vs-neu{background:#EEF2FF;color:#4338CA}.chip.vs-geplant{background:#FEF3C7;color:#92400E}.chip.vs-in-Arbeit{background:#E0F2FE;color:#075985}.chip.vs-umgesetzt{background:#DCFCE7;color:#166534}.chip.vs-abgelehnt{background:#F3F4F6;color:#6B7280}
+.chip.vs-neu{background:#EEF2FF;color:#4338CA}.chip.vs-nachfrage{background:#FFEDD5;color:#9A3412}.chip.vs-geplant{background:#FEF3C7;color:#92400E}.chip.vs-in-Arbeit{background:#E0F2FE;color:#075985}.chip.vs-umgesetzt{background:#DCFCE7;color:#166534}.chip.vs-abgelehnt{background:#F3F4F6;color:#6B7280}
 .center{max-width:520px;margin:8vh auto;padding:0 16px}
 .loading{padding:60px 0;text-align:center;color:var(--mut)}
 @media(max-width:640px){
@@ -564,14 +564,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
 
   // ---------- Vorschläge (Änderungswünsche am Portal) ----------
-  const VSTATUS = ['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];
+  const VSTATUS = ['neu', 'nachfrage', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];   // „nachfrage“: Rückfrage an den Verfasser, bleibt offen
   let vFilter = ls.get('mt-vfilter') || 'offen';
   let vSuche = '', vBereich = '', vTag = '', vGruppe = !!ls.get('mt-vgruppe');
   const vChip = st => '<span class="chip vs-' + esc(String(st).replace(/\s/g, '-')) + '">' + esc(st) + '</span>';
   function vVorschlaege() {
     const ich = D.ich.mitglied_id, admin = istAdmin();
     const alleV = (D.vorschlaege || []).slice();
-    const offen = v => ['neu', 'geplant', 'in Arbeit'].includes(v.status);
+    const offen = v => ['neu', 'nachfrage', 'geplant', 'in Arbeit'].includes(v.status);
     const n = st => alleV.filter(v => v.status === st).length;
     // Schlagworte: #Wort im Titel oder Text (Unicode-Buchstaben, Ziffern, _ und -), z. B. #Arbeitszeit oder #Datenexport
     const tagsVon = v => { const s = new Set(); String((v.titel || '') + ' ' + (v.text || '')).replace(/(^|[\s(,;])#([\p{L}\d][\p{L}\d_-]{1,29})/gu, (m, a, t) => { s.add(t.toLowerCase()); return m; }); return [...s]; };
@@ -580,7 +580,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const VBEREICHE = vbereiche();
     const bereicheVorhanden = [...new Set(alleV.filter(nachStatus).map(v => v.bereich || 'Sonstiges'))].sort((a, b) => VBEREICHE.indexOf(a) - VBEREICHE.indexOf(b));
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Die Leitung entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
-      '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu'), 'neu') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
+      '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu') + n('nachfrage'), 'neu oder mit Rückfrage') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
       '<div class="card"><div class="tools"><div class="seg">' + [['offen', 'Offen'], ['alle', 'Alle'], ['umgesetzt', 'Umgesetzt'], ['abgelehnt', 'Abgelehnt']].map(([k, l]) => '<button data-vf="' + k + '" class="' + (vFilter === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div>' +
       '<input id="v_such" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(vSuche) + '" aria-label="Vorschläge durchsuchen" style="flex:1;min-width:160px;max-width:280px">' +
       '<select id="v_ber" aria-label="Bereich"><option value="">Alle Bereiche</option>' + bereicheVorhanden.map(b => '<option value="' + esc(b) + '"' + (b === vBereich ? ' selected' : '') + '>' + esc(b) + '</option>').join('') + '</select>' +

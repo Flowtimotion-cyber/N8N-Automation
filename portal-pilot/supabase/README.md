@@ -21,8 +21,8 @@ eigene Produktivsystem verwenden. Die Datenbank ist von außen nicht erreichbar;
 | `130_option_kommunikation.sql` | Option | WhatsApp- und Website-Chat-Eingang, WhatsApp-Benachrichtigungen ans Team |
 | `140_option_office.sql` | Option | Register „KI Office“: Agenten, Aufträge, Freigaben (ohne vorgefertigte Agenten) |
 | `150_option_kurs.sql` | Option | Register „Kurs“: Fragen und Antworten aus einer Kursseite |
-| `900_seed_musterfirma.sql` | eins von beiden | Beispielteam „Musterfirma GmbH“ mit erfundenen Daten, zum Zeigen und Testen |
-| `910_erster_admin.sql` | eins von beiden | Für einen echten Kunden: legt den ersten Admin an (ohne Musterdaten) |
+| `900_seed_musterfirma.sql` | eins von beiden | Beispielteam „Musterfirma GmbH“ mit erfundenen Daten, zum Zeigen und Testen; enthält den KI-Agenten „Claude (KI)“, das Projekt „Pilot-Verbesserungen“ und die Notiz „Was sich geändert hat“ für die Feedbackschleife |
+| `910_erster_admin.sql` | eins von beiden | Für einen echten Kunden: legt den ersten Admin an (ohne Musterdaten); optionaler Block legt den KI-Agenten für die Feedbackschleife an |
 | `990_export.sql` | am Pilotende | Alle Daten als JSON (oder je Tabelle als CSV) zur Übergabe an den Kunden |
 | `999_loeschen.sql` | am Pilotende | Löscht alle Daten und Tabellen des Portals. Mit Sicherheitsabfrage |
 
@@ -65,8 +65,8 @@ Nach jeder Datei zeigt der SQL-Editor unten die Kontrollabfrage:
 | `001_basis.sql` | Liste mit 9 Tabellennamen, alle beginnen mit `team_` |
 | `002_einstellungen.sql` | 10 Zeilen: `firma`, `firmenwissen_projekt`, `kurzname`, `module`, `pilot_ende`, `raeume`, `rollen`, `social_kanaele`, `stichdatum_abrechnung`, `vorschlag_bereiche` |
 | `003_team_laden.sql` | 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb` |
-| `900_seed_musterfirma.sql` | 4 Zeilen mit Name, Rolle, Status und Zugangscode (siehe Abschnitt 5) |
-| `910_erster_admin.sql` | 1 Zeile mit dem neuen Admin und seinem Zugangscode |
+| `900_seed_musterfirma.sql` | 5 Zeilen mit Name, Rolle, Status und Zugangscode (siehe Abschnitt 5), darunter „Claude (KI)“ mit Rolle `agent` |
+| `910_erster_admin.sql` | 1 Zeile mit dem neuen Admin und seinem Zugangscode; 2 Zeilen, wenn der Agent-Block eingeschaltet ist |
 | Optionen `100` bis `150` | kleine Kontrolltabelle, z. B. `social = array` oder die Liste der neuen Tabellen |
 
 Die Probe aufs Exempel nach dem Seed: neue Abfrage, eingeben
@@ -84,7 +84,7 @@ select jsonb_array_length(team_laden() -> 'mitglieder') as mitglieder,
        jsonb_array_length(team_laden() -> 'aufgaben')   as aufgaben;
 ```
 
-Erwartet: 4, 3, 12.
+Erwartet: 5, 4, 12.
 
 ## 5. Zugangscodes
 
@@ -112,6 +112,10 @@ update team_mitglieder set token = team_token_neu() where name = 'Anna Muster';
 
 Alle weiteren Mitglieder legt der Admin im Portal unter „Team“ an; dort entsteht der Code automatisch.
 
+Der Code des KI-Agenten „Claude (KI)“ (Rolle `agent`, aus `900` oder aus dem Agent-Block in `910`) ist **kein Login-Link**. Er ist der
+Zugang des Werkzeugs `portal-pilot/agent/feedback.mjs` und gehört nur in die Umgebungsvariable `PILOT_AGENT_TOKEN` auf dem Rechner,
+der die Rückmeldungen beantwortet (`PILOT_Setup.md`, Abschnitt 8). Anzeigen: `select name, token from team_mitglieder where typ = 'agent';`
+
 ## 6. Einstellungen je Kunde
 
 Alles, was je Firma anders ist, steht in der Tabelle `team_einstellungen` und wird von den n8n-Workflows gelesen.
@@ -136,7 +140,7 @@ select team_einstellung_setzen('firmenwissen_projekt', '"Firmenwissen"');
 | `stichdatum_abrechnung` | Ab wann die Option Arbeitszeit Monate abrechnet | `null` (aus) |
 | `pilot_ende` | Geplantes Ende des Piloten | `null` (offen) |
 | `module` | Welche Optionen der Server erlaubt: `zeit`, `social`, `system`, `kurs`; `true` = an. Einschalten: `select team_einstellung_setzen('module', '{"zeit": true}');` (fehlende Schlüssel gelten als aus) | alle `false` |
-| `firmenwissen_projekt` | Projektname, in den der Wochenstand seine Notizen legt | `null` (kein Wochenstand) |
+| `firmenwissen_projekt` | Projektname, in den der Wochenstand seine Notizen legt; die Feedbackschleife legt dort auch „Was sich geändert hat“ an (sonst im Projekt „Pilot-Verbesserungen“) | `null` (kein Wochenstand) |
 | `vorschlag_bereiche` | Liste der Bereiche, die man einem Vorschlag zuordnen kann (Auswahl im Portal). Leere Liste = freier Text | 7 Einträge (die Register der Stufe 1 und „Sonstiges“) |
 | `social_kanaele` | Kanäle, die der Server bei Social-Beiträgen annimmt. Leere Liste = jeder Name. Die Auswahlliste der Oberfläche steht in `config/mandant.js` | `[]` |
 | `landesvorwahl` | Optional: Ländervorwahl ohne Plus für Telefonnummern, die mit 0 beginnen | nicht angelegt (Server nimmt 49) |

@@ -3,15 +3,19 @@
 -- =====================================================================================================
 -- Was macht diese Datei?
 --   Füllt ein leeres Portal mit erfundenen Beispieldaten, damit man sofort sieht, wie es aussieht:
---   4 Mitglieder (1 Admin, 3 Team), 3 Projekte, 12 Aufgaben in allen Status mit Verlauf, 3 Notizen,
---   2 Vorschläge, 1 Eintrag im Papierkorb. Alle Personen, Mail-Adressen und Inhalte sind erfunden
---   (Domain musterfirma.example ist reserviert und gehört niemandem). Keine Telefonnummern.
+--   5 Mitglieder (1 Admin, 3 Team, 1 KI-Agent "Claude (KI)"), 4 Projekte, 12 Aufgaben in allen Status mit
+--   Verlauf, 4 Notizen, 2 Vorschläge, 1 Eintrag im Papierkorb. Alle Personen, Mail-Adressen und Inhalte sind
+--   erfunden (Domain musterfirma.example ist reserviert und gehört niemandem). Keine Telefonnummern.
+--   Der KI-Agent ist das Mitglied, über das Rückmeldungen der Tester beantwortet werden (Rolle agent: darf
+--   lesen, Vorschläge beantworten, kommentieren, nichts löschen, nie "Erledigt" setzen); sein Zugangscode
+--   gehört in die Umgebungsvariable PILOT_AGENT_TOKEN (siehe PILOT_Setup.md, Abschnitt 8).
 -- Pflicht oder Option?  OPTION. Für einen Kunden ohne Musterdaten stattdessen 910_erster_admin.sql nutzen.
 -- Wovon hängt sie ab?   001_basis.sql, 002_einstellungen.sql, 003_team_laden.sql. Keine Option nötig.
 -- Mehrfach ausführbar?  Ja. Beim zweiten Mal wird nichts doppelt angelegt und kein Zugangscode geändert.
 --
 -- ZUGANGSCODES: Die Codes (Token) werden beim Einspielen zufällig erzeugt. Die letzte Abfrage dieser
 --   Datei zeigt sie an: name, rolle, token. Der Login-Link lautet <Portal-Adresse>#z=<token>.
+--   Der Code des KI-Agenten "Claude (KI)" ist kein Login-Link, sondern der Wert für PILOT_AGENT_TOKEN.
 --   Später jederzeit wieder anzeigen mit:  select name, rolle, token from team_mitglieder order by name;
 -- Musterdaten wieder entfernen: 999_loeschen.sql löscht alles (auch die Tabellen), oder gezielt
 --   delete from team_mitglieder where mitglied_id like 'mf-%';  (und ebenso für die anderen Tabellen).
@@ -28,7 +32,8 @@ insert into team_mitglieder (mitglied_id, name, email, funktion, rolle, typ, sta
   ('mf-anna',  'Anna Muster',  'anna.muster@musterfirma.example',  'Geschäftsführung', 'admin', 'mensch', 'aktiv',      team_token_neu(), now() - interval '30 days', now() - interval '1 hour'),
   ('mf-ben',   'Ben Beispiel', 'ben.beispiel@musterfirma.example', 'Vertrieb',         'team',  'mensch', 'aktiv',      team_token_neu(), now() - interval '28 days', now() - interval '3 hours'),
   ('mf-clara', 'Clara Probe',  'clara.probe@musterfirma.example',  'Kundenservice',    'team',  'mensch', 'aktiv',      team_token_neu(), now() - interval '27 days', now() - interval '1 day'),
-  ('mf-dan',   'Dan Test',     'dan.test@musterfirma.example',     'Verwaltung',       'team',  'mensch', 'eingeladen', team_token_neu(), null, null)
+  ('mf-dan',   'Dan Test',     'dan.test@musterfirma.example',     'Verwaltung',       'team',  'mensch', 'eingeladen', team_token_neu(), null, null),
+  ('mf-claude', 'Claude (KI)', '',                                  'KI-Werkzeug (Rückmeldungen)', 'agent', 'agent', 'aktiv', team_token_neu(), now() - interval '14 days', null)
 on conflict (mitglied_id) do nothing;
 
 -- 2) Projekte
@@ -36,7 +41,8 @@ insert into team_projekte (projekt_id, name, beschreibung, status, farbe, verant
   ('mf-p1', 'Onboarding Pilot',        'Einführung des Team-Portals: Zugänge, erste Aufgaben, Rückmeldungen sammeln.', 'aktiv',   '#4f6df5', 'mf-anna',  1,
      '[{"titel": "Anleitung Portal", "url": "https://www.example.com/anleitung"}]'::jsonb),
   ('mf-p2', 'Kundenanfragen',          'Eingehende Anfragen bearbeiten, Angebote nachfassen, Rückrufe planen.',        'aktiv',   '#2a9d8f', 'mf-clara', 2, '[]'::jsonb),
-  ('mf-p3', 'Interne Verbesserungen',  'Kleine Verbesserungen im Alltag: Vorlagen, Ablage, Abläufe.',                  'geplant', '#e76f51', 'mf-ben',   3, '[]'::jsonb)
+  ('mf-p3', 'Interne Verbesserungen',  'Kleine Verbesserungen im Alltag: Vorlagen, Ablage, Abläufe.',                  'geplant', '#e76f51', 'mf-ben',   3, '[]'::jsonb),
+  ('mf-p4', 'Pilot-Verbesserungen',    'Rückmeldungen der Tester und was daraus am Portal geändert wurde (Notiz „Was sich geändert hat“).', 'aktiv', '#1FA9B0', 'mf-anna', 4, '[]'::jsonb)
 on conflict (projekt_id) do nothing;
 
 -- 3) Aufgaben (Deadlines relativ zum Tag des Einspielens). Label: nur Werte aus der Liste der Portal-API (LABELS) oder null.
@@ -88,7 +94,10 @@ insert into team_notizen (notiz_id, titel, inhalt, projekt, autor, geaendert_von
      'Onboarding Pilot', 'mf-anna', 'mf-ben', now() - interval '24 days', now() - interval '15 days'),
   ('mf-n3', 'Protokoll Kickoff',
      E'Teilnehmer: Anna, Ben, Clara\n\nBeschlüsse:\n- Portal wird 8 Wochen getestet, danach Entscheidung.\n- Kundenanfragen laufen ab sofort als Aufgaben im Projekt „Kundenanfragen“.\n- Verbesserungswünsche als Vorschlag eintragen, nicht per Mail.\n\nOffen: Schulung für Dan, sobald er startet.',
-     'Onboarding Pilot', 'mf-ben', 'mf-ben', now() - interval '10 days', now() - interval '10 days')
+     'Onboarding Pilot', 'mf-ben', 'mf-ben', now() - interval '10 days', now() - interval '10 days'),
+  ('mf-n4', 'Was sich geändert hat',
+     E'Hier steht, was aus den Rückmeldungen des Teams am Portal geändert wurde. Neueste Einträge unten, immer mit Datum.\n\nRückmeldungen (Vorschläge, Kommentare) werden vom KI-Werkzeug Claude gelesen und beantwortet; Änderungen am Portal rollt die Leitung nach Freigabe aus.',
+     'Pilot-Verbesserungen', 'mf-anna', 'mf-anna', now() - interval '14 days', now() - interval '14 days')
 on conflict (notiz_id) do nothing;
 
 -- 6) Vorschläge
@@ -112,7 +121,7 @@ insert into team_papierkorb (eintrag_id, art, objekt_id, titel, daten, geloescht
    'mf-clara', now() - interval '2 days')
 on conflict (eintrag_id) do nothing;
 
--- Kontrolle: Mengen (4 / 3 / 12 / 15 / 3 / 2 / 1) ...
+-- Kontrolle: Mengen (5 / 4 / 12 / 15 / 4 / 2 / 1) ...
 select (select count(*) from team_mitglieder)       as mitglieder,
        (select count(*) from team_projekte)         as projekte,
        (select count(*) from team_aufgaben)         as aufgaben,
@@ -121,5 +130,5 @@ select (select count(*) from team_mitglieder)       as mitglieder,
        (select count(*) from team_vorschlaege)      as vorschlaege,
        (select count(*) from team_papierkorb)       as papierkorb;
 
--- ... und die ZUGANGSCODES (Login-Link: <Portal-Adresse>#z=<token>)
+-- ... und die ZUGANGSCODES (Login-Link: <Portal-Adresse>#z=<token>; der Code von „Claude (KI)“ ist kein Login-Link, sondern der Wert für PILOT_AGENT_TOKEN)
 select name, rolle, status, token from team_mitglieder order by rolle, name;

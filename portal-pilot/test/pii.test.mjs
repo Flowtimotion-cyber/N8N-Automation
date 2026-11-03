@@ -1,7 +1,9 @@
 // (a) PII- und Markenscan: Nichts unter portal-pilot/ darf Angaben des Anbieters, echte Namen, lange Zahlen oder Schlüssel enthalten.
 // Die Wortliste steht hier absichtlich zerlegt, damit diese Datei selbst beim Scan (und bei einem grep) sauber bleibt.
 // Ausnahmen laut Auftrag: n8n/PRUEFUNG.md darf die Wörter als erklärenden Text enthalten (nicht aber Nummern oder Schlüssel);
-// ein Ländervorwahl-Muster in einer Kommentarzeile ist ein Platzhalter.
+// ein Ländervorwahl-Muster in einer Kommentarzeile ist ein Platzhalter. Seit der Feedbackschleife (03.11.2026) außerdem: der Anbietername
+// darf GENAU in der vereinbarten Unterschrift des KI-Werkzeugs und im Satz für AVV/Datenschutzinformation stehen („… von <Anbieter>“,
+// damit die Tester wissen, wer antwortet); jede andere Erwähnung bleibt ein Treffer.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -19,6 +21,8 @@ const MUSTER = [
 const TEXT = new Set(['.html', '.js', '.mjs', '.json', '.md', '.svg', '.css', '.txt', '.sql', '.yml', '.yaml']);
 const KOMMENTAR = /^\s*(\/\/|--|\*|<!--|#)/;
 const ERKLAERT = ['n8n/PRUEFUNG.md'];
+// Vereinbarte Nennung des Anbieters (Unterschrift des KI-Werkzeugs, Satz für AVV und Datenschutzinformation): wird vor dem Wortvergleich entfernt
+const ERLAUBT = new RegExp('\\bvon ' + w('Herm', 'etik') + 'marketing\\b', 'gi');
 
 export function dateien(dir, aus = []) {
   for (const n of readdirSync(dir)) {
@@ -36,7 +40,7 @@ test('Scan über portal-pilot/: keine Anbieter-Angaben, Namen, langen Zahlen, Nu
   for (const p of L) {
     const inhalt = readFileSync(p, 'utf8'); const rel = relative(PILOT, p).split('\\').join('/');
     inhalt.split('\n').forEach((zeile, i) => {
-      const klein = zeile.toLowerCase();
+      const klein = zeile.replace(ERLAUBT, 'von ANBIETER').toLowerCase();
       if (!ERKLAERT.includes(rel)) for (const wort of WOERTER) if (klein.includes(wort)) treffer.push(rel + ':' + (i + 1) + ' enthält „' + wort + '“: ' + zeile.trim().slice(0, 100));
       for (const [name, re, nurKommentar] of MUSTER) if (re.test(zeile) && !(nurKommentar && KOMMENTAR.test(zeile))) treffer.push(rel + ':' + (i + 1) + ' ' + name + ': ' + zeile.trim().slice(0, 100));
     });
@@ -54,9 +58,11 @@ test('index.html lädt die Konfiguration und trägt keine feste Webhook- oder Po
   assert.deepEqual([...new Set(extern)].sort(), ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://wa.me/'], 'nur jsPDF (PDF-Export) und wa.me (Nachricht an ein Teammitglied) als feste Adressen');
 });
 
-test('n8n-Workflows: keine Supabase-Projekt-ID, keine Credential-IDs, keine Chat-IDs, Ausführungsdaten aus', () => {
+test('n8n-Workflows (auch optional/): keine Supabase-Projekt-ID, keine Credential-IDs, keine Chat-IDs, Ausführungsdaten aus', () => {
   const ordner = join(PILOT, 'n8n');
-  for (const f of readdirSync(ordner).filter(x => x.endsWith('.workflow.json'))) {
+  const alle = readdirSync(ordner).filter(x => x.endsWith('.workflow.json')).concat(readdirSync(join(ordner, 'optional')).filter(x => x.endsWith('.workflow.json')).map(x => 'optional/' + x));
+  assert.ok(alle.includes('optional/feedback-lesen.workflow.json'));
+  for (const f of alle) {
     const w = JSON.parse(readFileSync(join(ordner, f), 'utf8')); const text = JSON.stringify(w);
     assert.ok(!/https:\/\/(?!HIER_SUPABASE_PROJEKT)[a-z0-9]+\.supabase\.co/.test(text), f + ': nur der Platzhalter als Supabase-Adresse');
     for (const n of w.nodes) for (const c of Object.values(n.credentials || {})) assert.ok(!c.id, f + ': Credential ohne ID (' + n.name + ')');

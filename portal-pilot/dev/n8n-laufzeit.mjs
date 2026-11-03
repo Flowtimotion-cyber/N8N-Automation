@@ -5,8 +5,10 @@
 //   $('Knoten').first() / .all() / .item     Ausgabe eines früheren Knotens
 //   $input.all() / .first()                   Eingabe des laufenden Knotens
 //   $json                                     das aktuelle Element (in Ausdrücken „={{ … }}“)
-//   Knoten-Typen: webhook, httpRequest, code (runOnceForAllItems), switch (expression), if (boolean true), respondToWebhook,
+//   Knoten-Typen: webhook, manualTrigger, httpRequest, code (runOnceForAllItems), switch (expression), if (boolean true), respondToWebhook,
 //                 splitInBatches (Schleife, Ausgang 0 = fertig, Ausgang 1 = Schleife); alwaysOutputData, executeOnce
+// Workflows ohne Webhook (manueller Trigger, z. B. „Feedback lesen“) laufen mit ausfuehren(..., { ohneAntwort: true }) und liefern die
+// Ausgabe des zuletzt gelaufenen Knotens zurück.
 // HTTP-Aufrufe an Supabase gehen nicht ins Netz, sondern an eine PostgREST-Nachbildung (dev/postgrest.mjs), die das Objekt
 // „rest“ mit anfrage(methode, pfad, body, headers) → { statusCode, headers, text, json } bereitstellt.
 import { readFileSync } from 'node:fs';
@@ -24,11 +26,12 @@ export function ladeWorkflow(pfad) {
       n._code = new AsyncFunction('$', '$input', '$json', '$now', n.parameters.jsCode);   // dieselbe Übersetzung, die n8n verwendet
     }
   }
-  const start = w.nodes.find(n => n.type === 'n8n-nodes-base.webhook');
-  if (!start) throw new Error('Kein Webhook-Knoten');
+  const start = w.nodes.find(n => n.type === 'n8n-nodes-base.webhook') || w.nodes.find(n => n.type === 'n8n-nodes-base.manualTrigger');
+  if (!start) throw new Error('Kein Webhook- oder Trigger-Knoten');
   // Nur zur Kontrolle: Verbindungen dürfen nur auf vorhandene Knoten zeigen
   for (const [von, c] of Object.entries(w.connections)) { if (!knoten[von]) throw new Error('Verbindung von unbekanntem Knoten ' + von); for (const ausg of c.main || []) for (const z of ausg || []) if (!knoten[z.node]) throw new Error('Verbindung zu unbekanntem Knoten ' + z.node); }
-  return { w, knoten, start, name: w.name, pfad: start.parameters.path, origin: (start.parameters.options || {}).allowedOrigins || '' };
+  const sp = start.parameters || {};
+  return { w, knoten, start, name: w.name, pfad: sp.path || '', origin: (sp.options || {}).allowedOrigins || '' };
 }
 
 /** Wertet einen n8n-Ausdruck „={{ … }}“ aus; ohne Präfix ist es ein fester Wert. */
@@ -44,12 +47,14 @@ function ausdruck(wert, umgebung) {
 /**
  * Führt den Workflow für eine Webhook-Anfrage aus.
  * anfrage: { body (Text oder Objekt), headers, query }. rest: PostgREST-Nachbildung. Rückgabe: { code, antwort, headers }.
+ * opts.ohneAntwort: Workflow ohne Antwortknoten (manueller Trigger); Rückgabe ist dann { code: 200, antwort: <Ausgabe des letzten Knotens>, protokoll }.
  */
 export async function ausfuehren(wf, anfrage, rest, opts = {}) {
   const ausgaben = {};                 // Knotenname → Liste der Ausgabe-Elemente (für $('Knoten'))
   const schleifen = {};                // Zustand der splitInBatches-Knoten
   const protokoll = [];                // Reihenfolge der Knoten (für Tests und Fehlersuche)
   let antwort = null;
+  let letzte = [];                     // Ausgabe des zuletzt gelaufenen Knotens (für Workflows ohne Antwortknoten)
   const $ = name => {
     const L = ausgaben[name];
     if (!L) throw new Error('Knoten „' + name + '“ ist noch nicht gelaufen (n8n: „Referenced node is unexecuted“)');
@@ -64,7 +69,7 @@ export async function ausfuehren(wf, anfrage, rest, opts = {}) {
     if (n.executeOnce && items.length > 1) items = items.slice(0, 1);
     let aus = [];                                                     // je Ausgang eine Liste
     const typ = n.type.replace('n8n-nodes-base.', '');
-    if (typ === 'webhook') aus = [items];
+    if (typ === 'webhook' || typ === 'manualTrigger') aus = [items];
     else if (typ === 'code') {
       const r = await n._code($, umgebung(items).$input, items[0] ? items[0].json : undefined, new Date());
       aus = [Array.isArray(r) ? r.map(x => (x && x.json ? x : { json: x })) : [{ json: r }]];
@@ -113,6 +118,7 @@ export async function ausfuehren(wf, anfrage, rest, opts = {}) {
     } else throw new Error('Knoten-Typ nicht nachgebildet: ' + n.type);
     if (n.alwaysOutputData && aus.every(l => !l.length)) aus[0] = [{ json: {} }];
     ausgaben[n.name] = aus.flat();
+    letzte = ausgaben[n.name];
     const verb = (wf.w.connections[n.name] || {}).main || [];
     for (let i = 0; i < verb.length; i++) {
       if (!aus[i] || !aus[i].length) continue;
@@ -121,8 +127,9 @@ export async function ausfuehren(wf, anfrage, rest, opts = {}) {
   }
   function umbegungFuer(items, item) { return umgebung(items, item); }
 
-  const start = { json: { headers: anfrage.headers || {}, params: {}, query: anfrage.query || {}, body: anfrage.body } };
+  const start = wf.start.type === 'n8n-nodes-base.manualTrigger' ? { json: {} } : { json: { headers: anfrage.headers || {}, params: {}, query: anfrage.query || {}, body: anfrage.body } };
   await lauf(wf.start, [start]);
+  if (!antwort && opts.ohneAntwort) return { code: 200, antwort: letzte.map(i => i.json), headers: {}, protokoll };
   if (!antwort) throw new Error('Der Workflow hat keine Antwort an den Browser geschickt (Knoten: ' + protokoll.join(' → ') + ')');
   return Object.assign(antwort, { protokoll });
 }

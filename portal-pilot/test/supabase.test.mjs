@@ -11,14 +11,14 @@
 //
 // Was geprüft wird:
 //   1. Pflichtmigrationen 001 bis 003 laufen auf leerer Datenbank; team_laden_plus() liefert 23 Schlüssel, alle leer.
-//   2. Seed 900: 4 Mitglieder, 3 Projekte, 12 Aufgaben mit Verlauf, 3 Notizen, 2 Vorschläge, 1 Papierkorb-Eintrag,
-//      Zugangscodes 48 Hex-Zeichen und eindeutig, Mails nur @musterfirma.example, keine Telefonnummern.
+//   2. Seed 900: 5 Mitglieder (davon der KI-Agent „Claude (KI)“), 4 Projekte, 12 Aufgaben mit Verlauf, 4 Notizen, 2 Vorschläge,
+//      1 Papierkorb-Eintrag, Zugangscodes 48 Hex-Zeichen und eindeutig, Mails nur @musterfirma.example, keine Telefonnummern.
 //   3. Zweites Einspielen von 001 bis 900: nichts doppelt, Zugangscodes unverändert.
 //   4. Funktionen: Papierkorb (löschen, wiederherstellen samt Verlauf), Notiz-Versionen, Einstellungen.
 //   5. Rechte: RLS an allen Tabellen, keine Policies, anon/authenticated ohne Rechte, service_role mit Rechten.
 //   6. Optionen 100 bis 150 nacheinander, jede zweimal: team_laden() bricht nicht, Schlüssel bleiben gleich,
 //      optionale Listen werden gefüllt, Zeitfenster aus den Einstellungen, Trigger der Option 130.
-//   7. 910 (Platzhalter-Sicherung, Admin anlegen, idempotent), 990 (Export ohne Geheimnisse),
+//   7. 910 (Platzhalter-Sicherung, Admin anlegen, idempotent, optionaler Agent-Block), 990 (Export ohne Geheimnisse),
 //      999 (ohne Bestätigung passiert nichts, mit Bestätigung bleibt nichts übrig, zweimal ausführbar).
 //   8. Dateiprüfungen: PII-Scan über portal-pilot/supabase/, team_laden() genau einmal definiert,
 //      keine Option definiert team_laden() neu, jede Datei hat den Kopfkommentar.
@@ -108,20 +108,22 @@ dbTest('team_laden() ohne Optionen: Löschen in einen nicht eingespielten Bereic
 
 // ---- 2. Seed -------------------------------------------------------------------------------------------
 let tokens1;
-dbTest('900 Seed: Musterfirma mit 4 Mitgliedern, 3 Projekten, 12 Aufgaben mit Verlauf, 3 Notizen, 2 Vorschlägen, 1 Papierkorb-Eintrag', () => {
+dbTest('900 Seed: Musterfirma mit 5 Mitgliedern (davon 1 KI-Agent), 4 Projekten, 12 Aufgaben mit Verlauf, 4 Notizen, 2 Vorschlägen, 1 Papierkorb-Eintrag', () => {
   datei('900_seed_musterfirma.sql');
   const d = json('select team_laden_plus()');
-  assert.equal(d.mitglieder.length, 4);
-  assert.equal(d.projekte.length, 3);
+  assert.equal(d.mitglieder.length, 5);
+  assert.equal(d.projekte.length, 4);
   assert.equal(d.aufgaben.length, 12);
   assert.equal(d.verlauf.length, 15);
-  assert.equal(d.notizen.length, 3);
+  assert.equal(d.notizen.length, 4);
   assert.equal(d.vorschlaege.length, 2);
   assert.equal(d.papierkorb.length, 1);
   assert.equal(d.einstellungen.firma, 'Musterfirma GmbH');
-  assert.deepEqual(d.mitglieder.map(m => m.name), ['Anna Muster', 'Ben Beispiel', 'Clara Probe', 'Dan Test']);
+  assert.deepEqual(d.mitglieder.map(m => m.name), ['Anna Muster', 'Ben Beispiel', 'Clara Probe', 'Claude (KI)', 'Dan Test']);
   assert.deepEqual(d.mitglieder.filter(m => m.rolle === 'admin').map(m => m.name), ['Anna Muster']);
-  assert.deepEqual(d.projekte.map(p => p.name), ['Onboarding Pilot', 'Kundenanfragen', 'Interne Verbesserungen']);
+  assert.deepEqual(d.mitglieder.filter(m => m.typ === 'agent').map(m => [m.mitglied_id, m.rolle, m.status, m.email]), [['mf-claude', 'agent', 'aktiv', '']], 'KI-Agent ohne E-Mail');
+  assert.deepEqual(d.projekte.map(p => p.name), ['Onboarding Pilot', 'Kundenanfragen', 'Interne Verbesserungen', 'Pilot-Verbesserungen']);
+  assert.deepEqual(d.notizen.filter(n => n.titel === 'Was sich geändert hat').map(n => n.projekt), ['Pilot-Verbesserungen']);
   // alle sechs Status kommen vor, jede Aufgabe hat Projekt und Verantwortliche aus dem Seed
   assert.deepEqual([...new Set(d.aufgaben.map(a => a.status))].sort(), ['Erledigt', 'Geplant', 'In Arbeit', 'Offen', 'Wartet', 'Wird getestet']);
   const projekte = new Set(d.projekte.map(p => p.name)), leute = new Set(d.mitglieder.map(m => m.mitglied_id));
@@ -131,10 +133,10 @@ dbTest('900 Seed: Musterfirma mit 4 Mitgliedern, 3 Projekten, 12 Aufgaben mit Ve
   // Zugangscodes: 48 Hex-Zeichen, eindeutig; Mails nur in der reservierten Domain; keine Telefonnummern
   for (const m of d.mitglieder) {
     assert.match(m.token, /^[0-9a-f]{48}$/, m.name);
-    assert.match(m.email, /@musterfirma\.example$/, m.name);
+    if (m.typ !== 'agent') assert.match(m.email, /@musterfirma\.example$/, m.name);
     assert.equal(m.telefon, null, m.name);
   }
-  assert.equal(new Set(d.mitglieder.map(m => m.token)).size, 4);
+  assert.equal(new Set(d.mitglieder.map(m => m.token)).size, 5);
   tokens1 = Object.fromEntries(d.mitglieder.map(m => [m.mitglied_id, m.token]));
   // Papierkorb-Eintrag ist eine Aufgabe mit Verlauf und lässt sich wiederherstellen (eigener Test unten)
   assert.equal(d.papierkorb[0].art, 'aufgabe');
@@ -148,11 +150,11 @@ dbTest('Zweites Einspielen von 001 bis 900: nichts doppelt, Zugangscodes und Fir
   sql(`select team_einstellung_setzen('firma', '"Eigener Name GmbH"')`);
   for (const f of [...PFLICHT, '900_seed_musterfirma.sql']) datei(f);
   const d = json('select team_laden_plus()');
-  assert.equal(d.mitglieder.length, 4);
-  assert.equal(d.projekte.length, 3);
+  assert.equal(d.mitglieder.length, 5);
+  assert.equal(d.projekte.length, 4);
   assert.equal(d.aufgaben.length, 12);
   assert.equal(d.verlauf.length, 15);
-  assert.equal(d.notizen.length, 3);
+  assert.equal(d.notizen.length, 4);
   assert.equal(d.vorschlaege.length, 2);
   assert.equal(d.papierkorb.length, 1);
   assert.deepEqual(Object.fromEntries(d.mitglieder.map(m => [m.mitglied_id, m.token])), tokens1, 'Zugangscodes unverändert');
@@ -246,7 +248,7 @@ dbTest('Optionen 100 bis 150 nacheinander, jede zweimal: team_laden() bricht nic
     datei(f);   // idempotent
     const d = json('select team_laden_plus()');
     assert.deepEqual(Object.keys(d).sort(), vorher, `Schlüssel unverändert nach ${f}`);
-    assert.equal(d.mitglieder.length, 4, `Mitglieder unverändert nach ${f}`);
+    assert.equal(d.mitglieder.length, 5, `Mitglieder unverändert nach ${f}`);
     assert.equal(d.aufgaben.length, 13, `Aufgaben unverändert nach ${f}`);
   }
   const t = json(`select jsonb_agg(table_name order by table_name) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'`);
@@ -355,22 +357,35 @@ dbTest('Option 140 und 150: leere Listen, Run-Fenster, Community-Fenster', () =>
   assert.equal(d.office_agenten.length, 1);
   assert.equal(d.office_run_schluessel.length, 1);
   assert.deepEqual(d.community.map(c => c.eintrag_id), ['c-neu']);
-  assert.equal(d.mitglieder.length, 5);
+  assert.equal(d.mitglieder.length, 6);
   sql(`delete from office_runs; delete from office_agenten; delete from team_mitglieder where mitglied_id = 'agent-test'; delete from kurs_community`);
 });
 
 // ---- 7. Erster Admin, Export, Löschen -------------------------------------------------------------------
-dbTest('910: bricht mit Platzhaltern ab; mit Namen und Mail legt es genau einen Admin an, auch bei Wiederholung', () => {
+dbTest('910: bricht mit Platzhaltern ab; mit Namen und Mail legt es genau einen Admin an, auch bei Wiederholung; Agent-Block nur mit agent_anlegen = true', () => {
   const r = datei('910_erster_admin.sql', { darfFehlschlagen: true });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /HIER_NAME und HIER_MAIL/);
-  assert.equal(sql(`select count(*) from team_mitglieder`), '4');
+  assert.equal(sql(`select count(*) from team_mitglieder`), '5');
   const ersetzen = [['HIER_NAME', 'Erika Beispiel'], ['HIER_MAIL', 'Erika@Beispiel.example']];
   const a = dateiMitErsetzung('910_erster_admin.sql', ersetzen);
   assert.match(a.stdout, /Erika Beispiel\|erika@beispiel\.example\|admin\|aktiv\|[0-9a-f]{48}/);
+  assert.ok(!/agent-claude/.test(a.stdout) && sql(`select count(*) from team_mitglieder where mitglied_id = 'agent-claude'`) === '0', 'ohne agent_anlegen kein Agent');
   dateiMitErsetzung('910_erster_admin.sql', ersetzen);
   assert.equal(sql(`select count(*) from team_mitglieder where email = 'erika@beispiel.example'`), '1');
-  assert.equal(sql(`select count(*) from team_mitglieder`), '5');
+  assert.equal(sql(`select count(*) from team_mitglieder`), '6');
+  // Optionaler Block: Agent „Claude (KI)“, Projekt „Pilot-Verbesserungen“ und Notiz „Was sich geändert hat“ (aus dem Seed schon da: bleibt, nichts doppelt)
+  const mitAgent = ersetzen.concat([['agent_anlegen boolean := false', 'agent_anlegen boolean := true']]);
+  const b = dateiMitErsetzung('910_erster_admin.sql', mitAgent);
+  assert.match(b.stdout, /Claude \(KI\)\|\|agent\|aktiv\|[0-9a-f]{48}/, 'Code des Agenten in der Ausgabe');
+  assert.equal(sql(`select rolle || '|' || typ || '|' || status from team_mitglieder where mitglied_id = 'agent-claude'`), 'agent|agent|aktiv');
+  const agentToken = sql(`select token from team_mitglieder where mitglied_id = 'agent-claude'`);
+  dateiMitErsetzung('910_erster_admin.sql', mitAgent);
+  assert.equal(sql(`select token from team_mitglieder where mitglied_id = 'agent-claude'`), agentToken, 'Zugangscode des Agenten bleibt bei Wiederholung');
+  assert.equal(sql(`select count(*) from team_mitglieder`), '7');
+  assert.equal(sql(`select count(*) from team_projekte where name = 'Pilot-Verbesserungen'`), '1', 'Projekt aus dem Seed bleibt, nichts doppelt');
+  assert.equal(sql(`select count(*) from team_notizen where lower(titel) = 'was sich geändert hat'`), '1');
+  sql(`delete from team_mitglieder where mitglied_id = 'agent-claude'`);
 });
 
 dbTest('990: Export enthält alle vorhandenen Tabellen, aber keine Zugangscodes und keine Geheimnisse', () => {
@@ -383,7 +398,7 @@ dbTest('990: Export enthält alle vorhandenen Tabellen, aber keine Zugangscodes 
   assert.ok(tabellen.includes('team_mitglieder') && tabellen.includes('team_zeiten') && tabellen.includes('office_runs') && tabellen.includes('kurs_community'));
   assert.ok(!tabellen.includes('kom_einstellungen'), 'Kanal-Geheimnisse nicht im Export');
   assert.ok(!tabellen.includes('office_run_schluessel'), 'Rückmelde-Schlüssel nicht im Export');
-  assert.equal(e.tabellen.team_mitglieder.length, 5);
+  assert.equal(e.tabellen.team_mitglieder.length, 6);
   for (const m of e.tabellen.team_mitglieder) assert.equal('token' in m, false, 'kein Token im Export');
   assert.ok(!JSON.stringify(e).includes('streng-geheim'));
   assert.equal(e.tabellen.team_aufgaben.length, 13);
@@ -394,7 +409,7 @@ dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts �
   const r = datei('999_loeschen.sql', { darfFehlschlagen: true });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /Nichts gelöscht/);
-  assert.equal(sql(`select count(*) from team_mitglieder`), '5');
+  assert.equal(sql(`select count(*) from team_mitglieder`), '6');
   assert.equal(json('select team_laden()').aufgaben.length, 13);
 
   const ersetzen = [[`bestaetigung text := 'NEIN'`, `bestaetigung text := 'JA, ALLES LOESCHEN'`]];
@@ -409,7 +424,7 @@ dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts �
 
   // Danach lässt sich alles wieder frisch einspielen (Pilot neu starten)
   for (const f of [...PFLICHT, '900_seed_musterfirma.sql']) datei(f);
-  assert.equal(json('select team_laden()').mitglieder.length, 4);
+  assert.equal(json('select team_laden()').mitglieder.length, 5);
 });
 
 // ---- 8. Dateiprüfungen (laufen auch ohne Postgres) -------------------------------------------------------

@@ -47,5 +47,15 @@ export async function api(S, token, aktion, daten) {
   return { status: r.status, j };
 }
 
+/** Startet agent/feedback.mjs als eigenen Prozess (Umgebung nur PILOT_PORTAL_API und PILOT_AGENT_TOKEN). Rückgabe { code, out, err }. */
+export function feedbackWerkzeug(args, umgebung) {
+  return new Promise(ok => {
+    const env = Object.assign({}, process.env); delete env.PILOT_PORTAL_API; delete env.PILOT_AGENT_TOKEN; Object.assign(env, umgebung || {});
+    const kind = spawn(process.execPath, [join(PILOT, 'agent', 'feedback.mjs'), ...args], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '', err = ''; kind.stdout.on('data', d => { out += d; }); kind.stderr.on('data', d => { err += d; });
+    kind.on('exit', code => ok({ code, out, err }));
+  });
+}
+
 /** Prüft, ob ein lokaler PostgreSQL erreichbar ist (für Tests, die die Betriebsart Postgres brauchen). */
 export async function postgresDa() { const { psqlDa } = await import('../dev/postgrest.mjs'); return psqlDa(); }

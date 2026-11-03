@@ -1,12 +1,13 @@
 // (c) Testserver (Betriebsart Speicher) mit dem ECHTEN Code der Portal-API: Login, Laden, Rollen, Aufgaben, Konflikte, Papierkorb,
-// Notizen, Vorschläge, Team, Module (403 „Modul nicht aktiviert“ und Einschalten), Arbeitszeit, Social, Systeme, KI-Agent, Reset.
+// Notizen, Vorschläge, Team, Module (403 „Modul nicht aktiviert“ und Einschalten), Arbeitszeit, Social, Systeme, KI-Agent, Feedbackschleife
+// (Agent „Claude (KI)“ aus dem Seed liest Vorschläge, beantwortet sie, kommentiert, schreibt „Was sich geändert hat“; agent/feedback.mjs als Prozess), Reset.
 // Immer mindestens zwei Datensätze hintereinander. Antwortform der API: Schreiben liefert nur { ok, id }.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { serverStarten, api } from './hilfe.mjs';
+import { serverStarten, api, feedbackWerkzeug } from './hilfe.mjs';
 
-let S, ADMIN, BEN, CLARA, DAN;
-before(async () => { S = await serverStarten(); ADMIN = S.tokens['mf-anna']; BEN = S.tokens['mf-ben']; CLARA = S.tokens['mf-clara']; DAN = S.tokens['mf-dan']; });
+let S, ADMIN, BEN, CLARA, DAN, CLAUDE;
+before(async () => { S = await serverStarten(); ADMIN = S.tokens['mf-anna']; BEN = S.tokens['mf-ben']; CLARA = S.tokens['mf-clara']; DAN = S.tokens['mf-dan']; CLAUDE = S.tokens['mf-claude']; });
 after(async () => { if (S) await S.stop(); });
 
 test('Login: falscher oder fehlender Code → 401, unbekannte Aktion → 400, Webhook-Pfad anderer Register → 404', async () => {
@@ -26,8 +27,9 @@ test('laden: Team-Mitglied sieht keine Codes, Admin sieht 48-stellige Codes; Fel
   const b = await api(S, BEN, 'laden');
   assert.equal(b.status, 200); assert.equal(b.j.ok, true); assert.equal(b.j.ich.name, 'Ben Beispiel'); assert.equal(b.j.ich.rolle, 'team');
   for (const f of ['ich', 'mitglieder', 'projekte', 'aufgaben', 'verlauf', 'notizen', 'social', 'systeme', 'vorschlaege', 'stand', 'zeiten', 'abrechnung', 'community', 'kurs', 'anfragen', 'einstellungen']) assert.ok(f in b.j, 'Feld ' + f);
-  assert.equal(b.j.mitglieder.length, 4); assert.ok(b.j.mitglieder.every(m => !('token' in m)), 'keine Codes für Team-Mitglieder');
-  assert.equal(b.j.projekte.length, 3); assert.equal(b.j.aufgaben.length, 12); assert.equal(b.j.notizen.length, 3); assert.equal(b.j.vorschlaege.length, 2);
+  assert.equal(b.j.mitglieder.length, 5); assert.ok(b.j.mitglieder.every(m => !('token' in m)), 'keine Codes für Team-Mitglieder');
+  assert.equal(b.j.projekte.length, 4); assert.equal(b.j.aufgaben.length, 12); assert.equal(b.j.notizen.length, 4); assert.equal(b.j.vorschlaege.length, 2);
+  assert.deepEqual(b.j.mitglieder.filter(m => m.typ === 'agent').map(m => [m.mitglied_id, m.rolle, m.status]), [['mf-claude', 'agent', 'aktiv']], 'Agent „Claude (KI)“ aus dem Seed');
   assert.deepEqual([...new Set(b.j.aufgaben.map(a => a.status))].sort(), ['Erledigt', 'Geplant', 'In Arbeit', 'Offen', 'Wartet', 'Wird getestet'], 'alle Status vertreten');
   assert.deepEqual(b.j.zeiten, [], 'Modul Arbeitszeit aus: keine Zeiten'); assert.deepEqual(b.j.social, []); assert.deepEqual(b.j.systeme, []);
   assert.equal(b.j.einstellungen.firma, 'Musterfirma GmbH'); assert.equal(b.j.einstellungen.kurzname, 'Musterfirma');
@@ -196,7 +198,7 @@ test('Team: Admin legt zwei Mitglieder an (48-stelliger Code, Status eingeladen)
   assert.equal((await api(S, e1.token, 'aufgabe_speichern', { titel: 'zu früh' })).status, 403);
   assert.equal((await api(S, e1.token, 'profil', { email: 'keine-adresse', telefon: '' })).status, 400);
   assert.equal((await api(S, e1.token, 'profil', { email: 'eva@example.invalid', telefon: '0170 1234567', whatsapp_ok: false })).status, 200);
-  const l2 = await api(S, e1.token, 'laden'); assert.ok(!l2.j.setup); assert.equal(l2.j.ich.status, 'aktiv'); assert.equal(l2.j.mitglieder.length, 7); assert.match(l2.j.ich.telefon, /^\+\d{12}$/, 'Nummer mit Ländervorwahl normalisiert (0 → +Vorwahl)'); assert.ok(l2.j.ich.telefon.startsWith('+' + '49'));
+  const l2 = await api(S, e1.token, 'laden'); assert.ok(!l2.j.setup); assert.equal(l2.j.ich.status, 'aktiv'); assert.equal(l2.j.mitglieder.length, 8); assert.match(l2.j.ich.telefon, /^\+\d{12}$/, 'Nummer mit Ländervorwahl normalisiert (0 → +Vorwahl)'); assert.ok(l2.j.ich.telefon.startsWith('+' + '49'));
   // Neuer Link: alter Code ist tot
   const neu = await api(S, ADMIN, 'mitglied_speichern', { mitglied_id: m1.j.id, name: 'Eva Einladung', neuer_link: true });
   assert.equal(neu.status, 200);
@@ -265,9 +267,112 @@ test('Module einschalten (Einstellung „module“): Arbeitszeit bis Monatsabsch
   assert.equal((await api(S, ADMIN, 'papierkorb')).j.eintraege.filter(e => ['social', 'system'].includes(e.art)).length, 2);
 });
 
-test('Reset stellt die Musterdaten wieder her (4 Mitglieder, 3 Projekte, 12 Aufgaben, Module aus)', async () => {
+test('Feedbackschleife: Agent „Claude (KI)“ liest Vorschläge (ohne Codes, Kontaktdaten, Stimmenliste), beantwortet zwei (Status und Antwort für das Team sichtbar), darf weder löschen noch „Erledigt“ oder „umgesetzt“ setzen', async () => {
+  const l = await api(S, CLAUDE, 'laden'); assert.equal(l.status, 200); assert.equal(l.j.ich.rolle, 'agent'); assert.equal(l.j.ich.typ, 'agent');
+  assert.ok(Array.isArray(l.j.vorschlaege) && l.j.vorschlaege.length >= 2, 'Agent bekommt die Vorschläge');
+  assert.ok(l.j.vorschlaege.every(v => !('stimmen' in v) && typeof v.stimmen_anzahl === 'number'), 'nur die Zahl der Stimmen, nicht wer gestimmt hat');
+  assert.ok(l.j.mitglieder.every(m => !('token' in m) && !('email' in m) && !('telefon' in m)), 'keine fremden Codes und keine Kontaktdaten');
+  assert.ok(!('papierkorb' in l.j) && !('zeiten' in l.j) && !('abrechnung' in l.j), 'kleinere Antwort für Agenten');
+  assert.equal(l.j.einstellungen.firmenwissen_projekt, '', 'Einstellung firmenwissen_projekt (leer) in der Antwort');
+  assert.match(l.j.regeln, /nachfrage, geplant oder abgelehnt/);
+  // Zwei Vorschläge von Menschen, der Agent beantwortet beide
+  const v1 = (await api(S, BEN, 'vorschlag_speichern', { titel: 'Feedback eins', text: 'Erste Rückmeldung', bereich: 'Aufgaben' })).j.id;
+  const v2 = (await api(S, CLARA, 'vorschlag_speichern', { titel: 'Feedback zwei', text: 'Zweite Rückmeldung', bereich: 'Notizen' })).j.id;
+  const a1 = await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v1, status: 'nachfrage', antwort: 'Rückfrage: Meinst du die Liste oder das Board?' });
+  const a2 = await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v2, status: 'geplant', antwort: 'Kommt in der nächsten Woche.' });
+  assert.equal(a1.status, 200); assert.equal(a1.j.id, v1); assert.equal(a2.status, 200); assert.equal(a2.j.id, v2);
+  const V = (await api(S, BEN, 'laden')).j.vorschlaege; const x1 = V.find(v => v.vorschlag_id === v1), x2 = V.find(v => v.vorschlag_id === v2);
+  assert.equal(x1.status, 'nachfrage'); assert.equal(x1.antwort, 'Rückfrage: Meinst du die Liste oder das Board?'); assert.equal(x1.antwort_von, 'mf-claude', 'Team-Mitglied sieht Status und Antwort des Agenten');
+  assert.equal(x1.titel, 'Feedback eins'); assert.equal(x1.text, 'Erste Rückmeldung'); assert.equal(x1.bereich, 'Aufgaben', 'Titel, Text und Bereich bleiben');
+  assert.equal(x2.status, 'geplant'); assert.equal(x2.antwort_von, 'mf-claude');
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v2, status: 'abgelehnt', antwort: 'Doch nicht, zu aufwendig.' })).status, 200, 'abgelehnt mit Grund');
+  // Grenzen des Agenten
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v1, status: 'umgesetzt' })).status, 403, 'nie umgesetzt');
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v1, status: 'in Arbeit' })).status, 403);
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v1, titel: 'Umbenannt' })).status, 400, 'ohne Status und Antwort nichts zu tun');
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: 'v_fehlt', status: 'geplant' })).status, 404);
+  assert.equal((await api(S, CLAUDE, 'vorschlag_loeschen', { vorschlag_id: v1 })).status, 403, 'kein Löschen');
+  assert.equal((await api(S, CLAUDE, 'aufgabe_loeschen', { aufgabe_id: 'mf-a03' })).status, 403);
+  assert.equal((await api(S, CLAUDE, 'notiz_loeschen', { notiz_id: 'mf-n4' })).status, 403);
+  assert.equal((await api(S, CLAUDE, 'mitglied_speichern', { name: 'Neu' })).status, 403, 'keine Mitgliederverwaltung');
+  assert.equal((await api(S, CLAUDE, 'papierkorb')).status, 403);
+  assert.equal((await api(S, ADMIN, 'vorschlag_speichern', { vorschlag_id: v2, titel: 'Feedback zwei', text: 'Zweite Rückmeldung', bereich: 'Notizen', status: 'umgesetzt', antwort: 'Ist drin.' })).status, 200);
+  assert.equal((await api(S, CLAUDE, 'vorschlag_speichern', { vorschlag_id: v2, status: 'geplant', antwort: 'Noch mal?' })).status, 403, 'umgesetzte Vorschläge fasst der Agent nicht mehr an');
+  const t = (await api(S, BEN, 'laden')).j.aufgaben.find(a => a.aufgabe_id === 'mf-a11');
+  const e = await api(S, CLAUDE, 'aufgabe_speichern', Object.assign({}, t, { status: 'Erledigt', kommentar: 'Geprüft.', stand: t.geaendert })); assert.equal(e.status, 200);
+  assert.equal((await api(S, BEN, 'laden')).j.aufgaben.find(a => a.aufgabe_id === 'mf-a11').status, 'Wird getestet', '„Erledigt“ wird „Wird getestet“');
+  // Admin darf den neuen Status nachfrage auch selbst setzen; der Verfasser nicht mehr (nicht mehr neu)
+  assert.equal((await api(S, ADMIN, 'vorschlag_speichern', { vorschlag_id: v1, titel: 'Feedback eins', status: 'nachfrage', antwort: 'Bitte genauer.' })).status, 200);
+  assert.equal((await api(S, BEN, 'vorschlag_speichern', { vorschlag_id: v1, titel: 'nochmal' })).status, 403);
+});
+
+test('Feedbackschleife: Agent schreibt zwei Kommentare und hängt zweimal an „Was sich geändert hat“ an (Stand-Prüfung), Admin und Team sehen es', async () => {
+  const k1 = await api(S, CLAUDE, 'kommentar', { aufgabe_id: 'mf-a03', text: 'Gelesen, wir schauen uns das an.' });
+  const k2 = await api(S, CLAUDE, 'kommentar', { aufgabe_id: 'mf-a09', text: 'Vorlage ist in Arbeit.' });
+  assert.equal(k1.status, 200); assert.equal(k2.status, 200);
+  const L = (await api(S, BEN, 'laden')).j;
+  assert.ok(L.verlauf.some(v => v.aufgabe_id === 'mf-a03' && v.autor === 'mf-claude' && v.art === 'bericht' && /schauen uns das an/.test(v.text)), 'Kommentar des Agenten als Bericht');
+  assert.equal(L.verlauf.filter(v => v.autor === 'mf-claude' && v.art === 'bericht' && ['mf-a03', 'mf-a09'].includes(v.aufgabe_id)).length, 2);
+  assert.equal(L.aufgaben.find(a => a.aufgabe_id === 'mf-a09').geaendert_von, 'mf-claude');
+  const n = L.notizen.find(x => x.titel === 'Was sich geändert hat'); assert.ok(n, 'Notiz aus dem Seed'); assert.equal(n.projekt, 'Pilot-Verbesserungen');
+  const s1 = await api(S, CLAUDE, 'notiz_speichern', { notiz_id: n.notiz_id, titel: n.titel, inhalt: n.inhalt + '\n\n## 01.01.2027\nEintrag eins', projekt: n.projekt, stand: n.geaendert });
+  assert.equal(s1.status, 200); assert.equal(s1.j.id, n.notiz_id);
+  const k = await api(S, CLAUDE, 'notiz_speichern', { notiz_id: n.notiz_id, titel: n.titel, inhalt: n.inhalt + '\n\n## 01.01.2027\nEintrag zwei', projekt: n.projekt, stand: n.geaendert });
+  assert.equal(k.status, 409, 'alter Stand → Konflikt, nichts überschrieben');
+  const n2 = (await api(S, CLAUDE, 'laden')).j.notizen.find(x => x.notiz_id === n.notiz_id);
+  assert.equal((await api(S, CLAUDE, 'notiz_speichern', { notiz_id: n.notiz_id, titel: n.titel, inhalt: n2.inhalt + '\n\n## 02.01.2027\nEintrag zwei', projekt: n.projekt, stand: n2.geaendert })).status, 200);
+  const n3 = (await api(S, ADMIN, 'laden')).j.notizen.find(x => x.notiz_id === n.notiz_id);
+  assert.ok(/Eintrag eins[\s\S]*Eintrag zwei/.test(n3.inhalt), 'beide Einträge in der Reihenfolge'); assert.equal(n3.geaendert_von, 'mf-claude');
+  assert.equal((await api(S, ADMIN, 'notiz_versionen', { notiz_id: n.notiz_id })).j.versionen.length, 2, 'zwei gesicherte Fassungen');
+});
+
+test('agent/feedback.mjs als Prozess gegen den Testserver: lesen (Rollen statt Namen), antworten, kommentar, aenderungen; ohne Zugang oder als Mensch abgelehnt', async () => {
+  await S.reset();
+  const umg = { PILOT_PORTAL_API: S.api, PILOT_AGENT_TOKEN: S.tokens['mf-claude'] };
+  const l = await feedbackWerkzeug(['lesen'], umg); assert.equal(l.code, 0, l.err);
+  assert.match(l.out, /NEUE VORSCHLÄGE \(1\)/); assert.match(l.out, /mf-v1 {2}\[Übersicht\] von team · 2 Stimmen/); assert.match(l.out, /KOMMENTARE DER LETZTEN 7 TAGE \(5\), davon mit Fragezeichen: 1/); assert.match(l.out, /STÖRUNGSNOTIZEN \(0\)/);
+  for (const name of ['Anna Muster', 'Ben Beispiel', 'Clara Probe', 'Dan Test', 'musterfirma.example']) assert.ok(!l.out.includes(name), 'kein Name in der Ausgabe: ' + name);
+  assert.ok(!l.out.includes(umg.PILOT_AGENT_TOKEN), 'Zugangscode wird nie ausgegeben');
+  const j = await feedbackWerkzeug(['lesen', '--json', '--tage', '30'], umg); const R = JSON.parse(j.out);
+  assert.equal(R.neu.length, 1); assert.equal(R.tage, 30); assert.ok(R.kommentare.length >= 5); assert.ok(R.kommentare.every(k => ['admin', 'team'].includes(k.rolle)));
+  // antworten (zwei), kommentar (zwei), aenderungen (zwei)
+  const a1 = await feedbackWerkzeug(['antworten', 'mf-v1', '--status', 'nachfrage', '--text', 'Meinst du alle Register?'], umg); assert.equal(a1.code, 0, a1.err); assert.match(a1.out, /Status „nachfrage“/);
+  const a2 = await feedbackWerkzeug(['antworten', 'mf-v2', '--status', 'abgelehnt', '--text', 'Im Pilot nicht, weil kein E-Mail-Versand eingerichtet ist.'], umg); assert.equal(a2.code, 0, a2.err);
+  assert.notEqual((await feedbackWerkzeug(['antworten', 'mf-v1', '--status', 'umgesetzt', '--text', 'x'], umg)).code, 0, 'umgesetzt lehnt schon das Werkzeug ab');
+  assert.notEqual((await feedbackWerkzeug(['antworten', 'mf-v1', '--status', 'geplant'], umg)).code, 0, 'ohne Text');
+  const V = (await api(S, BEN, 'laden')).j.vorschlaege;
+  assert.equal(V.find(v => v.vorschlag_id === 'mf-v1').antwort, 'Meinst du alle Register?\n\n— Claude (KI-Werkzeug von Herm' + 'etikmarketing)', 'Unterschrift angehängt');
+  assert.equal(V.find(v => v.vorschlag_id === 'mf-v2').status, 'abgelehnt'); assert.equal(V.find(v => v.vorschlag_id === 'mf-v2').antwort_von, 'mf-claude');
+  assert.equal((await feedbackWerkzeug(['kommentar', 'mf-a11', '--text', 'Zwei Punkte fehlen noch.'], umg)).code, 0);
+  assert.equal((await feedbackWerkzeug(['kommentar', 'mf-a03', '--text', 'Danke, gelesen.'], umg)).code, 0);
+  assert.notEqual((await feedbackWerkzeug(['kommentar', 'a_fehlt', '--text', 'Hallo'], umg)).code, 0);
+  const c1 = await feedbackWerkzeug(['aenderungen', '--text', 'Status „nachfrage“ bei Vorschlägen ergänzt.'], umg); assert.equal(c1.code, 0, c1.err); assert.match(c1.out, /angehängt/);
+  const c2 = await feedbackWerkzeug(['aenderungen', '--text', 'Zweiter Eintrag.'], umg); assert.equal(c2.code, 0, c2.err);
+  const L = (await api(S, ADMIN, 'laden')).j;
+  assert.equal(L.verlauf.filter(v => v.autor === 'mf-claude' && v.art === 'bericht').length, 2);
+  const n = L.notizen.find(x => x.titel === 'Was sich geändert hat');
+  assert.ok(/## \d\d\.\d\d\.\d{4}\nStatus „nachfrage“ bei Vorschlägen ergänzt\.\n\n— Claude \(KI-Werkzeug von Herm[a-z]+\)\n\n## \d\d\.\d\d\.\d{4}\nZweiter Eintrag\./.test(n.inhalt), 'zwei Einträge mit Datum und Unterschrift, neueste unten');
+  assert.equal(n.geaendert_von, 'mf-claude'); assert.equal(n.projekt, 'Pilot-Verbesserungen');
+  // Fehlt die Notiz, wird sie angelegt (im Projekt aus firmenwissen_projekt)
+  await api(S, ADMIN, 'notiz_loeschen', { notiz_id: n.notiz_id });
+  await S.einstellung('firmenwissen_projekt', 'Firmenwissen');
+  const c3 = await feedbackWerkzeug(['aenderungen', '--text', 'Neu angelegt.'], umg); assert.equal(c3.code, 0, c3.err); assert.match(c3.out, /Projekt „Firmenwissen“ angelegt/); assert.match(c3.out, /Notiz „Was sich geändert hat“ im Projekt „Firmenwissen“ angelegt/);
+  const L2 = (await api(S, BEN, 'laden')).j; const n2 = L2.notizen.find(x => x.titel === 'Was sich geändert hat');
+  assert.equal(n2.projekt, 'Firmenwissen'); assert.equal(n2.autor, 'mf-claude'); assert.ok(L2.projekte.some(p => p.name === 'Firmenwissen'));
+  await S.einstellung('firmenwissen_projekt', null);
+  // Lesen nach dem Antworten: Rückfrage sichtbar, Ausgabe weiterhin ohne Namen
+  const l2 = await feedbackWerkzeug(['lesen'], umg); assert.match(l2.out, /VORSCHLÄGE MIT RÜCKFRAGE, warten auf den Verfasser \(1\)/); assert.match(l2.out, /Antwort \(agent\): Meinst du alle Register\?/);
+  // Ohne Zugang, mit falscher Adresse, als Mensch: Abbruch mit Meldung, nie der Code in der Ausgabe
+  const ohne = await feedbackWerkzeug(['lesen'], { PILOT_PORTAL_API: S.api, PILOT_AGENT_TOKEN: '' }); assert.equal(ohne.code, 1); assert.match(ohne.err, /PILOT_AGENT_TOKEN fehlt/);
+  const falsch = await feedbackWerkzeug(['lesen'], { PILOT_PORTAL_API: S.base + '/webhook/PILOTKUERZEL', PILOT_AGENT_TOKEN: umg.PILOT_AGENT_TOKEN }); assert.equal(falsch.code, 1); assert.match(falsch.err, /portal-api/); assert.ok(!falsch.err.includes(umg.PILOT_AGENT_TOKEN));
+  const mensch = await feedbackWerkzeug(['lesen'], { PILOT_PORTAL_API: S.api, PILOT_AGENT_TOKEN: S.tokens['mf-ben'] }); assert.equal(mensch.code, 1); assert.match(mensch.err, /keinem Agent-Mitglied/);
+  const tot = await feedbackWerkzeug(['lesen'], { PILOT_PORTAL_API: S.api, PILOT_AGENT_TOKEN: 'ab12cd34ef56ab78cd90ef12ab34cd56ef78ab90cd12ef3f' }); assert.equal(tot.code, 1); assert.match(tot.err, /ungültig/);
+  assert.equal((await feedbackWerkzeug([], umg)).code, 1, 'ohne Befehl: Hilfe und Code 1');
+});
+
+test('Reset stellt die Musterdaten wieder her (5 Mitglieder, 4 Projekte, 12 Aufgaben, Module aus)', async () => {
   await S.reset();
   const L = (await api(S, BEN, 'laden')).j;
-  assert.equal(L.mitglieder.length, 4); assert.equal(L.projekte.length, 3); assert.equal(L.aufgaben.length, 12); assert.equal(L.einstellungen.module.zeit, false);
+  assert.equal(L.mitglieder.length, 5); assert.equal(L.projekte.length, 4); assert.equal(L.aufgaben.length, 12); assert.equal(L.einstellungen.module.zeit, false);
   assert.equal((await api(S, BEN, 'zeit_speichern', { datum: '2026-01-05' })).status, 403);
 });
