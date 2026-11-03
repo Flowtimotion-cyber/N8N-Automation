@@ -208,10 +208,16 @@ oder den lokalen Socket; `psql -d postgres` muss funktionieren. Testdatenbanken:
   Labels im Seed aus der Liste der API, Register an Module gekoppelt, 401/403-Verhalten der Oberfläche, Reload alle 10 Minuten.
 - Alle Tests grün (72 Tests, darunter Ende-zu-Ende gegen PostgreSQL 16 und Browsertests in beiden Betriebsarten), PII-Scan leer.
 - Setup-Anleitung `PILOT_Setup.md` geschrieben.
+- **Nacharbeiten 03.11. nach dem Abschluss-Review:** `crypto` im Code-Knoten „Anfrage prüfen“ ist jetzt Pflicht (kein Rückfall auf
+  `Math.random()` mehr; fehlt `crypto`, bricht die Aktion mit einem klaren Fehler ab, statt schwache Codes zu erzeugen). In
+  `PILOT_Setup.md` neu: Zwei-Faktor-Pflicht für unsere Konten, Datenstandort und Zugriffskreis der n8n-Instanz, „Grenzen des Pilots“,
+  „Änderungen und Support während des Pilots“, Hinweise zu Terminal, Credential-Auswahl, GitHub-Pages-Herkunft und n8n-Usage in Woche 1.
+  `portal-pilot/.gitignore` nimmt den Ausgabeordner `fertig/` von `einsetzen.mjs` aus.
 
 ## Offene Punkte
 
-- **Nicht verifiziert:** echter Import in n8n Cloud (Credential-Verweis nur über den Namen, `crypto` im Code-Knoten, Verhalten bei
+- **Nicht verifiziert:** echter Import in n8n Cloud (Credential-Verweis nur über den Namen, `crypto` im Code-Knoten, seit 03.11.
+  ohne Rückfall: ohne `crypto` schlägt jede Aktion fehl, die neue IDs oder Zugangscodes erzeugt; Verhalten bei
   `text/plain`-Bodies), echtes Supabase-Projekt (Rechte des Service-Schlüssels auf `team_einstellungen`, `rpc/team_laden_plus`),
   CORS mit der echten Herkunft, Safari und Firefox (getestet wurde Chromium). Der erste Praxistest nach `PILOT_Setup.md` deckt das ab.
 - **Ausführungsbudget n8n Cloud:** welcher Tarif der Partner-Instanz zugrunde liegt, ist unbekannt; Rechnung in `PILOT_Setup.md`.

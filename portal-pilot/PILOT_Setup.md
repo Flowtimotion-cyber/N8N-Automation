@@ -26,6 +26,11 @@ sich mit einem anderen Kunden oder mit unserem eigenen Betrieb.
 | Den Ordner `portal-pilot/` aus diesem Repo | alle Dateien | als ZIP herunterladen oder das Repo klonen |
 | Vom Kunden: Firmenname, Kurzname, Logo (SVG oder PNG), zwei Farben, Name und E-Mail der ersten Admin-Person, das gewünschte Kürzel (z. B. `ifa`) | Konfiguration | per Mail erfragen |
 
+**Zwei-Faktor-Anmeldung ist Pflicht** für unsere Konten bei Supabase, n8n und dem Hosting (GitHub oder Cloudflare), bevor der erste
+Kundendatensatz fließt. Einschalten jeweils in den Konto-Einstellungen unter Sicherheit: Supabase „Account → Security“, n8n Cloud
+„Settings → Personal → Two-factor authentication“, GitHub „Settings → Password and authentication“, Cloudflare „My Profile → Authentication“.
+Die Wiederherstellungscodes in den Passwort-Manager.
+
 Bevor du anfängst: Abschnitt 6 (Pflichthinweise) lesen. Zwei Dinge müssen **vor dem ersten echten Datensatz** erledigt sein: der
 Auftragsverarbeitungsvertrag und die Datenschutzinformation für die Mitarbeitenden.
 
@@ -122,7 +127,7 @@ Sie bleiben aus; das Einschalten später beschreibt `README.md`, Abschnitt „Mo
 Im Terminal, im Ordner des Repos (dort, wo der Ordner `portal-pilot/` liegt):
 
 ```bash
-node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --origin https://portal.beispiel.de --ausgabe fertig/ifa/
+node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --origin https://portal.beispiel.de --ausgabe ../portal-fertig/ifa/
 ```
 
 - `--supabase`: die Projekt-ID aus Schritt 1 (nur die ID, oder die ganze Adresse).
@@ -130,9 +135,11 @@ node portal-pilot/n8n/einsetzen.mjs --supabase DEINE-PROJEKT-ID --kuerzel ifa --
 - `--origin`: die Adresse, unter der die Oberfläche später liegt, **ohne Pfad** (bei Cloudflare Pages z. B. `https://portal-ifa.pages.dev`,
   bei GitHub Pages die Pages-Adresse des Kontos ohne den Repo-Pfad, oder die eigene Domain wie `https://portal.beispiel.de`). Nur von dieser Adresse aus darf der Browser die
   Schnittstelle aufrufen. Du legst sie hier schon fest, Schritt 4 muss dann dazu passen.
-- `--ausgabe`: ein Ordner für die fertigen Dateien. **Nicht ins Repo committen** (er enthält die Supabase-Adresse des Kunden).
+- `--ausgabe`: ein Ordner für die fertigen Dateien. Wähl ihn am besten **außerhalb des Repos** (im Beispiel `../portal-fertig/ifa/`,
+  also eine Ebene über dem Repo-Ordner), denn er enthält die Supabase-Adresse des Kunden und darf **nie committet** werden. Legst du
+  ihn doch ins Repo, dann als `portal-pilot/fertig/…`: dieser Ordner steht in `portal-pilot/.gitignore` und wird nicht mit eingecheckt.
 
-**Danach siehst du:** vier Zeilen `geschrieben: fertig/ifa/…workflow.json` und den Satz „Fertig. Webhook-Pfad der Portal-API: ifa/portal-api“.
+**Danach siehst du:** vier Zeilen `geschrieben: …/portal-fertig/ifa/…workflow.json` und den Satz „Fertig. Webhook-Pfad der Portal-API: ifa/portal-api“.
 Steht dort ein Fehler, ist meist die Projekt-ID oder die Adresse falsch geschrieben; die Meldung sagt, welche.
 
 ### 3b. Credential anlegen
@@ -148,9 +155,18 @@ Schlüssel falsch (häufig: der `anon`-Schlüssel statt `service_role`).
 
 Wenn die Instanz ein Projekt je Kunde erlaubt: Credential und Workflows in ein **eigenes n8n-Projekt** mit dem Kundennamen legen.
 
+Zwei Dinge jetzt notieren, beide kommen in die Unterauftragnehmer-Liste bei Pflichthinweis 1:
+
+- **Datenstandort:** In welcher Region die n8n-Cloud-Instanz läuft, steht in n8n Cloud im Admin-Bereich bei den Instanzdaten
+  (Admin Panel → Instanz). Region aufschreiben. Liegt sie außerhalb der EU, vor dem Start klären, nicht einfach weitermachen.
+- **Zugriffskreis:** Welche Personen bei uns sehen die Instanz, das n8n-Projekt des Kunden und das Credential `Supabase (Pilot)`?
+  (n8n: Settings → Users; im Projekt: Project settings → Members.) Namen und Rollen aufschreiben. Ist die Instanz mit anderen
+  Projekten geteilt, prüfen, dass das Kundenprojekt und sein Credential nur für diesen Kreis sichtbar sind (Credential dem Projekt
+  zuordnen, nicht „für alle freigeben“).
+
 ### 3c. Fehler-Workflow importieren
 
-1. „Workflows“ → „Create workflow“ → oben rechts die drei Punkte → **Import from file** → `fertig/ifa/fehler-workflow.workflow.json`.
+1. „Workflows“ → „Create workflow“ → oben rechts die drei Punkte → **Import from file** → `../portal-fertig/ifa/fehler-workflow.workflow.json`.
 2. Die vier Supabase-Knoten nacheinander öffnen und bei „Credential“ jeweils `Supabase (Pilot)` wählen. Speichern (Strg+S).
 3. **Nicht aktivieren.** Ein Fehler-Workflow läuft von selbst, sobald ein anderer Workflow ihn eingetragen hat.
 
@@ -158,8 +174,10 @@ Wenn die Instanz ein Projekt je Kunde erlaubt: Credential und Workflows in ein *
 
 ### 3d. Portal-API importieren und einstellen
 
-1. Wieder „Import from file“ → `fertig/ifa/portal-api.workflow.json`.
+1. Wieder „Import from file“ → `../portal-fertig/ifa/portal-api.workflow.json`.
 2. Die drei Supabase-Knoten `Team-Daten laden`, `Einstellungen laden`, `In Supabase schreiben` öffnen, Credential `Supabase (Pilot)` wählen.
+   Das sind HTTP-Request-Knoten; die Auswahl steht dort unter „Authentication → Predefined Credential Type → Supabase API“, darunter
+   das Credential.
 3. Oben rechts die drei Punkte → **Settings**:
    - „Error Workflow“: `PORTAL: Fehler-Workflow (Pilot) [ifa]`.
    - „Save successful production executions“: **Do not save**.
@@ -186,7 +204,8 @@ Wenn die Instanz ein Projekt je Kunde erlaubt: Credential und Workflows in ein *
 
 ### 3f. Zwei Tests mit curl
 
-Im Terminal (die Adresse durch deine Production URL ersetzen):
+Die `curl`-Befehle brauchen ein Terminal: auf dem Mac die App „Terminal“, unter Windows die Git Bash oder PowerShell. In PowerShell
+`curl.exe` statt `curl` schreiben (das bloße `curl` ist dort ein anderer Befehl). Im Terminal (die Adresse durch deine Production URL ersetzen):
 
 ```bash
 curl -i -X POST "https://DEINE-INSTANZ.app.n8n.cloud/webhook/ifa/portal-api" -H "Content-Type: application/json" -d '{"aktion":"laden","token":"kein-gueltiger-token"}'
@@ -197,8 +216,9 @@ Das ist das gewünschte Ergebnis: Die Kette läuft bis zur Datenbank (der Code w
 falschen Code ab.
 
 - Kommt `404`: der Workflow ist nicht aktiv oder die Adresse stimmt nicht (Test-URL statt Production-URL?).
-- Kommt `500` oder `503` („Die Daten konnten gerade nicht geladen werden“): das Credential passt nicht, oder `003_team_laden.sql`
-  fehlt. In n8n den Knoten `Team-Daten laden` einzeln testen.
+- Kommt `503` mit „Die Daten konnten gerade nicht geladen werden“: das Credential passt nicht, oder `003_team_laden.sql` fehlt.
+  Kommt ein allgemeiner `500` ohne diesen Text: n8n hat den Lauf abgebrochen, meist weil die Datenbank gerade nicht erreichbar ist
+  (Projekt pausiert oder Adresse falsch). In beiden Fällen in n8n den Knoten `Team-Daten laden` einzeln testen.
 
 Zweiter Test, die Herkunftsprüfung (CORS). Der Browser schickt vor dem eigentlichen Aufruf eine Anfrage mit `Origin`; n8n antwortet nur
 für die erlaubte Herkunft mit dem passenden Header:
@@ -261,6 +281,9 @@ Die Oberfläche sind drei statische Dateien. Sie brauchen keinen Server, nur ein
 4. Nach ein bis zwei Minuten steht unter Pages die Adresse der Seite: die Pages-Adresse deines Kontos plus `/portal-ifa/`. Die Oberfläche
    liegt dann unter dieser Adresse plus `frontend/`. Das ist deine `portal_url` (Schritt 4a); die Herkunft für n8n (Schritt 3a) ist nur
    der Teil bis zum ersten Schrägstrich nach dem Host, ohne `/portal-ifa/`.
+5. Beachte: Diese Herkunft (die Adresse deines Pages-Kontos) gilt für **alle** Pages-Seiten dieses Kontos, nicht nur für `portal-ifa`.
+   Jede andere Seite, die du unter demselben Konto veröffentlichst, dürfte damit die Schnittstelle aufrufen. Für den Pilot ist eine
+   eigene Domain (Custom domain in den Pages-Einstellungen) oder Weg B sauberer: dort hat jedes Projekt seine eigene Adresse.
 
 **Weg B: Cloudflare Pages**
 
@@ -295,7 +318,7 @@ Hast du dich vertan: Schritt 3a mit der richtigen Adresse wiederholen und den Wo
 - [ ] Der Fenstertitel lautet „Team-Portal · <Firma aus Schritt 2.7>“.
 - [ ] Oben rechts Name und Rolle „Admin“.
 - [ ] Sechs Register: Übersicht, Aufgaben, Projekte, Notizen, Vorschläge, Team. Keine weiteren.
-- [ ] Übersicht: „Guten Morgen/Tag, <Name>“, Kennzahlen (bei leerer Datenbank alles 0), kein Hinweis auf „KI Office“, kein Video (außer du hast eines eingetragen).
+- [ ] Übersicht: „Guten Morgen, <Name>“ (vor 11 Uhr), „Hallo, <Name>“ (bis 18 Uhr) oder „Guten Abend, <Name>“; Kennzahlen (bei leerer Datenbank alles 0), kein Hinweis auf „KI Office“, kein Video (außer du hast eines eingetragen).
 - [ ] Register Team: die Admin-Person mit „Verwalten“ und „Link kopieren“; unten „Auf diesem Gerät abmelden“.
 - [ ] Register Aufgaben → „+ Neue Aufgabe“ → eine Testaufgabe anlegen → sie erscheint in der Liste. In Supabase (Table Editor →
       `team_aufgaben`) steht die Zeile.
@@ -335,7 +358,9 @@ Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
 
 1. **Vor dem ersten echten Datensatz: Auftragsverarbeitungsvertrag (AVV) unterschrieben.** Der Kunde ist Verantwortlicher, wir sind
    Auftragsverarbeiter. Der Kunde hat die Liste der Unterauftragnehmer gelesen: Supabase (Datenbank, Region Frankfurt), n8n GmbH
-   (n8n Cloud, Schnittstelle), der Hosting-Anbieter der Oberfläche (GitHub oder Cloudflare oder der gewählte Webspace).
+   (n8n Cloud, Schnittstelle; Region der Instanz laut Schritt 3b eintragen), der Hosting-Anbieter der Oberfläche (GitHub oder Cloudflare
+   oder der gewählte Webspace). Dazu gehört der Zugriffskreis aus Schritt 3b: welche Personen bei uns Instanz, Projekt und Credential
+   sehen.
 2. **Datenschutzinformation für die Mitarbeitenden (Art. 13 DSGVO), bevor der erste Zugangslink verteilt wird.** Inhalt: Zweck
    (Aufgaben- und Projektorganisation im Team), Daten (Name, Firmen-E-Mail, optional Telefon, Aufgaben, Notizen, Kommentare,
    Vorschläge, Zeitpunkt der letzten Anmeldung), Empfänger und Unterauftragnehmer (siehe 1), Drittland (keines vorgesehen; Hosting-
@@ -349,12 +374,29 @@ Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
    den KI-Anbieter (Sitz in den USA) und die Regel: keine sensiblen Daten in KI-Funktionen.
 6. **Persönlicher Link:** nicht weitergeben, nicht in Gruppenchats, nicht in Ticketsysteme. Auf fremden oder geteilten Geräten „Auf
    diesem Gerät abmelden“ nutzen. Bei Verdacht auf Weitergabe: Admin erzeugt unter Team → Verwalten → „Neuen Zugangslink erzeugen“
-   einen neuen Link; der alte ist sofort ungültig.
+   einen neuen Link; der alte ist sofort ungültig. Zwei Dinge dazu klar sagen: Der Zugangscode bleibt im Browser gespeichert, bis
+   jemand „Auf diesem Gerät abmelden“ drückt (auf geteilten Rechnern also nach jeder Nutzung abmelden). Und das Gerät des Admins ist
+   der Schlüsselbund des Teams: Es sieht beim Laden die Zugangscodes aller Mitglieder, darum Bildschirmsperre, aktuelle Updates und
+   kein Zugriff durch Dritte.
 7. **Selbstbetrieb** (wenn der Kunde Supabase, n8n und Hosting selbst betreibt): eigene Konten, Zwei-Faktor-Anmeldung bei allen drei
    Anbietern, EU-Region, eigene AVVs mit den drei Anbietern.
 8. **Pilotende:** Export und Löschung nach Abschnitt 8, danach schriftliche Löschbestätigung an den Kunden.
 9. **Kundenseitig:** Eintrag im Verzeichnis der Verarbeitungstätigkeiten; Prüfung, ob eine Datenschutz-Folgenabschätzung nötig ist
    (Schwellenprüfung; bei Aufgabenverwaltung ohne Leistungsbewertung und ohne Zeiterfassung in der Regel nicht).
+
+### Grenzen des Pilots
+
+Das sagst du dem Kunden im Vorgespräch so, wie es ist:
+
+- Keine Zwei-Faktor-Anmeldung für die Portal-Nutzer. Der persönliche Link ist der einzige Schlüssel.
+- Zugangslinks laufen nicht von selbst ab. Sperren und Erneuern macht der Admin von Hand (Abschnitt 7).
+- Keine Anmelde-Protokollierung. Je Person steht nur der Zeitpunkt der letzten Anmeldung in der Datenbank; einzelne Zugriffe werden
+  nicht aufgezeichnet.
+- Keine Bremse gegen massenhafte Aufrufe. Darum die Webhook-Adresse nirgends veröffentlichen und in Woche 1 die „Usage“ in n8n prüfen.
+- Der Zugangscode bleibt im Browser gespeichert, bis jemand „Auf diesem Gerät abmelden“ drückt. Regel für geteilte Rechner: nach jeder
+  Nutzung abmelden, oder das Portal dort gar nicht öffnen.
+- Der Admin sieht beim Laden die Zugangscodes aller Mitglieder. Sein Gerät ist damit der Schlüsselbund des Teams.
+- Eine Wiederherstellung aus dem Export (Abschnitt 7, Backups) ist Handarbeit, Tabelle für Tabelle. Es gibt keinen Knopf dafür.
 
 ---
 
@@ -373,7 +415,8 @@ Jeder Aufruf der Portal-API ist **eine Ausführung** in n8n Cloud: jedes Öffnen
 
 Im Alltag ist der Tab selten acht Stunden sichtbar (versteckte Tabs laden nicht), realistisch sind 2 000 bis 4 000 Ausführungen im
 Monat. Welcher Tarif der Partner-Instanz zugrunde liegt, ist nicht bekannt. **Vor dem Start im n8n-Konto unter „Usage“ nachsehen,**
-wie viele Ausführungen im Monat enthalten sind, und in der zweiten Pilotwoche den Zähler prüfen. Reicht es nicht: Reload-Abstand in
+wie viele Ausführungen im Monat enthalten sind. **In Woche 1 des Pilots den Zähler unter „Usage“ verbindlich prüfen** (Termin in den
+Kalender), danach jede Woche. Reicht es nicht: Reload-Abstand in
 `frontend/index.html` erhöhen (Zeile `const RELOAD_MS = 10 * 60000`) oder die Begleit-Workflows (Wochenstand, Hinweis) nicht aktivieren.
 
 ### Backups
@@ -396,6 +439,26 @@ verschlüsselt ablegen (Passwort-ZIP), damit ein Stand unabhängig vom Anbieter 
    meist ein abgelaufener Schlüssel oder eine fehlende Tabelle.
 4. „Modul nicht aktiviert“: ein Register ist in `mandant.js` an, das Modul auf dem Server aber aus (siehe `README.md`, „Module an- und
    ausschalten“). Im Pilot gewollt für alle Optionen.
+
+### Änderungen und Support während des Pilots
+
+**Updates einspielen** (neue `index.html`, neue `mandant.js` oder ein neuer Workflow), immer in dieser Reihenfolge:
+
+1. Die neue Fassung zuerst im Testserver prüfen (`node portal-pilot/dev/server.mjs`, siehe `README.md`, „Schnellstart“): anmelden,
+   eine Aufgabe anlegen und erledigen, Browser-Konsole ohne rote Fehler.
+2. Den Kunden am Vortag informieren: was sich ändert, wann, und wie lange das Portal dabei nicht erreichbar ist.
+3. Nie während der Arbeitszeit der Tester einspielen, sondern früh morgens oder abends.
+4. Vorher sichern: in n8n den bisherigen Workflow herunterladen (drei Punkte → „Download“) und ihn umbenennen statt überschreiben;
+   die bisherige `index.html` und `mandant.js` als Kopie mit Datum ablegen. So bist du in Minuten wieder beim alten Stand.
+5. Workflow: neue Datei mit `einsetzen.mjs` erzeugen (Schritt 3a), importieren, Credential und Settings wie in 3d prüfen, alten
+   Workflow deaktivieren, neuen aktivieren, `curl`-Test aus 3f. Oberfläche: Dateien im Hosting ersetzen (Schritt 4b), danach einmal
+   selbst anmelden und die Checkliste aus Schritt 5 durchgehen.
+
+**Ansprechperson und Reaktionszeit:** HIER_ANSPRECHPERSON (Name, E-Mail, Telefon). Reaktion werktags innerhalb eines Tages. Genau das
+sagst du dem Kunden zu, nicht mehr.
+
+**So melden Tester Fehler:** im Portal im Register Vorschläge (Bereich „Sonstiges“: was sie getan haben, was sie erwartet haben, was
+sie gesehen haben) oder per E-Mail an die Ansprechperson. Keine Screenshots mit einem Zugangscode in der Adresszeile.
 
 ---
 

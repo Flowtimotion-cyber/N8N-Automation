@@ -87,7 +87,7 @@ Beobachtungen dazu, **nicht** geändert:
 
 ## 4. Weitere Befunde im Original
 
-1. Zufall mit `Math.random()` für Zugangs-Token (im Pilot ersetzt, siehe oben; ob `crypto` auf n8n Cloud im Code-Knoten verfügbar ist, ist unbekannt, deshalb der Rückfall).
+1. Zufall mit `Math.random()` für Zugangs-Token (im Pilot ersetzt, siehe oben; ob `crypto` auf n8n Cloud im Code-Knoten verfügbar ist, ist unbekannt, deshalb zunächst der Rückfall; seit 03.11. ohne Rückfall, siehe Abschnitt 8).
 2. Fehlerläufe wurden samt Anfrage gespeichert (Token, Namen, Texte).
 3. Der Admin sieht in der Antwort die Token aller Mitglieder (gewollt, unverändert).
 4. Kein Schutz gegen massenhafte Anfragen, und jede Anfrage lädt die ganze Datenbank, auch mit falschem Token.
@@ -103,7 +103,7 @@ Beobachtungen dazu, **nicht** geändert:
   - Credential-Verweis ohne `id` (nur Name): n8n sollte das als „nicht zugewiesen“ anzeigen; ein Ausfall ist möglich.
   - Webhook-Knoten ohne `webhookId`: n8n vergibt beim Import eine neue; die Production-URL nutzt den festen Pfad.
   - Die Wenn-Bedingung (`Gespeichert?`) und die Schleife (Ausgänge „fertig“ = 0, „Schleife“ = 1) sind aus dem Original übernommen.
-- **`crypto` im Code-Knoten von n8n Cloud:** unbekannt; sonst Rückfall auf den alten Zufall.
+- **`crypto` im Code-Knoten von n8n Cloud:** unbekannt. Stand 02.11. griff dann der Rückfall auf den alten Zufall; seit 03.11. bricht der Knoten stattdessen mit einem klaren Fehler ab (Abschnitt 8).
 - **`$getWorkflowStaticData`** (Hinweis-Workflow) funktioniert nur bei aktivierten Workflows mit Zeitplan und wird nicht im Testlauf gespeichert. Wie im Original.
 - **Form von `team_laden`:** Ich habe die Funktion nicht gesehen. Der Code erwartet ein Objekt mit Listen (README, Abschnitt „Was die Datenbank liefern muss“). Der Original-Workflow rief `team_laden_plus` auf; ob `team_laden` in der Endfassung Papierkorb, Notizversionen, Teilnehmer, Spalten und Community enthält, ist offen. Fehlt `papierkorb`, ist der Papierkorb leer; fehlt `notiz_versionen`, gibt es keine Notizversionen.
 - **Tabelle `team_einstellungen`:** Spalten `schluessel`, `wert` laut Auftrag angenommen. Ob die Rolle des Service-Schlüssels sie lesen darf, ist offen. Die neuen Schlüssel `module` und `firmenwissen_projekt` sind Vorschläge von mir und müssen mit der Datenbank-Sitzung abgestimmt werden. Auch das Format von `rollen` (Liste von Texten angenommen; Objekte mit `rolle`, `id` oder `name` werden ebenfalls verstanden).
@@ -160,3 +160,13 @@ Nachgebildet werden in `dev/n8n-laufzeit.mjs` nur die n8n-Funktionen, die der Wo
 | Kurs (Störungswächter, Klassenbuch) | `aZgKgrnuzjmG9Mjr`, `nej6aYHT2S7Ztip2`, `rQcqNn8EqBmW5yYa` |
 
 Die drei Quellen der Pilot-Workflows im Original: Portal-API `kMuDaDmT9rCN5Vs2`, Wochenstand `f0AG5NxtwzSyDr2c`, Vorschlag-Hinweis `s8OfrONvk8JKXTrs`.
+
+## 8. Nacharbeiten 03.11.2026 (nach dem Abschluss-Review)
+
+Geändert wurde nur die Funktion `rnd` im Code des Knotens „Anfrage prüfen“ in `portal-api.workflow.json` (per Skript: JSON gelesen, Zeile ersetzt, mit 2 Leerzeichen zurückgeschrieben; alles andere in der Datei unverändert).
+
+| Knoten | Änderung | vorher | nachher |
+|---|---|---|---|
+| Anfrage prüfen | `rnd`: Rückfall auf `Math.random()` entfernt. Fehlt `globalThis.crypto.getRandomValues`, bricht der Knoten mit einem klaren Fehler ab, statt still schwache Zugangscodes zu erzeugen. Betroffen ist jede Aktion, die eine neue ID oder einen Zugangscode erzeugt (neue Aufgabe, Notiz, Projekt, Mitglied, „Neuer Zugangslink“); der Fehler-Workflow legt dann eine Störungs-Notiz an. | `try { … getRandomValues … } catch { z = null }`, dann `z ? z[i] % 16 : Math.floor(Math.random() * 16)` | `throw new Error('crypto nicht verfügbar: Zugangscodes können nicht sicher erzeugt werden')`, sonst `z[i] % 16` |
+
+Geprüft danach: Code des Knotens extrahiert und mit `node --check` übersetzt (ok); `einsetzen.mjs` mit Testwerten in einen Ordner außerhalb des Repos gelaufen (vier Dateien, kein Platzhalter übrig); `node --test portal-pilot/test/*.test.mjs` ohne Postgres und Playwright grün (22 bestanden, 50 übersprungen), darunter `server.test.mjs` mit genau diesem Code und der PII-Scan über die geänderten Dokumente. Hinweis für den Testserver: `globalThis.crypto` gibt es in Node ab Version 20 ohne Schalter (Node 18 nur mit `--experimental-global-webcrypto`); ob der Code-Knoten in n8n Cloud `globalThis.crypto` sieht, bleibt Punkt des ersten Praxistests (Abschnitt 5).
