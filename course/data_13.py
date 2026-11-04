@@ -202,6 +202,6 @@ PASS = 8
 # Ausblick am Ende (Kasten „Wie es weitergeht“)
 AUSBLICK = [
     ["Modulaufgabe · Dein Prozess läuft im Betrieb", "Der Steckbrief aus Teil 1, gebaut in Teil 2, zu Hause seit Teil 3. Zeig ihn der Klasse in der Community und trag ein, was er im Monat spart."],
-    ["Als Nächstes · Modul Hermes: dein eigener KI-Agent", "Hermes ist der Bote: ein Agent, der für dich mitarbeitet, deinen Betrieb kennt, sich an klare Leitplanken hält und an deine Programme angeschlossen ist. Er läuft auf dem Server, den du in Teil 3 kennengelernt hast. Der Starttermin kommt per Mail und in die Community."],
+    ["Als Nächstes · Modul Hermes: dein eigener KI-Agent", "Hermes ist der Bote: ein Agent, der für dich mitarbeitet. Er kennt deinen Betrieb, hält sich an Regeln, die du festlegst, und arbeitet mit deinen Programmen. Er läuft auf deinem eigenen Server aus diesem Teil. Der Starttermin kommt per Mail und in die Community."],
     ["Später · Firmen-Gedächtnis", "Notizen, Dokumente und Zahlen so speichern, dass KI-Agenten zuverlässig darauf zugreifen."],
 ]
