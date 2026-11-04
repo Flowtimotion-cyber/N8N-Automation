@@ -143,14 +143,14 @@ h = must(h, "renderSummary = function (sc) { _renderSummaryDz(sc); const c = el(
          "// (Teil 3: Datenschutz-Box wird in renderSummary unten angehängt)")
 # Ampel-Chips einfärben
 h = must(h, "</style>", ".chip.amp-gruen.sel{background:#1F9D55;color:#fff;border-color:#1F9D55}.chip.amp-gelb.sel{background:#E0A100;color:#fff;border-color:#E0A100}.chip.amp-rot.sel{background:#D93025;color:#fff;border-color:#D93025}\n</style>")
-OUT.write_text(h, encoding="utf-8")
+OUT.write_text(h, encoding="utf-8", newline="\n")
 print(OUT, round(len(h) / 1e3), "KB", "| Videos:", [k for k in VIDEOS if k in MEDIA], "| fehlende Screenshots:", sorted(missing_imgs))
 
 # ---------------------------------------------------------------- Kursseite: Karte 3 wird Link
 ix = INDEX.read_text(encoding="utf-8")
 card_old = '<div class="m off"><div class="n">3</div><div class="mi"><b>Dein eigener Server</b><span class="d">n8n im eigenen Unternehmen betreiben, Workflows umziehen · folgt</span></div></div>'
 card_new = '<a class="m" href="modul-1-3/" data-ls="m13-server-v1"><div class="n">3</div><div class="mi"><b>Dein eigener Server</b><span class="d">ca. 45 Min (als Pilot ca. 90) · Server mieten, n8n installieren, Workflows umziehen, Wartung</span><div class="fs"></div></div><div class="go">Starten →</div></a>'
-if card_old in ix: ix = ix.replace(card_old, card_new); INDEX.write_text(ix, encoding="utf-8"); print("Kursseite: Karte 3 ist jetzt ein Link")
+if card_old in ix: ix = ix.replace(card_old, card_new); INDEX.write_text(ix, encoding="utf-8", newline="\n"); print("Kursseite: Karte 3 ist jetzt ein Link")
 elif card_new in ix: print("Kursseite: Karte 3 war schon ein Link")
 else: print("WARNUNG: Karte 3 auf der Kursseite nicht gefunden, bitte von Hand prüfen")
 
@@ -166,5 +166,5 @@ changed = 0
 for o, n in ((o1, n1), (o2, n2), (o3, n3)):
     if o in t2: t2 = t2.replace(o, n); changed += 1
     elif n not in t2: print("WARNUNG Teil 2, Stelle nicht gefunden:", o[:60])
-if changed: SRC.write_text(t2, encoding="utf-8"); print("Teil 2: Ende führt jetzt zu Teil 3 (" + str(changed) + " Stellen)")
+if changed: SRC.write_text(t2, encoding="utf-8", newline="\n"); print("Teil 2: Ende führt jetzt zu Teil 3 (" + str(changed) + " Stellen)")
 else: print("Teil 2: schon angepasst")
