@@ -54,12 +54,13 @@ h = must(h, 'const KURS = "Modul 1.2";', 'const KURS = "Modul 1.3";')
 h = h.replace('"m12-tab-"', '"m13-tab-"')
 h = h.replace("modul=Modul%201.2", "modul=Modul%201.3")
 h = must(h, 'const isEnd = st.v === "T2END";', 'const isEnd = st.v === "T3END";')
+h = must(h, 'STEPS.push({ k: "video", lv: NLV + 1, v: "T2END" });', 'STEPS.push({ k: "video", lv: NLV + 1, v: "T3END" });')
 h = must(h, "Dein Prozess-Steckbrief</b></td>", "Dein Server-Steckbrief</b></td>")
 h = must(h, "So hast du alles für Teil 3 griffbereit.", "So hast du deinen Server-Steckbrief und die drei Handgriffe griffbereit.")
 # Ausblick am Ende
 a0 = h.index("  const next = el(\"div\", \"card nl\");"); a1 = h.index("  sc.appendChild(next);", a0)
 ausblick = ("  const next = el(\"div\", \"card nl\");\n"
-            "  next.innerHTML = '<div class=\"kicker\">Wie es weitergeht</div><h2>Modulaufgabe, Firmen-Gedächtnis und Hermes</h2><div class=\"outlook\">' +\n"
+            "  next.innerHTML = '<div class=\"kicker\">Wie es weitergeht</div><h2>Modulaufgabe und das nächste Modul: Hermes</h2><div class=\"outlook\">' +\n"
             "    DATA.ausblick.map((a, i) => '<div' + (i ? ' class=\"soon\"' : '') + '><b>' + esc(a[0]) + '</b><span>' + esc(a[1]) + '</span></div>').join('') +\n"
             "    '</div><p class=\"muted\" style=\"margin-top:14px\">Fragen zum Einrichten? Unten rechts hilft dir der Setup-Assistent, auch mit Screenshots.</p>';\n")
 h = h[:a0] + ausblick + h[a1:]
