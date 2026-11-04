@@ -15,7 +15,7 @@ Das bestehende Portal unter `docs/team/`, die Datenbank unter `supabase/` und da
 |---|---|
 | `frontend/index.html`, `frontend/assets/` | Die Oberfläche (eine Datei) und ein Platzhalter-Logo |
 | `config/mandant.example.json`, `config/mandant.js` | Konfiguration je Kunde (Firma, Farben, Adressen, Register-Schalter, Social-Kanäle). Die `.js` ist das, was die Seite lädt |
-| `supabase/*.sql`, `supabase/README.md` | Datenbankpaket: Pflichtmigrationen `001`–`003`, Optionen `100`–`150`, Musterdaten `900`, erster Admin `910`, Export `990`, Löschung `999` |
+| `supabase/*.sql`, `supabase/README.md` | Datenbankpaket: Pflichtmigrationen `001`–`003`, Optionen `100`–`150`, Musterdaten `900`, erster Admin `910`, Pilot-Zugänge `920` (Admin, vier Tester, KI-Agent), Export `990`, Löschung `999` |
 | `n8n/*.workflow.json`, `n8n/einsetzen.mjs`, `n8n/README.md`, `n8n/PRUEFUNG.md` | Die Portal-API und drei Begleit-Workflows für n8n Cloud, das Skript, das die Platzhalter einsetzt, Anleitung und Prüfbericht |
 | `n8n/optional/feedback-lesen.workflow.json` | Vorlage „PILOT: Feedback lesen (intern, Claude)“: manueller Trigger, kein Webhook; liest Vorschläge, Kommentare und Störungsnotizen und baut eine Liste mit Rollen statt Namen. Nur von Hand oder per n8n-Connector (MCP) ausführbar |
 | `agent/feedback.mjs` | Werkzeug der Feedbackschleife: liest die Rückmeldungen über die Portal-API und antwortet als Mitglied „Claude (KI)“ (Vorschläge beantworten, kommentieren, „Was sich geändert hat“ fortschreiben). Zugang nur über `PILOT_PORTAL_API` und `PILOT_AGENT_TOKEN` |

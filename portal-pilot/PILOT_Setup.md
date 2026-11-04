@@ -84,14 +84,18 @@ Die Dateien liegen in `portal-pilot/supabase/`. Die genaue Beschreibung jeder Da
 
    **Danach siehst du:** 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb`.
 
-5. Jetzt **eine** von zwei Dateien:
+5. Jetzt **eine** von drei Dateien:
+   - **Für den Pilot mit festem Team:** `920_zugaenge_pilot.sql`. Legt in einem Rutsch den Admin (dich), vier Tester, das Agent-Mitglied
+     „Claude (KI)“, das Projekt „Pilot-Verbesserungen“ und die Notizen „Willkommen im Pilot“ und „Was sich geändert hat“ an. Vorher in der
+     Datei `HIER_NAME` und `HIER_MAIL` ersetzen; die Tester heißen zunächst „Tester 1“ bis „Tester 4“ und werden im Portal unter Team
+     umbenannt (oder in der Datei, bevor du sie ausführst). Die letzte Abfrage zeigt sechs Zeilen mit Zugangscode.
    - **Für den echten Kunden:** `910_erster_admin.sql`. Vorher in der Datei die zwei Platzhalter `HIER_NAME` und `HIER_MAIL` durch
      Name und Firmen-Mail der Admin-Person ersetzen (die einfachen Anführungszeichen stehen lassen). Dann einfügen und Run.
    - **Nur zum Zeigen und Testen:** `900_seed_musterfirma.sql` (erfundenes Team „Musterfirma GmbH“). Für den Kunden-Pilot nicht
      nehmen, sonst stehen Musterdaten im echten Portal.
 
-   **Danach siehst du:** eine Zeile (910) beziehungsweise fünf Zeilen (900, darunter der KI-Agent „Claude (KI)“) mit Name, Rolle, Status
-   und einem 48 Zeichen langen Zugangscode (`token`). Dieser Code ist der Zugang der Person. Kopiere ihn noch nicht irgendwohin; du liest
+   **Danach siehst du:** eine Zeile (910), sechs Zeilen (920) beziehungsweise fünf Zeilen (900, darunter der KI-Agent „Claude (KI)“) mit
+   Name, Rolle, Status und einem 48 Zeichen langen Zugangscode (`token`). Dieser Code ist der Zugang der Person. Kopiere ihn noch nicht irgendwohin; du liest
    ihn in Schritt 5 wieder aus. Das Agent-Mitglied für die Rückmeldungen der Tester legst du beim echten Kunden in Abschnitt 8a an.
 
 6. Kontrollabfrage: neue Query, eingeben und Run:
@@ -102,7 +106,7 @@ Die Dateien liegen in `portal-pilot/supabase/`. Die genaue Beschreibung jeder Da
           jsonb_array_length(team_laden_plus() -> 'aufgaben')   as aufgaben;
    ```
 
-   **Danach siehst du:** `1 / 0 / 0` beim ersten Admin, `5 / 4 / 12` bei den Musterdaten.
+   **Danach siehst du:** `1 / 0 / 0` beim ersten Admin, `6 / 1 / 0` bei den Pilot-Zugängen, `5 / 4 / 12` bei den Musterdaten.
 
 7. Firma und Kurzname setzen (die doppelten Anführungszeichen innerhalb der einfachen sind nötig):
 
@@ -354,10 +358,27 @@ Status `gesperrt`. Register fehlen → `register` in `mandant.js`.
 | Pilotdauer | 4 Wochen, danach Export und Löschung binnen 30 Tagen | Abschnitt 9 |
 | Rückmeldungen der Tester | Vorschläge und Kommentare im Portal; gelesen und beantwortet mit dem KI-Werkzeug Claude als Mitglied „Claude (KI)“, Antwort binnen eines Werktags | Abschnitt 8 |
 
+### Einfacher Weg für den Pilot: keine sensiblen Daten
+
+Der Pilot ist ein Probelauf mit Cloud-Diensten (Supabase, n8n Cloud, Hosting, KI-Werkzeug). Statt vorab Verträge und lange
+Datenschutztexte zu klären, gilt für den Pilot die einfache Regel: **Die Tester arbeiten nicht mit sensiblen Daten.** Das sagst du
+ihnen vor dem ersten Login, am besten mit diesem Text (steht auch im Portal in der Notiz „Willkommen im Pilot“, die
+`920_zugaenge_pilot.sql` anlegt):
+
+> Dieses Portal ist ein Pilot. Bitte trag keine sensiblen Daten ein: keine Kundendaten, keine Gesundheits- oder Finanzdaten, keine
+> Passwörter, keine Personalangelegenheiten. Aufgaben, Projekte, Notizen und Vorschläge zum Arbeitsalltag sind genau richtig.
+> Rückmeldungen im Portal (Vorschläge, Kommentare) werden von Hermetikmarketing mit dem KI-Werkzeug Claude gelesen und beantwortet;
+> Antworten sind als „Claude (KI)“ gekennzeichnet. Das System kann nach dem Pilot auf einem eigenen Server der Firma datensicher
+> betrieben werden (Datenbank, Schnittstelle und Oberfläche laufen dann komplett im eigenen Haus; der Pilot zeigt vorher, ob es passt).
+
+Die neun Punkte darunter sind die vollständige Liste für einen Betrieb mit echten Daten (nach dem Pilot oder beim Selbstbetrieb).
+Für den Pilot mit der Regel oben brauchst du davon nur Punkt 6 (persönlicher Link) und Punkt 8 (Export und Löschung am Ende).
+
 ### Pflichthinweise für den Kunden (aus der Datenschutzprüfung)
 
 Diese neun Punkte gehören in das Vorgespräch mit dem Kunden und, wo angegeben, **vor** den ersten echten Datensatz. Sie sind keine
-Rechtsberatung, sondern die Liste dessen, was der Pilot voraussetzt.
+Rechtsberatung, sondern die Liste dessen, was ein Betrieb mit echten Daten voraussetzt. Im Pilot nach dem einfachen Weg oben gilt nur
+die Regel „keine sensiblen Daten“ plus die Punkte 6 und 8.
 
 1. **Vor dem ersten echten Datensatz: Auftragsverarbeitungsvertrag (AVV) unterschrieben.** Der Kunde ist Verantwortlicher, wir sind
    Auftragsverarbeiter. Der Kunde hat die Liste der Unterauftragnehmer gelesen: Supabase (Datenbank, Region Frankfurt), n8n GmbH
@@ -614,17 +635,13 @@ node portal-pilot/agent/feedback.mjs aenderungen --text "Vorschläge lassen sich
 
 5. Du setzt den Vorschlag im Portal auf „umgesetzt“.
 
-### 8g. Datenschutz: AVV und Datenschutzinformation
+### 8g. Hinweis an die Tester
 
-Dieser Satz gehört in die Unterauftragnehmer-Liste des AVV (Pflichthinweis 1) und in die Datenschutzinformation für die Mitarbeitenden
-(Pflichthinweis 2), **bevor** der erste Zugangslink verteilt wird:
-
-> Rückmeldungen im Portal (Vorschläge, Kommentare an Aufgaben, Störungsmeldungen) werden von Hermetikmarketing mit dem KI-Werkzeug
-> Claude (Anbieter Anthropic, USA) gelesen und beantwortet. Antworten sind im Portal als Mitglied „Claude (KI)“ gekennzeichnet. Bitte
-> keine sensiblen Daten in Vorschläge und Kommentare schreiben.
-
-Dazu im Vorgespräch: Die Texte der Rückmeldungen (nicht die ganze Datenbank) gehen an den KI-Anbieter; Namen der Verfasser werden
-vorher durch Rollen ersetzt, soweit sie nicht im Text selbst stehen. Was Claude sieht, steht in `n8n/PRUEFUNG.md`, Abschnitt 9.
+Im Pilot reicht der Text aus Abschnitt 6 („Einfacher Weg für den Pilot“): keine sensiblen Daten, Rückmeldungen werden mit dem
+KI-Werkzeug Claude gelesen und beantwortet, Antworten sind als „Claude (KI)“ gekennzeichnet. Die Texte der Rückmeldungen (nicht die
+ganze Datenbank) gehen an den KI-Anbieter; Namen der Verfasser werden vorher durch Rollen ersetzt, soweit sie nicht im Text selbst
+stehen. Was Claude sieht, steht in `n8n/PRUEFUNG.md`, Abschnitt 9. Sobald mit echten Daten gearbeitet wird, gehört derselbe Satz in
+AVV und Datenschutzinformation (Pflichthinweise 1 und 2).
 
 ---
 

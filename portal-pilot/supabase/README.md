@@ -21,8 +21,9 @@ eigene Produktivsystem verwenden. Die Datenbank ist von außen nicht erreichbar;
 | `130_option_kommunikation.sql` | Option | WhatsApp- und Website-Chat-Eingang, WhatsApp-Benachrichtigungen ans Team |
 | `140_option_office.sql` | Option | Register „KI Office“: Agenten, Aufträge, Freigaben (ohne vorgefertigte Agenten) |
 | `150_option_kurs.sql` | Option | Register „Kurs“: Fragen und Antworten aus einer Kursseite |
-| `900_seed_musterfirma.sql` | eins von beiden | Beispielteam „Musterfirma GmbH“ mit erfundenen Daten, zum Zeigen und Testen; enthält den KI-Agenten „Claude (KI)“, das Projekt „Pilot-Verbesserungen“ und die Notiz „Was sich geändert hat“ für die Feedbackschleife |
-| `910_erster_admin.sql` | eins von beiden | Für einen echten Kunden: legt den ersten Admin an (ohne Musterdaten); optionaler Block legt den KI-Agenten für die Feedbackschleife an |
+| `900_seed_musterfirma.sql` | eins von dreien | Beispielteam „Musterfirma GmbH“ mit erfundenen Daten, zum Zeigen und Testen; enthält den KI-Agenten „Claude (KI)“, das Projekt „Pilot-Verbesserungen“ und die Notiz „Was sich geändert hat“ für die Feedbackschleife |
+| `910_erster_admin.sql` | eins von dreien | Für einen echten Kunden: legt den ersten Admin an (ohne Musterdaten); optionaler Block legt den KI-Agenten für die Feedbackschleife an |
+| `920_zugaenge_pilot.sql` | eins von dreien | Für den Pilot mit festem Team: Admin, vier Tester („Tester 1“ bis „Tester 4“, im Portal umbenennen), KI-Agent, Projekt „Pilot-Verbesserungen“, Notizen „Willkommen im Pilot“ (Regel: keine sensiblen Daten) und „Was sich geändert hat“ |
 | `990_export.sql` | am Pilotende | Alle Daten als JSON (oder je Tabelle als CSV) zur Übergabe an den Kunden |
 | `999_loeschen.sql` | am Pilotende | Löscht alle Daten und Tabellen des Portals. Mit Sicherheitsabfrage |
 
@@ -34,7 +35,8 @@ Team) **nicht**. Du kannst sie jederzeit später einspielen, ohne dass du an den
 1. `001_basis.sql`
 2. `002_einstellungen.sql`
 3. `003_team_laden.sql`
-4. Entweder `900_seed_musterfirma.sql` (Vorführung, Test) oder `910_erster_admin.sql` (echter Kunde)
+4. Eine von drei Dateien: `900_seed_musterfirma.sql` (Vorführung, Test), `910_erster_admin.sql` (echter Kunde, nur ein Admin) oder
+   `920_zugaenge_pilot.sql` (Pilot mit festem Team: Admin, vier Tester, KI-Agent)
 5. Optionen nach Bedarf, in aufsteigender Nummer: `100`, `110`, `120`, `130`, `140`, `150`. Jede Option ist für sich
    allein lauffähig; die Nummer ist nur die empfohlene Reihenfolge.
 
@@ -67,6 +69,7 @@ Nach jeder Datei zeigt der SQL-Editor unten die Kontrollabfrage:
 | `003_team_laden.sql` | 23 Zeilen mit Schlüsselwörtern, darunter `mitglieder`, `projekte`, `aufgaben`, `papierkorb` |
 | `900_seed_musterfirma.sql` | 5 Zeilen mit Name, Rolle, Status und Zugangscode (siehe Abschnitt 5), darunter „Claude (KI)“ mit Rolle `agent` |
 | `910_erster_admin.sql` | 1 Zeile mit dem neuen Admin und seinem Zugangscode; 2 Zeilen, wenn der Agent-Block eingeschaltet ist |
+| `920_zugaenge_pilot.sql` | 6 Zeilen: Admin, Tester 1 bis 4, „Claude (KI)“, je mit Zugangscode |
 | Optionen `100` bis `150` | kleine Kontrolltabelle, z. B. `social = array` oder die Liste der neuen Tabellen |
 
 Die Probe aufs Exempel nach dem Seed: neue Abfrage, eingeben

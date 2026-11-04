@@ -65,10 +65,11 @@ const json = (res, code, obj) => { res.writeHead(code, Object.assign({ 'Content-
 const rohBody = req => new Promise(ok => { let s = ''; req.on('data', c => { s += c; if (s.length > 2e6) req.destroy(); }); req.on('end', () => ok(s)); });
 
 /** Test-Konfiguration: die Vorlage aus config/mandant.example.json, Adressen auf diesen Server umgebogen, Register per --an ergänzt. */
-function testKonfig(host) {
+function testKonfig(host, schema) {
   const k = JSON.parse(readFileSync(join(WURZEL, 'config', 'mandant.example.json'), 'utf8'));
-  k.n8n_basis_url = 'http://' + host + '/webhook/' + KUERZEL;
-  k.portal_url = 'http://' + host + '/frontend/';
+  const s = schema === 'https' ? 'https' : 'http';   // hinter einem Vorschau-Proxy (x-forwarded-proto) sonst Mixed Content
+  k.n8n_basis_url = s + '://' + host + '/webhook/' + KUERZEL;
+  k.portal_url = s + '://' + host + '/frontend/';
   for (const r of AN) if (r in k.register) k.register[r] = true;
   return k;
 }
@@ -100,7 +101,7 @@ const server = createServer(async (req, res) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { ok: false, fehler: 'Methode nicht erlaubt.' });
     if (url.pathname === '/') { res.writeHead(302, { Location: '/frontend/' }); return res.end(); }
     if (url.pathname === '/config/mandant.js') {
-      const inhalt = '// Test-Konfiguration des Testservers (nicht die Datei im Repo). Vorlage: config/mandant.example.json\nwindow.MANDANT = ' + JSON.stringify(testKonfig(req.headers.host || (HOST + ':' + PORT)), null, 2) + ';\n';
+      const inhalt = '// Test-Konfiguration des Testservers (nicht die Datei im Repo). Vorlage: config/mandant.example.json\nwindow.MANDANT = ' + JSON.stringify(testKonfig(req.headers.host || (HOST + ':' + PORT), String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim()), null, 2) + ';\n';
       res.writeHead(200, Object.assign({ 'Content-Type': MIME['.js'] }, KOPF)); return res.end(req.method === 'HEAD' ? undefined : inhalt);
     }
     // Statische Dateien: nur frontend/ und config/

@@ -18,7 +18,7 @@
 //   5. Rechte: RLS an allen Tabellen, keine Policies, anon/authenticated ohne Rechte, service_role mit Rechten.
 //   6. Optionen 100 bis 150 nacheinander, jede zweimal: team_laden() bricht nicht, Schlüssel bleiben gleich,
 //      optionale Listen werden gefüllt, Zeitfenster aus den Einstellungen, Trigger der Option 130.
-//   7. 910 (Platzhalter-Sicherung, Admin anlegen, idempotent, optionaler Agent-Block), 990 (Export ohne Geheimnisse),
+//   7. 910 (Platzhalter-Sicherung, Admin anlegen, idempotent, optionaler Agent-Block), 920 (Pilot-Zugänge: Admin, 4 Tester, Agent, idempotent), 990 (Export ohne Geheimnisse),
 //      999 (ohne Bestätigung passiert nichts, mit Bestätigung bleibt nichts übrig, zweimal ausführbar).
 //   8. Dateiprüfungen: PII-Scan über portal-pilot/supabase/, team_laden() genau einmal definiert,
 //      keine Option definiert team_laden() neu, jede Datei hat den Kopfkommentar.
@@ -427,6 +427,37 @@ dbTest('999: ohne Bestätigung passiert nichts; mit Bestätigung bleibt nichts �
   assert.equal(json('select team_laden()').mitglieder.length, 5);
 });
 
+dbTest('920: bricht mit Platzhaltern ab; legt Admin, vier Tester, Agent, Projekt und zwei Notizen an; zweimal ausführbar ohne Doppeltes, Codes bleiben', () => {
+  const r = datei('920_zugaenge_pilot.sql', { darfFehlschlagen: true });
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /HIER_NAME und HIER_MAIL/);
+  assert.equal(sql(`select count(*) from team_mitglieder`), '5');
+  const ersetzen = [['HIER_NAME', 'Pilot Leitung'], ['HIER_MAIL', 'Leitung@Pilot.example']];
+  const a = dateiMitErsetzung('920_zugaenge_pilot.sql', ersetzen);
+  const zeilen = a.stdout.trim().split('\n');
+  assert.equal(zeilen.length, 6, a.stdout);
+  assert.match(zeilen[0], /^Pilot Leitung\|admin\|aktiv\|[0-9a-f]{48}$/);
+  assert.deepEqual(zeilen.slice(1, 5).map(z => z.split('|').slice(0, 3).join('|')), ['Tester 1|team|eingeladen', 'Tester 2|team|eingeladen', 'Tester 3|team|eingeladen', 'Tester 4|team|eingeladen']);
+  assert.match(zeilen[5], /^Claude \(KI\)\|agent\|aktiv\|[0-9a-f]{48}$/);
+  assert.equal(new Set(zeilen.map(z => z.split('|')[3])).size, 6, 'sechs verschiedene Codes');
+  assert.equal(sql(`select count(*) from team_mitglieder`), '11', '5 aus dem Seed + 6');
+  assert.equal(sql(`select count(*) from team_projekte where name = 'Pilot-Verbesserungen'`), '1', 'Projekt aus dem Seed bleibt, nichts doppelt');
+  assert.equal(sql(`select count(*) from team_notizen where titel in ('Willkommen im Pilot', 'Was sich geändert hat')`), '2');
+  assert.match(sql(`select inhalt from team_notizen where notiz_id = 'n_willkommen_pilot'`), /keine sensiblen Daten/);
+  assert.equal(sql(`select autor || '|' || projekt from team_notizen where notiz_id = 'n_willkommen_pilot'`), 'mf-anna|Pilot-Verbesserungen', 'Autor ist der älteste aktive Admin');
+  const tokens = sql(`select string_agg(token, ',' order by mitglied_id) from team_mitglieder where mitglied_id like 'm_tester_%' or mitglied_id in ('m_admin_pilot', 'agent-claude')`);
+  const b = dateiMitErsetzung('920_zugaenge_pilot.sql', ersetzen);
+  assert.equal(b.stdout.trim().split('\n').length, 6);
+  assert.equal(sql(`select count(*) from team_mitglieder`), '11');
+  assert.equal(sql(`select string_agg(token, ',' order by mitglied_id) from team_mitglieder where mitglied_id like 'm_tester_%' or mitglied_id in ('m_admin_pilot', 'agent-claude')`), tokens, 'Codes unverändert');
+  assert.equal(sql(`select count(*) from team_notizen where titel = 'Willkommen im Pilot'`), '1');
+  // Auf leerer Datenbank (ohne Seed): Admin wird Autor von Projekt und Notizen, team_laden zählt 6 / 1 / 0
+  sql(`delete from team_mitglieder; delete from team_projekte; delete from team_aufgaben; delete from team_notizen; delete from team_papierkorb`);
+  dateiMitErsetzung('920_zugaenge_pilot.sql', ersetzen);
+  const d = json('select team_laden()');
+  assert.equal(d.mitglieder.length, 6); assert.equal(d.projekte.length, 1); assert.equal(d.aufgaben.length, 0); assert.equal(d.notizen.length, 2);
+  assert.equal(d.projekte[0].verantwortlich, 'm_admin_pilot'); assert.ok(d.notizen.every(n => n.autor === 'm_admin_pilot'));
+});
+
 // ---- 8. Dateiprüfungen (laufen auch ohne Postgres) -------------------------------------------------------
 const DATEIEN = readdirSync(SQL_ORDNER).filter(f => f.endsWith('.sql')).sort();
 
@@ -456,7 +487,7 @@ test('team_laden() und team_laden_plus() werden genau einmal definiert, und zwar
 });
 
 test('Jede SQL-Datei hat den Kopfkommentar (Was, Pflicht oder Option, Abhängigkeit) und 1xx-Dateien keine Seeds mit Agenten', () => {
-  const erwartet = ['001_basis.sql', '002_einstellungen.sql', '003_team_laden.sql', ...OPTIONEN, '900_seed_musterfirma.sql', '910_erster_admin.sql', '990_export.sql', '999_loeschen.sql'];
+  const erwartet = ['001_basis.sql', '002_einstellungen.sql', '003_team_laden.sql', ...OPTIONEN, '900_seed_musterfirma.sql', '910_erster_admin.sql', '920_zugaenge_pilot.sql', '990_export.sql', '999_loeschen.sql'];
   assert.deepEqual(DATEIEN, erwartet);
   for (const f of DATEIEN) {
     const kopf = dateiText(f).split('\n').slice(0, 40).join('\n');
