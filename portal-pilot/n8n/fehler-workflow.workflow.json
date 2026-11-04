@@ -1,0 +1,286 @@
+{
+  "name": "PORTAL: Fehler-Workflow (Pilot)",
+  "nodes": [
+    {
+      "id": "fb3d50b1-c428-450a-a850-5b658767aa27",
+      "name": "Fehler-Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a70e28ed-b314-4587-a868-d43bb3dfd5cc",
+      "name": "Störung vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Macht aus der Fehlermeldung von n8n einen kurzen Abschnitt für die Störungs-Notiz. Keine Ausführungsdaten, keine Stacktraces.\nconst e = $input.first().json || {};\nconst ex = e.execution || {};\nconst fehler = (ex.error || (e.trigger && e.trigger.error) || {});\nconst wf = (e.workflow && e.workflow.name) || 'unbekannter Workflow';\nconst knoten = ex.lastNodeExecuted || '–';\nconst meldung = String(fehler.message || 'keine Meldung').replace(/\\s+/g, ' ').trim().slice(0, 300);\nconst jetzt = new Date();\nconst datum = jetzt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' });\nconst tagId = jetzt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }).replace(/-/g, '');\nconst uhr = jetzt.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });\nconst block = '### ' + uhr + ' Uhr – ' + wf + '\\n- Knoten: ' + knoten + '\\n- Meldung: ' + meldung + '\\n- Ausführung in n8n: ' + (ex.id || '–') + '\\n- Was tun: In n8n bei diesem Workflow unter „Ausführungen“ nachsehen. Aus Datenschutzgründen werden dort keine Daten gespeichert; die Meldung oben ist der Hinweis.';\nreturn [{ json: { notiz_id: 'n_stoerung_' + tagId, titel: 'Störung ' + datum, datum, uhr, workflow: wf, knoten, meldung, block } }];\n"
+      }
+    },
+    {
+      "id": "84d5ddca-3d62-4579-ab37-2f1c73c15742",
+      "name": "Admin suchen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_mitglieder?select=mitglied_id,name,email&rolle=eq.admin&status=neq.gesperrt&order=mitglied_id.asc&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1f7e62c6-7406-4861-aa34-018df5d9d8a8",
+      "name": "Projekt des Admins",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_projekte?select=name&verantwortlich=eq.{{ encodeURIComponent($json.mitglied_id || '') }}&order=reihenfolge.asc&limit=1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "1e3572d7-f526-4f47-a03c-21d68096b8c8",
+      "name": "Bisherige Notiz",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_notizen?select=inhalt&notiz_id=eq.{{ encodeURIComponent($('Störung vorbereiten').first().json.notiz_id) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "40114dbb-0440-4e69-a857-f61e554879c3",
+      "name": "Notiz bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Baut die Störungs-Notiz: hängt den neuen Abschnitt an die Notiz des Tages an (falls es schon eine gibt) und legt sie in das erste Projekt des Admins.\nconst v = $('Störung vorbereiten').first().json;\nconst admin = $('Admin suchen').first().json || {};\nif (!admin.mitglied_id) throw new Error('Im Team gibt es keinen Admin: Störungs-Notiz nicht geschrieben.');\nconst proj = $('Projekt des Admins').first().json || {};\nconst alt = $('Bisherige Notiz').first().json || {};\nconst jetzt = new Date().toISOString();\nlet inhalt = (alt.inhalt ? String(alt.inhalt) + '\\n\\n' : 'Automatische Störungsmeldungen des Portals. Neueste unten.\\n\\n') + v.block;\nif (inhalt.length > 40000) inhalt = inhalt.slice(-40000);\nconst body = { notiz_id: v.notiz_id, titel: v.titel, inhalt, projekt: proj.name || '', geaendert_von: admin.mitglied_id, geaendert: jetzt };\nif (!alt.inhalt) { body.autor = admin.mitglied_id; body.erstellt = jetzt; }\nconst email = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(String(admin.email || '')) ? String(admin.email).trim() : '';\nreturn [{ json: { pfad: 'team_notizen?on_conflict=notiz_id', body, an: email, betreff: 'Störung im Team-Portal: ' + v.workflow, text: 'Im Team-Portal gab es eine Störung.\\n\\nWorkflow: ' + v.workflow + '\\nKnoten: ' + v.knoten + '\\nUm: ' + v.datum + ' ' + v.uhr + ' Uhr\\nMeldung: ' + v.meldung + '\\n\\nDie Notiz „' + v.titel + '“ im Portal enthält dieselben Angaben.' } }];\n"
+      }
+    },
+    {
+      "id": "687f2333-00a4-4edf-aa2a-c4d794d8ae4f",
+      "name": "Notiz schreiben",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        -96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/' + $json.pfad }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      }
+    },
+    {
+      "id": "05ac909d-c57b-465c-abcd-d1c9fa3667c1",
+      "name": "E-Mail an Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1344,
+        96
+      ],
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "HIER_ABSENDER_EMAIL",
+        "toEmail": "={{ $json.an }}",
+        "subject": "={{ $json.betreff }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "credentials": {
+        "smtp": {
+          "name": "E-Mail (Pilot)"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Fehler-Trigger": {
+      "main": [
+        [
+          {
+            "node": "Störung vorbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Störung vorbereiten": {
+      "main": [
+        [
+          {
+            "node": "Admin suchen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Admin suchen": {
+      "main": [
+        [
+          {
+            "node": "Projekt des Admins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Projekt des Admins": {
+      "main": [
+        [
+          {
+            "node": "Bisherige Notiz",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bisherige Notiz": {
+      "main": [
+        [
+          {
+            "node": "Notiz bauen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notiz bauen": {
+      "main": [
+        [
+          {
+            "node": "Notiz schreiben",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "E-Mail an Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Berlin"
+  }
+}

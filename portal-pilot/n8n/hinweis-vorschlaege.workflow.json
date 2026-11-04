@@ -1,0 +1,240 @@
+{
+  "name": "PORTAL: Vorschlag-Hinweis per E-Mail (Pilot, Vorlage)",
+  "nodes": [
+    {
+      "id": "47a19e08-3783-4557-a2ec-109ed90abac0",
+      "name": "Jede Stunde",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c8d1c3e0-f79e-410b-a580-c6b21bc9b813",
+      "name": "Zeitfenster",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Seit wann suchen? Beim ersten Lauf: die letzten 24 Stunden.\nconst sd = $getWorkflowStaticData('global');\nconst seit = sd.seit || new Date(Date.now() - 24 * 3600 * 1000).toISOString();\nreturn [{ json: { seit } }];"
+      }
+    },
+    {
+      "id": "3f19566e-c657-488a-a774-a95acb488f4b",
+      "name": "Neue Vorschläge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_vorschlaege?select=vorschlag_id,titel,text,bereich,autor,erstellt&status=eq.neu&erstellt=gt.{{ encodeURIComponent($json.seit) }}&order=erstellt.asc&limit=20",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "02127c7a-4a7b-4d8f-a442-87281da4282d",
+      "name": "Mitglieder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_mitglieder?select=mitglied_id,name,rolle,email,status",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "id": "90e2580d-2c40-4004-af16-c8709f296cc5",
+      "name": "Nachricht bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Baut eine E-Mail aus allen neuen Vorschlägen. Empfänger: alle aktiven Admins mit E-Mail-Adresse. Merkt sich den Zeitstempel erst NACH dem Versand (Knoten „Zeitstempel merken“).\nconst neu = $('Neue Vorschläge').all().map(i => i.json).filter(v => v && v.vorschlag_id);\nif (!neu.length) return [];\nconst M = $('Mitglieder').all().map(i => i.json).filter(m => m && m.mitglied_id);\nconst empfaenger = M.filter(m => m.rolle === 'admin' && m.status !== 'gesperrt' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(String(m.email || ''))).map(m => String(m.email).trim());\nif (!empfaenger.length) return [];\nconst name = id => (M.find(m => m.mitglied_id === id) || {}).name || id || 'jemand';\nconst kurz = (t, n) => { const s = String(t || '').replace(/\\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\nconst zeile = v => '• ' + kurz(v.titel, 90) + ' (' + name(v.autor) + (v.bereich ? ', ' + v.bereich : '') + ')' + (v.text ? '\\n  ' + kurz(v.text, 160) : '');\nconst betreff = neu.length === 1 ? 'Neuer Vorschlag im Team-Portal' : neu.length + ' neue Vorschläge im Team-Portal';\nconst text = betreff + '\\n\\n' + neu.map(zeile).join('\\n') + '\\n\\nAnnehmen oder ablehnen: Übersicht → „Für dich“\\nHIER_PORTAL_URL';\nconst seit = neu.map(v => v.erstellt).sort().pop();\nreturn [{ json: { betreff, text, an: empfaenger.join(', '), anzahl: neu.length, seit } }];\n"
+      }
+    },
+    {
+      "id": "75aaea09-a633-4f32-a3bd-8b59d09d796c",
+      "name": "E-Mail an Admin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "resource": "email",
+        "operation": "send",
+        "fromEmail": "HIER_ABSENDER_EMAIL",
+        "toEmail": "={{ $json.an }}",
+        "subject": "={{ $json.betreff }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "disabled": true,
+      "credentials": {
+        "smtp": {
+          "name": "E-Mail (Pilot)"
+        }
+      }
+    },
+    {
+      "id": "03ed8e50-3e75-4e52-a5d9-095a45f43561",
+      "name": "Zeitstempel merken",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Erst nach dem Versand merken, bis wohin gemeldet wurde. Schlägt der Versand fehl, wird beim nächsten Lauf noch einmal gemeldet.\nconst n = $('Nachricht bauen').first().json;\nconst sd = $getWorkflowStaticData('global');\nif (n && n.seit) sd.seit = n.seit;\nreturn [{ json: { gemerkt: sd.seit || '' } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Zeitfenster": {
+      "main": [
+        [
+          {
+            "node": "Neue Vorschläge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neue Vorschläge": {
+      "main": [
+        [
+          {
+            "node": "Mitglieder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mitglieder": {
+      "main": [
+        [
+          {
+            "node": "Nachricht bauen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nachricht bauen": {
+      "main": [
+        [
+          {
+            "node": "E-Mail an Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-Mail an Admin": {
+      "main": [
+        [
+          {
+            "node": "Zeitstempel merken",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jede Stunde": {
+      "main": [
+        [
+          {
+            "node": "Zeitfenster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Berlin"
+  }
+}

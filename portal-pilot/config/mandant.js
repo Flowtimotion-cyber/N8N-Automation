@@ -1,0 +1,34 @@
+// Mandanten-Konfiguration des Team-Portals (Pilot). Je Kunde eine Kopie dieser Datei.
+// Warum eine .js- und keine .json-Datei: Beim Öffnen der Seite direkt von der Festplatte (file://) darf der Browser
+// keine JSON-Datei nachladen, ein Skript aber schon. Vorlage und Erklärung der Felder: mandant.example.json.
+// Hier stehen NUR Adressen und Anzeigewerte, nie Zugangsdaten.
+window.MANDANT = {
+  "firma": "Musterfirma GmbH",
+  "kurzname": "Musterfirma",
+  "logo": "assets/logo.svg",
+  "farben": { "primaer": "#1f4e79", "akzent": "#e07a1f" },
+  "n8n_basis_url": "https://DEINE-INSTANZ.app.n8n.cloud/webhook/PILOTKUERZEL",
+  "portal_url": "https://DEINE-ADRESSE/portal/",
+  "register": {
+    "uebersicht": true,
+    "aufgaben": true,
+    "projekte": true,
+    "notizen": true,
+    "vorschlaege": true,
+    "team": true,
+    "arbeitszeit": false,
+    "social": false,
+    "vertrieb": false,
+    "whatsapp": false,
+    "kurs": false,
+    "systeme": false,
+    "skills": false,
+    "tresor": false,
+    "webseite": false,
+    "office": false
+  },
+  "social_kanaele": [],
+  "anleitung_video": "",
+  "standard_projekt": "",
+  "sprache": "de"
+};

@@ -1,0 +1,288 @@
+{
+  "name": "PILOT: Feedback lesen (intern, Claude)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "37d5291d-ac87-438b-abab-d61ed8dc129c",
+      "name": "Von Hand starten",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Zeitfenster für das Lesen der Rückmeldungen: Vorschläge und Kommentare der letzten 7 Tage, Störungsnotizen der letzten 14 Tage.\n// Dieser Workflow hat keinen Webhook und keinen Zeitplan: Er läuft nur, wenn ihn jemand in n8n von Hand startet oder Claude ihn über den n8n-Connector (MCP) ausführt.\nconst iso = t => new Date(t).toISOString().replace(/\\.\\d{3}Z$/, 'Z');\nconst jetzt = Date.now();\nreturn [{ json: { jetzt: iso(jetzt), seit7: iso(jetzt - 7 * 864e5), seit14: iso(jetzt - 14 * 864e5) } }];\n"
+      },
+      "id": "dc254d1a-2ae3-4d4b-bdce-49ac05e8fb62",
+      "name": "Zeitfenster",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_vorschlaege?select=vorschlag_id,titel,text,bereich,status,autor,antwort,antwort_von,aufgabe_id,stimmen,erstellt,geaendert&or=(status.eq.neu,geaendert.gt.{{ $('Zeitfenster').first().json.seit7 }})&order=geaendert.desc&limit=100",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "52dc42e8-ffff-45a1-a303-94b871479d29",
+      "name": "Vorschläge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_aufgaben_verlauf?select=id,aufgabe_id,autor,art,text,erstellt&erstellt=gt.{{ $('Zeitfenster').first().json.seit7 }}&order=erstellt.desc&limit=200",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a4d8c06b-014a-4f29-a998-154d7228a1ef",
+      "name": "Verlauf",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_aufgaben?select=aufgabe_id,titel,projekt,status&limit=1000",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "ca69f2ec-7694-4a15-8413-2f965b51be32",
+      "name": "Aufgaben",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_notizen?select=notiz_id,titel,inhalt,projekt,autor,geaendert_von,erstellt,geaendert&titel=like.St*rung*&geaendert=gt.{{ $('Zeitfenster').first().json.seit14 }}&order=geaendert.desc&limit=30",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "b80bac22-72a2-4d70-b42b-b091cd12b244",
+      "name": "Störungsnotizen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://HIER_SUPABASE_PROJEKT.supabase.co/rest/v1/team_mitglieder?select=mitglied_id,rolle,typ,status&limit=200",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a2b65c05-a7c0-4a17-be23-dedfa8bfe8b1",
+      "name": "Mitglieder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "name": "Supabase (Pilot)"
+        }
+      },
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Baut aus Vorschlägen, Kommentaren und Störungsnotizen EINE kompakte Liste für das KI-Werkzeug (Claude), das die Rückmeldungen beantwortet.\n// Rollen statt Namen: Die Mitgliederliste enthält hier nur ID, Rolle, Typ und Status. Keine Namen, keine E-Mail-Adressen, keine Zugangscodes.\nconst Z = $('Zeitfenster').first().json;\nconst liste = (name, pk) => { try { return $(name).all().map(i => i.json).filter(x => x && x[pk] !== undefined && x[pk] !== null); } catch (e) { return []; } };\nconst V = liste('Vorschläge', 'vorschlag_id'), K = liste('Verlauf', 'id'), A = liste('Aufgaben', 'aufgabe_id'), N = liste('Störungsnotizen', 'notiz_id'), M = liste('Mitglieder', 'mitglied_id');\nconst rolle = id => { const m = M.find(x => x.mitglied_id === id); return m ? (m.typ === 'agent' ? 'agent' : (m.rolle || 'team')) : 'unbekannt'; };\nconst kurz = (t, n) => { const s = String(t || '').replace(/\\r/g, '').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };\nconst aufgabe = id => A.find(a => a.aufgabe_id === id) || {};\nconst E = [];\nfor (const v of V) E.push({ art: 'vorschlag', zeit: v.geaendert || v.erstellt || '', bereich: v.bereich || 'Sonstiges', rolle: rolle(v.autor), titel: kurz(v.titel, 160), text: kurz(v.text, 1500),\n  status: v.status || 'neu', stimmen: Array.isArray(v.stimmen) ? v.stimmen.length : 0, antwort: kurz(v.antwort, 1500), antwort_von_rolle: v.antwort_von ? rolle(v.antwort_von) : '', aufgabe_id: v.aufgabe_id || '', id: v.vorschlag_id });\nfor (const k of K) {\n  if (k.art === 'status') continue;   // Statuswechsel sind keine Rückmeldungen\n  const a = aufgabe(k.aufgabe_id);\n  E.push({ art: k.art === 'bericht' ? 'bericht' : 'kommentar', zeit: k.erstellt || '', bereich: a.projekt || '', rolle: rolle(k.autor), titel: kurz(a.titel || k.aufgabe_id, 160), text: kurz(k.text, 1500), status: a.status || '', aufgabe_id: k.aufgabe_id, id: String(k.id) });\n}\nfor (const n of N) {\n  if (!/^Störung\\b/i.test(String(n.titel || ''))) continue;   // die Abfrage holt „St*rung*“, hier die genaue Prüfung\n  const bloecke = String(n.inhalt || '').split(/\\n(?=### )/);\n  E.push({ art: 'stoerung', zeit: n.geaendert || '', bereich: n.projekt || '', rolle: rolle(n.geaendert_von || n.autor), titel: kurz(n.titel, 160), text: kurz(bloecke[bloecke.length - 1], 1500), meldungen: Math.max(0, bloecke.length - 1), status: '', id: n.notiz_id });\n}\nE.sort((a, b) => String(b.zeit).localeCompare(String(a.zeit)));\nconst zaehl = f => E.filter(f).length;\nconst zusammenfassung = { stand: Z.jetzt, vorschlaege_und_kommentare_seit: Z.seit7, stoerungen_seit: Z.seit14,\n  vorschlaege_neu: zaehl(e => e.art === 'vorschlag' && e.status === 'neu'), vorschlaege_nachfrage: zaehl(e => e.art === 'vorschlag' && e.status === 'nachfrage'), vorschlaege_gesamt: zaehl(e => e.art === 'vorschlag'),\n  kommentare: zaehl(e => e.art === 'kommentar' || e.art === 'bericht'), stoerungen: zaehl(e => e.art === 'stoerung'), eintraege: E.length,\n  hinweis: 'Rollen statt Namen (admin, team, dozent, vertrieb, agent). Antworten gehen über agent/feedback.mjs: antworten <id> --status nachfrage|geplant|abgelehnt --text …, kommentar <aufgabe_id> --text …, aenderungen --text …' };\nreturn [{ json: { zusammenfassung, eintraege: E } }];\n"
+      },
+      "id": "9e6c16a3-df85-4b43-8da7-0377b6f6a1b5",
+      "name": "Liste bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Von Hand starten": {
+      "main": [
+        [
+          {
+            "node": "Zeitfenster",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zeitfenster": {
+      "main": [
+        [
+          {
+            "node": "Vorschläge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vorschläge": {
+      "main": [
+        [
+          {
+            "node": "Verlauf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verlauf": {
+      "main": [
+        [
+          {
+            "node": "Aufgaben",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aufgaben": {
+      "main": [
+        [
+          {
+            "node": "Störungsnotizen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Störungsnotizen": {
+      "main": [
+        [
+          {
+            "node": "Mitglieder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mitglieder": {
+      "main": [
+        [
+          {
+            "node": "Liste bauen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timezone": "Europe/Berlin"
+  }
+}
