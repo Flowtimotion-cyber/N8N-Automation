@@ -9,7 +9,7 @@ KIT = pathlib.Path(__file__).resolve().parent
 STUDIO = KIT.parent
 SI = pathlib.Path(os.environ.get("KIT_ICONS", "/tmp/si/package/icons"))
 HG = STUDIO / os.environ.get("KIT_HEYGEN", "heygen2")
-WORDS = json.loads((HG / "words.json").read_text()) if (HG / "words.json").exists() else {}
+WORDS = json.loads((HG / "words.json").read_text(encoding="utf-8")) if (HG / "words.json").exists() else {}
 RAW = HG / "raw"
 W, HH = 1280, 720
 
@@ -74,7 +74,7 @@ def icon(name, size=40, color=None):
         return (f'<svg viewBox="0 0 24 24" width="{size}" height="{size}" fill="none" stroke="{c}" stroke-width="2" '
                 f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{G[name]}</svg>')
     p = SI / f"{name}.svg"
-    svg = p.read_text()
+    svg = p.read_text(encoding="utf-8")
     d = re.search(r' d="([^"]+)"', svg).group(1)
     c = color or "#" + BRAND.get(name, "1C1B19")
     return f'<svg viewBox="0 0 24 24" width="{size}" height="{size}" aria-hidden="true"><path fill="{c}" d="{d}"/></svg>'
@@ -690,22 +690,24 @@ class Builder:
         self.IN(a + "t", tt, "pop")
         return h
 
-    def k_toggle(self, s, e, kick=None, title=None, on_at=None, rows=(), chips=()):
+    def k_toggle(self, s, e, kick=None, title=None, on_at=None, rows=(), chips=(), win=("Settings", "/ Instance-level MCP"), main="MCP-Zugriff aktivieren",
+                 main_icon="plug", hint="Welche Workflows darf die KI sehen?", rowtag="Available in MCP", win_icon="n8n"):
+        # Teil 3 (Modul 1.3): Fenster-, Haupt- und Zeilenbeschriftung sind einstellbar (Backups, Zwei-Faktor, Workflow deaktivieren)
         a = self.uid("a")
         h = self.head(s, kick, title)
         ton = self.t(on_at, s + 1.2)
-        h += (f'<div class="win it" id="{a}w" style="left:190px;width:900px;height:400px"><div class="wh">{icon("n8n", 26)}<b>Settings</b><span>/ Instance-level MCP</span></div>'
+        h += (f'<div class="win it" id="{a}w" style="left:190px;width:900px;height:400px"><div class="wh">{icon(win_icon, 26)}<b>{esc(win[0])}</b><span>{esc(win[1])}</span></div>'
               f'<div style="position:absolute;left:0;right:0;top:55px;padding:26px 34px;display:flex;flex-direction:column;gap:14px">'
-              f'<div style="display:flex;align-items:center;gap:16px;font-size:24px;font-weight:700">{icon("plug",30)} MCP-Zugriff aktivieren'
+              f'<div style="display:flex;align-items:center;gap:16px;font-size:24px;font-weight:700">{icon(main_icon,30)} {esc(main)}'
               f'<div class="tg" style="margin-left:auto"><div class="on" id="{a}on"></div><div class="kn" id="{a}kn"></div></div></div>'
-              f'<div style="font-size:18px;color:var(--muted);margin-top:4px">Welche Workflows darf die KI sehen?</div>')
+              f'<div style="font-size:18px;color:var(--muted);margin-top:4px">{esc(hint)}</div>')
         self.IN(a + "w", s + .1, "up")
         self.js.append(f'tl.to("#{a}on",{{opacity:1,duration:.25}},{ton:.2f}); tl.fromTo("#{a}kn",{{x:0}},{{x:24,duration:.25}},{ton:.2f});')
         ts = self.items(rows, ton + .4, e, gap=.5)
         for k, (r, tt) in enumerate(zip(rows, ts)):
             i = f"{a}r{k}"
             h += (f'<div class="it" id="{i}" style="display:flex;align-items:center;gap:14px;padding:12px 16px;border:1px solid var(--line);border-radius:12px;font-size:20px">'
-                  f'{icon("bolt",22)}{esc(r["t"])}<span style="margin-left:auto;font-size:15px;color:var(--muted)">Available in MCP</span>'
+                  f'{icon(r.get("icon", "bolt"),22)}{esc(r["t"])}<span style="margin-left:auto;font-size:15px;color:var(--muted)">{esc(r.get("tag", rowtag))}</span>'
                   f'<div class="tg"><div class="on" id="{i}on"></div><div class="kn" id="{i}kn"></div></div></div>')
             self.IN(i, tt, "left")
             if r.get("on", True):
@@ -766,11 +768,11 @@ class Builder:
             self.IN(i, self.t(foot_at, ts[-1] + .8), "up")
         return h
 
-    def k_brief(self, s, e, kick=None, title=None, fields=()):
+    def k_brief(self, s, e, kick=None, title=None, fields=(), label="Prozess-Steckbrief: Kontaktanfrage"):
         a = self.uid("a")
         h = self.head(s, kick, title)
         h += f'<div class="card it" id="{a}w" style="position:absolute;left:130px;top:140px;width:1020px;padding:12px 34px 18px">'
-        h += f'<div style="display:flex;align-items:center;gap:12px;font-size:20px;font-weight:700;color:var(--muted);padding:10px 0 6px">{icon("doc",26)} Prozess-Steckbrief: Kontaktanfrage</div>'
+        h += f'<div style="display:flex;align-items:center;gap:12px;font-size:20px;font-weight:700;color:var(--muted);padding:10px 0 6px">{icon("doc",26)} {esc(label)}</div>'
         self.IN(a + "w", s + .1, "up")
         for k, f in enumerate(fields):
             i = f"{a}f{k}"
@@ -880,6 +882,13 @@ def caption_groups(words, maxw=7):
     if cur: groups.append(cur)
     return groups
 
+# Teil 3 (Modul 1.3): zusammengezogene Wörter aus dem Scribe-Transkript wieder trennen
+CAPFIX += [(r"\bKursinstanz\b", "Kurs-Instanz"), (r"\bNate-N\b", "n8n"), (r"\bN8n\b", "n8n"), (r"\bPasswortmanager\b", "Passwort-Manager"),
+           (r"\bServersteckbrief\b", "Server-Steckbrief"), (r"\bCodeboxen\b", "Code-Boxen"), (r"\bSchlosszertifikat\b", "Schloss-Zertifikat"),
+           (r"\bHangartür\b", "Hangar-Tür"), (r"\bLaufliste\b", "Lauf-Liste"), (r"\bTerminalschritten\b", "Terminal-Schritten"),
+           (r"\bFirmengedächtnis\b", "Firmen-Gedächtnis"), (r"\bSchlosssymbol\b", "Schloss-Symbol"), (r"\bMailzugang\b", "Mail-Zugang"),
+           (r"\bTabellendatei\b", "Tabellen-Datei"), (r"N8n Punkt deine Firma Punkt de", "n8n.deinefirma.de")]
+
 def fixcap(text):
     for a, b in CAPFIX: text = re.sub(a, b, text)
     return text
@@ -962,5 +971,5 @@ window.__timelines["{key.lower()}"] = tl;
 </script>
 </body></html>
 """
-    (out / "index.html").write_text(html)
+    (out / "index.html").write_text(html, encoding="utf-8")
     return dur, starts
