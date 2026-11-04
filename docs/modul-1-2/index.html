@@ -662,7 +662,7 @@ function newsletterBox(sc) {
   const next = el("div", "card nl");
   next.innerHTML = '<div class="kicker">Wie es weitergeht</div><h2>Teil 3, Hermes und das Firmen-Gedächtnis</h2>' +
     '<div class="outlook">' +
-    '<div><b>Teil 3 · Dein eigener Server</b><span>n8n so betreiben, dass alle Daten bei euch bleiben, inklusive Umzug deiner Workflows.</span></div>' +
+    '<a href="../modul-1-3/" style="text-decoration:none;color:inherit"><b>Teil 3 · Dein eigener Server →</b><span>n8n so betreiben, dass alle Daten bei euch bleiben, inklusive Umzug deiner Workflows. Jetzt freigeschaltet.</span></a>' +
     '<div class="soon"><b>Bald · Firmen-Gedächtnis</b><span>Notizen, Dokumente und Zahlen so speichern, dass KI-Agenten zuverlässig darauf zugreifen.</span></div>' +
     '<div class="soon"><b>Bald · Modul Hermes</b><span>Dein eigener KI-Agent, der für dich mitarbeitet. Ein eigenes Modul ist in Vorbereitung.</span></div>' +
     '</div><p class="muted" style="margin-top:14px">Fragen zum Einrichten? Unten rechts hilft dir der Setup-Assistent, auch mit Screenshots.</p>';
@@ -906,7 +906,7 @@ function renderSummary(sc) {
   const rs = el("button", "btn sec", "Fortschritt zurücksetzen"); confirmBtn(rs, () => { S = fresh(); save(); go(0); });
   row.append(p, dl, rs); c.appendChild(row);
   newsletterBox(sc);
-  setNext(true, "Fertig – zu meinen Kursen", true);
+  setNext(true, "Weiter mit Teil 3: Dein eigener Server", true);
 }
 
 // Pause / Kurs beenden: Fortschritt sofort speichern und senden, dann zurück zur Übersicht
@@ -961,7 +961,7 @@ function verbesserungOeffnen() {
 }
 $("#verb").onclick = e => { e.preventDefault(); verbesserungOeffnen(); };
 $("#pause").onclick = e => { e.preventDefault(); fuerHeuteBeenden(false); };
-$("#next").onclick = () => { if (STEPS[S.step] && STEPS[S.step].k === "summary") { fortschrittJetztSenden(); fuerHeuteBeenden(true); return; } go(S.step + 1); };
+$("#next").onclick = () => { if (STEPS[S.step] && STEPS[S.step].k === "summary") { fortschrittJetztSenden(); location.href = "../modul-1-3/"; return; } go(S.step + 1); };
 $("#back").onclick = () => go(S.step - 1);
 if (S.step > 0 && !kurscodeOk(S.kurscode)) S.step = 0;
 render();
