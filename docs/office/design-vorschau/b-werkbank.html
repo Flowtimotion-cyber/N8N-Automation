@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow"><meta name="color-scheme" content="light">
+<title>Design B · Werkbank · KI Office 2.0 (Vorschau)</title>
+<link rel="stylesheet" href="basis.css">
+<style>
+/* Richtung B: helle Werkbank. Passt zum Team-Portal (gleiche Farben), Kanban nach Zustand, Räume als schmale Leiste oben, Lauftext unter dem Kopf. */
+:root{--bg:#F6F6FB;--card:#fff;--card2:#EEEDF6;--line:#DFDDEC;--acc:#7B3FE4;--acc2:#5B6EE6}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0}
+.logo{height:34px;display:block}
+.htitle{font-weight:700;font-size:15px;color:var(--mut);border-left:1px solid var(--line);padding-left:14px}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--mut)}
+.bar{height:3px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6 55%,#22B3B0)}
+.laufband{background:#fff;font-size:13px}
+/* Raumleiste */
+.raumleiste{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}
+.rtile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;cursor:pointer;border-top:4px solid var(--rk)}
+.rtile:hover,.rtile.on{box-shadow:0 10px 24px rgba(123,63,228,.12)}
+.rtile h3{display:flex;justify-content:space-between;font-size:14px;margin:0}
+.rtile .punkte{display:flex;gap:5px;flex-wrap:wrap}
+.rtile .punkte i{width:12px;height:12px;border-radius:50%;display:inline-block;border:2px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.rtile .klein{color:var(--mut)}
+/* Kanban nach Zustand */
+.board{display:grid;grid-template-columns:repeat(5,minmax(230px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{background:#EFEEF7;border-radius:14px;padding:10px;min-height:200px}
+.col h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);display:flex;justify-content:space-between;align-items:center;margin:2px 4px 10px}
+.col h3 i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+.col.wartet{background:#FBF1E3}.col.pausiert{background:#F8E6E2}
+.akarte{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer}
+.akarte:hover{border-color:var(--acc)}
+.ak-kopf{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+.ak-kopf h4{margin:0;font-size:14.5px}
+.ak-raum{font-size:11.5px;color:var(--mut)}
+.ak-aufgabe{font-size:13px}
+.ak-letztes{font-size:12px;color:var(--mut)}.ak-letztes b{color:var(--ink);font-weight:600}
+.ak-fuss{display:flex;justify-content:space-between;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:6px}
+.ak-warn{background:#FCE3DE;color:#B0321F;border-radius:8px;padding:6px 8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.ak-warn .btn{padding:3px 8px;font-size:12px;background:var(--red)}
+.unten{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;margin-top:14px;align-items:start}
+.fd{border-top:1px solid var(--line);padding:9px 0;font-size:13px}.fd:first-child{border-top:0}.fd b{display:block}.fd .btns{display:flex;gap:6px;margin-top:6px}.fd .btn{padding:4px 9px;font-size:12px}
+@media (max-width:900px){.raumleiste{grid-template-columns:repeat(2,1fr)}.unten{grid-template-columns:1fr}}
+@media (max-width:640px){.htitle{display:none}.raumleiste{grid-template-columns:1fr 1fr}}
+</style></head>
+<body>
+<header><div class="wrap"><div class="hrow"><img class="logo" src="../../logo_h96.png" alt="Momentum KI Akademie"><span class="htitle">KI Office</span><div class="who"><span><b style="color:var(--ink)">Timo</b> · Admin</span><a class="btn sec" href="#" style="padding:6px 10px" data-demo>Team-Portal ↗</a></div></div>
+<nav class="tabs" role="tablist"><button role="tab" data-tab="buero">Werkbank</button><button role="tab" data-tab="projekte">Projekte</button><button role="tab" data-tab="run">Run-Zeitleiste</button><button role="tab" data-tab="auswertung">Auswertung</button><button role="tab" data-tab="vorschlaege">Vorschläge <span class="chip klein pr-offen">4</span></button></nav></div><div class="bar"></div>
+<div class="wrap"><div id="laufband"></div></div></header>
+<main class="wrap">
+<div class="vorschau-banner"><b>Design-Vorschau B „Werkbank“</b> mit Musterdaten. Nichts hiervon ist echt, Knöpfe lösen nichts aus. Vergleich: <a href="index.html">Übersicht der drei Richtungen</a>.</div>
+<section id="tab-buero" class="tab-panel">
+  <div id="kopf"></div>
+  <h2 style="margin-top:4px">Räume <span class="klein muted" style="font-weight:400">Klick filtert die Werkbank</span></h2>
+  <div class="raumleiste" id="raeume"></div>
+  <h2>Werkbank <span class="klein muted" style="font-weight:400">Agenten nach Zustand, wie ein Kanban</span></h2>
+  <div class="board" id="board"></div>
+  <div class="unten"><div class="card"><h2>Live <span class="klein muted" style="font-weight:400">die letzten Ereignisse, Agenten in Ich-Form</span></h2><div id="ticker"></div></div>
+    <div class="card"><h2>Für dich <span class="chip klein pr-offen">3</span></h2><div id="fuerdich"></div></div></div>
+</section>
+<section id="tab-projekte" class="tab-panel" hidden><h1 style="margin-bottom:12px">Projekte</h1><div id="projekte"></div></section>
+<section id="tab-run" class="tab-panel" hidden><div class="card" id="run"></div></section>
+<section id="tab-auswertung" class="tab-panel" hidden><div class="card" id="auswertung"></div></section>
+<section id="tab-vorschlaege" class="tab-panel" hidden><h1 style="margin-bottom:6px">Vorschläge aus den Kennzahlen</h1><p class="muted" style="margin-bottom:14px">Skalieren, pausieren oder auffüllen: jede Karte ist ein Vorschlag, jede Entscheidung eine Freigabe durch dich.</p><div id="karten"></div></section>
+</main>
+<script src="musterdaten.js"></script><script src="vorschau.js"></script>
+<script>
+(function(){
+  const M = window.MUSTER, V = window.VORSCHAU, esc = M.esc, eur = M.eur;
+  let filter = '';
+  const K = V.kopfZahlen();
+  document.getElementById('kopf').innerHTML = '<div class="kopfzahlen"><div><b>' + K.laufend + '</b><span>Agenten arbeiten gerade</span></div><div class="warn"><b>' + K.warten + '</b><span>warten auf dich</span></div><div class="' + (K.pausiert ? 'rot' : '') + '"><b>' + K.pausiert + '</b><span>pausiert, Guthaben leer</span></div><div><b>' + K.abgen + '</b><span>Ergebnisse abgenommen (4 Wo.)</span></div><div><b>' + eur(K.kosten) + '</b><span>von ' + eur(K.budget) + ' Monatsguthaben</span></div></div>';
+  document.getElementById('laufband').innerHTML = V.laufband();
+  const raeume = () => { document.getElementById('raeume').innerHTML = M.RAEUME.map(r => { const A = M.agenten.filter(a => a.raum === r); return '<div class="rtile' + (filter === r ? ' on' : '') + '" style="--rk:' + M.RAUM_AKZENT[r] + '" data-raum="' + esc(r) + '" tabindex="0" role="button" aria-pressed="' + (filter === r) + '"><h3><span>' + M.RAUM_ICON[r] + ' ' + esc(r) + '</span><span class="klein">' + A.length + '</span></h3><div class="punkte">' + A.map(a => '<i style="background:' + M.ZUSTAND_FARBE[a.zustand] + '" title="' + esc(a.name + ': ' + M.ZUSTAND_TEXT[a.zustand]) + '"></i>').join('') + '</div><div class="klein">' + eur(A.reduce((s, a) => s + a.budget.verbraucht, 0)) + ' von ' + eur(A.reduce((s, a) => s + a.budget.monat, 0)) + ' · ' + A.reduce((s, a) => s + a.kz.abgenommen, 0) + ' abgenommen</div></div>'; }).join(''); document.querySelectorAll('.rtile').forEach(t => t.onclick = () => { filter = filter === t.dataset.raum ? '' : t.dataset.raum; raeume(); board(); }); };
+  const karte = a => '<article class="akarte" tabindex="0" role="link"><div class="ak-kopf"><div><h4>' + esc(a.name) + '</h4><div class="ak-raum">' + (M.RAUM_ICON[a.raum] || '🧠') + ' ' + esc(a.raum) + ' · ' + esc(a.modell) + '</div></div>' + V.zustandChip(a) + '</div>' +
+    (a.zustand === 'pausiert' ? '<div class="ak-warn"><span>Guthaben leer, 1 Auftrag wartet</span><button class="btn" data-demo>Auffüllen</button></div>' : '') +
+    (a.aufgabe ? '<div class="ak-aufgabe">' + esc(a.aufgabe) + '</div>' : '') +
+    '<div class="ak-letztes">Zuletzt: ' + (a.letztes ? '<b>' + esc(a.letztes.titel) + '</b> ' + V.pruefChip(a.letztes.pruef) + ' ' + esc(M.relativ(a.letztes.zeit)) : 'noch kein Ergebnis') + '</div>' +
+    V.guthaben(a) + '<div class="ak-fuss">' + V.kostenJeErgebnis(a) + V.sparkline(a.kz.trend, 56, 18) + '</div></article>';
+  const SPALTEN = [['arbeitet', 'Arbeitet', ['arbeitet']], ['wartet', 'Wartet auf dich', ['wartet_freigabe', 'wartet_rueckmeldung']], ['warteschlange', 'Auftrag wartet', ['warteschlange']], ['frei', 'Frei', ['frei']], ['pausiert', 'Pausiert', ['pausiert']]];
+  const board = () => { document.getElementById('board').innerHTML = SPALTEN.map(([k, l, z]) => { const A = M.agenten.filter(a => z.includes(a.zustand) && (!filter || a.raum === filter)); return '<div class="col ' + k + '"><h3><span><i style="background:' + M.ZUSTAND_FARBE[z[0]] + '"></i>' + l + '</span><span>' + A.length + '</span></h3>' + (A.map(karte).join('') || '<p class="klein muted" style="text-align:center;padding:14px 0">–</p>') + '</div>'; }).join(''); };
+  raeume(); board();
+  document.getElementById('ticker').innerHTML = V.ticker(8);
+  document.getElementById('fuerdich').innerHTML = '<div class="fd"><b>Freigabe: LinkedIn-Beitrag KW 46</b>Marketing-Texter · gebunden an den Inhalt<div class="btns"><button class="btn" data-demo>Freigeben</button><button class="btn sec" data-demo>Ablehnen</button></div></div><div class="fd"><b>Frage: Kundennummer oder E-Mail?</b>Kunden-Entwickler · Angebots-Workflow<div class="btns"><button class="btn sec" data-demo>Antworten</button></div></div><div class="fd"><b>Guthaben leer: Angebots-Prüfer</b>5,00 € von 5,00 € · 1 Auftrag wartet<div class="btns"><button class="btn" data-demo>Auffüllen</button><button class="btn sec" data-demo>Pausiert lassen</button></div></div>';
+  document.getElementById('projekte').innerHTML = V.projekte();
+  document.getElementById('run').innerHTML = V.runZeitleiste();
+  document.getElementById('auswertung').innerHTML = V.auswertung();
+  document.getElementById('karten').innerHTML = V.skalierungskarten();
+  V.reiter('buero'); V.demo();
+})();
+</script>
+</body></html>

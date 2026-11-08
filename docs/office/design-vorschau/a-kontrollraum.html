@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow"><meta name="color-scheme" content="dark">
+<title>Design A · Kontrollraum · KI Office 2.0 (Vorschau)</title>
+<link rel="stylesheet" href="basis.css">
+<style>
+/* Richtung A: dunkler Kontrollraum. Agenten als Karten mit Leuchtpunkt, Live-Ticker rechts, Zahlen groß und tabellarisch. */
+:root{--ink:#F2F1FA;--mut:#A9A7C8;--line:#2A2952;--bg:#0E0D22;--card:#17162F;--card2:#1F1E3C;--acc:#B48CFF;--acc2:#8FA6FF;--schatten:0 14px 40px rgba(0,0,0,.35);--radius:14px}
+body{background:radial-gradient(1200px 500px at 20% -10%,#2A1F5E 0%,transparent 60%),radial-gradient(900px 400px at 100% 0%,#13335A 0%,transparent 55%),var(--bg)}
+header{position:sticky;top:0;z-index:20;background:rgba(14,13,34,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0}
+.logo{height:32px;background:#fff;border-radius:8px;padding:3px 8px;display:block}
+.htitle{font-weight:700;letter-spacing:.12em;font-size:12.5px;color:var(--mut);text-transform:uppercase}
+.status{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mut)}
+.live{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:#4CCB8F;font-size:12px;letter-spacing:.08em}
+.live i{width:8px;height:8px;border-radius:50%;background:#4CCB8F;box-shadow:0 0 12px #4CCB8F;animation:puls 1.4s ease-in-out infinite}
+.tabs button{color:var(--mut)}.tabs button.on{color:#fff;border-bottom-color:var(--acc)}
+.kopfzahlen div{background:linear-gradient(180deg,#1C1B38,#141331);border-color:#2E2D5C}
+.kopfzahlen b{font-family:var(--mono);font-size:28px}
+.chip{background:#262552;color:#E7E5FA}.chip.pr-ok{background:#163D2D;color:#6FE0A8}.chip.pr-offen{background:#4A3212;color:#F5C26B}.chip.pr-nein{background:#4A1C17;color:#FF9A8A}
+.btn.sec{background:#1F1E3C;color:#fff;border-color:#3A3970}.btn.ghost{color:var(--acc)}
+.guthaben .gb-balken{background:#0E0D22}
+.urteil.st-liefert{background:#163D2D;color:#6FE0A8}.urteil.st-beobachten{background:#4A3212;color:#F5C26B}.urteil.st-nicht,.urteil.st-leer{background:#4A1C17;color:#FF9A8A}
+.rang.st-liefert{border-color:#1F6B47}.rang.st-nicht{border-color:#7A2E25}
+.zl-punkt{border-color:var(--card)}
+/* Büro-Ansicht: Räume als Abschnitte, Karten je Agent, Ticker rechts */
+.kontrollraum{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.raum{margin-bottom:18px}
+.raum-kopf{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.1em}
+.raum-kopf b{color:#fff;font-size:15px;letter-spacing:0;text-transform:none}
+.raum-kopf .linie{flex:1;border-top:1px solid var(--line)}
+.agenten{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.akarte{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px 12px;display:flex;flex-direction:column;gap:8px;transition:transform .15s,border-color .15s;cursor:pointer}
+.akarte:hover,.akarte:focus-within{transform:translateY(-2px);border-color:var(--ak,var(--acc))}
+.akarte::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:14px 0 0 14px;background:var(--zf)}
+.akarte.z-arbeitet{box-shadow:0 0 0 1px rgba(31,157,107,.25),0 0 30px rgba(31,157,107,.12)}
+.akarte.z-wartet_freigabe,.akarte.z-wartet_rueckmeldung{box-shadow:0 0 0 1px rgba(233,138,21,.3),0 0 30px rgba(233,138,21,.12)}
+.akarte.z-pausiert{border-style:dashed;border-color:#7A2E25;opacity:.92}
+.ak-kopf{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ak-kopf h3{font-size:15.5px;margin:0}.ak-kopf .klein{color:var(--mut)}
+.ak-aufgabe{font-size:13.5px;min-height:40px;color:#E7E5FA}
+.ak-aufgabe .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);display:block;margin-bottom:2px}
+.ak-letztes{font-size:12.5px;color:var(--mut);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ak-letztes b{color:#E7E5FA;font-weight:600}
+.ak-fuss{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.ak-fuss .spark{color:var(--acc2)}
+.ak-warn{background:#2E1512;border:1px solid #7A2E25;color:#FFB3A6;border-radius:8px;padding:6px 10px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ak-warn .btn{padding:4px 9px;font-size:12px;background:#D9452F}
+.seite{position:sticky;top:120px;display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.panel h2{display:flex;justify-content:space-between;align-items:center;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.ticker li{border-top-color:var(--line)}.t-agent{color:#fff}
+.fuer-dich{display:flex;flex-direction:column;gap:8px}
+.fd{background:#1F1E3C;border-radius:10px;padding:10px 12px;font-size:13px;border-left:3px solid var(--orange)}
+.fd b{display:block}.fd .btns{display:flex;gap:6px;margin-top:6px}.fd .btn{padding:4px 9px;font-size:12px}
+.fd.frage{border-left-color:#8B5CF6}.fd.leer{border-left-color:var(--red)}
+.legende{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--mut);margin:6px 0 16px}
+.legende i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px}
+@media (max-width:980px){.kontrollraum{grid-template-columns:1fr}.seite{position:static}}
+@media (max-width:640px){.htitle{display:none}.status span:not(.live){display:none}.logo{height:28px}}
+</style></head>
+<body>
+<header><div class="wrap"><div class="hrow"><img class="logo" src="../../logo_h96.png" alt="Momentum KI Akademie"><span class="htitle">KI Office · Kontrollraum</span><div class="status"><span class="live"><i></i>LIVE</span><span>Stand gerade eben · 30-Sekunden-Takt</span><span><b style="color:#fff">Timo</b> · Admin</span></div></div>
+<nav class="tabs" role="tablist"><button role="tab" data-tab="buero">Büro</button><button role="tab" data-tab="projekte">Projekte</button><button role="tab" data-tab="run">Run-Zeitleiste</button><button role="tab" data-tab="auswertung">Auswertung</button><button role="tab" data-tab="vorschlaege">Vorschläge <span class="chip klein" style="background:#4A3212;color:#F5C26B">4</span></button></nav></div></header>
+<main class="wrap">
+<div class="vorschau-banner" style="background:#2E1512;border-color:#7A2E25;color:#FFB3A6"><b>Design-Vorschau A „Kontrollraum“</b> mit Musterdaten. Nichts hiervon ist echt, Knöpfe lösen nichts aus. Vergleich: <a href="index.html" style="color:#FFB3A6">Übersicht der drei Richtungen</a>.</div>
+<section id="tab-buero" class="tab-panel">
+  <div id="kopf"></div>
+  <div class="legende" id="legende"></div>
+  <div class="kontrollraum"><div id="raeume"></div>
+    <aside class="seite"><div class="panel"><h2>Für dich <span class="chip klein" style="background:#4A3212;color:#F5C26B">3</span></h2><div class="fuer-dich" id="fuerdich"></div></div><div class="panel"><h2>Live-Ticker <span class="klein" style="text-transform:none;letter-spacing:0">Agenten in Ich-Form</span></h2><div id="ticker"></div></div></aside></div>
+</section>
+<section id="tab-projekte" class="tab-panel" hidden><h1 style="margin-bottom:12px">Projekte</h1><div id="projekte"></div></section>
+<section id="tab-run" class="tab-panel" hidden><div class="card" id="run"></div></section>
+<section id="tab-auswertung" class="tab-panel" hidden><div class="card" id="auswertung"></div></section>
+<section id="tab-vorschlaege" class="tab-panel" hidden><h1 style="margin-bottom:6px">Vorschläge aus den Kennzahlen</h1><p class="muted" style="margin-bottom:14px">Skalieren, pausieren oder auffüllen: jede Karte ist ein Vorschlag, jede Entscheidung eine Freigabe durch dich. Keine Selbstvermehrung, kein Krypto.</p><div id="karten"></div></section>
+</main>
+<script src="musterdaten.js"></script><script src="vorschau.js"></script>
+<script>
+(function(){
+  const M = window.MUSTER, V = window.VORSCHAU, esc = M.esc, eur = M.eur;
+  const K = V.kopfZahlen();
+  document.getElementById('kopf').innerHTML = '<div class="kopfzahlen"><div><b>' + K.laufend + '</b><span>Agenten arbeiten gerade</span></div><div class="warn"><b>' + K.warten + '</b><span>warten auf dich</span></div><div class="' + (K.pausiert ? 'rot' : '') + '"><b>' + K.pausiert + '</b><span>pausiert, Guthaben leer</span></div><div><b>' + K.abgen + '</b><span>Ergebnisse abgenommen (4 Wo.)</span></div><div><b>' + eur(K.kosten) + '</b><span>von ' + eur(K.budget) + ' Monatsguthaben</span></div></div>';
+  document.getElementById('legende').innerHTML = Object.keys(M.ZUSTAND_TEXT).map(k => '<span><i style="background:' + M.ZUSTAND_FARBE[k] + '"></i>' + esc(M.ZUSTAND_TEXT[k]) + '</span>').join('') + '<span style="margin-left:auto">Klick auf eine Karte öffnet die Arbeitsübersicht des Agenten</span>';
+  const karte = a => '<article class="akarte z-' + a.zustand + '" style="--zf:' + M.ZUSTAND_FARBE[a.zustand] + ';--ak:' + (M.RAUM_AKZENT[a.raum] || '#9B7BFF') + '" tabindex="0" role="link" aria-label="' + esc(a.name) + ', ' + esc(M.ZUSTAND_TEXT[a.zustand]) + '">' +
+    '<div class="ak-kopf"><div><h3>' + esc(a.name) + '</h3><div class="klein">' + esc(a.modell) + ' · ' + esc(a.ausfuehrer) + '</div></div>' + V.zustandChip(a) + '</div>' +
+    (a.zustand === 'pausiert' ? '<div class="ak-warn"><span>Guthaben aufgebraucht. 1 Auftrag wartet.</span><button class="btn" data-demo>Auffüllen</button></div>' : '') +
+    '<div class="ak-aufgabe"><span class="label">' + (a.aufgabe ? 'Aktuelle Aufgabe' : 'Nichts in Arbeit') + '</span>' + (a.aufgabe ? esc(a.aufgabe) : '<span class="muted">Wartet auf den nächsten Auftrag.</span>') + '</div>' +
+    '<div class="ak-letztes"><span class="muted">Zuletzt:</span>' + (a.letztes ? '<b>' + esc(a.letztes.titel) + '</b>' + V.pruefChip(a.letztes.pruef) + '<span>' + esc(M.relativ(a.letztes.zeit)) + '</span>' : '<span>noch kein Ergebnis</span>') + '</div>' +
+    V.guthaben(a) + '<div class="ak-fuss">' + V.kostenJeErgebnis(a) + V.sparkline(a.kz.trend) + '</div></article>';
+  const raeume = ['Zentrale'].concat(M.RAEUME);
+  document.getElementById('raeume').innerHTML = raeume.map(r => { const A = M.agenten.filter(a => a.raum === r); if (!A.length) return ''; const laufend = A.filter(a => a.zustand === 'arbeitet').length; return '<section class="raum"><div class="raum-kopf"><span>' + (M.RAUM_ICON[r] || '🧠') + '</span><b>' + esc(r) + '</b><span>' + A.length + ' Agent' + (A.length > 1 ? 'en' : '') + ' · ' + laufend + ' arbeite' + (laufend === 1 ? 't' : 'n') + ' · ' + eur(A.reduce((s, a) => s + a.budget.verbraucht, 0)) + ' verbraucht</span><span class="linie"></span></div><div class="agenten">' + A.map(karte).join('') + '</div></section>'; }).join('');
+  document.getElementById('fuerdich').innerHTML = '<div class="fd"><b>Freigabe: LinkedIn-Beitrag KW 46</b>Marketing-Texter · Inhalt gebunden an Hash 3f9a…<div class="btns"><button class="btn" data-demo>Freigeben</button><button class="btn sec" data-demo>Ablehnen</button></div></div>' +
+    '<div class="fd frage"><b>Frage: Kundennummer oder E-Mail?</b>Kunden-Entwickler · Angebots-Workflow<div class="btns"><button class="btn sec" data-demo>Antworten</button></div></div>' +
+    '<div class="fd leer"><b>Guthaben leer: Angebots-Prüfer</b>5,00 € von 5,00 € · 1 Auftrag wartet<div class="btns"><button class="btn" data-demo>Auffüllen</button><button class="btn sec" data-demo>Pausiert lassen</button></div></div>';
+  document.getElementById('ticker').innerHTML = V.ticker(9);
+  document.getElementById('projekte').innerHTML = V.projekte();
+  document.getElementById('run').innerHTML = V.runZeitleiste();
+  document.getElementById('auswertung').innerHTML = V.auswertung();
+  document.getElementById('karten').innerHTML = V.skalierungskarten();
+  V.reiter('buero'); V.demo();
+})();
+</script>
+</body></html>

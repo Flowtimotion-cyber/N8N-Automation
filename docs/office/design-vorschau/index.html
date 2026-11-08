@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>KI Office 2.0 · Design-Vorschauen zur Auswahl</title>
+<link rel="stylesheet" href="basis.css">
+<style>
+header{background:#fff;border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:14px;padding:14px 0}
+.logo{height:34px}
+.htitle{font-weight:700;color:var(--mut);border-left:1px solid var(--line);padding-left:14px}
+.richtungen{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin:18px 0}
+.richtung{display:flex;flex-direction:column;gap:10px}
+.richtung .bild{aspect-ratio:16/10;border-radius:10px;overflow:hidden;border:1px solid var(--line);position:relative;background:#15132B}
+.richtung .bild iframe{width:1280px;height:800px;border:0;transform:scale(.26);transform-origin:0 0;pointer-events:none}
+.richtung .bild::after{content:"";position:absolute;inset:0}
+.richtung h2{margin:4px 0 0}
+.richtung .kennung{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.richtung ul{margin:0;padding-left:18px;font-size:13.5px}
+.richtung .btn{align-self:flex-start}
+table.vergleich{width:100%;border-collapse:collapse;font-size:13.5px}
+table.vergleich th,table.vergleich td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.vergleich th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+</style></head>
+<body>
+<header><div class="wrap"><div class="hrow"><img class="logo" src="../../logo_h96.png" alt="Momentum KI Akademie"><span class="htitle">KI Office 2.0 · Design-Vorschauen</span></div></div></header>
+<main class="wrap">
+<h1>Drei Richtungen, eine Entscheidung</h1>
+<p class="muted">Alle drei zeigen dieselben Musterdaten und dieselben fünf Reiter (Büro, Projekte, Run-Zeitleiste, Auswertung, Vorschläge). Unterschied ist die Büro-Ansicht und die Stimmung. Klick dich durch, dann sag, welche Richtung gebaut wird. Mischformen sind möglich, zum Beispiel A als Standard und die Stadt als Schauansicht für Kunden.</p>
+<div class="vorschau-banner">Musterdaten, nichts ist echt. Firmen- und Personennamen sind erfunden. Knöpfe lösen nichts aus.</div>
+<div class="richtungen">
+  <div class="card richtung"><span class="kennung">Richtung A</span><h2>Kontrollraum</h2><div class="bild"><iframe src="a-kontrollraum.html" title="Vorschau A" loading="lazy" tabindex="-1"></iframe></div>
+    <ul><li>Dunkel, ruhig, Zahlen groß: wie ein Leitstand.</li><li>Eine Karte je Agent mit Leuchtpunkt, aktueller Aufgabe, letztem Ergebnis, Guthaben-Balken und Kosten je Ergebnis.</li><li>Live-Ticker rechts, Agenten sprechen in Ich-Form (wie bei der Mitbewerberseite).</li><li>Am nächsten an „das, was ich draußen sehe“. Eignet sich auch als Screenshot für den VSL-Funnel.</li></ul>
+    <a class="btn" href="a-kontrollraum.html">A öffnen →</a></div>
+  <div class="card richtung"><span class="kennung">Richtung B</span><h2>Werkbank</h2><div class="bild"><iframe src="b-werkbank.html" title="Vorschau B" loading="lazy" tabindex="-1"></iframe></div>
+    <ul><li>Hell, passt eins zu eins zum heutigen Team-Portal (gleiche Farben, gleiche Reiter).</li><li>Agenten als Kanban nach Zustand: Arbeitet, Wartet auf dich, Auftrag wartet, Frei, Pausiert. Du siehst sofort, wo du gebraucht wirst.</li><li>Räume als Leiste oben mit farbigen Punkten, Lauftext mit den letzten Ereignissen unter dem Kopf.</li><li>Am wenigsten Bruch für Kurt, Lillien und Murat. Weniger „Wow“, mehr Werkzeug.</li></ul>
+    <a class="btn" href="b-werkbank.html">B öffnen →</a></div>
+  <div class="card richtung"><span class="kennung">Richtung C</span><h2>Stadt</h2><div class="bild"><iframe src="c-stadt.html" title="Vorschau C" loading="lazy" tabindex="-1"></iframe></div>
+    <ul><li>Nacht, Skyline, ein Gebäude je Projekt, jedes Licht ein Agent, der Kern in der Mitte ist der Orchestrierer.</li><li>Klick auf ein Gebäude zeigt das Projekt mit seinen Agenten und offenen Freigaben; darunter eine Tabelle aller „Lichter“.</li><li>Stärkstes Erzählbild, nah an der Stadt-Metapher der Mitbewerberseite.</li><li>Teurer in der Pflege (eigene Grafik je Projekt), auf dem Handy nur mit seitlichem Schieben.</li></ul>
+    <a class="btn" href="c-stadt.html">C öffnen →</a></div>
+</div>
+<div class="card"><h2>Vergleich</h2><div class="tabelle-scroll"><table class="vergleich"><thead><tr><th></th><th>A Kontrollraum</th><th>B Werkbank</th><th>C Stadt</th></tr></thead><tbody>
+<tr><td>Stimmung</td><td>Leitstand, dunkel, konzentriert</td><td>Portal-Alltag, hell, vertraut</td><td>Schaufenster, Nacht, erzählend</td></tr>
+<tr><td>Was ich auf einen Blick sehe</td><td>Jeden Agenten mit Aufgabe, Ergebnis, Guthaben</td><td>Wo ich gebraucht werde (Spalte „Wartet auf dich“)</td><td>Welche Projekte leben (Lichter an)</td></tr>
+<tr><td>Handy</td><td>Karten untereinander, Ticker darunter</td><td>Kanban seitlich schieben, Räume 2 Spalten</td><td>Skyline seitlich schieben, Tabelle darunter</td></tr>
+<tr><td>Bauaufwand (Schätzung)</td><td>mittel: neue Karten, dunkles Thema, Ticker</td><td>klein bis mittel: Kanban und Leiste, Thema bleibt</td><td>mittel bis groß: Skyline-Grafik, Detailpanel, zwei Themen</td></tr>
+<tr><td>Bestehende Büroszene (isometrisch)</td><td>wird ersetzt, kann als Reiter „Szene“ bleiben</td><td>bleibt als Reiter, Werkbank davor</td><td>wird durch die Stadt ersetzt</td></tr>
+<tr><td>Als Eigenbeweis im Funnel</td><td>sehr gut (Screenshot, Video)</td><td>mittel</td><td>sehr gut, aber erklärungsbedürftig</td></tr>
+<tr><td>Risiko</td><td>Dunkles Thema im hellen Portal-iframe wirkt als Fremdkörper, braucht sauberen Rahmen</td><td>Sieht aus wie heute, Timos Hauptkritik bleibt eventuell</td><td>Grafik veraltet schnell, viele Projekte sprengen die Skyline</td></tr>
+</tbody></table></div></div>
+<div class="card" style="margin-top:14px"><h2>Was in allen drei gleich ist</h2><ul style="margin:0;padding-left:18px;font-size:14px"><li><b>Agentenkarte:</b> Zustand (Farbe), aktuelle Aufgabe, letztes Ergebnis mit Prüfmarke, Guthaben-Balken (Rest von Monatsguthaben), Kosten je abgenommenem Ergebnis mit Trend.</li><li><b>Live-Ticker:</b> Agenten in Ich-Form, Zeit, Zahl, Quelle. Aktualisierung alle 30 Sekunden bei sichtbarem Tab (Supabase Realtime wird geprüft).</li><li><b>Run-Zeitleiste:</b> Kosten je Schritt, Dauer, Ergebnis-Typ, Wirkung, Abnahme.</li><li><b>Auswertung:</b> Rangliste „liefert / beobachten / liefert nicht“, Tabelle je Agent, Trend über vier Wochen.</li><li><b>Vorschläge:</b> Karten „skalieren“, „pausieren“, „auffüllen“. Jede Karte ist eine Freigabe durch dich. Nichts läuft automatisch.</li></ul></div>
+<p class="hinweis">Gebaut am 08.11.2026 von Claude Code (KI-erstellt) als Vorschau für Timos Design-Wahl. Technik: reines HTML, CSS, JavaScript ohne Abhängigkeiten, wie das bestehende Office. Designsystem: <code>docs/office/design/DESIGN.md</code>.</p>
+</main>
+</body></html>
