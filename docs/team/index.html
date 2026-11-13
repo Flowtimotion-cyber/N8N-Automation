@@ -293,6 +293,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .funnel .bt i{display:block;height:100%;background:linear-gradient(90deg,#9B4DF0,#5B6EE6);border-radius:6px}
 .funnel .q{color:var(--mut);font-size:12px;margin-left:4px}
 .dhint{font-size:12.5px;color:var(--mut);margin:6px 0 0}
+.funnel.adsf .row{grid-template-columns:minmax(110px,30%) 1fr 104px}
+.funnel.adsf b{text-align:right;white-space:nowrap}
+.adst th{padding:0;white-space:nowrap;text-align:right}
+.adst th button{border:0;background:none;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer;padding:8px;width:100%;text-align:inherit;white-space:nowrap}
+.adst th button:hover,.adst th[aria-sort] button{color:var(--ink)}
+.adst th button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.adst td{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.adst th:first-child,.adst td:first-child{text-align:left;position:sticky;left:0;background:#fff;white-space:normal;min-width:150px;max-width:240px;overflow-wrap:anywhere}
 .wa{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
 .wa-liste{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column}
 .wa-liste .wl-kopf{padding:10px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
@@ -343,7 +351,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const SYSSTATUS = ['läuft', 'im Bau', 'geplant', 'pausiert'];
   const ROLLEN = { admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
-  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['vertrieb', 'Vertrieb'], ['diktat', 'Diktat'], ['whatsapp', 'WhatsApp'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['skills', 'Skills'], ['tresor', 'Tresor'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
+  const TABS = [['start', 'Übersicht'], ['aufgaben', 'Aufgaben'], ['projekte', 'Projekte'], ['zeit', 'Arbeitszeit'], ['notizen', 'Notizen'], ['social', 'Social Media'], ['werbung', 'ChatGPT-Werbung'], ['vertrieb', 'Vertrieb'], ['diktat', 'Diktat'], ['whatsapp', 'WhatsApp'], ['kurs', 'Kurs & Teilnehmer'], ['systeme', 'Systeme'], ['skills', 'Skills'], ['tresor', 'Tresor'], ['web', 'Webseite'], ['vorschlaege', 'Vorschläge'], ['office', 'KI Office'], ['team', 'Team']];
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
   const ls = {
@@ -472,12 +480,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' + zkKopf() +
       '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
-      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => !['vertrieb', 'diktat', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => (!['vertrieb', 'diktat', 'whatsapp'].includes(k) || darfVertrieb()) && (k !== 'werbung' || darfWerbung())).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { vertrieb: vVertrieb, diktat: vDiktat, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
-    if (!V[tab] || (['vertrieb', 'diktat', 'whatsapp'].includes(tab) && !darfVertrieb())) tab = 'start';
+    const V = { vertrieb: vVertrieb, diktat: vDiktat, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam, werbung: vWerbung };
+    if (!V[tab] || (['vertrieb', 'diktat', 'whatsapp'].includes(tab) && !darfVertrieb()) || (tab === 'werbung' && !darfWerbung())) tab = 'start';
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     document.body.dataset.tab = tab;
     V[tab]();
@@ -1868,6 +1876,87 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     };
     return '<div class="dgrid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))">' + seite('momentum', 'Momentum KI Akademie', 'https://momentum-ki-akademie.de', 'Webseite') + seite('hermetik', 'Hermetik Marketing', 'https://hermetikmarketing.de', 'Hermetik Marketing') + '</div>' +
       '<p class="dhint">Besucher aus der Lovable-Statistik, Google-Zahlen aus der Search Console (2–3 Tage Verzug). Täglich aktualisiert' + (WEB.d && WEB.d.stand ? ', Stand ' + fmtDT(WEB.d.stand) : '') + '.</p>';
+  }
+
+  // ---------- ChatGPT-Werbung (Kennzahlen der Anzeigenkampagne in ChatGPT) ----------
+  // Abruf über den n8n-Workflow „TEAM: ChatGPT-Werbung (Portal)“ (Webhook team-ads, Logik in werbung/lib/kennzahlen.js).
+  // Der Schlüssel der Datenquelle liegt nur in n8n als Zugangsdaten. Das Portal schickt wie überall nur den Mitglieds-Token.
+  const ADS_API = API.replace('team-api-v2', 'team-ads');
+  const ADS_ROLLEN = ['admin'];   // dieselbe Liste wie in werbung/lib/kennzahlen.js; der Server prüft die Rolle noch einmal
+  const darfWerbung = () => !!(D && D.ich && ADS_ROLLEN.includes(D.ich.rolle));
+  const ADS_ZEITRAEUME = [7, 14, 30], ADS_FRISCH_MS = 5 * 60 * 1000;
+  const ADS = { tage: ADS_ZEITRAEUME.includes(Number(ls.get('mt-adstage'))) ? Number(ls.get('mt-adstage')) : 7, d: {}, laedt: 0, fehler: '', sort: 'leads', ab: true };
+  // Spalten der Tabelle: Feld, Überschrift, Art (t = Text, z = Zahl, p = Prozent, g = Geld)
+  const ADS_SPALTEN = [['situation', 'Situation', 't'], ['impressionen', 'Impressionen', 'z'], ['klicks', 'Klicks', 'z'], ['ctr', 'CTR', 'p'], ['kosten', 'Kosten', 'g'], ['besuche', 'Besuche', 'z'], ['video_start', 'Video gestartet', 'z'], ['video_50', 'Video 50 %', 'z'], ['check_start', 'Check gestartet', 'z'], ['leads', 'Leads', 'z'], ['ergebnis_angezeigt', 'Ergebnis gezeigt', 'z'], ['termin_geoeffnet', 'Termin geöffnet', 'z'], ['kosten_pro_lead', 'Kosten pro Lead', 'g']];
+  const adsZ = n => (Number(n) || 0).toLocaleString('de-DE');
+  const adsP = n => (Number(n) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
+  // Geldbetrag; null (noch keine Leads bzw. Klicks) wird als Strich gezeigt
+  const adsG = (n, w) => { if (n === null || n === undefined) return '–'; try { return Number(n).toLocaleString('de-DE', { style: 'currency', currency: w || 'EUR' }); } catch (e) { return Number(n).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (w || ''); } };
+  const adsWert = (art, v, w) => art === 't' ? esc(v) : art === 'p' ? adsP(v) : art === 'g' ? adsG(v, w) : adsZ(v);
+  async function adsLaden(tage) {
+    const c = ADS.d[tage];
+    if (ADS.laedt === tage || (c && Date.now() - c.geholt < ADS_FRISCH_MS)) return;   // frischer Stand: Quelle nicht erneut fragen
+    ADS.laedt = tage;
+    try {
+      const r = await fetch(ADS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, daten: { tage } }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Kennzahlen der ChatGPT-Werbung sind gerade nicht erreichbar.');
+      ADS.d[tage] = { geholt: Date.now(), daten: j };
+      if (ADS.tage === tage) ADS.fehler = '';
+    } catch (e) { if (ADS.tage === tage) ADS.fehler = e.message; }
+    if (ADS.laedt === tage) ADS.laedt = 0;
+    if (tab === 'werbung' && ADS.tage === tage) adsZeigen();
+  }
+  // Trichter: Balken und Prozentzahl je Stufe im Verhältnis zur Stufe davor (gegen die Impressionen wären alle späteren Stufen unsichtbar)
+  function adsTrichter(g) {
+    const S = [['Impressionen', g.impressionen], ['Klicks', g.klicks], ['Besuche', g.besuche], ['Check gestartet', g.check_start], ['Leads', g.leads], ['Termin geöffnet', g.termin_geoeffnet]];
+    return '<div class="funnel adsf" id="adsTrichter">' + S.map(([k, v], i) => {
+      const n = Number(v) || 0, vor = i ? Number(S[i - 1][1]) || 0 : 0, q = i ? (vor ? n / vor * 100 : null) : (n ? 100 : null);
+      const breite = q === null ? 0 : Math.max(n ? 2 : 0, Math.min(100, Math.round(q)));
+      return '<div class="row"><span>' + k + '</span><span class="bt"><i style="width:' + breite + '%"></i></span><b>' + adsZ(n) + (i ? '<span class="q">' + (q === null ? '–' : q.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %') + '</span>' : '') + '</b></div>';
+    }).join('') + '</div><p class="dhint">Balken und Prozentzahl zeigen, wie viele von der Stufe davor weitergegangen sind.</p>';
+  }
+  // Sortierung der Tabelle; Zeilen ohne Wert (kein Lead, also kein Preis pro Lead) stehen immer unten, bei Gleichstand bleibt die Reihenfolge der Quelle
+  function adsSortiert(L) {
+    const k = ADS.sort, r = ADS.ab ? -1 : 1;
+    return L.map((s, i) => [s, i]).sort(([a, ia], [b, ib]) => {
+      const x = a[k], y = b[k];
+      let v = 0;
+      if (k === 'situation') v = r * String(x).localeCompare(String(y), 'de');
+      else if (x == null || y == null) v = x == null ? (y == null ? 0 : 1) : -1;
+      else v = r * (Number(x) - Number(y));
+      return v || ia - ib;
+    }).map(([s]) => s);
+  }
+  function adsZeigen() {
+    const el = $('#adsBody'); if (!el) return;
+    document.querySelectorAll('[data-adst]').forEach(b => { const an = Number(b.dataset.adst) === ADS.tage; b.classList.toggle('on', an); b.setAttribute('aria-pressed', an ? 'true' : 'false'); });
+    const nochmal = () => { const b = $('#adsNochmal'); if (b) b.onclick = () => { ADS.fehler = ''; adsZeigen(); adsLaden(ADS.tage); }; };
+    const c = ADS.d[ADS.tage], d = c && c.daten;
+    if (!d) {
+      el.innerHTML = '<div class="card">' + (ADS.fehler ? '<p class="empty" id="adsFehler">' + esc(ADS.fehler) + '</p><p style="text-align:center;margin:0"><button type="button" class="btn sec" id="adsNochmal">Erneut versuchen</button></p>' : '<p class="empty">Lade Kennzahlen …</p>') + '</div>';
+      return nochmal();
+    }
+    const g = d.gesamt || {}, w = d.waehrung, L = adsSortiert(d.situationen || []);
+    let h = '<p class="small muted" id="adsMeta" style="margin:2px 0 12px">' + esc(d.kampagne || 'Kampagne') + ' · letzte ' + esc(d.zeitraum_tage) + ' Tage' + (d.seit ? ' (seit ' + fmtDT(d.seit) + ')' : '') + ' · Stand ' + fmtDT(d.stand) + (ADS.laedt === ADS.tage ? ' · aktualisiere …' : '') + '</p>';
+    if (d.veraltet) h += '<div class="note warn" id="adsVeraltet" style="margin-bottom:12px">Die Datenquelle war gerade nicht erreichbar. Du siehst den letzten bekannten Stand.</div>';
+    else if (ADS.fehler) h += '<div class="note warn" id="adsFehler" style="margin-bottom:12px">' + esc(ADS.fehler) + ' Du siehst den Stand von ' + fmtDT(d.stand) + '. <button type="button" class="btn ghost" id="adsNochmal">Erneut versuchen</button></div>';
+    h += '<div class="dmini" id="adsKacheln">' + kpi(adsG(g.kosten, w), 'Kosten') + kpi(adsZ(g.klicks), 'Klicks') + kpi(adsP(g.ctr), 'CTR (Klickrate)') + kpi(adsG(g.cpc, w), 'CPC (Kosten pro Klick)') + kpi(adsZ(g.leads), 'Leads') + kpi(adsG(g.kosten_pro_lead, w), 'Kosten pro Lead') + '</div>' +
+      '<div class="card"><h2>Trichter</h2>' + adsTrichter(g) + '</div>' +
+      '<div class="card"><h2>Situationen <span class="muted small" style="font-weight:400">' + L.length + ' mit Impressionen</span></h2>' +
+      (L.length ? '<div class="tablewrap"><table class="small adst" id="adsTabelle"><thead><tr>' + ADS_SPALTEN.map(([k, l]) => '<th scope="col"' + (ADS.sort === k ? ' aria-sort="' + (ADS.ab ? 'descending' : 'ascending') + '"' : '') + '><button type="button" data-adss="' + k + '" title="Nach „' + esc(l) + '“ sortieren">' + esc(l) + (ADS.sort === k ? (ADS.ab ? ' ▼' : ' ▲') : '') + '</button></th>').join('') + '</tr></thead><tbody>' +
+        L.map(s => '<tr>' + ADS_SPALTEN.map(([k, , art]) => '<td>' + adsWert(art, s[k], w) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>'
+        : '<p class="empty" id="adsLeer">Noch hat keine Situation Impressionen. Sobald die Kampagne ausgeliefert wird, erscheinen die Situationen hier.</p>') + '</div>' +
+      (d.hinweis ? '<p class="dhint" id="adsHinweis">' + esc(d.hinweis) + '</p>' : '');
+    el.innerHTML = h;
+    el.querySelectorAll('[data-adss]').forEach(b => b.onclick = () => { const k = b.dataset.adss; if (ADS.sort === k) ADS.ab = !ADS.ab; else { ADS.sort = k; ADS.ab = k !== 'situation'; } adsZeigen(); const neu = el.querySelector('[data-adss="' + k + '"]'); if (neu) neu.focus(); });
+    nochmal();
+  }
+  function vWerbung() {
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>ChatGPT-Werbung</h1><p class="sub">Kennzahlen der Anzeigenkampagne in ChatGPT, von der Einblendung bis zum Termin.</p></div>' +
+      '<div class="seg" role="group" aria-label="Zeitraum">' + ADS_ZEITRAEUME.map(t => '<button type="button" data-adst="' + t + '">' + t + ' Tage</button>').join('') + '</div></div><div id="adsBody"></div>';
+    document.querySelectorAll('[data-adst]').forEach(b => b.onclick = () => { ADS.tage = Number(b.dataset.adst); ADS.fehler = ''; ls.set('mt-adstage', String(ADS.tage)); adsZeigen(); adsLaden(ADS.tage); });
+    ADS.fehler = ''; adsZeigen(); adsLaden(ADS.tage);
   }
 
   // ---------- Klassenbuch (TEMP-Kurs, aus Notion) ----------

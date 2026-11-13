@@ -11,6 +11,7 @@
 //   POST /api/team        Portal-API-Nachbildung (nur aktion laden)
 //   POST /api/vertrieb    Vertriebs-API-Nachbildung (liste, details, notiz, kontakt_suchen, speichern, stufe) mit synthetischen Chancen
 //   POST /api/diktat      Diktat-API-Nachbildung (multipart: datei, token, …) mit festem Beispieltext statt OpenAI
+//   POST /api/werbung     Nachbildung von „TEAM: ChatGPT-Werbung (Portal)“ { token, daten: { tage } } mit Musterdaten; Szenario per POST /api/test/werbung {szenario}
 //   GET  /api/test/zustand, POST /api/test/zeit {sek}, POST /api/test/wartung, POST /api/test/neustart, POST /api/test/reset {szenario}
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -20,6 +21,7 @@ import { testSpeicher, TOKENS, tokenVonAgent } from './testdaten.mjs';
 import { Speicher, zufallsQuelle } from './speicher.mjs';
 import { TestAdapter } from '../adapter/test.js';
 import { vertriebDaten, vertriebAntwort, multipartLesen, diktatAntwortMock } from '../../vertrieb/dev/mock.mjs';
+import { werbungAntwortMock, werbungZustand, SZENARIEN as WERBUNG_SZENARIEN } from '../../werbung/dev/mock.mjs';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const DOCS = resolve(hier, '..', '..', 'docs');
@@ -31,6 +33,7 @@ let szenario = arg('szenario', 'standard');
 
 let welt = testSpeicher({ szenario });
 let VD = vertriebDaten(Date.now());
+let WZ = werbungZustand();
 const WARTUNG_ALLE_SEK = 300;
 let naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000;
 const wartung = () => welt.speicher.aufruf({ aktion: 'wartung', intern: true });
@@ -87,14 +90,20 @@ const server = createServer(async (req, res) => {
       const [code, antwort] = diktatAntwortMock(mp, welt.speicher.T.team_mitglieder, welt.uhr.ms);
       return json(res, code, antwort);
     }
+    if (url.pathname === '/api/werbung' && req.method === 'POST') {
+      const b = await body(req);
+      const [code, antwort] = werbungAntwortMock(b, welt.speicher.T.team_mitglieder, WZ, Date.now());
+      return json(res, code, antwort);
+    }
     if (url.pathname.startsWith('/api/test/')) {
       const was = url.pathname.slice('/api/test/'.length);
-      if (was === 'zustand') return json(res, 200, { ok: true, szenario, jetzt: welt.uhr.iso(), tempo: TEMPO, tabellen: welt.speicher.T, externe: welt.speicher.externe, ausgefuehrt: welt.adapter.ausgefuehrt, protokoll: welt.speicher.protokoll.slice(-50), tokens: TOKENS });
+      if (was === 'zustand') return json(res, 200, { ok: true, szenario, jetzt: welt.uhr.iso(), tempo: TEMPO, tabellen: welt.speicher.T, externe: welt.speicher.externe, ausgefuehrt: welt.adapter.ausgefuehrt, werbung: { szenario: WZ.szenario, abrufe: WZ.abrufe, tage: WZ.tage }, protokoll: welt.speicher.protokoll.slice(-50), tokens: TOKENS });
       if (req.method !== 'POST') return json(res, 405, { ok: false });
       const b = await body(req);
       if (was === 'zeit') { zeitVor(Math.max(0, Number(b.sek) || 0)); return json(res, 200, { ok: true, jetzt: welt.uhr.iso() }); }
       if (was === 'wartung') { welt.adapter.laufen(); const r = wartung(); return json(res, r.code, r.antwort); }
       if (was === 'neustart') { const r = neustart(); return json(res, 200, { ok: true, wartung: r.antwort }); }
+      if (was === 'werbung') { WZ = werbungZustand(); if (WERBUNG_SZENARIEN.includes(b.szenario)) WZ.szenario = b.szenario; return json(res, 200, { ok: true, szenario: WZ.szenario }); }
       if (was === 'reset') { szenario = b.szenario === 'leer' ? 'leer' : 'standard'; welt = testSpeicher({ szenario }); VD = vertriebDaten(Date.now()); naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000; return json(res, 200, { ok: true, szenario }); }
       return json(res, 404, { ok: false });
     }
