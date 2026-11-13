@@ -51,7 +51,9 @@ const cfg = {}; for (const i of $('Bot-Wissen laden').all()) if (i.json && i.jso
 const PROMPT = cfg.wa_prompt, WISSEN = cfg.wa_wissen;
 if (!PROMPT || !WISSEN) throw new Error('Bot-Wissen fehlt in kom_einstellungen. Workflow „KOM: Bot-Wissen laden“ ausführen.');
 const W = $('Weg bestimmen').first().json;
-if (W.eingang && W.eingang.erstkontakt && istKurzgruss(W.nachricht.text)) return [{ json: { nur_begruessung: true, payload: begruessung(W.wa) } }];
+// Erstkontakt: A = nur Gruß, C = neutraler Webseiten-Text → feste Antwort; B = Anliegen → KI mit Regel „Erste Antwort“
+const fall = erstkontaktFall(W.eingang, W.nachricht);
+if (fall === 'A' || fall === 'C') return [{ json: { nur_begruessung: true, fall, payload: begruessung(W.wa, fall) } }];
 return [{ json: { nur_begruessung: false, body: kundenAnfrage(PROMPT, WISSEN, { nachricht: W.nachricht, eingang: W.eingang, konv: W.konv, verlauf: W.verlauf }) } }];`;
 
 const JS_BEGRUESSUNG = `return [{ json: $('Kunde vorbereiten').first().json.payload }];`;
@@ -61,7 +63,7 @@ const JS_PRUEFEN = `${LIB}
 const W = $('Weg bestimmen').first().json;
 const r = $input.first().json || {};
 const ok = Number(r.statusCode || 0) >= 200 && Number(r.statusCode || 0) < 300;
-const p = antwortPruefen(ok ? r.body : null, W.wa);
+const p = antwortPruefen(ok ? r.body : null, W.wa, !!(W.eingang && W.eingang.erstkontakt));
 if (!ok) p.meta.pruefung = 'ki_fehler_' + (r.statusCode || 'unbekannt');
 return [{ json: p }];`;
 
@@ -367,11 +369,24 @@ const DEPLOY = {
   ]
 };
 
-export { CRM, JS_NACHBEREITUNG, CRM_KNOTEN, CRM_VERBINDUNGEN, DEPLOY, EINSTELLUNGEN, KONV_LADEN_URL, jsonWert, sdk };
+// Erstnachricht (13.11.2026): nur die Code-Knoten, in die antwort.js eingebettet ist. Bezug: Live-Stand NACH der CRM-Übergabe.
+// „Einstellungen“ bleibt unberührt (live steht dort crm_test). Behavior-Änderung nur in „Kunde vorbereiten“ und „Antwort prüfen“;
+// die übrigen vier bekommen nur die neue eingebettete Bibliothek, damit Live und Repo zeichengleich bleiben.
+const LIB_KNOTEN = { 'Weg bestimmen': JS_WEG, 'Kunde vorbereiten': JS_KUNDE, 'Antwort prüfen': JS_PRUEFEN, 'Team-Frage': JS_TEAMFRAGE, 'Senden vorbereiten': JS_SENDEN, 'Versand auswerten': JS_AUSWERTEN };
+const ERSTNACHRICHT_DEPLOY = {
+  workflowId: 'DVGX3cltu2qbqLJE',
+  versionName: 'Erstnachricht kürzer, Fall A/B/C (PR #71)',
+  hinweis: 'Erzeugt von kommunikation/n8n/bauen-antwort.mjs. Vorher den neuen Prompt per „KOM: Bot-Wissen laden (manuell)“ laden. Siehe KOM_Erstnachricht_Deployment.md.',
+  operations: Object.entries(LIB_KNOTEN).map(([nodeName, value]) => ({ type: 'setNodeParameter', nodeName, path: '/jsCode', value }))
+};
+
+export { CRM, LIB, LIB_KNOTEN, JS_NACHBEREITUNG, JS_KUNDE, JS_PRUEFEN, CRM_KNOTEN, CRM_VERBINDUNGEN, DEPLOY, ERSTNACHRICHT_DEPLOY, EINSTELLUNGEN, KONV_LADEN_URL, jsonWert, sdk };
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   writeFileSync(join(hier, 'wa-antwort.workflow.gen.js'), sdk);
   writeFileSync(join(hier, 'wa-antwort.crm-deploy.json'), JSON.stringify(DEPLOY, null, 2) + '\n');
+  writeFileSync(join(hier, 'wa-antwort.erstnachricht-deploy.json'), JSON.stringify(ERSTNACHRICHT_DEPLOY, null, 2) + '\n');
+  console.log('geschrieben: kommunikation/n8n/wa-antwort.erstnachricht-deploy.json', ERSTNACHRICHT_DEPLOY.operations.length, 'Operationen');
   console.log('geschrieben: kommunikation/n8n/wa-antwort.workflow.gen.js', sdk.length, 'Zeichen');
   console.log('geschrieben: kommunikation/n8n/wa-antwort.crm-deploy.json', DEPLOY.operations.length, 'Operationen');
 }
