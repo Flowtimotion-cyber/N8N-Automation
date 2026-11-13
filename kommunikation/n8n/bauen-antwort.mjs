@@ -157,26 +157,34 @@ const CRM_KNOTEN = [
   codeKnoten('crmPersonWaehlen', 'Person wählen', `${CRM}
 const PL = ${P};
 return [{ json: crmPersonSchritt($input.first().json, PL.wa, PL.name, PL.person_id) }];`),
-  twentyKnoten('crmPersonSpeichern', 'Twenty: Person speichern', X('{{ $json.methode }}'), X(`${TWENTY}{{ $json.pfad }}`), X('{{ JSON.stringify($json.body || {}) }}')),
+  wennKnoten('crmPersonNeu', 'Person neu?', '{{ $json.person_neu }}'),
+  // nur für neue Personen (immer POST mit Body); vorhandene Personen werden nicht angefasst
+  twentyKnoten('crmPersonSpeichern', 'Twenty: Person speichern', 'POST', `${TWENTY}people`, X('{{ JSON.stringify($json.body) }}')),
   codeKnoten('crmPersonUebernehmen', 'Person übernehmen', `${CRM}
-return [{ json: crmPersonUebernehmen($input.first().json) }];`),
+const S = $('Person wählen').first().json;
+return [{ json: crmPersonUebernehmen(S.person_neu ? $input.first().json : null, S.person_neu ? '' : S.person_id) }];`),
   twentyKnoten('crmChancenLaden', 'Twenty: Chancen der Person', 'GET', X(`${TWENTY}{{ $json.pfad }}`)),
   codeKnoten('crmChanceWaehlen', 'Chance wählen', `${CRM}
 const PL = ${P};
 const person_id = $('Person übernehmen').first().json.person_id;
 return [{ json: { person_id, ...crmChanceSchritt($input.first().json, { name: PL.name, test: PL.test, person_id, jetzt: PL.jetzt }) } }];`),
-  twentyKnoten('crmChanceSpeichern', 'Twenty: Chance speichern', X('{{ $json.methode }}'), X(`${TWENTY}{{ $json.pfad }}`), X('{{ JSON.stringify($json.body || {}) }}')),
+  // Methode per Ausdruck, aber nur POST (neu) oder PATCH (wiedergefunden) – beide immer mit Body, nie GET
+  twentyKnoten('crmChanceSpeichern', 'Twenty: Chance speichern', X('{{ $json.methode }}'), X(`${TWENTY}{{ $json.pfad }}`), X('{{ JSON.stringify($json.body) }}')),
   codeKnoten('crmNotizBauen', 'Notiz bauen', `${CRM}
 const C = $('Chance wählen').first().json;
 const chance_id = crmNeueId($input.first().json) || C.chance_id;
 if (!chance_id) throw new Error('Twenty hat keine Chancen-ID geliefert.');
-return [{ json: { chance_id, chance_neu: C.chance_neu, person_id: C.person_id, body: ${P}.notiz_body } }];`),
+return [{ json: { chance_id, chance_neu: C.chance_neu, person_id: C.person_id, body: ${P}.notiz_body, notizen_pfad: crmNotizenPfad(chance_id) } }];`),
+  // Notiz nur an eine in diesem Lauf NEU angelegte Chance; bei wiedergefundener Chance die vorhandene Bot-Notiz suchen
+  wennKnoten('crmChanceNeu', 'Chance neu?', '{{ $json.chance_neu }}'),
   twentyKnoten('crmNotizAnlegen', 'Twenty: Notiz anlegen', 'POST', `${TWENTY}notes`, X('{{ JSON.stringify($json.body) }}')),
   twentyKnoten('crmNotizVerknuepfen', 'Twenty: Notiz verknüpfen', 'POST', `${TWENTY}noteTargets`, X("{{ JSON.stringify({ noteId: (Object.values($json.data || {})[0] || {}).id, targetOpportunityId: $('Notiz bauen').first().json.chance_id }) }}")),
+  twentyKnoten('crmNotizenLaden', 'Twenty: Notizen der Chance', 'GET', X(`${TWENTY}{{ $json.notizen_pfad }}`)),
   codeKnoten('crmErgebnisKnoten', 'CRM-Ergebnis', `${CRM}
 const B = $('Notiz bauen').first().json;
 const PL = ${P};
-return [{ json: crmErgebnis({ person_id: B.person_id, chance_id: B.chance_id, chance_neu: B.chance_neu, notiz_id: crmNeueId($('Twenty: Notiz anlegen').first().json), jetzt: PL.jetzt, plan: PL }) }];`),
+const notiz_id = B.chance_neu ? crmNeueId($('Twenty: Notiz anlegen').first().json) : crmNotizFinden($input.first().json);
+return [{ json: crmErgebnis({ person_id: B.person_id, chance_id: B.chance_id, chance_neu: B.chance_neu, notiz_id, jetzt: PL.jetzt, plan: PL }) }];`),
   supaPatch('crmStandSpeichern', 'CRM-Stand speichern'),
   wennKnoten('crmNeuPruefen', 'Neu in der Pipeline?', "{{ $('CRM-Ergebnis').first().json.neu }}"),
   { v: 'crmTelegram', name: 'Telegram: neuer Pipeline-Kontakt', typ: 'node', type: 'n8n-nodes-base.telegram', version: 1.2, settings: { onError: 'continueRegularOutput' },
@@ -202,11 +210,16 @@ const CRM_VERBINDUNGEN = [
   ['Konversation aktualisieren', 0, 'CRM-Übergabe?'],
   ['CRM-Übergabe?', 0, 'Twenty: Person suchen'],
   ['CRM-Übergabe?', 1, 'Twenty: Chance fortschreiben'],
-  ...[['Twenty: Person suchen', 'Person wählen'], ['Person wählen', 'Twenty: Person speichern'], ['Twenty: Person speichern', 'Person übernehmen'],
+  ...[['Twenty: Person suchen', 'Person wählen'], ['Person wählen', 'Person neu?'], ['Twenty: Person speichern', 'Person übernehmen'],
     ['Person übernehmen', 'Twenty: Chancen der Person'], ['Twenty: Chancen der Person', 'Chance wählen'], ['Chance wählen', 'Twenty: Chance speichern'],
-    ['Twenty: Chance speichern', 'Notiz bauen'], ['Notiz bauen', 'Twenty: Notiz anlegen'], ['Twenty: Notiz anlegen', 'Twenty: Notiz verknüpfen'],
-    ['Twenty: Notiz verknüpfen', 'CRM-Ergebnis'], ['CRM-Ergebnis', 'CRM-Stand speichern'], ['Twenty: Chance fortschreiben', 'Zusammenfassung neu?']]
+    ['Twenty: Chance speichern', 'Notiz bauen'], ['Notiz bauen', 'Chance neu?'], ['Twenty: Notiz anlegen', 'Twenty: Notiz verknüpfen'],
+    ['Twenty: Notiz verknüpfen', 'CRM-Ergebnis'], ['Twenty: Notizen der Chance', 'CRM-Ergebnis'], ['CRM-Ergebnis', 'CRM-Stand speichern'],
+    ['Twenty: Chance fortschreiben', 'Zusammenfassung neu?']]
     .flatMap(([a, b]) => [[a, 0, b], [a, 1, FEHLER]]),
+  ['Person neu?', 0, 'Twenty: Person speichern'],
+  ['Person neu?', 1, 'Person übernehmen'],
+  ['Chance neu?', 0, 'Twenty: Notiz anlegen'],
+  ['Chance neu?', 1, 'Twenty: Notizen der Chance'],
   ['Twenty: Notiz fortschreiben', 1, FEHLER],
   ['CRM-Stand speichern', 0, 'Neu in der Pipeline?'],
   ['Neu in der Pipeline?', 0, 'Telegram: neuer Pipeline-Kontakt'],
@@ -242,8 +255,12 @@ const knotenEinstellungen = k => Object.keys(k.settings || {}).length ? [{ type:
 const VAR = Object.fromEntries(CRM_KNOTEN.map(k => [k.name, k.v]));
 VAR['Konversation aktualisieren'] = 'konvAkt';
 const TYP = Object.fromEntries(CRM_KNOTEN.map(k => [k.name, k.typ]));
-const verbindungSdk = ([a, i, b]) => {
-  if (TYP[a] === 'if') return `.add(${VAR[a]}.${i === 0 ? 'onTrue' : 'onFalse'}(${VAR[b]}))`;
+const verbindungSdk = ([a, i, b], n) => {
+  if (TYP[a] === 'if') {
+    // beide Zweige eines If in einem Aufruf (onTrue/onFalse), nur beim ersten Vorkommen ausgeben
+    if (CRM_VERBINDUNGEN.findIndex(([s]) => s === a) !== n) return '';
+    return `.add(${VAR[a]}` + CRM_VERBINDUNGEN.filter(([s]) => s === a).map(([, j, z]) => `.${j === 0 ? 'onTrue' : 'onFalse'}(${VAR[z]})`).join('') + ')';
+  }
   if (TYP[a] === 'switch') return '';
   if (TYP[b] === 'switch') {
     const faelle = CRM_VERBINDUNGEN.filter(([s]) => s === b).map(([, j, z]) => `.onCase(${j}, ${VAR[z]})`).join('');

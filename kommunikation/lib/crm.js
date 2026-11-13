@@ -73,17 +73,20 @@ export function crmPersonBody(kontaktName, waId) {
   return b;
 }
 
-/** Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen. */
+/**
+ * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.
+ * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.
+ */
 export function crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {
   const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));
   const treffer = L.find(p => p.id === bekannteId) || L[0];
-  if (treffer) return { person_neu: false, person_id: treffer.id, methode: 'GET', pfad: 'people/' + treffer.id, body: {} };
+  if (treffer) return { person_neu: false, person_id: treffer.id };
   return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };
 }
 
-/** Nach dem Speichern der Person: ID lesen und die Chancen dieser Person abfragen. */
-export function crmPersonUebernehmen(antwort) {
-  const id = crmNeueId(antwort);
+/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */
+export function crmPersonUebernehmen(antwort, vorhandeneId) {
+  const id = vorhandeneId || crmNeueId(antwort);
   if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');
   return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };
 }
@@ -105,6 +108,17 @@ export function crmChanceSchritt(antwort, e) {
   const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));
   if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };
   return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };
+}
+
+/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */
+export function crmNotizenPfad(chanceId) {
+  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;
+}
+
+/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */
+export function crmNotizFinden(antwort) {
+  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);
+  return L.length ? L[0].id : null;
 }
 
 /** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */

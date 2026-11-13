@@ -40,15 +40,20 @@ function anlegenDurchspielen(plan, twenty) {
   const http = (name, methode, pfad, body) => { aufrufe.push({ name, methode, pfad, body }); const r = twenty(methode, pfad, body); d[name] = r; return r; };
   let r = http('Twenty: Person suchen', 'GET', plan.person_pfad);
   d['Person wählen'] = lauf(js('Person wählen'), d, r);
-  r = http('Twenty: Person speichern', d['Person wählen'].methode, d['Person wählen'].pfad, d['Person wählen'].body);
+  // „Person neu?“: nur neue Personen laufen über den Speicher-Knoten (POST mit Body)
+  if (d['Person wählen'].person_neu) r = http('Twenty: Person speichern', knoten('Twenty: Person speichern').parameters.method, 'people', d['Person wählen'].body);
+  else r = d['Person wählen'];
   d['Person übernehmen'] = lauf(js('Person übernehmen'), d, r);
   r = http('Twenty: Chancen der Person', 'GET', d['Person übernehmen'].pfad);
   d['Chance wählen'] = lauf(js('Chance wählen'), d, r);
   r = http('Twenty: Chance speichern', d['Chance wählen'].methode, d['Chance wählen'].pfad, d['Chance wählen'].body);
   d['Notiz bauen'] = lauf(js('Notiz bauen'), d, r);
-  r = http('Twenty: Notiz anlegen', 'POST', 'notes', d['Notiz bauen'].body);
-  http('Twenty: Notiz verknüpfen', 'POST', 'noteTargets', { noteId: crmNeueId(r), targetOpportunityId: d['Notiz bauen'].chance_id });
-  d['CRM-Ergebnis'] = lauf(js('CRM-Ergebnis'), d, {});
+  // „Chance neu?“: Notiz nur an neue Chancen, sonst vorhandene Bot-Notiz suchen
+  if (d['Notiz bauen'].chance_neu) {
+    r = http('Twenty: Notiz anlegen', 'POST', 'notes', d['Notiz bauen'].body);
+    r = http('Twenty: Notiz verknüpfen', 'POST', 'noteTargets', { noteId: crmNeueId(r), targetOpportunityId: d['Notiz bauen'].chance_id });
+  } else r = http('Twenty: Notizen der Chance', 'GET', d['Notiz bauen'].notizen_pfad);
+  d['CRM-Ergebnis'] = lauf(js('CRM-Ergebnis'), d, r);
   return { ergebnis: d['CRM-Ergebnis'], aufrufe };
 }
 
@@ -70,6 +75,11 @@ function twentyImSpeicher() {
       const pid = filter.split(':')[1];
       return { data: { opportunities: db.opportunities.filter(o => o.pointOfContactId === pid) } };
     }
+    if (methode === 'GET' && obj === 'noteTargets') {
+      const oid2 = filter.split(':')[1];
+      return { data: { noteTargets: db.noteTargets.filter(t => t.targetOpportunityId === oid2).map(t => ({ ...t, note: db.notes.find(n => n.id === t.noteId) })) } };
+    }
+    if (methode === 'GET') throw new Error('GET ohne Handler: ' + pfad);
     if (methode === 'POST') { const x = { id: id(), ...body }; db[obj].push(x); return { data: { ['create' + obj]: x } }; }
     if (methode === 'PATCH') { const x = db[obj].find(y => y.id === oid); Object.assign(x, body); return { data: { ['update' + obj]: x } }; }
     throw new Error('unbekannt ' + methode + ' ' + pfad);
@@ -181,7 +191,8 @@ test('Zweite Nachricht → fortschreiben, keine zweite Chance', () => {
 test('Vorhandene Person (gleiche Telefonnummer) wird wiederverwendet', () => {
   const tw = twentyImSpeicher();
   tw.fn('POST', 'people', { name: { firstName: 'Erika', lastName: 'M.' }, phones: { primaryPhoneNumber: '15112345678', primaryPhoneCallingCode: '+49' } });
-  anlegenDurchspielen(crmPlan({ W: W(), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT }), tw.fn);
+  const { aufrufe } = anlegenDurchspielen(crmPlan({ W: W(), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT }), tw.fn);
+  assert.equal(aufrufe.filter(a => a.name === 'Twenty: Person speichern').length, 0, 'bekannte Person → kein Speicher-Aufruf');
   assert.equal(tw.db.people.length, 1);
   assert.equal(tw.db.people[0].name.lastName, 'M.', 'vorhandene Person wird nicht überschrieben');
   assert.equal(tw.db.opportunities[0].pointOfContactId, tw.db.people[0].id);
@@ -226,6 +237,42 @@ test('Twenty-Fehler → Antwort geht trotzdem raus, Fehler vermerkt, Wiederholun
   assert.equal(tw.db.opportunities.length, 1);
   assert.equal(r3.ergebnis.neu, false, 'kein zweites Telegram');
   assert.equal(r3.aufrufe.find(a => a.name === 'Twenty: Chance speichern').methode, 'PATCH');
+  assert.equal(tw.db.notes.length, 1, 'keine zweite Notiz');
+  assert.equal(r3.ergebnis.patch.crm_notiz_id, tw.db.notes[0].id, 'vorhandene Bot-Notiz wird übernommen');
+});
+
+test('Ohne gespeicherte IDs (SQL fehlt / CRM-Stand speichern scheitert): weitere Nachrichten → keine neue Notiz, kein neues Telegram', () => {
+  const tw = twentyImSpeicher();
+  const r1 = anlegenDurchspielen(crmPlan({ W: W(), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT }), tw.fn);
+  assert.equal(r1.ergebnis.neu, true);
+  for (let i = 0; i < 3; i++) {
+    // kom_konversationen kennt keine IDs → jedes Mal „anlegen“
+    const plan = crmPlan({ W: W({ modus: 'ki' }), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT });
+    assert.equal(plan.aktion, 'anlegen');
+    const r = anlegenDurchspielen(plan, tw.fn);
+    assert.equal(r.ergebnis.neu, false); assert.equal(r.ergebnis.telegram, '');
+    assert.ok(!r.aufrufe.some(a => a.name === 'Twenty: Notiz anlegen' || a.name === 'Twenty: Person speichern'));
+  }
+  assert.equal(tw.db.people.length, 1); assert.equal(tw.db.opportunities.length, 1); assert.equal(tw.db.notes.length, 1); assert.equal(tw.db.noteTargets.length, 1);
+});
+
+test('Kein GET mit Body: Methoden-Ausdrücke nur POST/PATCH, GET-Knoten ohne sendBody', () => {
+  for (const k of CRM_KNOTEN.filter(k => k.type === 'n8n-nodes-base.httpRequest' && k.name.startsWith('Twenty:'))) {
+    const m = k.parameters.method;
+    if (m === 'GET') assert.equal(k.parameters.sendBody, undefined, k.name + ': GET ohne Body');
+    else if (typeof m === 'string') assert.ok(['POST', 'PATCH'].includes(m), k.name);
+    else assert.equal(k.name, 'Twenty: Chance speichern', 'Methoden-Ausdruck nur dort: ' + k.name);
+  }
+  // „Chance wählen“ liefert für den Ausdruck nur POST oder PATCH, immer mit Body
+  for (const opps of [[], [{ id: 'o', name: 'WhatsApp: X' }]]) {
+    const s = crmChanceSchritt({ data: { opportunities: opps } }, { name: 'X', person_id: 'p', jetzt: JETZT });
+    assert.ok(['POST', 'PATCH'].includes(s.methode)); assert.ok(s.body && Object.keys(s.body).length);
+  }
+  // Durchspiel: bekannte Person, wiedergefundene Chance → kein einziger GET mit Body
+  const tw = twentyImSpeicher();
+  anlegenDurchspielen(crmPlan({ W: W(), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT }), tw.fn);
+  const { aufrufe } = anlegenDurchspielen(crmPlan({ W: W(), E: E0, V: { ok: true }, p: KUNDE, jetzt: JETZT }), tw.fn);
+  assert.deepEqual(aufrufe.filter(a => a.methode === 'GET' && a.body !== undefined), []);
 });
 
 test('Kein Chattext im CRM-Payload', () => {
@@ -253,7 +300,8 @@ test('Hilfsfunktionen: IDs, Personen-/Chancenwahl, Fehlertext', () => {
   assert.equal(crmNeueId({ data: { people: [] } }), '');
   assert.throws(() => crmPersonUebernehmen({ data: {} }), /keine Personen-ID/);
   const s = crmPersonSchritt({ data: { people: [{ id: 'a', phones: { primaryPhoneNumber: '15112345678', primaryPhoneCallingCode: '+49' } }, { id: 'b', phones: { primaryPhoneNumber: '15112345678', primaryPhoneCallingCode: '+49' } }] } }, WA, 'X', 'b');
-  assert.equal(s.person_id, 'b'); assert.equal(s.methode, 'GET');
+  assert.deepEqual(s, { person_neu: false, person_id: 'b' }, 'vorhandene Person: kein Methoden-/Body-Auftrag');
+  assert.equal(crmPersonUebernehmen(null, 'b').person_id, 'b');
   const c = crmChanceSchritt({ data: { opportunities: [{ id: 'o1', name: 'Förder-Check: Firma' }] } }, { name: 'Erika', person_id: 'a', jetzt: JETZT });
   assert.equal(c.chance_neu, true, 'andere Chance der Person (z. B. Leadmagnet) bleibt unberührt');
   assert.equal(crmChanceSchritt({ data: { opportunities: [{ id: 'o2', name: 'TEST WhatsApp: Timo' }] } }, { jetzt: JETZT }).chance_id, 'o2');
