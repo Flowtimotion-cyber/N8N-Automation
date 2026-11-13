@@ -70,7 +70,8 @@ test('WhatsApp-Nachrichten und Versandauswertung', () => {
   const g = waNachricht(begruessung('491'));
   assert.equal(g.type, 'interactive');
   assert.equal(g.interactive.action.buttons.length, 2);
-  assert.equal(g.interactive.action.buttons[1].reply.title, 'Mitarbeiterschulung');
+  assert.equal(g.interactive.action.buttons[0].reply.title, 'KI-System im Betrieb');
+  assert.equal(g.interactive.action.buttons[1].reply.title, 'Geförderte Schulung');
   assert.ok(g.interactive.body.text.length <= 1024);
   const t = waNachricht({ to: '491', text: 'Hallo', buttons: [] });
   assert.deepEqual(t.text, { preview_url: true, body: 'Hallo' });

@@ -4,20 +4,80 @@
 const BUCHUNG_KARSTEN = 'https://api.leadconnectorhq.com/widget/bookings/beratung-momentum-ki-akademie';
 const DATENSCHUTZ = 'momentum-ki-akademie.de/datenschutz';
 
-export const BEGRUESSUNG =
-  'Hallo und willkommen bei HermetikFlow! 👋 Ich bin der digitale KI-Assistent der *Momentum KI Akademie* und von *Hermetik Marketing*.\n\n' +
-  'Worum geht es dir?\n' +
-  '• *Umsetzung:* KI-Agenten und Automatisierung für dein Unternehmen\n' +
-  '• *Mitarbeiterschulung:* geförderte KI-Weiterbildung für dein Team\n\n' +
-  'Oder schreib einfach deine Frage. Ein Termin oder ein Mensch aus dem Team ist jederzeit möglich.\n\n' +
-  'Datenschutz: ' + DATENSCHUTZ;
+// Erste Antwort, Endfassung nach Textprüfung (KOM_Erstnachricht_Entwurf.md, freigegeben von Timo am 13.11.2026)
+export const DATENSCHUTZ_ZEILE = 'Datenschutz: ' + DATENSCHUTZ;
 
-/** Nur ein Gruß ohne Anliegen? Dann reicht die Begrüßung mit den zwei Wegen. */
+/** Fall A: erste Nachricht ist nur ein Gruß, kein Anliegen. */
+export const BEGRUESSUNG =
+  'Hi 👋 Ich bin der KI-Assistent der Momentum KI Akademie und von Hermetik Marketing. Ich beantworte dir gern Fragen zu KI im Betrieb und zur Mitarbeiterförderung. Worum geht\'s?\n\n' +
+  DATENSCHUTZ_ZEILE;
+
+/** Fall C: WhatsApp-Knopf der Webseite mit neutralem vorbelegtem Text (ohne Thema). */
+export const BEGRUESSUNG_WEBSEITE =
+  'Hi, ich bin der KI-Assistent der Momentum KI Akademie und von Hermetik Marketing. Geht es dir um geförderte Schulung fürs Team oder um ein KI-System für deinen Betrieb?\n\n' +
+  DATENSCHUTZ_ZEILE;
+
+/** Knöpfe der Begrüßung (je höchstens 20 Zeichen). Alte Knöpfe aus laufenden Gesprächen: „Umsetzung“, „Mitarbeiterschulung“. */
+export const KNOEPFE = ['KI-System im Betrieb', 'Geförderte Schulung'];
+
+/**
+ * Neutrale Vorbelegungstexte von WhatsApp-Knöpfen auf Webseiten (Fall C), klein geschrieben, ohne Satzzeichen.
+ * Stand 13.11.2026 auf momentum-ki-akademie.de: Beide Knöpfe mit Text nennen schon ein Thema
+ * („… interessiere mich für die KI-Weiterbildung“, „… möchte direkt mit Timo Kontakt aufnehmen“) und laufen deshalb als Fall B.
+ * Neue neutrale Knopf-Texte hier ergänzen.
+ */
+export const NEUTRALE_VORBELEGUNGEN = [
+  'hallo ich komme von der website',
+  'hallo ich komme von der webseite',
+  'hallo ich komme von eurer website',
+  'hallo ich komme von eurer webseite',
+  'hallo ich komme von ihrer website',
+  'hallo ich komme von ihrer webseite',
+  'ich komme von der website',
+  'ich komme von der webseite'
+];
+
+const ohneZeichen = text => String(text || '').toLowerCase()
+  .replace(/[\p{Extended_Pictographic}\u{1F3FB}-\u{1F3FF}‍️]/gu, ' ')
+  .replace(/[!.?,;:…\-–—()"'“”„*_~]+/g, ' ')
+  .replace(/\s+/g, ' ').trim();
+
+const GRUSS = '(hi+|hii+|hallo+|hallöchen|halli hallo|hello|hey+|huhu|moin( moin)?|servus|grüß gott|grüss gott|gruess gott|grüezi|grüß dich|grüss dich|guten (tag|morgen|abend)|gute?n? morgen|tach|tag|na|yo|salut|ciao|test( \\d+)?|info|infos)';
+const GRUSS_RE = new RegExp('^' + GRUSS + '( ' + GRUSS + ')*( (zusammen|leute|team|ihr|timo|karsten))?$');
+
+/** Nur ein Gruß ohne Anliegen (auch nur Emojis)? Dann Fall A: feste Begrüßung mit den zwei Knöpfen. */
 export function istKurzgruss(text) {
-  const t = String(text || '').trim().toLowerCase().replace(/[!.?,😊👋🙂]+/gu, '').trim();
+  const t = ohneZeichen(text);
   if (t.length === 0) return true;
-  if (t.length > 30) return false;
-  return /^(hi|hallo+|hey|moin( moin)?|servus|grüß gott|gruess gott|guten (tag|morgen|abend)|hello|test( \d+)?|info|infos)$/.test(t);
+  if (t.length > 40) return false;
+  return GRUSS_RE.test(t);
+}
+
+/** Neutraler vorbelegter Text vom WhatsApp-Knopf einer Webseite (Fall C)? */
+export function istNeutraleVorbelegung(text) {
+  return NEUTRALE_VORBELEGUNGEN.includes(ohneZeichen(text));
+}
+
+/**
+ * Welche erste Antwort? '' = kein Erstkontakt (normales Gespräch),
+ * 'A' = nur Gruß → feste Begrüßung, 'C' = neutraler Webseiten-Text → fester Text, 'B' = Anliegen → KI mit Regel „Erste Antwort“.
+ * Sprachnachrichten, Bilder, Dokumente gelten als Anliegen (B).
+ */
+export function erstkontaktFall(eingang, nachricht) {
+  if (!(eingang && eingang.erstkontakt)) return '';
+  const n = nachricht || {};
+  const typ = n.typ || 'text';
+  const nurText = ['text', 'interactive', 'button', 'reaction', 'sticker'].includes(typ);
+  if (nurText && istKurzgruss(n.text)) return 'A';
+  if (nurText && istNeutraleVorbelegung(n.text)) return 'C';
+  return 'B';
+}
+
+/** Datenschutz-Zeile als eigene letzte Zeile anhängen, falls sie fehlt (nie doppelt). */
+export function mitDatenschutz(text) {
+  const t = String(text || '').trimEnd();
+  if (t.toLowerCase().includes(DATENSCHUTZ)) return t;
+  return t + '\n\n' + DATENSCHUTZ_ZEILE;
 }
 
 /** Text, den die KI für eine Nachricht sieht (auch bei Medien ohne Text). */
@@ -66,7 +126,7 @@ export function kundenAnfrage(promptVorlage, wissen, e) {
     kanal: 'WhatsApp',
     kontakt_name: n.kontakt_name || 'unbekannt',
     erstkontakt: erst
-      ? 'ja – das ist die erste Nachricht. Stell dich am Anfang in einem kurzen Satz als KI-Assistent von HermetikFlow (Momentum KI Akademie & Hermetik Marketing) vor und nenne am Ende den Datenschutzhinweis ' + DATENSCHUTZ + '.'
+      ? 'ja – das ist die erste Nachricht des Leads, es gab noch keine Begrüßung. Befolge die Regel „Erste Antwort“ und setz als eigene letzte Zeile: „' + DATENSCHUTZ_ZEILE + '“.'
       : 'nein',
     marke: (e.konv && e.konv.marke) || 'offen',
     verlauf: '(siehe Chatverlauf)'
@@ -79,8 +139,8 @@ export function kundenAnfrage(promptVorlage, wissen, e) {
 
 const PREIS = /(\d[\d.,]*\s?(€|eur\b|euro))|((€|eur)\s?\d)/i;
 
-/** Antwort des Modells prüfen und in eine sendefertige Nachricht verwandeln. */
-export function antwortPruefen(roh, wa) {
+/** Antwort des Modells prüfen und in eine sendefertige Nachricht verwandeln. erst = erste Antwort (Fall B): Datenschutz-Zeile absichern. */
+export function antwortPruefen(roh, wa, erst) {
   let a = {};
   try {
     const c = roh && roh.choices && roh.choices[0] && roh.choices[0].message ? roh.choices[0].message.content : '';
@@ -105,14 +165,16 @@ export function antwortPruefen(roh, wa) {
     meta.pruefung = 'preis_entfernt';
   }
   if (text.length > 1500) text = text.slice(0, 1500).replace(/\s+\S*$/, '') + ' …';
+  if (erst) text = mitDatenschutz(text);
   let buttons = Array.isArray(a.buttons) ? a.buttons.map(b => String(b || '').trim()).filter(b => b && b.length <= 20).slice(0, 3) : [];
   if (text.length > 1024) buttons = [];
   return { art: 'kunde', to: wa, text, buttons, meta };
 }
 
-/** Begrüßung mit den zwei Wegen als Antwort-Buttons. */
-export function begruessung(wa) {
-  return { art: 'kunde', to: wa, text: BEGRUESSUNG, buttons: ['Umsetzung', 'Mitarbeiterschulung'], meta: { marke: 'offen', phase: 'einstieg', zusammenfassung: '', uebergabe: false, pruefung: 'begruessung' } };
+/** Feste erste Antwort: Fall A (nur Gruß, mit zwei Knöpfen) oder Fall C (neutraler Webseiten-Text, gleiche Knöpfe). */
+export function begruessung(wa, fall) {
+  const c = fall === 'C';
+  return { art: 'kunde', to: wa, text: c ? BEGRUESSUNG_WEBSEITE : BEGRUESSUNG, buttons: KNOEPFE.slice(), meta: { marke: 'offen', phase: 'einstieg', zusammenfassung: '', uebergabe: false, pruefung: c ? 'begruessung_webseite' : 'begruessung' } };
 }
 
 /** Cloud-API-Nachricht bauen (Text oder Antwort-Buttons). */
