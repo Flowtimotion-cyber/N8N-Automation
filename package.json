@@ -20,6 +20,8 @@
     "test:office:browser": "node --test office/test/browser.test.mjs",
     "test:office:obsidian": "python agenten/test_office_obsidian.py",
     "test:vertrieb": "node --test 'vertrieb/test/*.test.mjs'",
+    "test:werbung": "node --test \"werbung/test/*.test.mjs\"",
+    "werbung:bauen": "node werbung/n8n/bauen-werbung.mjs",
     "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs"
   }
 }
