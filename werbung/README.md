@@ -54,6 +54,8 @@ Lokal ansehen: `npm run office`, dann `http://127.0.0.1:8787/team/?z=<Test-Zugan
 
 ## Einrichten in n8n (einmalig)
 
+**Stand 13.11.2026:** Der Workflow ist angelegt und veröffentlicht (ID `0zGdfWautIznsbFU` auf n8n.hm-storage.de, Zugangsdaten gesetzt, Fehler-Überwacher angeschlossen). Die Schritte unten gelten für einen Neuaufbau.
+
 1. `node werbung/n8n/bauen-werbung.mjs` ausführen.
 2. Den Inhalt von `werbung/n8n/werbung.workflow.gen.js` per n8n-MCP als neuen Workflow anlegen (macht Claude Code nach Timos Ja).
 3. In n8n prüfen, dass zwei Knoten ihre Zugangsdaten haben: „Mitglied prüfen“ → „Supabase account“, „Kennzahlen abrufen“ → „Team-Portal KPI“.
