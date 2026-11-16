@@ -16,9 +16,32 @@ header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0
 .htitle{font-weight:700;font-size:15px;color:var(--mut);border-left:1px solid var(--line);padding-left:14px}
 .who{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--mut)}
 .who b{color:var(--ink)}
+.msgs-slot{display:inline-flex}.msgs-slot:empty{display:none}
+.msgs-ico{position:relative;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;padding:0}
+.msgs-ico.grau{color:#8E8BAA}.msgs-ico.rot{color:var(--red);border-color:#F3B8AE;background:#FDF1EF}.msgs-ico:hover{border-color:var(--acc)}
+.msgs-n{position:absolute;top:-5px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;line-height:17px;text-align:center}
+.av.msgs-sys{background:#62607E;font-size:15px}
+.msgs-liste{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.msgs-z{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 12px;cursor:pointer;font:inherit;color:var(--ink)}
+.msgs-z:hover{border-color:var(--acc)}.msgs-z.neu{background:#FDF6F5;border-color:#F3C9C1}.msgs-z b{font-weight:600}.msgs-z.neu b{font-weight:800}
+.msgs-zt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.msgs-zk{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.msgs-zv{color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msgs-punkt{width:9px;height:9px;border-radius:50%;background:var(--red);flex:none}
+.msgs-kopf{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px;padding:0 0 10px;border-bottom:1px solid var(--line)}
+.msgs-text{margin:0 0 14px}
+.msgs-empf{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 12px;max-height:36vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.msgs-empf .check{align-items:center;justify-content:flex-start;margin:0;cursor:pointer}
+.msgs-empf .check input{width:auto;flex:none;margin:0}.msgs-empf .check > span:last-child{flex:1;min-width:0}
 .bar{height:3px;background:linear-gradient(90deg,#9B4DF0,#5B6EE6 55%,#22B3B0)}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 0 0;scrollbar-width:none}
 nav.tabs::-webkit-scrollbar{display:none}
+.tabsbox{position:relative}
+.tabpfeil{position:absolute;top:8px;bottom:3px;width:56px;border:0;padding:0;cursor:pointer;z-index:1;display:flex;align-items:center}
+.tabpfeil span{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#fff;border:1px solid var(--line);box-shadow:0 2px 6px rgba(20,18,58,.18);color:var(--acc);font-size:22px;font-weight:700;line-height:1;padding-bottom:3px}
+.tabpfeil[hidden]{display:none}
+.tabpfeil.links{left:0;justify-content:flex-start;padding-left:2px;background:linear-gradient(90deg,#fff 55%,rgba(255,255,255,0))}
+.tabpfeil.rechts{right:0;justify-content:flex-end;padding-right:2px;background:linear-gradient(270deg,#fff 55%,rgba(255,255,255,0))}
+.tabpfeil:hover span{border-color:var(--acc);color:var(--ink)}
 nav.tabs button{border:0;background:none;padding:9px 14px 11px;font-weight:600;color:var(--mut);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
 nav.tabs button.on{color:var(--acc);border-bottom-color:var(--acc)}
 main{padding:30px 0 60px}
@@ -188,6 +211,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .md .kasten{border-radius:10px;padding:10px 14px;margin:0 0 10px;border:1px solid rgba(20,18,58,.08)}.md .kasten .kt{font-weight:700;margin-bottom:4px}.md .kasten p:last-child,.md .kasten ul:last-child{margin-bottom:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
+#toast.warn{top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(560px,calc(100vw - 32px));padding:16px 20px;font-size:15px;line-height:1.45;background:#FFF4E5;color:#7A4B00;border:2px solid var(--orange);box-shadow:0 0 0 100vmax rgba(20,18,58,.18),0 12px 32px rgba(20,18,58,.3);pointer-events:auto;cursor:pointer}
 .plinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
 .plinks a{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--acc);background:#F4F1FD;border-radius:999px;padding:3px 10px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plinks a:hover{background:#E9E2FB}
@@ -371,7 +395,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   // ---------- Helfer ----------
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const toast = t => { const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); };
+  // art 'warn': auffällig (orange) und länger sichtbar (10 s), ein Klick schließt sie
+  const toast = (t, art) => { const e = $('#toast'); e.textContent = t; e.classList.toggle('warn', art === 'warn'); e.classList.add('show'); e.onclick = () => e.classList.remove('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), art === 'warn' ? 10000 : 2600); };
   const heute = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
   const dDate = s => s ? new Date(s + 'T00:00:00') : null;
   const fmtD = s => { if (!s) return ''; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? dDate(s) : new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -439,6 +464,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       D = await api('laden');
       if (D.setup) return einrichten();
       render();
+		MsgsList_User.laden();
     } catch (e) {
       if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
       if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
@@ -479,9 +505,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   function render() {
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"><span class="htitle">Team-Portal</span>' + zkKopf() +
-      '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
-      '<nav class="tabs" role="tablist">' + TABS.filter(([k]) => (!['vertrieb', 'diktat', 'whatsapp'].includes(k) || darfVertrieb()) && (k !== 'werbung' || darfWerbung())).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div><div class="bar"></div></header>' +
+      '<div class="who"><span id="msgsSlot" class="msgs-slot">' + MsgsList_User.iconHtml() + '</span>' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
+      '<div class="tabsbox"><button type="button" class="tabpfeil links" data-tp="-1" aria-label="Weitere Register links" tabindex="-1" hidden><span>‹</span></button><nav class="tabs" role="tablist">' + TABS.filter(([k]) => (!['vertrieb', 'diktat', 'whatsapp'].includes(k) || darfVertrieb()) && (k !== 'werbung' || darfWerbung())).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav><button type="button" class="tabpfeil rechts" data-tp="1" aria-label="Weitere Register rechts" tabindex="-1" hidden><span>›</span></button></div></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
+	MsgsList_User.iconAktualisieren();
+	tabPfeile();
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
     const V = { vertrieb: vVertrieb, diktat: vDiktat, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam, werbung: vWerbung };
@@ -498,6 +526,348 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     }
   }
 
+	// ---------- Nachrichten (Messaging im Team-Portal) ----------
+	// Server: n8n „TEAM: Nachrichten (Portal)“ (Webhook team-msgs, nachrichten/), Datenbank supabase/team_nachrichten.sql.
+	// MsgsList_Global (C_MsgsList_Global): die globale Liste aller Nachrichten (team_msgs), soweit sie das angemeldete Mitglied sehen darf.
+	// MsgsList_User (C_MsgsList_User): die Liste des angemeldeten Mitglieds (team_msgs_user), Verweise in MsgsList_Global mit Lesestand.
+	// Beide Objekte gibt es immer, auch wenn die Datenbank (noch) fehlt oder nicht erreichbar ist: Dann sind sie leer (Anzahl 0).
+	const MSGS_API = 'https://n8n.hm-storage.de/webhook/team-msgs';
+	const MSGS_TAKT_MS = 60000;
+	const MSGS_TEXT_MAX = 20000;
+
+	class C_MsgsList_Global {
+		static #instanz = null;
+		static get instanz() {
+			return C_MsgsList_Global.#instanz || (C_MsgsList_Global.#instanz = new C_MsgsList_Global());
+		}
+
+		constructor() {
+			this.msgs = new Map();      // msg_id → { msg_id, absender, empfaenger[], text, gesendet, empfangen{} }
+			this.vorhanden = false;     // true, sobald der Server eine eingerichtete Datenbank gemeldet hat
+		}
+
+		get anzahl() { return this.msgs.size; }
+		nachricht(id) { return this.msgs.get(id) || null; }
+		uebernehmen(liste) {
+			(liste || []).forEach(m => { if (m && m.msg_id) this.msgs.set(m.msg_id, m); });
+		}
+		leeren() { this.msgs.clear(); this.vorhanden = false; }
+
+		absenderName(m) { return m && m.absender ? mitglied(m.absender).name : 'Team-Portal'; }
+		absenderAv(m) { return m && m.absender ? av(m.absender) : '<span class="av msgs-sys" title="Team-Portal">⚙</span>'; }
+		empfaengerNamen(m) { return ((m && m.empfaenger) || []).map(id => id === D.ich.mitglied_id ? 'dich' : mitglied(id).name).join(', '); }
+		/** Empfangszeit (erstes Öffnen) der Nachricht durch ein Mitglied, sonst null */
+		empfangszeit(id, mitgliedId) { const m = this.nachricht(id); return (m && m.empfangen && m.empfangen[mitgliedId]) || null; }
+		vorschau(m, max) {
+			// Nach jedem Absatz, Listenpunkt und Zeilenumbruch ein Leerzeichen, sonst kleben die Zeilen in der Vorschau aneinander
+			const d = document.createElement('div'); d.innerHTML = md((m && m.text) || '').replace(/<\/(p|li|h\d|div|blockquote|td|th)>|<br\s*\/?>/gi, '$& ');
+			const t = (d.textContent || '').replace(/\s+/g, ' ').trim();
+			return t.length > (max || 110) ? t.slice(0, (max || 110) - 1) + '…' : t;
+		}
+
+		async api(aktion, daten) {
+			const r = await fetch(MSGS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
+			let j = null; try { j = await r.json(); } catch (e) {}
+			if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Die Nachrichten sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.'); err.status = r.status; throw err; }
+			return j;
+		}
+
+		/** Neue Nachricht an ein oder mehrere Mitglieder (auch an sich selbst). Absender ist immer das angemeldete Mitglied. */
+		async senden(empfaenger, text) {
+			const r = await this.api('senden', { empfaenger, text });
+			this.vorhanden = true;
+			if (r.nachricht) this.uebernehmen([r.nachricht]);
+			return r.nachricht || null;
+		}
+
+		/**
+		 * Kennungen eines Mitglieds für Markierungen: der Vorname (erstes Wort des Namens) und der ganze Name,
+		 * in dem jedes Leerzeichen durch „_“ ersetzt ist („Anna Müller“ → „Anna_Müller“). Leerzeichen gehören nie zu einer Kennung;
+		 * ein Punkt nur, wenn er im eingetragenen Namen steht.
+		 */
+		static kennungen(m) {
+			const name = String((m && m.name) || '').trim();
+			const vor = name.split(/\s+/)[0];
+			if (!vor || vor === '–') return { vor: '', voll: '' };
+			const voll = name.replace(/\s+/g, '_');
+			return { vor, voll: voll !== vor ? voll : '' };
+		}
+
+		/**
+		 * Markierungen im Text (Schreibweise wie in Notion: „@kurt“). @alle und @team zählen hier nicht.
+		 * @Vorname gilt nur, wenn der Vorname im Team eindeutig ist; sonst markiert man mit dem ganzen Namen: „@Anna_Müller“.
+		 * Ergebnis: { ids: markierte mitglied_id, mehrdeutig: nicht eindeutige Markierungen wie „@Anna“,
+		 *            unbekannt: Markierungen, zu denen es kein Mitglied gibt, wie „@Timmo“ }
+		 */
+		markierungen(text) {
+			const t = String(text || ''), ids = [], mehrdeutig = [], unbekannt = [];
+			if (!t.includes('@')) return { ids, mehrdeutig, unbekannt };
+			const M = (D.mitglieder || []).filter(m => m.status !== 'gesperrt')
+				.map(m => Object.assign({ id: m.mitglied_id }, C_MsgsList_Global.kennungen(m))).filter(m => m.vor);
+			const rx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const passt = (kennung, ab) => { const r = new RegExp(rx(kennung) + '(?![\\p{L}\\p{N}_])', 'iuy'); r.lastIndex = ab; return r.test(t); };
+			const dazu = id => { if (!ids.includes(id)) ids.push(id); };
+			const at = /(^|[^\p{L}\p{N}_])@/gu;
+			let f;
+			while ((f = at.exec(t))) {
+				const ab = f.index + f[0].length;
+				const voll = M.filter(x => x.voll && passt(x.voll, ab));
+				if (voll.length) { voll.forEach(x => dazu(x.id)); continue; }
+				const nurVor = M.filter(x => passt(x.vor, ab));
+				if (nurVor.length === 1) dazu(nurVor[0].id);
+				else if (nurVor.length > 1) { const n = '@' + t.substr(ab, nurVor[0].vor.length); if (!mehrdeutig.includes(n)) mehrdeutig.push(n); }
+				else {
+					// Kein Mitglied passt: das Wort hinter „@“ (ohne Satzzeichen am Ende) als unbekannte Markierung merken; @alle/@team sind keine
+					const w = ((/^[\p{L}\p{N}_.()'’-]+/u.exec(t.slice(ab)) || [''])[0]).replace(/[.,;:!?)]+$/u, '');
+					if (w && !/^(alle|team)$/i.test(w) && !unbekannt.includes('@' + w)) unbekannt.push('@' + w);
+				}
+			}
+			return { ids, mehrdeutig, unbekannt };
+		}
+		markierte(text) { return this.markierungen(text).ids; }
+
+		/**
+		 * Nach dem Speichern: Jedes neu markierte Mitglied bekommt eine Nachricht vom Schreibenden mit Link auf die Stelle,
+		 * auch wer sich selbst markiert (Wiedervorlage). Wer schon im alten Text markiert war, wird nicht noch einmal benachrichtigt.
+		 * paare = [[alterText, neuerText], ...] (z. B. Beschreibung und Kommentar einer Aufgabe), ort = { art, titel, hash, unbekannteErlaubt }.
+		 * Nicht eindeutige und unbekannte Markierungen lösen keine Nachricht aus, sondern eine Warnung. Mit unbekannteErlaubt
+		 * (Social-Beiträge: dort sind @-Namen meist Instagram-Konten) entfällt die Warnung zu unbekannten Namen.
+		 */
+		async markierungenMelden(paare, ort) {
+			const ich = D.ich.mitglied_id, an = [], unklar = [], fremd = [];
+			(paare || []).forEach(([alt, neu]) => {
+				const vorher = this.markierungen(alt), jetzt = this.markierungen(neu);
+				jetzt.ids.forEach(id => { if (!vorher.ids.includes(id) && !an.includes(id)) an.push(id); });
+				jetzt.mehrdeutig.forEach(n => { if (!vorher.mehrdeutig.includes(n) && !unklar.includes(n)) unklar.push(n); });
+				jetzt.unbekannt.forEach(n => { if (!vorher.unbekannt.includes(n) && !fremd.includes(n)) fremd.push(n); });
+			});
+			// Warnung mit den gültigen Kennungen
+			const kennung = m => { const k = C_MsgsList_Global.kennungen(m); return '@' + (k.voll || k.vor); };
+			const hinweis = unklar.map(n => '⚠ ' + n + ' ist nicht eindeutig, dafür wurde keine Nachricht verschickt. Bitte so markieren: ' +
+				(D.mitglieder || []).filter(m => m.status !== 'gesperrt' && C_MsgsList_Global.kennungen(m).vor.toLowerCase() === n.slice(1).toLowerCase()).map(kennung).join(' oder '))
+				.concat(ort.unbekannteErlaubt || !fremd.length ? [] : ['⚠ ' + fremd.join(', ') + (fremd.length === 1 ? ' ist' : ' sind') + ' kein Mitglied, dafür wurde keine Nachricht verschickt. Markieren mit @Vorname oder @Vorname_Nachname (Leerzeichen als _).'])
+				.join(' ');
+			// Die Warnung erst nach dem „Gespeichert“ des aufrufenden Dialogs zeigen, sonst überschreibt diese sie sofort
+			if (!an.length) { if (hinweis) setTimeout(() => toast(hinweis, 'warn'), 400); return []; }
+			const text = '**' + mitglied(ich).name + '** hat Dich [hier](' + PORTAL + ort.hash + ') markiert.\n\n' + ort.art + (ort.titel ? ': „' + ort.titel + '“' : '');
+			try {
+				await this.senden(an, text);
+				toast('✉ ' + an.map(id => id === ich ? 'Du' : mitglied(id).name).join(', ') + ' benachrichtigt' + (hinweis ? '. ' + hinweis : ''), hinweis ? 'warn' : '');
+				if (an.includes(ich)) MsgsList_User.laden();
+			} catch (e) {
+				toast('Markierung nicht als Nachricht verschickt: ' + e.message);
+			}
+			return an;
+		}
+
+		/** Dialog „Neue Nachricht“. vorauswahl: Liste von mitglied_id, die schon angehakt sind (z. B. beim Antworten). */
+		sendenDialog(vorauswahl, zitat) {
+			const ich = D.ich.mitglied_id, vor = new Set(vorauswahl || []);
+			const L = (D.mitglieder || []).filter(p => p.status !== 'gesperrt')
+				.sort((a, b) => (a.mitglied_id !== ich) - (b.mitglied_id !== ich) || (a.typ === 'agent') - (b.typ === 'agent') || String(a.name).localeCompare(String(b.name)));
+			$('#dlgInner').innerHTML = '<h2>✉ Neue Nachricht</h2><form id="ms_f">' +
+				'<div class="f"><label>An (eine oder mehrere Personen)</label><div class="msgs-empf" id="ms_e">' +
+				L.map(p => '<label class="check"><input type="checkbox" value="' + esc(p.mitglied_id) + '"' + (vor.has(p.mitglied_id) ? ' checked' : '') + '>' + av(p.mitglied_id) +
+					'<span>' + esc(p.name) + (p.mitglied_id === ich ? ' <span class="chip">Du</span>' : '') + (p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') + '</span></label>').join('') +
+				'</div><div class="small muted" style="margin-top:6px"><button type="button" class="btn ghost" id="ms_alle">Alle Menschen</button><button type="button" class="btn ghost" id="ms_keine">Keine</button></div></div>' +
+				editorHtml('ms_t', zitat || '', 'Nachricht', { rows: 10, max: MSGS_TEXT_MAX, tabelle: false }) +
+				'<div class="dlgbtns"><button type="button" class="btn sec" id="ms_c">Abbrechen</button><button class="btn" type="submit">Senden</button></div></form>';
+			const dlg = openDlg(true); bindEditor('ms_t');
+			const boxen = () => [...document.querySelectorAll('#ms_e input[type=checkbox]')];
+			$('#ms_alle').onclick = () => { boxen().forEach(b => { b.checked = mitglied(b.value).typ !== 'agent'; }); dlgGeaendert = true; };
+			$('#ms_keine').onclick = () => { boxen().forEach(b => { b.checked = false; }); };
+			$('#ms_c').onclick = () => { if (verwerfenOk()) dlg.close(); };
+			$('#ms_f').onsubmit = async ev => {
+				ev.preventDefault();
+				const empfaenger = boxen().filter(b => b.checked).map(b => b.value), text = $('#ms_t').value;
+				if (!empfaenger.length) return toast('Bitte wähle mindestens einen Empfänger aus.');
+				if (!text.trim()) { $('#ms_t').focus(); return toast('Die Nachricht ist leer.'); }
+				const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+				try {
+					await this.senden(empfaenger, text);
+					dlgGeaendert = false; dlg.close();
+					toast(empfaenger.length === 1 ? 'Nachricht an ' + (empfaenger[0] === ich ? 'dich' : mitglied(empfaenger[0]).name) + ' gesendet' : 'Nachricht an ' + empfaenger.length + ' Personen gesendet');
+					if (empfaenger.includes(ich)) MsgsList_User.laden();
+				} catch (e) { toast(e.message); btn.disabled = false; }
+			};
+		}
+	}
+
+	class C_MsgsList_User {
+		static #instanz = null;
+		static get instanz() {
+			return C_MsgsList_User.#instanz || (C_MsgsList_User.#instanz = new C_MsgsList_User(C_MsgsList_Global.instanz));
+		}
+
+		constructor(global) {
+			this.global = global;
+			this.eintraege = [];        // [{ msg_id, gelesen }] neueste zuerst; msg_id verweist in MsgsList_Global
+			this.vorhanden = false;     // false: Datenbank fehlt (noch) oder wurde noch nicht erreicht
+			this.fuer = null;           // mitglied_id, für die die Liste geladen ist
+			this.laeuft = null;
+			this.timer = null;
+		}
+
+		get laenge() { return this.eintraege.length; }
+		get anzahlUngelesen() { return this.eintraege.filter(e => !e.gelesen).length; }
+		eintrag(id) { return this.eintraege.find(e => e.msg_id === id) || null; }
+		nachricht(id) { return this.global.nachricht(id); }
+		leeren() { this.eintraege = []; this.vorhanden = false; this.fuer = null; this.global.leeren(); this.iconAktualisieren(); }
+
+		/** Liste vom Server holen. Fehler bleiben still: Die Liste behält ihren Stand (anfangs leer). */
+		laden() {
+			if (!TOKEN || !D || !D.ich) return Promise.resolve(this);
+			if (this.laeuft) return this.laeuft;
+			const fuer = D.ich.mitglied_id;
+			if (this.fuer !== fuer) { this.eintraege = []; this.global.leeren(); this.fuer = fuer; }
+			this.laeuft = this.global.api('laden').then(r => {
+				this.vorhanden = this.global.vorhanden = r.vorhanden !== false;
+				this.global.uebernehmen(r.nachrichten);
+				this.eintraege = (r.liste || []).filter(e => e && e.msg_id && this.global.nachricht(e.msg_id)).map(e => ({ msg_id: e.msg_id, gelesen: !!e.gelesen }));
+			}).catch(() => {}).then(() => {
+				this.laeuft = null; this.iconAktualisieren(); this.listeAktualisieren(); this.takt();
+				return this;
+			});
+			return this.laeuft;
+		}
+
+		/** Nachricht öffnen: gilt als gelesen, beim ersten Mal hält der Server die Empfangszeit fest. */
+		async oeffnen(id) {
+			const e = this.eintrag(id); if (e) e.gelesen = true;
+			this.iconAktualisieren();
+			const r = await this.global.api('oeffnen', { msg_id: id });
+			if (r.nachricht) this.global.uebernehmen([r.nachricht]);
+			return this.nachricht(id);
+		}
+
+		/** Ausdrücklich als ungelesen zurücklegen (Wiedervorlage) */
+		async alsUngelesen(id) {
+			await this.global.api('ungelesen', { msg_id: id });
+			const e = this.eintrag(id); if (e) e.gelesen = false;
+			this.iconAktualisieren();
+		}
+
+		takt() {
+			if (this.timer) return;
+			this.timer = setInterval(() => { if (document.visibilityState === 'visible' && D && D.ich) this.laden(); }, MSGS_TAKT_MS);
+		}
+
+		/** Symbol neben dem eigenen Avatar: nur bei nicht leerer Liste; rot bei mindestens einer ungelesenen Nachricht, sonst grau */
+		iconHtml() {
+			if (!this.laenge) return '';
+			const n = this.anzahlUngelesen;
+			const titel = n ? (n === 1 ? '1 ungelesene Nachricht' : n + ' ungelesene Nachrichten') : 'Nachrichten (alle gelesen)';
+			return '<button type="button" class="msgs-ico ' + (n ? 'rot' : 'grau') + '" id="msgsIco" title="' + titel + '" aria-label="' + titel + '">' +
+				'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 2.4V17h16V7.4l-8 5.3-8-5.3zM5.3 7l6.7 4.4L18.7 7H5.3z"/></svg>' +
+				(n ? '<span class="msgs-n">' + (n > 99 ? '99+' : n) + '</span>' : '') + '</button>';
+		}
+		iconAktualisieren() {
+			const slot = $('#msgsSlot'); if (!slot) return;
+			slot.innerHTML = this.iconHtml();
+			const b = $('#msgsIco'); if (b) b.onclick = () => this.listeDialog();
+		}
+
+		// Posteingang: alle Nachrichten der eigenen Liste, ungelesene fett mit rotem Punkt
+		listeHtml() {
+			if (!this.laenge) return '<p class="muted">Keine Nachrichten.</p>';
+			return '<div class="msgs-liste">' + this.eintraege.map(e => {
+				const m = this.nachricht(e.msg_id); if (!m) return '';
+				return '<button type="button" class="msgs-z' + (e.gelesen ? '' : ' neu') + '" data-msg="' + esc(e.msg_id) + '">' + this.global.absenderAv(m) +
+					'<span class="msgs-zt"><span class="msgs-zk"><b>' + esc(this.global.absenderName(m)) + '</b><span class="small muted">' + esc(datumZeit(m.gesendet)) + '</span></span>' +
+					'<span class="small msgs-zv">' + esc(this.global.vorschau(m)) + '</span></span>' + (e.gelesen ? '' : '<i class="msgs-punkt" title="ungelesen"></i>') + '</button>';
+			}).join('') + '</div>';
+		}
+		listeDialog() {
+			if (!verwerfenOk()) return;
+			const n = this.anzahlUngelesen;
+			$('#dlgInner').innerHTML = '<h2>✉ Nachrichten</h2><p class="small muted" id="msgs_info">' + (n ? n + ' ungelesen · ' : '') + this.laenge + ' insgesamt</p>' +
+				'<div id="msgs_box">' + this.listeHtml() + '</div>' +
+				'<div class="dlgbtns"><button type="button" class="btn sec left" id="msgs_neu">✉ Neue Nachricht</button><button type="button" class="btn" id="msgs_zu">Schließen</button></div>';
+			const dlg = openDlg(false);
+			dlg.dataset.msgs = 'liste';
+			dlg.addEventListener('close', () => { delete dlg.dataset.msgs; }, { once: true });
+			$('#msgs_zu').onclick = () => dlg.close();
+			$('#msgs_neu').onclick = () => this.global.sendenDialog([]);
+			this.listeBinden();
+		}
+		listeBinden() { document.querySelectorAll('#msgs_box [data-msg]').forEach(b => b.onclick = () => this.leseDialog(b.dataset.msg)); }
+		/** Offenen Posteingang nach dem Nachladen auffrischen */
+		listeAktualisieren() {
+			const d = $('#dlg'); if (!d || !d.open || d.dataset.msgs !== 'liste' || !$('#msgs_box')) return;
+			const n = this.anzahlUngelesen;
+			$('#msgs_box').innerHTML = this.listeHtml(); $('#msgs_info').textContent = (n ? n + ' ungelesen · ' : '') + this.laenge + ' insgesamt';
+			this.listeBinden();
+		}
+
+		// Eine Nachricht lesen. Schließen = gelesen; „Als ungelesen schließen“ legt sie zur Wiedervorlage zurück.
+		leseDialog(id) {
+			const m = this.nachricht(id); if (!m) return toast('Diese Nachricht gibt es nicht mehr.');
+			const ich = D.ich.mitglied_id, g = this.global;
+			const zeigen = () => {
+				const empf = g.empfangszeit(id, ich);
+				$('#dlgInner').innerHTML = '<h2>✉ Nachricht von ' + esc(g.absenderName(m)) + '</h2>' +
+					'<div class="msgs-kopf">' + g.absenderAv(m) + '<div class="small"><div><span class="muted">Von:</span> <b>' + esc(g.absenderName(m)) + '</b></div>' +
+					'<div><span class="muted">An:</span> ' + esc(g.empfaengerNamen(m)) + '</div>' +
+					'<div><span class="muted">Gesendet:</span> ' + esc(datumZeit(m.gesendet)) + ' · <span class="muted">Empfangen:</span> ' + (empf ? esc(datumZeit(empf)) : '–') + '</div></div></div>' +
+					'<div class="md msgs-text">' + md(m.text) + '</div>' +
+					'<div class="dlgbtns"><button type="button" class="btn ghost left" id="msg_zur">← Alle Nachrichten</button>' +
+					'<button type="button" class="btn sec" id="msg_ung" title="Schließt die Nachricht und markiert sie wieder als ungelesen, z. B. zur Wiedervorlage am nächsten Tag">Als ungelesen schließen</button>' +
+					(m.absender ? '<button type="button" class="btn sec" id="msg_antw">Antworten</button>' : '') +
+					'<button type="button" class="btn" id="msg_zu">Schließen</button></div>';
+				bindWikiLinks($('#dlgInner'));
+				// Portal-Links (z. B. „hier“ bei Markierungen): Nachricht schließen und Ziel öffnen, auch wenn die Adresse
+				// schon dieselbe ist (dann meldet der Browser keinen Wechsel, und der Klick täte sonst nichts)
+				$('#dlgInner .msgs-text').querySelectorAll('a[href^="#/"]').forEach(a => a.onclick = ev => {
+					ev.preventDefault();
+					const h = a.getAttribute('href');
+					dlg.close();
+					if (location.hash === h) { letzterHash = h; leseHash(); render(); window.scrollTo(0, 0); }
+					else location.hash = h;
+				});
+				$('#msg_zu').onclick = () => dlg.close();
+				$('#msg_zur').onclick = () => this.listeDialog();
+				$('#msg_ung').onclick = async () => {
+					$('#msg_ung').disabled = true;
+					try { await this.alsUngelesen(id); dlg.close(); toast('Als ungelesen markiert'); }
+					catch (e) { toast(e.message); $('#msg_ung').disabled = false; }
+				};
+				if (m.absender) $('#msg_antw').onclick = () => {
+					g.sendenDialog([m.absender], '\n\n---\n> **' + g.absenderName(m) + '** am ' + datumZeit(m.gesendet) + ':\n' + String(m.text || '').split('\n').map(z => '> ' + z).join('\n'));
+				};
+				// Erst nach dem Öffnen auf dem Server zurücklegen, sonst überholt „gelesen“ das „ungelesen“
+				$('#msg_ung').disabled = !bereit;
+			};
+			let bereit = false;
+			const dlg = openDlg(true);
+			dlg.dataset.msgs = 'lesen';
+			dlg.addEventListener('close', () => { delete dlg.dataset.msgs; }, { once: true });
+			zeigen();
+			const nochHier = () => dlg.open && dlg.dataset.msgs === 'lesen' && $('#msg_zu');
+			this.oeffnen(id).then(() => { bereit = true; if (nochHier()) zeigen(); }).catch(e => { bereit = true; if (nochHier()) $('#msg_ung').disabled = false; toast(e.message); });
+		}
+	}
+
+	const MsgsList_Global = C_MsgsList_Global.instanz;
+	const MsgsList_User = C_MsgsList_User.instanz;
+
+	// Registerleiste zu lang für die Fensterbreite: Pfeile an den Enden zeigen, dass es links/rechts weitergeht; Klick rollt weiter.
+	// Das aktive Register wird sichtbar gerollt.
+	function tabPfeile() {
+		const nav = $('nav.tabs'); if (!nav) return;
+		const links = $('.tabpfeil.links'), rechts = $('.tabpfeil.rechts');
+		const zeigen = () => {
+			const rest = nav.scrollWidth - nav.clientWidth - nav.scrollLeft;
+			links.hidden = nav.scrollLeft <= 2;
+			rechts.hidden = rest <= 2;
+		};
+		[links, rechts].forEach(b => b.onclick = () => nav.scrollBy({ left: Number(b.dataset.tp) * Math.max(120, nav.clientWidth * 0.7), behavior: 'smooth' }));
+		nav.addEventListener('scroll', zeigen, { passive: true });
+		const on = nav.querySelector('button.on');
+		if (on && (on.offsetLeft < nav.scrollLeft || on.offsetLeft + on.offsetWidth > nav.scrollLeft + nav.clientWidth)) nav.scrollLeft = Math.max(0, on.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2);
+		zeigen();
+		tabPfeile.zeigen = zeigen;
+	}
+	window.addEventListener('resize', () => { if (tabPfeile.zeigen) tabPfeile.zeigen(); });
 
   // ---------- Vorschläge (Änderungswünsche am Portal) ----------
   const VSTATUS = ['neu', 'geplant', 'in Arbeit', 'umgesetzt', 'abgelehnt'];
@@ -609,7 +979,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const daten = { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value };
       if (admin) { daten.status = $('#v_s').value; if ($('#v_a')) daten.antwort = $('#v_a').value; }
-      try { await api('vorschlag_speichern', daten); dlg.close(); toast(neu ? 'Danke! Vorschlag gespeichert.' : 'Gespeichert'); if (neu) vFilter = 'offen'; await laden(true); }
+      try {
+			await api('vorschlag_speichern', daten); dlg.close(); toast(neu ? 'Danke! Vorschlag gespeichert.' : 'Gespeichert'); if (neu) vFilter = 'offen';
+			MsgsList_Global.markierungenMelden([[v.text, daten.text], [v.antwort, daten.antwort === undefined ? v.antwort : daten.antwort]], { art: 'Vorschlag', titel: daten.titel, hash: '#/tab/vorschlaege' });
+			await laden(true);
+		}
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
@@ -825,6 +1199,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         const zp = mitglied(daten.verantwortlich), waMoeglich = WA_AUTO_AKTIV && neuZu && zp.whatsapp_ok && waNummer(zp.telefon) && !istKI(daten.verantwortlich);
         daten.wa_auto = waMoeglich && $('#a_wa').checked;
         const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
+		MsgsList_Global.markierungenMelden([[neu ? '' : a.beschreibung, daten.beschreibung], ['', daten.kommentar]], { art: 'Aufgabe', titel: daten.titel, hash: aid ? '#/aufgabe/' + aid : '#/tab/aufgaben' });
         if (waMoeglich && !daten.wa_auto && aid) waApi('benachrichtigung_aus', { aufgabe_id: aid }).catch(() => toast('Die automatische WhatsApp ließ sich nicht abbestellen.'));
         if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
         else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
@@ -1023,7 +1398,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
      ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
      ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
-     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>']]
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>'], ['@Vorname oder @Vorname_Nachname', 'Person markieren, z. B. @kurt oder @Anna_Müller (Leerzeichen im Namen als _): Sie bekommt beim Speichern eine Nachricht mit Link auf diese Stelle. Gibt es den Vornamen zweimal, nur mit ganzem Namen.']]
       .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>').replace(/⟨br⟩/g, '&lt;br&gt;') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
@@ -2119,7 +2494,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const daten = { projekt_id: p.projekt_id, name: $('#j_n').value, beschreibung: $('#j_b').value, status: $('#j_s').value, farbe: $('#j_f').value, verantwortlich: $('#j_v').value };
       if (lkBox) daten.links = [...lkBox.querySelectorAll('.lkrow')].map(r => ({ titel: r.querySelector('.lt').value.trim(), url: r.querySelector('.lu').value.trim() })).filter(l => l.url);
-      try { await api('projekt_speichern', daten); dlg.close(); toast('Gespeichert'); await laden(true); }
+      try {
+			const r = await api('projekt_speichern', daten); dlg.close(); toast('Gespeichert');
+			const pid = p.projekt_id || (r && (r.id || r.projekt_id));
+			MsgsList_Global.markierungenMelden([[p.beschreibung, daten.beschreibung]], { art: 'Projekt', titel: daten.name, hash: pid ? '#/projekt/' + pid : '#/tab/projekte' });
+			await laden(true);
+		}
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
@@ -2173,7 +2553,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const daten = { notiz_id: n.notiz_id, titel: $('#n_t').value, inhalt: $('#n_i').value, projekt: $('#n_j').value };
       if (!neu) daten.stand = n.geaendert || '';
       if (notizTrotzdem) { daten.trotzdem = true; notizTrotzdem = false; }
-      try { const r = await api('notiz_speichern', daten); offeneNotiz = r.id; dlg.close(); toast('Gespeichert'); await laden(true); }
+      try {
+			const r = await api('notiz_speichern', daten); offeneNotiz = r.id; dlg.close(); toast('Gespeichert');
+			const nid = r.id || n.notiz_id;
+			MsgsList_Global.markierungenMelden([[neu ? '' : n.inhalt, daten.inhalt]], { art: 'Notiz', titel: daten.titel, hash: nid ? '#/notiz/' + nid : '#/tab/notizen' });
+			await laden(true);
+		}
       catch (e) {
         btn.disabled = false;
         if (e.daten && e.daten.konflikt) konfliktZeigen(e, () => { notizTrotzdem = true; $('#nf').requestSubmit(); }, 'n_i', 'Die andere Fassung geht dabei nicht verloren, sie liegt danach unter „Versionen“.');
@@ -2705,7 +3090,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       try {
         if (status === 'Geplant' && $('#p_k').value === 'Instagram' && !$('#p_d').value) throw new Error('Für automatisches Posten braucht der Beitrag ein Datum.');
         await api('social_speichern', { post_id: p.post_id, thema: $('#p_t').value, text: $('#p_x').value, datum: $('#p_d').value, uhrzeit: $('#p_u').value, kanal: $('#p_k').value, format: $('#p_f').value, status, verantwortlich: $('#p_v').value, link: $('#p_l').value, medien: $('#p_m').value, hook: $('#p_h').value, hashtags: $('#p_g').value, quelle: $('#p_q').value });
-        dlg.close(); toast(status === 'Geplant' && !p.freigegeben_von ? 'Freigegeben und geplant' : 'Gespeichert'); await laden(true);
+        dlg.close(); toast(status === 'Geplant' && !p.freigegeben_von ? 'Freigegeben und geplant' : 'Gespeichert');
+		MsgsList_Global.markierungenMelden([[p.text, $('#p_x').value]], { art: 'Social-Beitrag', titel: $('#p_t').value, hash: '#/tab/social', unbekannteErlaubt: true });
+		await laden(true);
       } catch (e) { toast(e.message); btn.disabled = false; }
     };
     if ($('#p_ok')) $('#p_ok').onclick = ev => speichern('Geplant', ev.target);
@@ -3241,11 +3628,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const fdZeit = s => { const d = new Date(s || 0); return isNaN(d) ? 0 : d.getTime(); };
   const fdMensch = id => { const m = (D.mitglieder || []).find(x => x.mitglied_id === id); return !!m && m.typ !== 'agent'; };
   const fdKurz = t => klartext(t).replace(/\[run:[^\]]*\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  // Gleiche Regeln wie bei den Nachrichten (@Vorname, bei gleichem Vornamen @Vorname Nachname), dazu @alle und @team
   function fdErwaehnt(text, ich) {
-    const vor = String(mitglied(ich).name || '').trim().split(/\s+/)[0];
-    if (!vor || vor === '–') return false;
-    const n = vor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp('(^|[^0-9A-Za-zÄÖÜäöüß_])@(' + n + '|alle|team)(?![0-9A-Za-zÄÖÜäöüß_])', 'i').test(String(text || ''));
+	const t = String(text || '');
+	return /(^|[^\p{L}\p{N}_])@(alle|team)(?![\p{L}\p{N}_])/iu.test(t) || MsgsList_Global.markierte(t).includes(ich);
   }
   const fdIstBericht = t => /tagesbericht|wochenbericht|lagebericht|monatsbericht/i.test(String(t || '')) && !/frage|freigeb|entscheid/i.test(String(t || ''));
   function fuerDichPunkte(off) {
@@ -3400,7 +3786,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const fertig = async (msg, fn) => {
       const k = ($('#fd_k') ? $('#fd_k').value : '').trim();
       const knoepfe = $('#fdf').querySelectorAll('button'); knoepfe.forEach(b => b.disabled = true);
-      try { await fn(k); $('#dlg').close(); toast(msg); officeCache = null; await laden(true); }
+      try {
+			await fn(k); $('#dlg').close(); toast(msg); officeCache = null;
+			if (a && a.aufgabe_id) MsgsList_Global.markierungenMelden([['', k]], { art: 'Aufgabe', titel: a.titel, hash: '#/aufgabe/' + a.aufgabe_id });
+			await laden(true);
+		}
       catch (e) { knoepfe.forEach(b => b.disabled = false); toast(e.message); }
     };
     const pflicht = () => { const k = ($('#fd_k') ? $('#fd_k').value : '').trim(); if (!k) { toast('Bitte schreib kurz, was geändert werden soll.'); $('#fd_k').focus(); return false; } return true; };
@@ -3451,22 +3841,24 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const admin = istAdmin();
     const L = (D.mitglieder || []).slice().sort((a, b) => (a.status === 'gesperrt') - (b.status === 'gesperrt') || a.name.localeCompare(b.name));
     const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div>' + (admin ? '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="neua">+ KI-Agent</button><button class="btn" id="neum">+ Mitglied</button></div>' : '') + '</div>' +
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="msgneu">✉ Nachricht schreiben</button>' + (admin ? '<button class="btn sec" id="neua">+ KI-Agent</button><button class="btn" id="neum">+ Mitglied</button>' : '') + '</div></div>' +
       '<div class="grid">' + L.map(p => '<div class="member">' + av(p.mitglied_id) + '<div style="min-width:0;flex:1"><b>' + esc(p.name) + '</b>' + (p.mitglied_id === D.ich.mitglied_id ? ' <span class="chip">Du</span>' : '') +
         (p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') +
         '<div class="small muted">' + esc(p.funktion || ROLLE_TXT(p.rolle)) + (p.status !== 'aktiv' ? ' · <b style="color:var(--orange)">' + (p.status === 'eingeladen' ? 'noch nicht angemeldet' : esc(p.status)) + '</b>' : '') + '</div>' +
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
         '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben' + (hatVertrag(p) ? ' · Vertrag: ' + std(Math.round(Number(p.vertrag_std) * 60)) + ' pro Monat · Konto: ' + stdPM(kontoStand(p.mitglied_id).konto) : '') + '</div>' +
-        '<div class="act">' + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
+        '<div class="act">' + (p.status !== 'gesperrt' ? '<button class="btn sec" style="padding:6px 10px" data-msgan="' + esc(p.mitglied_id) + '" title="Nachricht im Portal schicken">✉ Nachricht</button>' : '') + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
         (p.typ !== 'agent' && (admin || p.mitglied_id === D.ich.mitglied_id) ? '<button class="btn sec" style="padding:6px 10px" data-vertrag="' + esc(p.mitglied_id) + '">Vertrag</button>' : '') +
         (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
       (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink. Schick ihn nur an die Person selbst. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
       '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
     const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
+	$('#msgneu').onclick = () => MsgsList_Global.sendenDialog([]);
+	document.querySelectorAll('[data-msgan]').forEach(b => b.onclick = () => MsgsList_Global.sendenDialog([b.dataset.msgan]));
     document.querySelectorAll('[data-vertrag]').forEach(e => e.onclick = () => vertragDialog(e.dataset.vertrag));
     document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
-    $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
+    $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; MsgsList_User.leeren(); ohneZugang('Du bist abgemeldet.'); };
     if (admin) {
       $('#neum').onclick = () => mitgliedDialog(null); $('#neua').onclick = () => mitgliedDialog(null, true);
       document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));
