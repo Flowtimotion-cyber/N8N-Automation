@@ -78,6 +78,35 @@ test('Ohne Datenbank: Portal läuft, kein Nachrichten-Symbol', async t => {
 	assert.deepEqual(fehler, []);
 });
 
+test('Nicht eingerichtet (Datenbank fehlt bzw. n8n-Workflow fehlt): Senden zeigt den Verweis auf nachrichten/README.md', async t => {
+	if (!B) return t.skip();
+	const senden = async p => {
+		await oeffnen(p, 'm_kurt', '#/tab/team');
+		await p.locator('#msgneu').click();
+		await p.locator('#ms_e input[value="m_kurt"]').check();
+		await p.locator('#ms_t').fill('Test');
+		await p.locator('#ms_f [type=submit]').click();
+		await p.waitForFunction(() => /eingerichtet/.test(document.querySelector('#toast').textContent));
+		return p.locator('#toast').textContent();
+	};
+	const erwartet = /Der Nachrichtendienst ist noch nicht eingerichtet\. Wie das geht, steht im Repo N8N-Automation in der Datei nachrichten\/README\.md, Abschnitt „Einrichten“/;
+	// 1. Datenbank fehlt: Antwort kommt vom Workflow (Nachbildung)
+	await post(S.base, '/api/test/nachrichten', { eingerichtet: false });
+	let p = await seite(DESKTOP, 'ohne DB senden');
+	assert.match(await senden(p), erwartet);
+	assert.equal(await p.locator('#dlg').evaluate(d => d.open), true, 'Dialog bleibt offen, der Text geht nicht verloren');
+	await p.close();
+	// 2. n8n-Workflow fehlt oder ist nicht veröffentlicht: n8n antwortet 404 „webhook not registered“
+	p = await seite(DESKTOP, 'ohne Workflow');
+	await p.route(/webhook\/team-msgs/, r => r.fulfill({ status: 404, contentType: 'application/json', body: '{"code":404,"message":"The requested webhook \\"POST team-msgs\\" is not registered."}' }));
+	assert.match(await senden(p), erwartet);
+	assert.equal(await p.locator('#msgsIco').count(), 0, 'ohne Workflow auch kein Symbol');
+	await p.close();
+	await post(S.base, '/api/test/nachrichten', { eingerichtet: true });
+	fehler = fehler.filter(f => !/404/.test(f));
+	assert.deepEqual(fehler, []);
+});
+
 test('Senden, Symbol rot/grau, lesen, als ungelesen schließen, Empfangszeit', async t => {
 	if (!B) return t.skip();
 	await post(S.base, '/api/test/nachrichten', { eingerichtet: true });

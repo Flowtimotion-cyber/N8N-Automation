@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort } from '../lib/nachrichten.js';
+import { MSGS_NICHT_EINGERICHTET, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort } from '../lib/nachrichten.js';
 import { C_MsgsDbNachbildung, msgsAntwortMock } from '../dev/mock.mjs';
 import { serverStarten, post } from '../../office/test/hilfe.mjs';
 import { TOKENS } from '../../office/dev/testdaten.mjs';
@@ -110,7 +110,9 @@ test('Ohne Datenbank: laden liefert eine leere Liste, senden eine verständliche
 	const db = new C_MsgsDbNachbildung({ eingerichtet: false, mitglieder: () => MITGLIEDER });
 	assert.deepEqual(msgsAntwortMock({ token: kurt.token, aktion: 'laden' }, MITGLIEDER, db), [200, { ok: true, vorhanden: false, liste: [], nachrichten: [], testadapter: true }]);
 	const [c, a] = msgsAntwortMock({ token: kurt.token, aktion: 'senden', daten: { empfaenger: ['m_timo'], text: 'x' } }, MITGLIEDER, db);
-	assert.equal(c, 503); assert.match(a.fehler, /noch nicht eingerichtet/);
+	assert.equal(c, 503); assert.equal(a.fehler, MSGS_NICHT_EINGERICHTET);
+	assert.match(a.fehler, /noch nicht eingerichtet\. Wie das geht, steht im Repo N8N-Automation in der Datei nachrichten\/README\.md, Abschnitt „Einrichten“/);
+	assert.match(lies('nachrichten', 'README.md'), /^## Einrichten/m, 'der Abschnitt, auf den die Meldung verweist, gibt es');
 });
 
 test('n8n-Datei ist aktuell und enthält die getestete Logik wortgleich', () => {
@@ -130,6 +132,7 @@ test('Portal und SQL passen zusammen', () => {
 	assert.match(html, /class C_MsgsList_Global \{/); assert.match(html, /class C_MsgsList_User \{/);
 	assert.match(html, /const MsgsList_Global = C_MsgsList_Global\.instanz;/); assert.match(html, /const MsgsList_User = C_MsgsList_User\.instanz;/);
 	assert.ok(html.includes('const MSGS_TEXT_MAX = ' + MSGS_TEXT_MAX + ';'), 'gleiche Höchstlänge im Portal');
+	assert.ok(html.includes('const MSGS_NICHT_EINGERICHTET = ' + JSON.stringify(MSGS_NICHT_EINGERICHTET).replace(/^"|"$/g, "'") + ';'), 'gleiche Meldung „nicht eingerichtet“ im Portal');
 	for (const fn of ['team_msgs_senden', 'team_msgs_laden', 'team_msgs_oeffnen', 'team_msgs_ungelesen']) {
 		assert.match(sql, new RegExp('create or replace function ' + fn + '\\('));
 		assert.match(sql, new RegExp('grant execute on function ' + fn + '\\(.*service_role'));

@@ -534,6 +534,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	const MSGS_API = 'https://n8n.hm-storage.de/webhook/team-msgs';
 	const MSGS_TAKT_MS = 60000;
 	const MSGS_TEXT_MAX = 20000;
+	// Gleicher Text wie in nachrichten/lib/nachrichten.js (Antwort des Servers, wenn die Datenbank fehlt); ein Test hält beide gleich
+	const MSGS_NICHT_EINGERICHTET = 'Der Nachrichtendienst ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei nachrichten/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
 
 	class C_MsgsList_Global {
 		static #instanz = null;
@@ -568,7 +570,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		async api(aktion, daten) {
 			const r = await fetch(MSGS_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
 			let j = null; try { j = await r.json(); } catch (e) {}
-			if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Die Nachrichten sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.'); err.status = r.status; throw err; }
+			// 404 ohne eigene Antwort: Der n8n-Workflow fehlt oder ist nicht veröffentlicht („webhook not registered“)
+			if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || (r.status === 404 ? MSGS_NICHT_EINGERICHTET : 'Die Nachrichten sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.')); err.status = r.status; throw err; }
 			return j;
 		}
 

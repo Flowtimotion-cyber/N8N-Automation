@@ -13,6 +13,8 @@ const MSGS_TEXT_MAX = 20000;
 const MSGS_EMPFAENGER_MAX = 50;
 const MSGS_LADEN_MAX = 300;
 const MSGS_ID = /^[\w:.-]{1,80}$/;
+/** Meldung, wenn der Dienst noch nicht eingerichtet ist. Derselbe Text steht in docs/team/index.html (MSGS_NICHT_EINGERICHTET); ein Test hält beide gleich. */
+const MSGS_NICHT_EINGERICHTET = 'Der Nachrichtendienst ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei nachrichten/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
 
 const gueltigeId = v => typeof v === 'string' && MSGS_ID.test(v);
 const msgsFehler = (code, fehler) => ({ aktion: 'antwort', code, antwort: { ok: false, fehler } });
@@ -79,11 +81,11 @@ function msgsAntwort(anfrage, http) {
 	}
 	if (msgsFehltDb(status, b)) {
 		if (was === 'laden') return { code: 200, antwort: { ok: true, vorhanden: false, liste: [], nachrichten: [] } };
-		return { code: 503, antwort: { ok: false, fehler: 'Der Nachrichtendienst ist noch nicht eingerichtet. Bitte gib Timo Bescheid.' } };
+		return { code: 503, antwort: { ok: false, fehler: MSGS_NICHT_EINGERICHTET } };
 	}
 	// Fehler aus den SQL-Funktionen (raise exception, Code P0001) sind für Menschen geschrieben und gehen unverändert durch
 	if (b && b.code === 'P0001' && b.message) return { code: 400, antwort: { ok: false, fehler: String(b.message).slice(0, 300) } };
 	return { code: 502, antwort: { ok: false, fehler: 'Die Nachrichten sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.' } };
 }
 
-export { MSGS_AKTIONEN, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, MSGS_LADEN_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort };
+export { MSGS_NICHT_EINGERICHTET, MSGS_AKTIONEN, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, MSGS_LADEN_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort };

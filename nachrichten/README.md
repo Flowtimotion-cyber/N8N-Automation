@@ -88,12 +88,17 @@ Die Browsertests brauchen `playwright` oder `playwright-core`. Mit `playwright-c
 - Die SQL-Funktionen sind gegen die echte Datenbank getestet. Senden, Lesen, „Als ungelesen“ und Markierungen sind lokal über den TesterProxy mit echten Daten ausprobiert.
 - Das Portal ist noch nicht veröffentlicht (Änderungen an `docs/team/index.html` nicht auf GitHub).
 
-Die Schritte unten gelten für einen Neuaufbau.
+Die Schritte unten gelten für einen Neuaufbau, auch mit einem anderen Supabase-Projekt. Auf diesen Abschnitt verweist die Meldung „Der Nachrichtendienst ist noch nicht eingerichtet“ im Portal.
 
-1. `supabase/team_nachrichten.sql` im Supabase SQL Editor ausführen.
-2. `npm run nachrichten:bauen` ausführen.
-3. Den Inhalt von `nachrichten/n8n/nachrichten.workflow.gen.js` per n8n-MCP als neuen Workflow anlegen.
-4. In n8n prüfen, dass die Knoten „Mitglied prüfen“ und „Datenbank“ die Zugangsdaten „Supabase account“ haben. Dann den Fehler-Workflow eintragen und veröffentlichen.
-5. Das Portal veröffentlichen.
+**Voraussetzung:** Das Supabase-Projekt enthält schon die Tabellen des Team-Portals, vor allem `team_mitglieder` (`supabase/team_schema.sql`). Beim Senden prüft die Datenbank die Empfänger gegen diese Tabelle.
 
-Die Reihenfolge ist egal: Ohne Workflow oder Datenbank bleibt die Liste leer, und das Portal läuft normal weiter.
+1. **Datenbank:** `supabase/team_nachrichten.sql` im Supabase SQL Editor ausführen (Supabase → Projekt → links „SQL Editor“ → „New query“ → einfügen → „Run“). Am Ende müssen `team_msgs` und `team_msgs_user` aufgelistet sein. Das Skript kann man gefahrlos mehrfach ausführen.
+2. **Anderes Supabase-Projekt?** Dann in `nachrichten/n8n/bauen-nachrichten.mjs` die Adresse in `SUPA` anpassen. Das Projekt muss dasselbe sein, das die Portal-API v2 benutzt.
+3. `npm run nachrichten:bauen` ausführen.
+4. Den Inhalt von `nachrichten/n8n/nachrichten.workflow.gen.js` per n8n-MCP als neuen Workflow anlegen.
+5. In n8n prüfen, dass die Knoten „Mitglied prüfen“ und „Datenbank“ die Supabase-Zugangsdaten des Projekts haben (heute „Supabase account“). Fehler-Workflow `pka7MaqDJwuhjHpY` eintragen, „erfolgreiche Läufe speichern“ ausschalten, veröffentlichen.
+6. Das Portal veröffentlichen.
+
+Die Reihenfolge ist egal: Ohne Workflow oder Datenbank bleibt die Liste leer, und das Portal läuft normal weiter. Wer dann eine Nachricht senden will, bekommt die Meldung mit dem Verweis auf diesen Abschnitt.
+
+Ändert sich `nachrichten/lib/nachrichten.js`, müssen die beiden Code-Knoten „Anfrage prüfen“ und „Antwort bauen“ im laufenden Workflow mit dem neu gebauten Code aktualisiert werden.
