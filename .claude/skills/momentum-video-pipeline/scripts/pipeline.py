@@ -7,7 +7,7 @@
 Aufruf (aus dem Repo-Hauptordner):
     uv run .claude/skills/momentum-video-pipeline/scripts/pipeline.py <befehl> ...
 
-Befehle: finden, altbestand, pruefen, transkribieren, bearbeiten, story, hochladen, log-eintrag.
+Befehle: finden, altbestand, pruefen, transkribieren, bearbeiten, story, hochladen, log-eintrag, schluessel-anlegen.
 Originale werden nur gelesen. Ergebnisse überschreiben nie eine vorhandene Datei.
 Personen, Ordner und der Ort der Schlüsseldatei stehen in einer Konfiguration außerhalb des Repos.
 """
@@ -692,6 +692,33 @@ def hochladen(args, cfg: dict) -> dict:
     return {"ok": True, "url": antwort["public_url"], "pfad": antwort.get("pfad"), "groesse": groesse}
 
 
+def schluessel_anlegen(cfg: dict) -> dict:
+    """Legt die Schlüsseldatei an (falls sie fehlt) und kopiert den Schlüssel in die Zwischenablage.
+
+    Der Schlüssel wird nie ausgegeben. So kann er in n8n eingefügt werden, ohne im Chat oder Terminal zu stehen.
+    """
+    import secrets
+
+    pfad = os.path.expandvars(cfg.get("geheim_datei", ""))
+    if not pfad:
+        abbruch("In der Konfiguration fehlt „geheim_datei“.")
+    geheim = Path(pfad)
+    vorhanden = env_lesen(geheim).get("MOMENTUM_UPLOAD_KEY") if geheim.is_file() else None
+    if vorhanden:
+        key, neu = vorhanden, False
+    else:
+        url = cfg.get("upload_url")
+        if not url:
+            abbruch("In der Konfiguration fehlt „upload_url“ (Adresse des n8n-Webhooks).")
+        geheim.parent.mkdir(parents=True, exist_ok=True)
+        key, neu = secrets.token_hex(32), True
+        zeilen = [f"MOMENTUM_UPLOAD_URL={url}", f"MOMENTUM_UPLOAD_KEY={key}", ""]
+        geheim.write_text(os.linesep.join(zeilen), encoding="utf-8", newline="")
+    subprocess.run(["clip"], input=key.encode("ascii"), check=True)
+    return {"datei": str(geheim), "neu_angelegt": neu, "in_zwischenablage": True,
+            "naechster_schritt": "In n8n beim Credential „SOCIAL Video-Upload“ ins Feld „Value“ einfügen (Strg+V)."}
+
+
 # ------------------------------------------------------------------------ CLI
 
 def main() -> None:
@@ -741,6 +768,8 @@ def main() -> None:
     s.add_argument("--prefix", required=True)
     s.add_argument("--trocken", action="store_true", help="Nur prüfen, nichts ablegen")
 
+    sub.add_parser("schluessel-anlegen", help="Upload-Schlüssel anlegen bzw. erneut in die Zwischenablage kopieren (wird nie angezeigt)")
+
     s = sub.add_parser("log-eintrag", help="Eintrag im Log der Person anlegen oder ergänzen")
     s.add_argument("--person", required=True)
     s.add_argument("--daten", required=True, help="JSON mit mindestens „schluessel“")
@@ -761,6 +790,8 @@ def main() -> None:
         return ausgeben(bearbeiten(args, cfg))
     if args.befehl == "story":
         return ausgeben(story(args, cfg))
+    if args.befehl == "schluessel-anlegen":
+        return ausgeben(schluessel_anlegen(cfg))
     if args.befehl == "hochladen":
         return ausgeben(hochladen(args, cfg))
     if args.befehl == "log-eintrag":

@@ -1,6 +1,7 @@
 {
   "handle": "@momentumkiakademie",
   "marke": "MOMENTUM KI AKADEMIE",
+  "upload_url": "https://DEIN-N8N/webhook/social-video-upload",
   "geheim_datei": "%LOCALAPPDATA%/hermes/secrets/momentum_video_upload.env",
   "strategie_ordner": "PFAD/ZU/DEN/STRATEGIE-DATEIEN",
   "personen": [

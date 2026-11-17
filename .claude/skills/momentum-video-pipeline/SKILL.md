@@ -24,7 +24,7 @@ Gepostet wird erst, wenn ein Mensch im Portal freigibt (das macht der Veröffent
 | ffmpeg und ffprobe | im PATH (geprüft mit 8.1) |
 | `uv` | im PATH. Whisper und Pillow holt `uv run` beim ersten Aufruf selbst in eine eigene Umgebung. Kein fremdes Python anfassen. |
 | Konfiguration | `%LOCALAPPDATA%\momentum-video-pipeline\config.json`, Vorlage: `config.beispiel.json`. Enthält Personen, Ordner, Kürzel, Ort der Schlüsseldatei und der Strategie-Dateien. |
-| Schlüsseldatei | Pfad steht in der Konfiguration (`geheim_datei`). Inhalt: `MOMENTUM_UPLOAD_URL=…` und `MOMENTUM_UPLOAD_KEY=…`. Legt Timo an, nie selbst erzeugen oder ausgeben. |
+| Schlüsseldatei | Pfad steht in der Konfiguration (`geheim_datei`). Inhalt: `MOMENTUM_UPLOAD_URL=…` und `MOMENTUM_UPLOAD_KEY=…`. Timo legt sie mit `pipeline.py schluessel-anlegen` an: Der Befehl erzeugt den Schlüssel, zeigt ihn nie an und kopiert ihn in die Zwischenablage, damit Timo ihn in n8n beim Credential „SOCIAL Video-Upload“ (Header Auth, Header-Name `X-Upload-Key`) einfügen kann. Claude führt diesen Befehl nicht selbst aus und liest die Datei nicht. |
 | Strategie-Dateien | Ordner aus `strategie_ordner`: `content-strategie-momentum.md`, `<person>-reels-einplanung.md`, `<person>-skripte.md` (Kopien aus dem claude.ai-Projekt „Momentum Socialmedia“). |
 | n8n | Connector „n8n“ (selbst gehostet). Liefert er nur Fehler: Timo bitten, ihn im Plus-Menü unter Connectors aus- und wieder einzuschalten. Nicht nach Schlüsseln in Dateien suchen. |
 
