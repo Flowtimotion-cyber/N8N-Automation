@@ -55,7 +55,13 @@ def lauf(befehl: list[str], eingabe: bytes | None = None, binaer: bool = False):
 
 
 def config_pfad() -> Path:
-    return Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "momentum-video-pipeline" / "config.json"
+    """Konfiguration im Benutzerordner, bewusst nicht unter AppData.
+
+    Die Claude-Desktop-App leitet Schreibzugriffe auf AppData in einen eigenen App-Ordner um. Eine dort
+    von Claude angelegte Datei sieht ein normales Terminal nicht (und umgekehrt). Der Benutzerordner
+    selbst wird nicht umgeleitet.
+    """
+    return Path.home() / ".momentum-video-pipeline" / "config.json"
 
 
 def config_laden(pfad: str | None) -> dict:
@@ -725,7 +731,7 @@ def main() -> None:
     for strom in (sys.stdout, sys.stderr):
         strom.reconfigure(encoding="utf-8")
     p = argparse.ArgumentParser(description="Momentum Video-Pipeline")
-    p.add_argument("--config", help="Pfad zur Konfiguration (Standard: %%LOCALAPPDATA%%/momentum-video-pipeline/config.json)")
+    p.add_argument("--config", help="Pfad zur Konfiguration (Standard: ~/.momentum-video-pipeline/config.json)")
     sub = p.add_subparsers(dest="befehl", required=True)
 
     s = sub.add_parser("finden", help="Neue Videos suchen")
