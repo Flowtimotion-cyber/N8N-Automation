@@ -18,6 +18,8 @@ if (!/^https:\/\//.test(n8n) || !/^https:\/\//.test(portal)) { console.error('n8
 const vorlage = JSON.parse(readFileSync(join(paket, 'config', 'mandant.example.json'), 'utf8'));
 const konfig = { ...vorlage, firma: arg('firma', vorlage.firma), kurzname: arg('kurzname', vorlage.kurzname), n8n_basis_url: n8n.replace(/\/$/, ''), portal_url: portal.endsWith('/') ? portal : portal + '/' };
 
+// --messenger setzt den Namen des Messengers für „Anstupsen“ (Konfig-Feld messenger), ohne Angabe steht neutral „Messenger“ da
+if (arg('messenger', '')) konfig.messenger = String(arg('messenger', '')).slice(0, 30);
 // --an schaltet zusätzliche Register ein (Komma-Liste, z. B. --an tresor,termine,dokumente,videos,wiki)
 for (const r of String(arg('an', '')).split(',').map(x => x.trim()).filter(Boolean)) { if (r in konfig.register) konfig.register[r] = true; else { console.error('Unbekanntes Register: ' + r); process.exit(1); } }
 if (existsSync(ziel)) rmSync(ziel, { recursive: true, force: true });

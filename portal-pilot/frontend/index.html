@@ -315,6 +315,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .pdzeile .t{font-weight:600;color:inherit;text-decoration:none}.pdzeile a.t:hover{text-decoration:underline}
 .pdicon{font-size:26px;line-height:1.1}
 .pdtag{min-width:52px;text-align:center;border-radius:10px;padding:6px 4px;background:var(--tint,#F3EEFD)}.pdtag b{display:block;font-size:20px;line-height:1.1}.pdtag span{font-size:12px;color:var(--mut,#6b6880)}.pdtag.heute{background:var(--acc);color:#fff}.pdtag.heute span{color:#fff}
+.msgs-ico{position:relative;border:0;background:none;cursor:pointer;padding:4px;border-radius:8px;line-height:0;color:var(--mut)}.msgs-ico:hover{background:var(--tint,#F3EEFD)}.msgs-ico.rot{color:var(--acc)}
+.msgs-n{position:absolute;top:-4px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#D92D20;color:#fff;font-size:11px;font-weight:700;line-height:17px;text-align:center}
+details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdtr:first-of-type{border-top:0}details.pdtr summary{cursor:pointer;list-style:none}details.pdtr summary::-webkit-details-marker{display:none}details.pdtr .t{font-weight:600}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
@@ -358,7 +361,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   let ROLLEN = { admin: 'Admin', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
   // Register: interner Schlüssel, Beschriftung, Schalter in mandant.js („register“). Ausgeschaltete Register erscheinen nirgends und rufen keine API auf.
-  const ALLE_TABS = [['start', 'Übersicht', 'uebersicht'], ['aufgaben', 'Aufgaben', 'aufgaben'], ['projekte', 'Projekte', 'projekte'], ['termine', 'Meine Termine', 'termine'], ['zeit', 'Arbeitszeit', 'arbeitszeit'], ['notizen', 'Notizen', 'notizen'], ['dokumente', 'Dokumente', 'dokumente'], ['videos', 'Videos', 'videos'], ['wiki', 'Wiki', 'wiki'], ['social', 'Social Media', 'social'], ['vertrieb', 'Vertrieb', 'vertrieb'], ['whatsapp', 'WhatsApp', 'whatsapp'], ['kurs', 'Kurs & Teilnehmer', 'kurs'], ['systeme', 'Systeme', 'systeme'], ['skills', 'Skills', 'skills'], ['tresor', 'Tresor', 'tresor'], ['web', 'Webseite', 'webseite'], ['vorschlaege', 'Verbesserungsvorschläge', 'vorschlaege'], ['office', 'KI Office', 'office'], ['team', 'Team', 'team']];
+  const ALLE_TABS = [['start', 'Übersicht', 'uebersicht'], ['aufgaben', 'Aufgaben', 'aufgaben'], ['projekte', 'Projekte', 'projekte'], ['termine', 'Meine Termine', 'termine'], ['transkription', 'Transkription', 'transkription'], ['zeit', 'Arbeitszeit', 'arbeitszeit'], ['notizen', 'Notizen', 'notizen'], ['dokumente', 'Dokumente', 'dokumente'], ['videos', 'Videos', 'videos'], ['wiki', 'Wiki', 'wiki'], ['ki', 'KI-Agent', 'ki'], ['social', 'Social Media', 'social'], ['vertrieb', 'Vertrieb', 'vertrieb'], ['whatsapp', 'WhatsApp', 'whatsapp'], ['kurs', 'Kurs & Teilnehmer', 'kurs'], ['systeme', 'Systeme', 'systeme'], ['skills', 'Skills', 'skills'], ['tresor', 'Tresor', 'tresor'], ['web', 'Webseite', 'webseite'], ['vorschlaege', 'Verbesserungsvorschläge', 'vorschlaege'], ['office', 'KI Office', 'office'], ['team', 'Team', 'team']];
   // Register mit Modul auf dem Server: nur sichtbar, wenn der Konfig-Schalter UND die Einstellung „module“ (team_einstellungen) an sind.
   // Meldet der Server „Modul nicht aktiviert“ (403), landet das Modul in MODUL_AUS und das Register verschwindet bis zum nächsten Laden.
   const MODUL_VON_TAB = { zeit: 'zeit', social: 'social', systeme: 'system', kurs: 'kurs' };
@@ -542,14 +545,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   function render() {
     const i = D.ich;
     $('#app').innerHTML = '<header><div class="wrap"><div class="hrow">' + logoHtml() + '<span class="htitle">Team-Portal</span>' + (an('zeit') ? zkKopf() : '') +
-      '<div class="who">' + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
+      '<div class="who">' + hwIconHtml() + av(i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc(ROLLEN[i.rolle] || i.rolle) + '</span></span></div></div>' +
       '<div class="tabwrap"><nav class="tabs" role="tablist" aria-label="Register (auf dem Handy seitlich wischen)">' + tabs().filter(([k]) => !['vertrieb', 'whatsapp'].includes(k) || darfVertrieb()).map(([k, l]) => '<button role="tab" data-tab="' + k + '" class="' + (k === tab ? 'on' : '') + '">' + l + '</button>').join('') + '</nav></div></div><div class="bar"></div></header>' +
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam, termine: vTermine, dokumente: vDokumente, videos: vVideos, wiki: vWiki };
+    const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam, termine: vTermine, dokumente: vDokumente, videos: vVideos, wiki: vWiki, transkription: vTranskription, ki: vKI };
     if (!V[tab] || !an(tab) || (['vertrieb', 'whatsapp'].includes(tab) && !darfVertrieb())) { tab = startTab(); ls.set('mt-tab', tab); }
-    tabsScrollen();
+    tabsScrollen(); hwIconBinden();
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
     document.body.dataset.tab = tab;
     if (!tabs().length) { $('#main').innerHTML = '<div class="card"><h2>Kein Register eingeschaltet</h2><p>In <code>mandant.js</code> unter „register“ mindestens ein Register auf <code>true</code> setzen.</p></div>'; return; }
@@ -734,6 +737,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const id = 'pd_' + f.k, v = w[f.k] == null ? '' : w[f.k], req = f.pflicht ? ' required' : '', ph = f.ph ? ' placeholder="' + esc(f.ph) + '"' : '';
       if (f.typ === 'textarea') return '<div class="f"><label for="' + id + '">' + esc(f.label) + '</label><textarea id="' + id + '" rows="4" maxlength="4000"' + req + ph + '>' + esc(v) + '</textarea></div>';
       if (f.typ === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.label) + '</label><select id="' + id + '">' + opt(f.opts, v) + '</select></div>';
+      if (f.typ === 'check') return '<div class="f"><label class="check" style="margin:0"><input type="checkbox" id="' + id + '"' + (v === true ? ' checked' : '') + '><span>' + esc(f.label) + '</span></label></div>';
       if (f.typ === 'personen') {
         const sel = Array.isArray(v) ? v : [];
         return '<div class="f"><label>' + esc(f.label) + '</label><div style="display:flex;gap:6px 14px;flex-wrap:wrap">' + (D.mitglieder || []).filter(p => p.status !== 'gesperrt' && p.typ !== 'agent').map(p => '<label class="check" style="margin:0"><input type="checkbox" data-pdp="' + esc(f.k) + '" value="' + esc(p.mitglied_id) + '"' + (sel.includes(p.mitglied_id) ? ' checked' : '') + '><span>' + esc(p.name) + '</span></label>').join('') + '</div></div>';
@@ -752,9 +756,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     $('#pdf').onsubmit = async ev => {
       ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       const o = {};
-      for (const f of felder) o[f.k] = f.typ === 'personen' ? [...document.querySelectorAll('[data-pdp="' + f.k + '"]:checked')].map(x => x.value) : String($('#pd_' + f.k).value || '').trim();
+      for (const f of felder) o[f.k] = f.typ === 'check' ? $('#pd_' + f.k).checked : f.typ === 'personen' ? [...document.querySelectorAll('[data-pdp="' + f.k + '"]:checked')].map(x => x.value) : String($('#pd_' + f.k).value || '').trim();
       if (felder.some(f => f.typ === 'url' && o[f.k] && !pdLink(o[f.k]))) { toast('Der Link muss mit https:// beginnen.'); btn.disabled = false; return; }
-      try { await speichern(o); dlg.close(); toast('Gespeichert'); } catch (e) { toast(e.message); btn.disabled = false; }
+      try { const r = await speichern(o); dlg.close(); if (r !== 'leise') toast('Gespeichert'); } catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
   const pdBinden = (name, kopfNeu, kopfAlt, felder, vorgabe) => {
@@ -803,7 +807,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   }
 
   // ---------- Meine Termine ----------
-  const TERMIN_FELDER = () => [{ k: 'titel', label: 'Was?', pflicht: true }, { k: 'datum', label: 'Datum', typ: 'date', pflicht: true }, { k: 'von', label: 'Beginn', typ: 'time' }, { k: 'bis', label: 'Ende', typ: 'time' }, { k: 'ort', label: 'Ort oder Link', ph: 'Besprechungsraum oder https://…' }, { k: 'teilnehmer', label: 'Wer ist dabei?', typ: 'personen' }, { k: 'text', label: 'Notiz', typ: 'textarea' }];
+  const TERMIN_FELDER = () => [{ k: 'titel', label: 'Was?', pflicht: true }, { k: 'datum', label: 'Datum', typ: 'date', pflicht: true }, { k: 'von', label: 'Beginn', typ: 'time' }, { k: 'bis', label: 'Ende', typ: 'time' }, { k: 'ort', label: 'Ort oder Link', ph: 'Besprechungsraum oder https://…' }, { k: 'teilnehmer', label: 'Wer ist dabei?', typ: 'personen' }, { k: 'text', label: 'Notiz', typ: 'textarea' }, { k: 'info', label: 'Die Teilnehmenden informieren: Info mit Link zum Termin, im Portal und per ' + MESSENGER + ' (folgt)', typ: 'check' }];
   function vTermine() {
     const ich = D.ich.mitglied_id, h = new Date().toLocaleDateString('sv-SE');
     const meine = pdListe('termine').filter(e => e.autor === ich || (e.teilnehmer || []).includes(ich)).sort((a, b) => (String(a.datum) + String(a.von || '')).localeCompare(String(b.datum) + String(b.von || '')));
@@ -811,7 +815,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const d = dDate(e.datum), ort = String(e.ort || ''), wer = [...new Set([e.autor].concat(e.teilnehmer || []))];
       return '<div class="pdzeile"><div class="pdtag' + (e.datum === h ? ' heute' : '') + '"><b>' + (d && !isNaN(d) ? d.getDate() : '?') + '</b><span>' + (d && !isNaN(d) ? d.toLocaleDateString('de-DE', { month: 'short' }) : '') + '</span></div>' +
         '<div style="min-width:0;flex:1"><span class="t">' + esc(e.titel) + '</span><div class="small muted">' + (d && !isNaN(d) ? esc(d.toLocaleDateString('de-DE', { weekday: 'long' })) : '') + (e.von ? ' · ' + esc(e.von) + (e.bis ? '–' + esc(e.bis) : '') + ' Uhr' : '') + (ort ? ' · ' + (pdLink(ort) ? '<a href="' + esc(ort) + '" target="_blank" rel="noopener noreferrer">Link öffnen ↗</a>' : esc(ort)) : '') + '</div>' +
-        (e.text ? '<div class="small" style="margin-top:2px;white-space:pre-wrap">' + esc(e.text) + '</div>' : '') + '<div class="meta">' + wer.map(av).join('') + '<span>' + esc(wer.map(id => mitglied(id).name).join(', ')) + '</span></div></div>' +
+        (e.text ? '<div class="small" style="margin-top:2px;white-space:pre-wrap">' + esc(e.text) + '</div>' : '') + '<div class="meta">' + wer.map(av).join('') + '<span>' + esc(wer.map(id => mitglied(id).name).join(', ')) + '</span>' + (e.info && wer.length > 1 ? '<span class="chip" title="Die Teilnehmenden haben eine Info mit Link bekommen">📣 Info mit Link gesendet</span>' : '') + '</div></div>' +
         (pdDarf(e) ? '<button class="btn ghost" data-pde="' + esc(e.id) + '">Bearbeiten</button>' : '') + '</div>';
     };
     const heuteL = meine.filter(e => e.datum === h), kommend = meine.filter(e => e.datum > h), alt = meine.filter(e => e.datum < h).reverse();
@@ -820,7 +824,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<div class="card"><h2 style="margin-top:0">Heute</h2>' + (heuteL.length ? heuteL.map(zeile).join('') : '<p class="empty">Heute steht nichts an.</p>') + '</div>' +
       '<div class="card"><h2 style="margin-top:0">Demnächst</h2>' + (kommend.length ? kommend.map(zeile).join('') : '<p class="empty">Keine kommenden Termine. Mit „+ Termin“ trägst du einen ein.</p>') + '</div>' +
       (alt.length ? '<details class="card"><summary style="cursor:pointer;font-weight:600">Vergangene Termine (' + alt.length + ')</summary>' + alt.slice(0, 30).map(zeile).join('') + '</details>' : '');
-    pdBinden('termine', 'Neuer Termin', 'Termin bearbeiten', TERMIN_FELDER, () => ({ datum: h, teilnehmer: [] }));
+    // Neuer Termin: speichern und, wenn angekreuzt, die Teilnehmenden informieren
+    const terminNeu = async o => {
+      await pdSpeichern('termine', null)(o);
+      const an = (o.teilnehmer || []).filter(id => id !== ich);
+      if (o.info && an.length) { return stupsen(an, '📅 Neuer Termin: ' + o.titel + ' am ' + fmtD(o.datum) + (o.von ? ' um ' + o.von + ' Uhr' : '') + (o.ort ? ' · ' + o.ort : '') + ' · ' + PORTAL + '#/tab/termine'); }
+    };
+    pdBinden('termine', 'Neuer Termin', 'Termin bearbeiten', TERMIN_FELDER, () => ({ datum: h, teilnehmer: [], info: true }));
+    const tn = $('#pd_neu'); if (tn) tn.onclick = () => pdDialog('Neuer Termin', TERMIN_FELDER(), { datum: h, teilnehmer: [], info: true }, terminNeu);
   }
 
   // ---------- Wiki (DokuWiki, eingebettet) ----------
@@ -834,6 +845,234 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
           '<div class="pdgrid" style="margin-top:12px"><div class="note"><b>📚 Handbuch</b><br>Wie wir arbeiten, Schritt für Schritt.</div><div class="note"><b>🧭 Abläufe</b><br>Vom Auftrag bis zur Rechnung, wer macht was.</div><div class="note"><b>❓ Häufige Fragen</b><br>Antworten, die sonst immer wieder jemand sucht.</div><div class="note"><b>🧾 Vorlagen</b><br>Texte und Checklisten zum Kopieren.</div></div>' +
           '<p class="small muted" style="margin-bottom:0">' + (admin ? 'Als Admin trägst du die Adresse über „Wiki-Adresse eintragen“ ein.' : 'Die Adresse trägt ein Admin ein.') + '</p></div>');
     const b = $('#wk_set'); if (b) b.onclick = () => pdDialog('Wiki-Adresse', [{ k: 'v', label: 'Adresse eures DokuWiki (https://…), leer = entfernen', typ: 'url', ph: 'https://…' }], { v: u }, o => pdAendern('einstellungen', l => l.filter(x => x.k !== 'wiki_url').concat(o.v ? [{ k: 'wiki_url', v: o.v }] : [])));
+  }
+
+  // ---------- KI-Dienst (eigener Webhook: n8n_basis_url + '/portal-ki') ----------
+  // Zusammenfassen, Finden und Bauen laufen über einen KI-Dienst. Dabei geht der gesendete Text an den KI-Anbieter des Betreibers.
+  const KI_API = BASIS + '/portal-ki';
+  const KI_HINWEIS = '<p class="small muted" style="margin:10px 0 0">🤖 Für die KI-Funktionen geht der Text an einen KI-Dienst außerhalb des Portals. Bitte nichts Vertrauliches und keine Kundendaten eingeben.</p>';
+  async function ki(aktion, daten) {
+    let r = null, j = null;
+    try { r = await fetch(KI_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) }); j = await r.json(); } catch (e) {}
+    if (!r || !r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Der KI-Dienst ist noch nicht angeschlossen.'); err.offline = !r || r.status === 404 || !(j && j.ok === false && typeof j.fehler === 'string'); throw err; }
+    return j;
+  }
+  const kiKurz = (t, n) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, n);
+
+  // ---------- Nachrichten-Symbol oben rechts (ungelesene Informationen) ----------
+  const hwUngelesen = () => { const ich = D.ich.mitglied_id; return pdListe('hinweise').filter(x => (x.an || []).includes(ich) && !(x.gelesen || []).includes(ich)).length; };
+  function hwIconHtml() {
+    const n = hwUngelesen(), titel = n ? (n === 1 ? '1 ungelesene Information' : n + ' ungelesene Informationen') : 'Informationen (alles gelesen)';
+    return '<button type="button" class="msgs-ico ' + (n ? 'rot' : 'grau') + '" id="hwIco" title="' + titel + '" aria-label="' + titel + '"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1 2.4V17h16V7.4l-8 5.3-8-5.3zM5.3 7l6.7 4.4L18.7 7H5.3z"/></svg>' + (n ? '<span class="msgs-n">' + (n > 99 ? '99+' : n) + '</span>' : '') + '</button>';
+  }
+  function hwIconBinden() {
+    const b = $('#hwIco'); if (!b) return;
+    b.onclick = () => {
+      if (tab !== 'start') { tab = 'start'; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/start'); render(); }
+      const k = $('#hinweisKarte'); if (k) { k.scrollIntoView({ behavior: 'smooth', block: 'center' }); const t = $('#h_t'); if (t && !hwUngelesen()) t.focus({ preventScroll: true }); }
+    };
+  }
+
+  // ---------- Transkription: mitschreiben, speichern, zusammenfassen, Aufgaben ableiten und zuordnen ----------
+  // Jede Transkription liegt in einer eigenen versteckten Notiz („Portal-Daten: transkript-<id>“), damit lange Texte Platz haben.
+  const trName = id => 'transkript-' + id;
+  const transkripte = () => Object.keys(PD).filter(k => k.startsWith('transkript-')).map(k => PD[k].liste[0]).filter(Boolean).sort((a, b) => String(b.erstellt).localeCompare(String(a.erstellt)));
+  const trAendern = (e, patch) => pdAendern(trName(e.id), l => [Object.assign({}, l[0] || e, patch)]);
+  let trRec = null, trLaeuft = false, trBasis = '', trSuche = '', trOffen = '';
+  const trEntwurf = { titel: '', text: '' };
+  const trKannMikro = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  function trKnopf() { const b = $('#tr_mic'); if (b) { b.textContent = trLaeuft ? '■ Aufnahme beenden' : '🎙 Mitschreiben starten'; b.classList.toggle('danger', trLaeuft); } const s = $('#tr_stat'); if (s) s.textContent = trLaeuft ? 'Hört zu … sprich einfach los. Der Text erscheint unten.' : ''; }
+  function trStop() { trLaeuft = false; if (trRec) { try { trRec.stop(); } catch (e) {} } trKnopf(); }
+  function trStart() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return toast('Mitschreiben per Mikrofon geht in Chrome und Edge. Du kannst den Text auch einfügen.');
+    trBasis = trEntwurf.text ? trEntwurf.text.replace(/\s*$/, '') + ' ' : '';
+    trRec = new SR(); trRec.lang = 'de-DE'; trRec.continuous = true; trRec.interimResults = true;
+    trRec.onresult = ev => {
+      let fest = '', vorl = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) fest += t.trim() + ' '; else vorl += t; }
+      if (fest) trBasis += fest;
+      trEntwurf.text = (trBasis + vorl).slice(0, 45000);
+      const feld = $('#tr_text'); if (feld) { feld.value = trEntwurf.text; feld.scrollTop = feld.scrollHeight; }
+    };
+    // Der Browser beendet die Erkennung nach einer Sprechpause von selbst; solange die Aufnahme läuft, geht es direkt weiter
+    trRec.onend = () => { if (trLaeuft) { try { trRec.start(); } catch (e) { trLaeuft = false; trKnopf(); } } };
+    trRec.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture') { trLaeuft = false; trKnopf(); toast('Das Mikrofon ist nicht freigegeben. Bitte im Browser erlauben.'); } };
+    trLaeuft = true; try { trRec.start(); } catch (e) { trLaeuft = false; toast('Die Aufnahme ließ sich nicht starten.'); } trKnopf();
+  }
+  async function trAuswerten(e, knopf) {
+    if (knopf) { knopf.disabled = true; knopf.textContent = 'KI liest … (bis zu einer Minute)'; }
+    try {
+      const r = await ki('zusammenfassen', { text: String(e.text || '').slice(0, 45000), team: (D.mitglieder || []).filter(p => p.status !== 'gesperrt' && p.typ !== 'agent').map(p => p.name), heute: new Date().toLocaleDateString('sv-SE') });
+      await trAendern(e, { zusammenfassung: String(r.zusammenfassung || '').slice(0, 4000), aufgaben_vorschlag: (Array.isArray(r.aufgaben) ? r.aufgaben : []).slice(0, 12), ausgewertet: new Date().toISOString() });
+      const neu = transkripte().find(x => x.id === e.id) || e;
+      trOffen = e.id; trAufgabenDialog(neu);
+    } catch (err) {
+      if (knopf) { knopf.disabled = false; knopf.textContent = '🤖 Zusammenfassen und Aufgaben ableiten'; }
+      if (err.offline) { trOffen = e.id; return trAufgabenDialog(Object.assign({}, e, { zusammenfassung: VORSCHAU_TR, aufgaben_vorschlag: [{}, {}, {}] })); }
+      toast(err.message);
+    }
+  }
+  // Bestätigen: Die KI schlägt vor, ein Mensch prüft, ordnet zu und legt an
+  function trAufgabenDialog(e) {
+    const A = Array.isArray(e.aufgaben_vorschlag) ? e.aufgaben_vorschlag : [];
+    const leute = (D.mitglieder || []).filter(p => p.status !== 'gesperrt');
+    const finde = name => { const n = String(name || '').trim().toLowerCase(); if (!n) return ''; const p = leute.find(x => String(x.name).toLowerCase() === n) || leute.find(x => String(x.name).toLowerCase().split(/\s+/)[0] === n.split(/\s+/)[0]); return p ? p.mitglied_id : ''; };
+    $('#dlgInner').innerHTML = '<h2>Zusammenfassung und Aufgaben</h2><p class="small muted" style="margin-top:-6px">' + esc(e.titel) + '</p>' +
+      '<div class="note" style="white-space:pre-wrap;margin-bottom:14px">' + esc(e.zusammenfassung || 'Keine Zusammenfassung.') + '</div>' +
+      (A.length ? '<p class="small muted">Aufgaben aus dem Gespräch. Prüf Titel, zuständige Person und Termin, dann bestätigen. Erst danach entstehen die Aufgaben und erscheinen bei der Person unter „Für dich“.</p>' +
+        A.map((a, i) => '<div class="pdzeile" style="align-items:center;flex-wrap:wrap"><input type="checkbox" data-ta="' + i + '" checked aria-label="Aufgabe übernehmen" style="width:auto"><input data-tt="' + i + '" value="' + esc(kiKurz(a.titel, 160)) + '" maxlength="160" aria-label="Titel" placeholder="Aufgabe eintragen …" style="flex:2;min-width:200px"><select data-tv="' + i + '" aria-label="Zuständig" style="flex:1;min-width:150px">' + personOpts(finde(a.verantwortlich) || D.ich.mitglied_id) + '</select><input type="date" data-td="' + i + '" value="' + esc(/^\d{4}-\d{2}-\d{2}$/.test(String(a.deadline || '')) ? a.deadline : '') + '" aria-label="Termin" style="width:auto"></div>').join('')
+        : '<p class="empty">Aus dem Text ergeben sich keine Aufgaben.</p>') +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="ta_c">Schließen</button>' + (A.length ? '<button type="button" class="btn" id="ta_ok">Ausgewählte Aufgaben anlegen</button>' : '') + '</div>';
+    const dlg = openDlg(true);
+    $('#ta_c').onclick = () => dlg.close();
+    const ok = $('#ta_ok'); if (ok) ok.onclick = async () => {
+      ok.disabled = true; let n = 0;
+      try {
+        for (let i = 0; i < A.length; i++) {
+          if (!document.querySelector('[data-ta="' + i + '"]').checked) continue;
+          const titel = document.querySelector('[data-tt="' + i + '"]').value.trim(); if (titel.length < 3) continue;
+          await api('aufgabe_speichern', { titel, beschreibung: kiKurz(A[i].beschreibung, 2000) + '\n\nAus der Transkription „' + e.titel + '“ vom ' + fmtD(String(e.erstellt || '').slice(0, 10)) + '.', verantwortlich: document.querySelector('[data-tv="' + i + '"]').value, deadline: document.querySelector('[data-td="' + i + '"]').value || '', prio: 2, status: 'Offen', projekt: '', label: '', agent_geeignet: false, kommentar: '' });
+          n++;
+        }
+        await trAendern(e, { aufgaben_vorschlag: [], aufgaben_angelegt: (Number(e.aufgaben_angelegt) || 0) + n });
+        dlg.close(); toast(n === 1 ? '1 Aufgabe angelegt' : n + ' Aufgaben angelegt');
+      } catch (err) { toast(err.message); ok.disabled = false; }
+    };
+  }
+  function vTranskription() {
+    const alle = transkripte(), q = trSuche.trim().toLowerCase();
+    const L = alle.filter(e => !q || (String(e.titel) + ' ' + String(e.text) + ' ' + String(e.zusammenfassung || '')).toLowerCase().includes(q));
+    const stelle = e => { if (!q) return kiKurz(e.zusammenfassung || e.text, 220); const t = String(e.text || '').replace(/\s+/g, ' '), i = t.toLowerCase().indexOf(q); return i < 0 ? kiKurz(e.zusammenfassung || e.text, 220) : (i > 60 ? '… ' : '') + t.slice(Math.max(0, i - 60), i + 160); };
+    $('#main').innerHTML = pdKopf('Transkription', 'Gespräche und Diktate mitschreiben lassen, speichern und wiederfinden. Die KI fasst zusammen und schlägt Aufgaben vor, die du prüfst, zuordnest und bestätigst.') +
+      '<div class="card"><h2 style="margin-top:0">Neu aufnehmen</h2><div class="f"><label for="tr_titel">Titel</label><input id="tr_titel" maxlength="120" placeholder="z. B. Teamrunde am Montag" value="' + esc(trEntwurf.titel) + '"></div>' +
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button type="button" class="btn' + (trLaeuft ? ' danger' : '') + '" id="tr_mic">' + (trLaeuft ? '■ Aufnahme beenden' : '🎙 Mitschreiben starten') + '</button><span class="small muted" id="tr_stat">' + (trLaeuft ? 'Hört zu … sprich einfach los. Der Text erscheint unten.' : '') + '</span></div>' +
+      (trKannMikro() ? '' : '<p class="small muted">Mitschreiben per Mikrofon geht in Chrome und Edge. In diesem Browser kannst du den Text einfügen.</p>') +
+      '<div class="f"><label for="tr_text">Text (läuft beim Sprechen mit, du kannst ihn auch einfügen oder korrigieren)</label><textarea id="tr_text" rows="8" maxlength="45000" placeholder="Hier erscheint, was gesprochen wird …">' + esc(trEntwurf.text) + '</textarea></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="tr_save">Speichern</button><button type="button" class="btn sec" id="tr_ki">Speichern und 🤖 auswerten</button><button type="button" class="btn ghost" id="tr_leer">Leeren</button></div>' +
+      '<p class="small muted" style="margin:10px 0 0">Das Mitschreiben nutzt die Spracherkennung deines Browsers; der Ton wird dafür an dessen Anbieter übertragen.</p>' + KI_HINWEIS + '</div>' +
+      '<div class="card"><div class="tools"><h2 style="margin:0;flex:1">Gespeichert (' + alle.length + ')</h2><input id="tr_such" type="search" placeholder="Im Gesprochenen suchen …" value="' + esc(trSuche) + '" aria-label="Transkriptionen durchsuchen" style="flex:1;min-width:180px;max-width:320px"></div>' +
+      (L.length ? L.map(e => '<details class="pdtr"' + (trOffen === e.id ? ' open' : '') + ' data-trid="' + esc(e.id) + '"><summary><span class="t">' + esc(e.titel) + '</span> <span class="small muted">· ' + fmtDT(e.erstellt) + ' · ' + esc(mitglied(e.autor).name) + (e.zusammenfassung ? ' · <span class="chip ki">zusammengefasst</span>' : '') + (e.aufgaben_angelegt ? ' · <span class="chip">' + Number(e.aufgaben_angelegt) + ' Aufgaben</span>' : '') + '</span><div class="small" style="margin-top:2px">' + esc(stelle(e)) + '</div></summary>' +
+          (e.zusammenfassung ? '<div class="note" style="white-space:pre-wrap;margin:10px 0">' + esc(e.zusammenfassung) + '</div>' : '') +
+          '<div class="small" style="white-space:pre-wrap;max-height:280px;overflow:auto;border:1px solid var(--line,#E6E3EE);border-radius:10px;padding:10px">' + esc(e.text) + '</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button type="button" class="btn sec" data-trki="' + esc(e.id) + '">🤖 Zusammenfassen und Aufgaben ableiten</button>' + ((e.aufgaben_vorschlag || []).length ? '<button type="button" class="btn" data-trauf="' + esc(e.id) + '">Aufgaben prüfen und bestätigen (' + e.aufgaben_vorschlag.length + ')</button>' : '') + (pdDarf(e) ? '<button type="button" class="btn ghost" data-trdel="' + esc(e.id) + '">Löschen</button>' : '') + '</div></details>').join('')
+        : '<p class="empty">' + (alle.length ? 'Nichts gefunden.' : 'Noch nichts gespeichert.') + '</p>') + '</div>';
+    const ti = $('#tr_titel'), tx = $('#tr_text');
+    ti.oninput = () => { trEntwurf.titel = ti.value; }; tx.oninput = () => { trEntwurf.text = tx.value; trBasis = tx.value ? tx.value.replace(/\s*$/, '') + ' ' : ''; };
+    $('#tr_mic').onclick = () => (trLaeuft ? trStop() : trStart());
+    $('#tr_leer').onclick = () => { trStop(); trEntwurf.titel = ''; trEntwurf.text = ''; trBasis = ''; vTranskription(); };
+    const sichern = async auswerten => {
+      trStop();
+      const text = tx.value.trim(); if (text.length < 10) return toast('Bitte erst etwas aufnehmen oder einfügen.');
+      const titel = ti.value.trim() || 'Aufnahme vom ' + new Date().toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const e = { id: pdId(), titel: titel.slice(0, 120), text: text.slice(0, 45000), autor: D.ich.mitglied_id, erstellt: new Date().toISOString() };
+      const b1 = $('#tr_save'), b2 = $('#tr_ki'); b1.disabled = b2.disabled = true;
+      try { trEntwurf.titel = ''; trEntwurf.text = ''; trBasis = ''; trOffen = e.id; await pdAendern(trName(e.id), () => [e]); toast('Gespeichert'); if (auswerten) await trAuswerten(e, document.querySelector('[data-trki="' + e.id + '"]')); }
+      catch (err) { trEntwurf.titel = titel; trEntwurf.text = text; toast(err.message); b1.disabled = b2.disabled = false; }
+    };
+    $('#tr_save').onclick = () => sichern(false); $('#tr_ki').onclick = () => sichern(true);
+    const s = $('#tr_such'); s.oninput = () => { trSuche = s.value; const p = s.selectionStart; vTranskription(); const n = $('#tr_such'); n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} };
+    document.querySelectorAll('details.pdtr').forEach(d => d.ontoggle = () => { if (d.open) trOffen = d.dataset.trid; else if (trOffen === d.dataset.trid) trOffen = ''; });
+    const finde = id => transkripte().find(x => x.id === id);
+    document.querySelectorAll('[data-trki]').forEach(b => b.onclick = () => { const e = finde(b.dataset.trki); if (e) trAuswerten(e, b); });
+    document.querySelectorAll('[data-trauf]').forEach(b => b.onclick = () => { const e = finde(b.dataset.trauf); if (e) trAufgabenDialog(e); });
+    document.querySelectorAll('[data-trdel]').forEach(b => b.onclick = async () => {
+      if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Wirklich löschen?'; return; }
+      const p = PD[trName(b.dataset.trdel)]; if (!p) return; b.disabled = true;
+      try { await api('notiz_loeschen', { notiz_id: p.notiz.notiz_id }); toast('Gelöscht (30 Tage im Papierkorb)'); await laden(true); } catch (err) { toast(err.message); b.disabled = false; }
+    });
+  }
+
+  // ---------- Vorschau ohne KI-Dienst: Stichwortsuche und Vorlagen, bis der KI-Agent angeschlossen ist ----------
+  const VORSCHAU_TR = 'Vorschau ohne KI: Die automatische Zusammenfassung und die Aufgabenvorschläge werden in der nächsten Stufe angeschlossen. Der Text ist gespeichert und über die Suche auffindbar. Aufgaben kannst du schon jetzt von Hand eintragen, zuordnen und bestätigen.';
+  function kiLokalFinden(frage, I) {
+    const W = [...new Set(String(frage).toLowerCase().split(/[^\p{L}\d]+/u).filter(w => w.length >= 3 && !['was', 'wie', 'wer', 'wir', 'der', 'die', 'das', 'und', 'oder', 'ein', 'eine', 'zum', 'zur', 'den', 'dem', 'haben', 'hat', 'ist', 'sind', 'mit', 'von', 'für', 'auf', 'über', 'wann', 'wo', 'welche', 'welcher', 'uns', 'ich', 'mir', 'gab', 'gibt', 'suche', 'finde'].includes(w)))];
+    const T = I.map(e => { const t = (e.titel + ' ' + e.titel + ' ' + e.text + ' ' + (e.zusatz || '')).toLowerCase(); const hit = W.filter(w => t.includes(w)); return { e, n: hit.length + (hit.some(w => String(e.titel).toLowerCase().includes(w)) ? 0.5 : 0), warum: hit.length ? 'Enthält: ' + hit.join(', ') : '' }; }).filter(x => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 8);
+    return { vorschau: true, antwort: (T.length ? T.length + ' Treffer nach Stichworten aus deiner Beschreibung.' : 'Zu diesen Stichworten wurde nichts gefunden.') + ' Vorschau ohne KI: Die Suche, die auch Umschreibungen versteht und in eigenen Worten antwortet, wird in der nächsten Stufe angeschlossen.', treffer: T.map(x => ({ e: x.e, warum: x.warum })) };
+  }
+  function kiLokalBauen(art, auftrag) {
+    const thema = kiKurz(auftrag, 80) || 'Thema', heute_ = new Date().toLocaleDateString('de-DE');
+    if (art === 'wiki') return { art, vorschau: true, titel: thema, inhalt: '====== ' + thema + ' ======\n\nStand: ' + heute_ + ' · Ansprechperson: [bitte ergänzen]\n\n===== Worum geht es? =====\n\n' + auftrag + '\n\n===== So gehen wir vor =====\n\n  - [Schritt 1 bitte ergänzen]\n  - [Schritt 2 bitte ergänzen]\n  - [Schritt 3 bitte ergänzen]\n\n===== Wichtig zu wissen =====\n\n  * [Hinweis bitte ergänzen]\n  * [Hinweis bitte ergänzen]\n\n===== Häufige Fragen =====\n\n**Frage:** [bitte ergänzen]\\\\\n**Antwort:** [bitte ergänzen]\n\n===== Verweise =====\n\n  * [[start|Zur Startseite]]\n' };
+    if (art === 'notiz') return { art, vorschau: true, titel: thema, inhalt: '# ' + thema + '\n\n**Stand:** ' + heute_ + '\n\n## Kurzfassung\n\n' + auftrag + '\n\n## Einzelheiten\n\n- [bitte ergänzen]\n- [bitte ergänzen]\n\n## Nächste Schritte\n\n- [ ] [bitte ergänzen]\n- [ ] [bitte ergänzen]\n' };
+    const folie = (n, t, punkte) => '## Folie ' + n + ': ' + t + '\n' + punkte.map(x => '- ' + x).join('\n') + '\n';
+    return { art: 'praesentation', vorschau: true, titel: thema, inhalt: [folie(1, thema, [auftrag, FIRMA + ' · ' + heute_]), folie(2, 'Ausgangslage', ['[Wo stehen wir heute? bitte ergänzen]', '[Was kostet uns das? bitte ergänzen]']), folie(3, 'Ziel', ['[Was soll danach anders sein? bitte ergänzen]', '[Woran merken wir es? bitte ergänzen]']), folie(4, 'Lösung im Überblick', ['[Baustein 1 bitte ergänzen]', '[Baustein 2 bitte ergänzen]', '[Baustein 3 bitte ergänzen]']), folie(5, 'So sieht es im Alltag aus', ['[Beispiel aus dem Team bitte ergänzen]']), folie(6, 'Nächste Schritte', ['[Wer macht was bis wann? bitte ergänzen]']), folie(7, 'Fragen', ['[Offene Punkte bitte ergänzen]'])].join('\n') };
+  }
+
+  // ---------- KI-Agent: Finden (beschreiben, was man sucht) und Bauen (Präsentation, Wiki-Seite, Notiz) ----------
+  let kiModus = 'finden', kiFrage = '', kiFund = null, bauArt = 'praesentation', bauText = '', bauMit = true, bauErg = null;
+  function kiInhalte() {
+    const ich = D.ich.mitglied_id, L = [];
+    (D.aufgaben || []).forEach(a => L.push({ art: 'Aufgabe', id: a.aufgabe_id, titel: a.titel, text: kiKurz(a.beschreibung, 300), zusatz: a.status + ', zuständig ' + mitglied(a.verantwortlich).name + (a.deadline ? ', bis ' + a.deadline : '') + (a.projekt ? ', Projekt ' + a.projekt : '') }));
+    (D.notizen || []).forEach(n => L.push({ art: 'Notiz', id: n.notiz_id, titel: n.titel, text: kiKurz(n.inhalt, 700), zusatz: n.projekt ? 'Projekt ' + n.projekt : '' }));
+    pdListe('dokumente').forEach(e => L.push({ art: 'Dokument', id: e.id, titel: e.titel, text: kiKurz(e.text, 300), zusatz: (e.art || '') + (e.projekt ? ', Projekt ' + e.projekt : ''), link: pdLink(e.link) }));
+    pdListe('videos').forEach(e => L.push({ art: 'Video', id: e.id, titel: e.titel, text: kiKurz(e.text, 300), zusatz: e.projekt ? 'Projekt ' + e.projekt : '', link: pdLink(e.link) }));
+    pdListe('termine').filter(e => e.autor === ich || (e.teilnehmer || []).includes(ich)).forEach(e => L.push({ art: 'Termin', id: e.id, titel: e.titel, text: kiKurz(e.text, 200), zusatz: String(e.datum || '') + (e.von ? ' ' + e.von : '') + (e.ort ? ', ' + kiKurz(e.ort, 80) : '') }));
+    transkripte().forEach(e => L.push({ art: 'Transkription', id: e.id, titel: e.titel, text: kiKurz((e.zusammenfassung ? e.zusammenfassung + ' ' : '') + e.text, 2500), zusatz: String(e.erstellt || '').slice(0, 10) }));
+    (D.vorschlaege || []).forEach(v => L.push({ art: 'Verbesserungsvorschlag', id: v.vorschlag_id, titel: v.titel, text: kiKurz(v.text, 300), zusatz: v.status || '' }));
+    return L.slice(0, 250).map((x, i) => Object.assign({ nr: i + 1 }, x));
+  }
+  function vKI() {
+    const fund = kiFund, erg = bauErg;
+    $('#main').innerHTML = pdKopf('KI-Agent', 'Dein Helfer im Portal: Er findet Inhalte, wenn du beschreibst, was du suchst, und er baut Entwürfe für Präsentationen, Wiki-Seiten und Notizen.') +
+      '<div class="card"><div class="tools"><div class="seg"><button data-kim="finden" class="' + (kiModus === 'finden' ? 'on' : '') + '">🔎 Finden</button><button data-kim="bauen" class="' + (kiModus === 'bauen' ? 'on' : '') + '">🛠 Bauen</button></div></div>' +
+      (kiModus === 'finden'
+        ? '<form id="kif" style="display:flex;gap:8px;flex-wrap:wrap"><input id="ki_q" maxlength="400" required placeholder="Beschreib, was du suchst, z. B. „Was haben wir zur Urlaubsvertretung besprochen?“" value="' + esc(kiFrage) + '" style="flex:1;min-width:220px" aria-label="Was suchst du?"><button class="btn" type="submit">Finden</button></form>' +
+          '<p class="small muted" style="margin:8px 0 0">Durchsucht Aufgaben, Notizen, Dokumente, Videos, deine Termine, Transkriptionen und Verbesserungsvorschläge.</p>' +
+          (fund ? '<div class="note" style="white-space:pre-wrap;margin-top:14px">' + esc(fund.antwort || '') + '</div>' + (fund.treffer.length ? fund.treffer.map((t, i) => '<div class="pdzeile"><span class="chip">' + esc(t.e.art) + '</span><div style="min-width:0;flex:1">' + (t.e.link ? '<a class="t" href="' + esc(t.e.link) + '" target="_blank" rel="noopener noreferrer">' + esc(t.e.titel) + ' ↗</a>' : '<button type="button" class="t" data-kit="' + i + '" style="background:none;border:0;padding:0;cursor:pointer;text-align:left;font:inherit;font-weight:600;color:var(--acc)">' + esc(t.e.titel) + '</button>') + '<div class="small">' + esc(t.warum || '') + '</div>' + (t.e.zusatz ? '<div class="small muted">' + esc(t.e.zusatz) + '</div>' : '') + '</div></div>').join('') : '') : '')
+        : '<form id="kib"><div class="f2"><div class="f"><label for="kb_art">Was soll entstehen?</label><select id="kb_art">' + [['praesentation', 'Präsentation (Folien als Gliederung)'], ['wiki', 'Wiki-Seite (Text für DokuWiki)'], ['notiz', 'Notiz oder Zusammenfassung']].map(([k, l]) => '<option value="' + k + '"' + (bauArt === k ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></div>' +
+          '<div class="f"><label>&nbsp;</label><label class="check" style="margin:0;padding:8px 0"><input type="checkbox" id="kb_mit"' + (bauMit ? ' checked' : '') + '><span>Inhalte aus dem Portal als Grundlage nutzen</span></label></div></div>' +
+          '<div class="f"><label for="kb_text">Worum geht es? (Thema, Zielgruppe, Stichpunkte)</label><textarea id="kb_text" rows="4" maxlength="4000" required placeholder="z. B. Vorstellung des Team-Portals für neue Kolleginnen und Kollegen, 10 Minuten, Schwerpunkt Aufgaben und Termine">' + esc(bauText) + '</textarea></div>' +
+          '<button class="btn" type="submit">Bauen</button></form>' +
+          (erg ? '<div style="margin-top:16px">' + (erg.vorschau ? '<div class="note" style="margin-bottom:12px">Vorschau ohne KI: Das ist eine Vorlage zum Ausfüllen. Der KI-Agent, der den Entwurf aus deinen Angaben und den Portal-Inhalten schreibt, wird in der nächsten Stufe angeschlossen.</div>' : '') + '<div class="f"><label for="kb_titel">Titel</label><input id="kb_titel" maxlength="160" value="' + esc(erg.titel || '') + '"></div><div class="f"><label for="kb_erg">Entwurf (du kannst ihn hier anpassen)</label><textarea id="kb_erg" rows="16" style="font-family:ui-monospace,Consolas,monospace;font-size:13px">' + esc(erg.inhalt || '') + '</textarea></div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="kb_kopie">Kopieren</button><button type="button" class="btn sec" id="kb_notiz">Als Notiz speichern</button>' + (erg.art === 'wiki' && wikiUrl() ? '<a class="btn ghost" href="' + esc(wikiUrl()) + '" target="_blank" rel="noopener noreferrer">Wiki öffnen ↗</a>' : '') + '</div>' +
+            (erg.art === 'wiki' ? '<p class="small muted" style="margin:10px 0 0">Der Text ist in DokuWiki-Schreibweise. Im Wiki eine Seite anlegen, einfügen, speichern. Das automatische Einpflegen folgt, sobald das Wiki angebunden ist.</p>' : erg.art === 'praesentation' ? '<p class="small muted" style="margin:10px 0 0">Die Gliederung kannst du in dein Präsentationsprogramm übernehmen. Fertige Foliendateien folgen in einer späteren Stufe.</p>' : '') + '</div>' : '')) +
+      KI_HINWEIS + '</div>';
+    document.querySelectorAll('[data-kim]').forEach(b => b.onclick = () => { kiModus = b.dataset.kim; vKI(); });
+    const warte = (btn, txt) => { btn.disabled = true; btn.textContent = txt; };
+    const f = $('#kif'); if (f) f.onsubmit = async ev => {
+      ev.preventDefault(); kiFrage = $('#ki_q').value.trim(); const I = kiInhalte(), btn = ev.target.querySelector('[type=submit]'); warte(btn, 'Sucht …');
+      try {
+        const r = await ki('finden', { frage: kiFrage, inhalte: I.map(x => ({ nr: x.nr, art: x.art, titel: x.titel, text: x.text, zusatz: x.zusatz })) });
+        kiFund = { antwort: String(r.antwort || ''), treffer: (Array.isArray(r.treffer) ? r.treffer : []).map(t => ({ e: I.find(x => x.nr === Number(t.nr)), warum: String(t.warum || '') })).filter(t => t.e).slice(0, 8) };
+        vKI();
+      } catch (err) { if (err.offline) { kiFund = kiLokalFinden(kiFrage, I); return vKI(); } toast(err.message); btn.disabled = false; btn.textContent = 'Finden'; }
+    };
+    document.querySelectorAll('[data-kit]').forEach(b => b.onclick = () => {
+      const e = kiFund.treffer[Number(b.dataset.kit)].e;
+      if (e.art === 'Aufgabe') { const a = (D.aufgaben || []).find(x => x.aufgabe_id === e.id); if (a) return aufgabeDialog(a); }
+      const ziel = { Notiz: 'notizen', Termin: 'termine', Transkription: 'transkription', Verbesserungsvorschlag: 'vorschlaege', Dokument: 'dokumente', Video: 'videos' }[e.art];
+      if (e.art === 'Transkription') { trOffen = e.id; trSuche = ''; }
+      if (ziel && an(ziel)) { tab = ziel; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); }
+    });
+    const b = $('#kib'); if (b) {
+      $('#kb_art').onchange = () => { bauArt = $('#kb_art').value; }; $('#kb_mit').onchange = () => { bauMit = $('#kb_mit').checked; }; $('#kb_text').oninput = () => { bauText = $('#kb_text').value; };
+      b.onsubmit = async ev => {
+        ev.preventDefault(); bauArt = $('#kb_art').value; bauMit = $('#kb_mit').checked; bauText = $('#kb_text').value.trim(); const btn = ev.target.querySelector('[type=submit]'); warte(btn, 'Baut … (bis zu einer Minute)');
+        try { const r = await ki('bauen', { art: bauArt, auftrag: bauText, firma: FIRMA, inhalte: bauMit ? kiInhalte().map(x => ({ art: x.art, titel: x.titel, text: x.text, zusatz: x.zusatz })) : [] }); bauErg = { art: bauArt, titel: String(r.titel || ''), inhalt: String(r.inhalt || '') }; vKI(); }
+        catch (err) { if (err.offline) { bauErg = kiLokalBauen(bauArt, bauText); return vKI(); } toast(err.message); btn.disabled = false; btn.textContent = 'Bauen'; }
+      };
+    }
+    const kp = $('#kb_kopie'); if (kp) kp.onclick = async () => { try { await navigator.clipboard.writeText($('#kb_erg').value); toast('Kopiert'); } catch (e) { $('#kb_erg').select(); toast('Bitte mit Strg+C kopieren.'); } };
+    const kn = $('#kb_notiz'); if (kn) kn.onclick = async () => {
+      kn.disabled = true;
+      try { await api('notiz_speichern', { titel: ($('#kb_titel').value.trim() || 'Entwurf') + ' (KI-Entwurf ' + new Date().toLocaleDateString('de-DE') + ')', inhalt: $('#kb_erg').value, projekt: '' }); toast('Als Notiz gespeichert'); await laden(true); }
+      catch (err) { toast(err.message); kn.disabled = false; }
+    };
+  }
+
+  // ---------- Anstupsen: kurze Info an eine oder mehrere Personen ----------
+  // Heute landet die Info im Portal (Karte „Informationen“ und Symbol oben rechts). Der Versand über den Messenger wird in der nächsten Stufe angebunden.
+  // Name des Messengers kommt aus der Konfiguration (mandant.js: messenger), ohne Angabe steht neutral „Messenger“ da
+  const MESSENGER = String(M.messenger || 'Messenger').trim().slice(0, 30) || 'Messenger';
+  async function stupsen(an, text) {
+    const ich = D.ich.mitglied_id;
+    await pdAendern('hinweise', l => { l.unshift({ id: pdId(), von: ich, an: an.slice(), text: String(text).slice(0, 1000), zeit: new Date().toISOString(), gelesen: [], kanal: 'messenger' }); return l.slice(0, 200); });
+    toast('Info im Portal hinterlegt. Der Versand per ' + MESSENGER + ' wird in der nächsten Stufe angebunden.');
+    return 'leise';
+  }
+  function stupsDialog(p) {
+    pdDialog('📣 ' + p.name + ' auf ' + MESSENGER + ' anstupsen', [{ k: 'text', label: 'Nachricht', typ: 'textarea', pflicht: true }], { text: 'Hallo ' + String(p.name).split(/\s+/)[0] + ', im Portal gibt es einen neuen Eintrag für dich. Schau bitte kurz rein: ' + PORTAL }, o => stupsen([p.mitglied_id], o.text));
+    const b = document.querySelector('#pdf [type=submit]'); if (b) b.textContent = 'Anstupsen';
   }
 
   // ---------- Informationen mit @ (Karte in der Übersicht) ----------
@@ -2846,12 +3085,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
         '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben' + (an('zeit') && hatVertrag(p) ? ' · Vertrag: ' + std(Math.round(Number(p.vertrag_std) * 60)) + ' pro Monat · Konto: ' + stdPM(kontoStand(p.mitglied_id).konto) : '') + '</div>' +
         '<div class="act">' + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
+        (p.typ !== 'agent' && p.status !== 'gesperrt' && p.mitglied_id !== D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-stups="' + esc(p.mitglied_id) + '" title="Kurze Info: Es gibt einen neuen Eintrag">📣 Auf ' + MESSENGER + ' anstupsen</button>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
         (an('zeit') && p.typ !== 'agent' && (admin || p.mitglied_id === D.ich.mitglied_id) ? '<button class="btn sec" style="padding:6px 10px" data-vertrag="' + esc(p.mitglied_id) + '">Vertrag</button>' : '') +
         (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
       (admin ? '<div class="note" style="margin-top:6px"><b>Nur für dich als Admin:</b> „Link kopieren“ kopiert den persönlichen Zugangslink (der Code steht hinter dem #, so landet er nicht in Server-Protokollen). Schick ihn nur an die Person selbst, am besten nicht per unverschlüsselter E-Mail. Wird ein Link weitergegeben, erzeugst du unter „Verwalten“ einen neuen. Der alte funktioniert dann nicht mehr.</div>' : '') +
       '<div class="card" style="margin-top:14px"><h2>Abmelden</h2><p class="small muted">Entfernt die Anmeldung aus diesem Browser. Zum erneuten Anmelden brauchst du deinen persönlichen Link.</p><button class="btn sec" id="logout">Auf diesem Gerät abmelden</button></div>';
     const pb = $('[data-profil]'); if (pb) pb.onclick = profilDialog;
+    document.querySelectorAll('[data-stups]').forEach(b => b.onclick = () => stupsDialog(mitglied(b.dataset.stups)));
     document.querySelectorAll('[data-vertrag]').forEach(e => e.onclick = () => vertragDialog(e.dataset.vertrag));
     document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
     $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
@@ -2944,7 +3185,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     // und einen dort offenen Dialog (z. B. „Auftrag an Agent“) schließen.
     const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA|IFRAME)$/.test(a.tagName);
     // Im Tresor nie neu aufbauen: Das würde Eingabe, Schlüssel und Ausgabe löschen (die Seite braucht keine Daten).
-    if (D && !D.setup && TOKEN && tab !== 'tresor' && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
+    if (D && !D.setup && TOKEN && tab !== 'tresor' && tab !== 'transkription' && tab !== 'ki' && !$('#dlg').open && !tippt && document.visibilityState === 'visible') { const y = window.scrollY; laden(true).then(() => window.scrollTo(0, y)); }
   };
   setInterval(auffrischen, RELOAD_MS);
   const nachPause = () => { if (document.visibilityState === 'visible' && zuletztGeladen && Date.now() - zuletztGeladen > PAUSE_MS) auffrischen(); };
