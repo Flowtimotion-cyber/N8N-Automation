@@ -1,0 +1,1130 @@
+{
+  "workflowId": "DVGX3cltu2qbqLJE",
+  "versionName": "Übergabe WhatsApp → Vertriebs-Pipeline (Twenty)",
+  "hinweis": "Erzeugt von kommunikation/n8n/bauen-antwort.mjs. Vorher supabase/kommunikation_crm.sql ausführen. Siehe KOM_Uebergabe_Pipeline_Deployment.md.",
+  "operations": [
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Einstellungen",
+      "path": "/assignments/assignments",
+      "value": [
+        {
+          "id": "tm",
+          "name": "testmodus",
+          "value": false,
+          "type": "boolean"
+        },
+        {
+          "id": "tn",
+          "name": "test_nummern",
+          "value": "491737348515",
+          "type": "string"
+        },
+        {
+          "id": "tg",
+          "name": "telegram_chat",
+          "value": "1535402553",
+          "type": "string"
+        },
+        {
+          "id": "ct",
+          "name": "crm_test",
+          "value": false,
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Konversation laden",
+      "path": "/url",
+      "value": "=https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/kom_konversationen?select=*&konversation_id=eq.{{ encodeURIComponent($('Start').first().json.nachricht.konversation_id) }}"
+    },
+    {
+      "type": "setNodeParameter",
+      "nodeName": "Nachbereitung",
+      "path": "/jsCode",
+      "value": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\n// ===== Nachbereitung: Konversation, Übergabe, Hinweis an Timo, Plan für die Vertriebs-Pipeline (Twenty) =====\nconst W = $('Weg bestimmen').first().json;\nconst E = $('Einstellungen').first().json;\nconst V = $('Versand auswerten').first().json;\nconst p = V.payload || {}; const m = p.meta || {};\nconst esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\nconst name = esc(W.nachricht.kontakt_name || 'Unbekannt');\nconst patch = { geaendert: new Date().toISOString(), fehler: V.ok ? null : JSON.stringify(V.fehler).slice(0, 500) };\nif (p.art === 'kunde') {\n  if (m.marke && m.marke !== 'offen') patch.marke = m.marke;\n  if (m.zusammenfassung) patch.zusammenfassung = m.zusammenfassung;\n  if (m.uebergabe) patch.status = 'wartet_auf_team';\n}\nlet telegram = '';\nif (!V.ok) telegram = '⚠️ <b>WhatsApp-Antwort nicht zugestellt</b>\\nAn: ' + name + '\\nFehler: ' + esc((V.fehler && V.fehler.titel) || '');\nelse if (p.art === 'kunde' && m.uebergabe) telegram = '🙋 <b>WhatsApp: Mensch gewünscht</b> (' + esc(m.uebergabe_grund || 'Übergabe') + ')\\n' + name + ' · +' + esc(W.wa) + '\\nKurz: ' + esc(m.zusammenfassung || W.nachricht.text || '').slice(0, 400) + '\\nDer Bot ist für diesen Kontakt pausiert.';\nelse if (p.art === 'kunde' && W.eingang && W.eingang.erstkontakt) telegram = '💬 <b>Neue WhatsApp-Anfrage</b>\\n' + name + ': „' + esc(String(W.nachricht.text || '').slice(0, 200)) + '“\\nDer Bot hat geantwortet.';\n// CRM: nur Kundengespräche (kein Team, kein Testmodus), eine Chance je Konversation. Fehler hier dürfen die Antwort nicht stören.\nlet crm;\ntry { crm = crmPlan({ W, E, V, p }); } catch (err) { crm = { aktion: 'nichts', grund: 'Planungsfehler: ' + String(err && err.message || err).slice(0, 200) }; }\nreturn [{ json: { patch, uebergabe: p.art === 'kunde' && m.uebergabe === true && V.ok, telegram, hat_telegram: telegram.length > 0, crm } }];"
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "CRM-Übergabe?",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          4200,
+          600
+        ],
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "outputKey": "anlegen",
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $('Nachbereitung').first().json.crm.aktion }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "anlegen"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "outputKey": "fortschreiben",
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "loose",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $('Nachbereitung').first().json.crm.aktion }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "fortschreiben"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              }
+            ]
+          },
+          "options": {}
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Person suchen",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          4420,
+          600
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $('Nachbereitung').first().json.crm.person_pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Person wählen",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4640,
+          600
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst PL = $('Nachbereitung').first().json.crm;\nreturn [{ json: crmPersonSchritt($input.first().json, PL.wa, PL.name, PL.person_id) }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Person neu?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          4860,
+          600
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.person_neu }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Person speichern",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5080,
+          600
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://twenty.hm-storage.de/rest/people",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Person übernehmen",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          5300,
+          600
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst S = $('Person wählen').first().json;\nreturn [{ json: crmPersonUebernehmen(S.person_neu ? $input.first().json : null, S.person_neu ? '' : S.person_id) }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Chancen der Person",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5520,
+          600
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $json.pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Chance wählen",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          5740,
+          600
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst PL = $('Nachbereitung').first().json.crm;\nconst person_id = $('Person übernehmen').first().json.person_id;\nreturn [{ json: { person_id, ...crmChanceSchritt($input.first().json, { name: PL.name, test: PL.test, person_id, jetzt: PL.jetzt }) } }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Chance speichern",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5960,
+          600
+        ],
+        "parameters": {
+          "method": "={{ $json.methode }}",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $json.pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Notiz bauen",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          6180,
+          600
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst C = $('Chance wählen').first().json;\nconst chance_id = crmNeueId($input.first().json) || C.chance_id;\nif (!chance_id) throw new Error('Twenty hat keine Chancen-ID geliefert.');\nreturn [{ json: { chance_id, chance_neu: C.chance_neu, person_id: C.person_id, body: $('Nachbereitung').first().json.crm.notiz_body, notizen_pfad: crmNotizenPfad(chance_id) } }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Chance neu?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          6400,
+          600
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.chance_neu }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Notiz anlegen",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          6620,
+          600
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://twenty.hm-storage.de/rest/notes",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.body) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Notiz verknüpfen",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          6840,
+          600
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://twenty.hm-storage.de/rest/noteTargets",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ noteId: (Object.values($json.data || {})[0] || {}).id, targetOpportunityId: $('Notiz bauen').first().json.chance_id }) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Notizen der Chance",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          7060,
+          600
+        ],
+        "parameters": {
+          "method": "GET",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $json.notizen_pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "CRM-Ergebnis",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4200,
+          800
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst B = $('Notiz bauen').first().json;\nconst PL = $('Nachbereitung').first().json.crm;\nconst notiz_id = B.chance_neu ? crmNeueId($('Twenty: Notiz anlegen').first().json) : crmNotizFinden($input.first().json);\nreturn [{ json: crmErgebnis({ person_id: B.person_id, chance_id: B.chance_id, chance_neu: B.chance_neu, notiz_id, jetzt: PL.jetzt, plan: PL }) }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "CRM-Stand speichern",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          4420,
+          800
+        ],
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/kom_konversationen?konversation_id=eq.{{ encodeURIComponent($('Weg bestimmen').first().json.konversation_id) }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "supabaseApi",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.patch) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "supabaseApi": {
+            "id": "NpKrSLYxAsarf8ar",
+            "name": "Supabase account"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Neu in der Pipeline?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          4640,
+          800
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $('CRM-Ergebnis').first().json.neu }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Telegram: neuer Pipeline-Kontakt",
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          4860,
+          800
+        ],
+        "parameters": {
+          "resource": "message",
+          "operation": "sendMessage",
+          "chatId": "={{ $('Einstellungen').first().json.telegram_chat }}",
+          "text": "={{ $('CRM-Ergebnis').first().json.telegram }}",
+          "additionalFields": {
+            "appendAttribution": false,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true
+          }
+        },
+        "credentials": {
+          "telegramApi": {
+            "id": "hZktbgIoaHaiDLB7",
+            "name": "Telegram Dialyse"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Chance fortschreiben",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5080,
+          800
+        ],
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $('Nachbereitung').first().json.crm.chance_pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($('Nachbereitung').first().json.crm.chance_body) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Zusammenfassung neu?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          5300,
+          800
+        ],
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $('Nachbereitung').first().json.crm.notiz_neu }}",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "Twenty: Notiz fortschreiben",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5520,
+          800
+        ],
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://twenty.hm-storage.de/rest/{{ $('Nachbereitung').first().json.crm.notiz_pfad }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBearerAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($('Nachbereitung').first().json.crm.notiz_body) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "httpBearerAuth": {
+            "id": "rlJP4wWKYVbUon0O",
+            "name": "Twentyapi"
+          }
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "CRM-Fehler vermerken",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          5740,
+          800
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "// Kommunikation: Übergabe eines WhatsApp-Gesprächs an die Vertriebs-Pipeline (Twenty CRM).\n// Läuft im n8n-Code-Knoten (eingebettet von kommunikation/n8n/bauen-antwort.mjs) und in Node (Tests).\n// Kein Netzwerk, kein require, keine KI. Die HTTP-Knoten im Workflow schicken nur, was diese Funktionen bauen.\n// Datenschutz: Ins CRM gehen Name, Telefonnummer, Marke und die Zusammenfassung des Bots, nie der Chatverlauf.\n// Namen sind bewusst mit „crm“ vorangestellt, damit sie im Code-Knoten nicht mit dessen eigenen Variablen kollidieren.\n\nconst CRM_PRAEFIX = 'WhatsApp: ';\nconst CRM_TEST_PRAEFIX = 'TEST ';\n// Stufe „(Noch) kein Termin gebucht“, erste Spalte der Pipeline. So legen auch das Portal („Neue Verkaufschance“)\n// und der Leadmagnet neue Kontakte an. ERSTKONTAKT heißt „Fokus Erstkontakt“ und ist schon Karstens Arbeitsschritt.\nconst CRM_STUFE_NEU = 'NEW';\nconst CRM_NOTIZ_TITEL = 'WhatsApp-Bot: Zusammenfassung';\nconst CRM_LAENDER = { '49': 'DE', '43': 'AT', '41': 'CH' };\nconst CRM_MARKEN = { momentum: 'Momentum KI Akademie', hermetik: 'Hermetik Marketing', offen: 'noch offen' };\n\nconst crmZiffern = v => String(v || '').replace(/\\D/g, '');\nconst crmEsc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));\n\n/** wa_id (Ziffern mit Ländervorwahl) → Telefonfeld im Format von Twenty, wie es das Portal anlegt. */\nfunction crmTelefon(waId) {\n  const z = crmZiffern(waId);\n  if (z.length < 8 || z.length > 15) return null;\n  for (const cc of Object.keys(CRM_LAENDER)) {\n    if (z.startsWith(cc)) return { primaryPhoneNumber: z.slice(cc.length), primaryPhoneCallingCode: '+' + cc, primaryPhoneCountryCode: CRM_LAENDER[cc] };\n  }\n  return { primaryPhoneNumber: z }; // andere Länder: wie das Portal, ganze Nummer ohne „+“\n}\n\n/** Schreibweisen, unter denen dieselbe Nummer in Twenty stehen kann. */\nfunction crmTelefonVarianten(waId) {\n  const z = crmZiffern(waId);\n  const t = crmTelefon(z);\n  if (!t) return [];\n  const v = [t.primaryPhoneNumber, z, '+' + z];\n  if (t.primaryPhoneCallingCode) v.push('0' + t.primaryPhoneNumber);\n  return [...new Set(v)];\n}\n\n/** REST-Pfad: Personen mit dieser Telefonnummer suchen. */\nfunction crmPersonSuchPfad(waId) {\n  const f = 'or(' + crmTelefonVarianten(waId).map(v => 'phones.primaryPhoneNumber[eq]:\"' + v + '\"').join(',') + ')';\n  return 'people?limit=10&filter=' + encodeURIComponent(f);\n}\n\n/** Gehört die Twenty-Person zu dieser WhatsApp-Nummer? Vergleicht vollständige Nummern, nicht Teilstrings. */\nfunction crmPersonPasst(person, waId) {\n  const z = crmZiffern(waId);\n  const ph = (person && person.phones) || {};\n  const nr = crmZiffern(ph.primaryPhoneNumber);\n  if (!z || !nr) return false;\n  const cc = crmZiffern(ph.primaryPhoneCallingCode);\n  const kandidaten = [nr];\n  if (cc) kandidaten.push(cc + nr.replace(/^0+/, ''));\n  else if (/^0[1-9]/.test(nr)) kandidaten.push('49' + nr.slice(1));\n  return kandidaten.includes(z);\n}\n\n/** ID eines eben angelegten oder gelesenen Datensatzes aus einer Twenty-Antwort ({ data: { createPerson: { id } } } u. ä.). */\nfunction crmNeueId(antwort) {\n  const d = antwort && antwort.data;\n  if (!d || typeof d !== 'object') return '';\n  const v = Object.values(d)[0];\n  return (v && !Array.isArray(v) && v.id) || '';\n}\n\n/** Person für Twenty: Profilname (sonst „WhatsApp-Kontakt“) und Telefonnummer. */\nfunction crmPersonBody(kontaktName, waId) {\n  const n = String(kontaktName || '').replace(/[\\u0000-\\u001F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 120) || 'WhatsApp-Kontakt';\n  const teile = n.split(' ');\n  const b = { name: { firstName: teile[0].slice(0, 60), lastName: teile.slice(1).join(' ').slice(0, 80) } };\n  const tel = crmTelefon(waId);\n  if (tel) b.phones = tel;\n  return b;\n}\n\n/**\n * Nach der Personensuche: vorhandene Person wiederverwenden (bekannte ID zuerst), sonst neu anlegen.\n * Vorhandene Person → kein Twenty-Aufruf („Person neu?“ springt direkt zu „Person übernehmen“), nichts wird überschrieben.\n */\nfunction crmPersonSchritt(antwort, waId, kontaktName, bekannteId) {\n  const L = ((antwort && antwort.data && antwort.data.people) || []).filter(p => p && p.id && !p.deletedAt && crmPersonPasst(p, waId));\n  const treffer = L.find(p => p.id === bekannteId) || L[0];\n  if (treffer) return { person_neu: false, person_id: treffer.id };\n  return { person_neu: true, person_id: '', methode: 'POST', pfad: 'people', body: crmPersonBody(kontaktName, waId) };\n}\n\n/** Personen-ID übernehmen (vorhanden oder eben angelegt) und die Chancen dieser Person abfragen. */\nfunction crmPersonUebernehmen(antwort, vorhandeneId) {\n  const id = vorhandeneId || crmNeueId(antwort);\n  if (!id) throw new Error('Twenty hat keine Personen-ID geliefert.');\n  return { person_id: id, pfad: 'opportunities?limit=20&filter=' + encodeURIComponent('pointOfContactId[eq]:' + id) };\n}\n\n/** Name der Chance: „WhatsApp: <Name>“ (bei Tests „TEST WhatsApp: …“). */\nfunction crmChanceName(kontaktName, test) {\n  const n = String(kontaktName || '').replace(/\\s+/g, ' ').trim().slice(0, 100) || 'WhatsApp-Kontakt';\n  return (test ? CRM_TEST_PRAEFIX : '') + CRM_PRAEFIX + n;\n}\n\n/** Neue Chance: Stufe NEW, verknüpft mit der Person, Eingang und letzter Kontakt = jetzt. */\nfunction crmChanceBody(e) {\n  return { name: crmChanceName(e.name, e.test), stage: CRM_STUFE_NEU, pointOfContactId: e.person_id, letzterKontakt: e.jetzt, eingangAm: e.jetzt };\n}\n\n/** Nach der Chancensuche: Hat die Person schon eine WhatsApp-Chance (z. B. nach einem abgebrochenen Lauf)? Dann fortschreiben. */\nfunction crmChanceSchritt(antwort, e) {\n  const L = ((antwort && antwort.data && antwort.data.opportunities) || []).filter(o => o && o.id && !o.deletedAt);\n  const da = L.find(o => String(o.name || '').startsWith(CRM_PRAEFIX) || String(o.name || '').startsWith(CRM_TEST_PRAEFIX + CRM_PRAEFIX));\n  if (da) return { chance_neu: false, chance_id: da.id, methode: 'PATCH', pfad: 'opportunities/' + da.id, body: { letzterKontakt: e.jetzt } };\n  return { chance_neu: true, chance_id: '', methode: 'POST', pfad: 'opportunities', body: crmChanceBody(e) };\n}\n\n/** REST-Pfad: Notizen einer Chance (wie im Portal, Aktion „details“). */\nfunction crmNotizenPfad(chanceId) {\n  return 'noteTargets?limit=60&depth=1&filter=targetOpportunityId[eq]:' + chanceId;\n}\n\n/** Wiedergefundene Chance: vorhandene Bot-Notiz suchen, statt eine zweite anzulegen. */\nfunction crmNotizFinden(antwort) {\n  const L = ((antwort && antwort.data && antwort.data.noteTargets) || []).map(t => t && t.note).filter(n => n && n.id && !n.deletedAt && n.title === CRM_NOTIZ_TITEL);\n  return L.length ? L[0].id : null;\n}\n\n/** Notiz mit der Zusammenfassung des Bots (Markdown). Kein Chatverlauf. */\nfunction crmNotizBody(e) {\n  const zeit = new Date(e.jetzt || Date.now()).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', dateStyle: 'short', timeStyle: 'short' });\n  const z = String(e.zusammenfassung || '').trim().slice(0, 1000);\n  const zeilen = [\n    '**Quelle:** WhatsApp-Bot',\n    '**Marke:** ' + (CRM_MARKEN[e.marke] || CRM_MARKEN.offen),\n    '**Stand:** ' + zeit\n  ];\n  if (e.uebergabe) zeilen.push('**Mensch gewünscht:** ' + (String(e.uebergabe_grund || '').slice(0, 200) || 'ja'));\n  const md = zeilen.join('  \\n') + '\\n\\n' + (z || '_Noch keine Zusammenfassung. Der Bot hat bisher nur begrüßt._') +\n    '\\n\\n_Nur die Zusammenfassung des Bots, kein Chatverlauf. Den Verlauf siehst du im Portal unter „WhatsApp-Inbox“._';\n  return { title: CRM_NOTIZ_TITEL, bodyV2: { markdown: md } };\n}\n\n/**\n * Entscheidung: nichts | anlegen | fortschreiben. Deterministisch, keine KI.\n * e = { weg, team, testmodus, crmTest, art, versandOk, uebergabe, konv }\n */\nfunction crmEntscheidung(e) {\n  const konv = e.konv || {};\n  if (e.weg !== 'kunde' || e.art !== 'kunde') return { aktion: 'nichts', grund: 'kein Kundengespräch', test: false };\n  const istTeam = !!(e.team && e.team.mitglied_id);\n  if ((istTeam || e.testmodus) && !e.crmTest) return { aktion: 'nichts', grund: istTeam ? 'Teammitglied' : 'Testmodus', test: false };\n  const test = istTeam || !!e.testmodus;\n  if (!e.versandOk && !e.uebergabe) return { aktion: 'nichts', grund: 'Bot hat noch nicht geantwortet', test };\n  if (konv.twenty_chance_id) return { aktion: 'fortschreiben', grund: 'Chance vorhanden', test };\n  return { aktion: 'anlegen', grund: konv.crm_fehler ? 'neuer Versuch nach Fehler' : 'erste Antwort', test };\n}\n\n/**\n * Alles, was die Nachbereitung für die CRM-Übergabe braucht.\n * e = { W (Weg bestimmen), E (Einstellungen), V (Versand auswerten), p (Antwort), jetzt }\n */\nfunction crmPlan(e) {\n  const W = e.W || {}, E = e.E || {}, V = e.V || {}, p = e.p || {};\n  const m = p.meta || {};\n  const konv = W.konv || {};\n  const jetzt = e.jetzt || new Date().toISOString();\n  const d = crmEntscheidung({ weg: W.weg, team: W.team, testmodus: E.testmodus === true, crmTest: E.crm_test === true, art: p.art, versandOk: V.ok === true, uebergabe: m.uebergabe === true, konv });\n  const plan = { aktion: d.aktion, grund: d.grund, test: d.test };\n  if (d.aktion === 'nichts') return plan;\n  const marke = m.marke && m.marke !== 'offen' ? m.marke : (konv.marke || 'offen');\n  const zusammenfassung = String(m.zusammenfassung || konv.zusammenfassung || '');\n  const name = String((W.nachricht && W.nachricht.kontakt_name) || konv.kontakt_name || '');\n  const notiz = crmNotizBody({ zusammenfassung, marke, uebergabe: m.uebergabe === true, uebergabe_grund: m.uebergabe_grund, jetzt });\n  Object.assign(plan, { wa: W.wa, name, marke, zusammenfassung, jetzt, notiz_body: notiz });\n  if (d.aktion === 'anlegen') {\n    plan.person_pfad = crmPersonSuchPfad(W.wa);\n    plan.person_id = konv.twenty_person_id || '';\n  } else {\n    plan.chance_id = konv.twenty_chance_id;\n    plan.chance_pfad = 'opportunities/' + konv.twenty_chance_id;\n    plan.chance_body = { letzterKontakt: jetzt };\n    const neu = !!m.zusammenfassung && m.zusammenfassung !== konv.zusammenfassung;\n    plan.notiz_neu = !!konv.crm_notiz_id && (neu || m.uebergabe === true);\n    plan.notiz_pfad = konv.crm_notiz_id ? 'notes/' + konv.crm_notiz_id : '';\n  }\n  return plan;\n}\n\n/** Abschluss nach erfolgreichem Anlegen: Werte für kom_konversationen und Telegram-Text. */\nfunction crmErgebnis(e) {\n  const patch = { twenty_person_id: e.person_id, twenty_chance_id: e.chance_id, crm_notiz_id: e.notiz_id || null, crm_uebergeben_am: e.jetzt, crm_fehler: null };\n  const telegram = e.chance_neu ? crmTelegramNeu(e.plan || {}) : '';\n  return { patch, neu: !!e.chance_neu, telegram };\n}\n\n/** Telegram an Timo bei jeder neu angelegten Chance. Telefonnummer wie in der Meldung „Mensch gewünscht“. */\nfunction crmTelegramNeu(plan) {\n  return '📇 <b>Neuer WhatsApp-Kontakt in der Pipeline</b>' + (plan.test ? ' (TEST)' : '') + '\\n' +\n    crmEsc(plan.name || 'WhatsApp-Kontakt') + ' · +' + crmEsc(plan.wa) + '\\n' +\n    'Marke: ' + crmEsc(CRM_MARKEN[plan.marke] || CRM_MARKEN.offen) + '\\n' +\n    'Kurz: ' + crmEsc(String(plan.zusammenfassung || 'noch keine Zusammenfassung').slice(0, 300)) + '\\n' +\n    'Stufe „(Noch) kein Termin gebucht“, im Portal unter Vertrieb.';\n}\n\n/** Fehler vermerken: Die Konversation bekommt crm_fehler, eine schon angelegte Person wird gemerkt (keine Dublette beim nächsten Versuch). */\nfunction crmFehlerPatch(e) {\n  const f = e.fehler;\n  const text = typeof f === 'string' ? f : (f && (f.message || f.description)) ? String(f.message || f.description) : JSON.stringify(f || 'unbekannt');\n  const patch = { crm_fehler: (new Date(e.jetzt || Date.now()).toISOString() + ' ' + (e.aktion || '') + ': ' + text).slice(0, 500) };\n  if (e.person_id) patch.twenty_person_id = e.person_id;\n  return { patch };\n}\n\nconst PL = $('Nachbereitung').first().json.crm;\nconst i = $input.first().json || {};\nlet person_id = '';\ntry { if ($('Person übernehmen').isExecuted) person_id = $('Person übernehmen').first().json.person_id || ''; } catch (e) {}\nreturn [{ json: crmFehlerPatch({ aktion: PL.aktion, fehler: i.error || i.message || i, person_id }) }];"
+        }
+      }
+    },
+    {
+      "type": "addNode",
+      "node": {
+        "name": "CRM-Fehler speichern",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          5960,
+          800
+        ],
+        "parameters": {
+          "method": "PATCH",
+          "url": "=https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/kom_konversationen?konversation_id=eq.{{ encodeURIComponent($('Weg bestimmen').first().json.konversation_id) }}",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "supabaseApi",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify($json.patch) }}",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "credentials": {
+          "supabaseApi": {
+            "id": "NpKrSLYxAsarf8ar",
+            "name": "Supabase account"
+          }
+        }
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Person suchen",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Person wählen",
+      "settings": {
+        "onError": "continueErrorOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Person speichern",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Person übernehmen",
+      "settings": {
+        "onError": "continueErrorOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Chancen der Person",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Chance wählen",
+      "settings": {
+        "onError": "continueErrorOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Chance speichern",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Notiz bauen",
+      "settings": {
+        "onError": "continueErrorOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Notiz anlegen",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Notiz verknüpfen",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Notizen der Chance",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "CRM-Ergebnis",
+      "settings": {
+        "onError": "continueErrorOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "CRM-Stand speichern",
+      "settings": {
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Telegram: neuer Pipeline-Kontakt",
+      "settings": {
+        "onError": "continueRegularOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Chance fortschreiben",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "Twenty: Notiz fortschreiben",
+      "settings": {
+        "onError": "continueErrorOutput",
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 2000
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "CRM-Fehler vermerken",
+      "settings": {
+        "onError": "continueRegularOutput"
+      }
+    },
+    {
+      "type": "setNodeSettings",
+      "nodeName": "CRM-Fehler speichern",
+      "settings": {
+        "executeOnce": true,
+        "onError": "continueRegularOutput",
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 1000
+      }
+    },
+    {
+      "type": "addConnection",
+      "source": "Konversation aktualisieren",
+      "sourceIndex": 0,
+      "target": "CRM-Übergabe?",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Übergabe?",
+      "sourceIndex": 0,
+      "target": "Twenty: Person suchen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Übergabe?",
+      "sourceIndex": 1,
+      "target": "Twenty: Chance fortschreiben",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Person suchen",
+      "sourceIndex": 0,
+      "target": "Person wählen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Person suchen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person wählen",
+      "sourceIndex": 0,
+      "target": "Person neu?",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person wählen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Person speichern",
+      "sourceIndex": 0,
+      "target": "Person übernehmen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Person speichern",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person übernehmen",
+      "sourceIndex": 0,
+      "target": "Twenty: Chancen der Person",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person übernehmen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chancen der Person",
+      "sourceIndex": 0,
+      "target": "Chance wählen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chancen der Person",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Chance wählen",
+      "sourceIndex": 0,
+      "target": "Twenty: Chance speichern",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Chance wählen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chance speichern",
+      "sourceIndex": 0,
+      "target": "Notiz bauen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chance speichern",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Notiz bauen",
+      "sourceIndex": 0,
+      "target": "Chance neu?",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Notiz bauen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notiz anlegen",
+      "sourceIndex": 0,
+      "target": "Twenty: Notiz verknüpfen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notiz anlegen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notiz verknüpfen",
+      "sourceIndex": 0,
+      "target": "CRM-Ergebnis",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notiz verknüpfen",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notizen der Chance",
+      "sourceIndex": 0,
+      "target": "CRM-Ergebnis",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notizen der Chance",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Ergebnis",
+      "sourceIndex": 0,
+      "target": "CRM-Stand speichern",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Ergebnis",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chance fortschreiben",
+      "sourceIndex": 0,
+      "target": "Zusammenfassung neu?",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Chance fortschreiben",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person neu?",
+      "sourceIndex": 0,
+      "target": "Twenty: Person speichern",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Person neu?",
+      "sourceIndex": 1,
+      "target": "Person übernehmen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Chance neu?",
+      "sourceIndex": 0,
+      "target": "Twenty: Notiz anlegen",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Chance neu?",
+      "sourceIndex": 1,
+      "target": "Twenty: Notizen der Chance",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Twenty: Notiz fortschreiben",
+      "sourceIndex": 1,
+      "target": "CRM-Fehler vermerken",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Stand speichern",
+      "sourceIndex": 0,
+      "target": "Neu in der Pipeline?",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Neu in der Pipeline?",
+      "sourceIndex": 0,
+      "target": "Telegram: neuer Pipeline-Kontakt",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "Zusammenfassung neu?",
+      "sourceIndex": 0,
+      "target": "Twenty: Notiz fortschreiben",
+      "targetIndex": 0
+    },
+    {
+      "type": "addConnection",
+      "source": "CRM-Fehler vermerken",
+      "sourceIndex": 0,
+      "target": "CRM-Fehler speichern",
+      "targetIndex": 0
+    }
+  ]
+}
