@@ -307,6 +307,14 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .chip.ki{background:var(--tint2);color:var(--acc)}.chip.mensch{background:#E9F7F0;color:#146C47}.chip.wart{background:#FDECEA;color:var(--red)}.chip.erl{background:#EEF0F3;color:#5A6170}
 .wa-zurueck{display:none}
 @media (max-width:820px){.wa{grid-template-columns:1fr}.wa.offen .wa-liste{display:none}.wa:not(.offen) .wa-chat{display:none}.wa-zurueck{display:inline-flex}.wa-chat{height:calc(100vh - 170px)}}
+.pdgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.pdvideo{position:relative;padding-bottom:56.25%;background:#14161c;border-radius:10px;overflow:hidden}
+.pdvideo button,.pdvideo span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.pdvideo span{font-size:34px}.pdvideo iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.pdzeile{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}.pdzeile:first-of-type{border-top:0}
+.pdzeile .t{font-weight:600;color:inherit;text-decoration:none}.pdzeile a.t:hover{text-decoration:underline}
+.pdicon{font-size:26px;line-height:1.1}
+.pdtag{min-width:52px;text-align:center;border-radius:10px;padding:6px 4px;background:var(--tint,#F3EEFD)}.pdtag b{display:block;font-size:20px;line-height:1.1}.pdtag span{font-size:12px;color:var(--mut,#6b6880)}.pdtag.heute{background:var(--acc);color:#fff}.pdtag.heute span{color:#fff}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
@@ -350,7 +358,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
   let ROLLEN = { admin: 'Admin', team: 'Team' };
   const ROLLE_TXT = r => r === 'agent' ? 'KI-Agent' : (ROLLEN[r] || '');
   // Register: interner Schlüssel, Beschriftung, Schalter in mandant.js („register“). Ausgeschaltete Register erscheinen nirgends und rufen keine API auf.
-  const ALLE_TABS = [['start', 'Übersicht', 'uebersicht'], ['aufgaben', 'Aufgaben', 'aufgaben'], ['projekte', 'Projekte', 'projekte'], ['zeit', 'Arbeitszeit', 'arbeitszeit'], ['notizen', 'Notizen', 'notizen'], ['social', 'Social Media', 'social'], ['vertrieb', 'Vertrieb', 'vertrieb'], ['whatsapp', 'WhatsApp', 'whatsapp'], ['kurs', 'Kurs & Teilnehmer', 'kurs'], ['systeme', 'Systeme', 'systeme'], ['skills', 'Skills', 'skills'], ['tresor', 'Tresor', 'tresor'], ['web', 'Webseite', 'webseite'], ['vorschlaege', 'Vorschläge', 'vorschlaege'], ['office', 'KI Office', 'office'], ['team', 'Team', 'team']];
+  const ALLE_TABS = [['start', 'Übersicht', 'uebersicht'], ['aufgaben', 'Aufgaben', 'aufgaben'], ['projekte', 'Projekte', 'projekte'], ['termine', 'Meine Termine', 'termine'], ['zeit', 'Arbeitszeit', 'arbeitszeit'], ['notizen', 'Notizen', 'notizen'], ['dokumente', 'Dokumente', 'dokumente'], ['videos', 'Videos', 'videos'], ['wiki', 'Wiki', 'wiki'], ['social', 'Social Media', 'social'], ['vertrieb', 'Vertrieb', 'vertrieb'], ['whatsapp', 'WhatsApp', 'whatsapp'], ['kurs', 'Kurs & Teilnehmer', 'kurs'], ['systeme', 'Systeme', 'systeme'], ['skills', 'Skills', 'skills'], ['tresor', 'Tresor', 'tresor'], ['web', 'Webseite', 'webseite'], ['vorschlaege', 'Verbesserungsvorschläge', 'vorschlaege'], ['office', 'KI Office', 'office'], ['team', 'Team', 'team']];
   // Register mit Modul auf dem Server: nur sichtbar, wenn der Konfig-Schalter UND die Einstellung „module“ (team_einstellungen) an sind.
   // Meldet der Server „Modul nicht aktiviert“ (403), landet das Modul in MODUL_AUS und das Register verschwindet bis zum nächsten Laden.
   const MODUL_VON_TAB = { zeit: 'zeit', social: 'social', systeme: 'system', kurs: 'kurs' };
@@ -486,6 +494,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (!TOKEN) return ohneZugang();
     try {
       D = await api('laden');
+      portalDatenTrennen();
       zuletztGeladen = Date.now();
       einstellungenUebernehmen();
       if (D.setup) return einrichten();
@@ -538,7 +547,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       '<main class="wrap" id="main"></main>';
     document.querySelectorAll('[data-zk]').forEach(b => b.onclick = () => { tab = 'zeit'; zAns = 'monat'; moOff = 0; zPerson = D.ich.mitglied_id; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/zeit'); render(); window.scrollTo(0, 0); });
     document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.tab; agentAkte = null; ls.set('mt-tab', tab); setzeHash('#/tab/' + tab); render(); window.scrollTo(0, 0); });
-    const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam };
+    const V = { vertrieb: vVertrieb, whatsapp: vWhatsapp, start: vStart, aufgaben: vAufgaben, projekte: vProjekte, notizen: vNotizen, zeit: vZeit, social: vSocial, kurs: vKurs, systeme: vSysteme, skills: vSkills, tresor: vTresor, web: vWeb, vorschlaege: vVorschlaege, office: vOffice, team: vTeam, termine: vTermine, dokumente: vDokumente, videos: vVideos, wiki: vWiki };
     if (!V[tab] || !an(tab) || (['vertrieb', 'whatsapp'].includes(tab) && !darfVertrieb())) { tab = startTab(); ls.set('mt-tab', tab); }
     tabsScrollen();
     if (tab !== 'notizen' && !agentAkte && !ziel && !$('#dlg').open) setzeHash('#/tab/' + tab, true);
@@ -546,7 +555,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     if (!tabs().length) { $('#main').innerHTML = '<div class="card"><h2>Kein Register eingeschaltet</h2><p>In <code>mandant.js</code> unter „register“ mindestens ein Register auf <code>true</code> setzen.</p></div>'; return; }
     V[tab]();
     if (modulHinweis) { $('#main').insertAdjacentHTML('afterbegin', '<div class="note warn" style="margin-bottom:14px">' + esc(modulHinweis) + ' Das Register ist deshalb ausgeblendet. Freischalten kann die Leitung über die Einstellung „module“.</div>'); modulHinweis = ''; }
-    if (tab === 'start') { officeCache = null; fuerDichKarte(); }
+    if (tab === 'start') { officeCache = null; fuerDichKarte(); hinweisKarte(); }
     if (ziel) {
       const z = ziel; ziel = null;
       if (z.art === 'aufgabe') { const a = D.aufgaben.find(x => x.aufgabe_id === z.id); if (a) aufgabeDialog(a); else toast('Diese Aufgabe gibt es nicht mehr.'); }
@@ -579,7 +588,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
     const tagListe = (() => { const z = {}; alleV.filter(nachStatus).forEach(v => tagsVon(v).forEach(t => { z[t] = (z[t] || 0) + 1; })); return Object.entries(z).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24); })();
     const VBEREICHE = vbereiche();
     const bereicheVorhanden = [...new Set(alleV.filter(nachStatus).map(v => v.bereich || 'Sonstiges'))].sort((a, b) => VBEREICHE.indexOf(a) - VBEREICHE.indexOf(b));
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Vorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Die Leitung entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Verbesserungsvorschläge</h1><p class="sub">Was soll am Portal besser werden? Jeder kann Ideen einbringen und mit „Finde ich gut“ unterstützen. Die Leitung entscheidet und gibt Rückmeldung.</p></div><button class="btn" id="neuv">+ Vorschlag</button></div>' +
       '<div class="kpis">' + kpi(alleV.filter(offen).length, 'offen') + kpi(n('neu') + n('nachfrage'), 'neu oder mit Rückfrage') + kpi(n('geplant') + n('in Arbeit'), 'geplant oder in Arbeit') + kpi(n('umgesetzt'), 'umgesetzt') + '</div>' +
       '<div class="card"><div class="tools"><div class="seg">' + [['offen', 'Offen'], ['alle', 'Alle'], ['umgesetzt', 'Umgesetzt'], ['abgelehnt', 'Abgelehnt']].map(([k, l]) => '<button data-vf="' + k + '" class="' + (vFilter === k ? 'on' : '') + '">' + l + '</button>').join('') + '</div>' +
       '<input id="v_such" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(vSuche) + '" aria-label="Vorschläge durchsuchen" style="flex:1;min-width:160px;max-width:280px">' +
@@ -674,6 +683,185 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
       const daten = { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value };
       if (admin) { daten.status = $('#v_s').value; if ($('#v_a')) daten.antwort = $('#v_a').value; }
       try { await api('vorschlag_speichern', daten); dlg.close(); toast(neu ? 'Danke! Vorschlag gespeichert.' : 'Gespeichert'); if (neu) vFilter = 'offen'; await laden(true); }
+      catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+
+  // ---------- Präsentationsfassung: Meine Termine, Dokumente, Videos, Wiki, Informationen mit @ ----------
+  // Schnelle Fassung ohne eigene Tabellen: Die Einträge liegen als JSON in versteckten Notizen mit dem Titel „Portal-Daten: …“.
+  // Jeder im Team kann diese Notizen technisch lesen; für vertrauliche Inhalte ist das nichts. Später kommen eigene Tabellen mit Rechten.
+  const PD_PRAEFIX = 'Portal-Daten: ';
+  let PD = {};
+  function portalDatenTrennen() {
+    PD = {};
+    const rest = [];
+    for (const n of ((D && D.notizen) || [])) {
+      if (String(n.titel || '').startsWith(PD_PRAEFIX)) {
+        let l = []; try { const j = JSON.parse(n.inhalt || '[]'); if (Array.isArray(j)) l = j; } catch (e) {}
+        PD[String(n.titel).slice(PD_PRAEFIX.length)] = { notiz: n, liste: l };
+      } else rest.push(n);
+    }
+    if (D) D.notizen = rest;
+  }
+  const pdListe = name => (PD[name] ? PD[name].liste : []);
+  const pdId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const pdLink = u => (/^https?:\/\/\S+$/i.test(String(u || '')) ? String(u) : '');
+  async function pdAendern(name, aendern, zweiter) {
+    const alt = PD[name];
+    const liste = aendern((alt ? alt.liste : []).slice());
+    const daten = { titel: PD_PRAEFIX + name, inhalt: JSON.stringify(liste), projekt: '' };
+    if (alt) { daten.notiz_id = alt.notiz.notiz_id; daten.stand = alt.notiz.geaendert; }
+    try { await api('notiz_speichern', daten); }
+    catch (e) {
+      // Hat jemand anderes inzwischen gespeichert, neu laden und die Änderung noch einmal auf den frischen Stand anwenden
+      if ((e.status === 409 || e.status === 400) && !zweiter) { await laden(true); return pdAendern(name, aendern, true); }
+      throw e;
+    }
+    await laden(true);
+  }
+  const pdDarf = e => istAdmin() || e.autor === D.ich.mitglied_id;
+  const pdSpeichern = (name, alt) => o => pdAendern(name, l => {
+    if (alt) { const i = l.findIndex(x => x.id === alt.id); if (i >= 0) l[i] = Object.assign({}, l[i], o, { geaendert: new Date().toISOString() }); }
+    else l.unshift(Object.assign({ id: pdId(), autor: D.ich.mitglied_id, erstellt: new Date().toISOString() }, o));
+    return l;
+  });
+  const pdLoeschen = (name, alt) => () => pdAendern(name, l => l.filter(x => x.id !== alt.id));
+  const pdKopf = (h, sub, knopf) => '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>' + esc(h) + '</h1><p class="sub">' + esc(sub) + '</p></div>' + (knopf ? '<button class="btn" id="pd_neu">' + esc(knopf) + '</button>' : '') + '</div>';
+  const pdMeta = e => '<div class="meta">' + (e.projekt ? '<span class="chip">' + esc(e.projekt) + '</span>' : '') + av(e.autor) + '<span>' + esc(mitglied(e.autor).name) + ' · ' + fmtD(String(e.erstellt || '').slice(0, 10)) + '</span></div>';
+  // Ein Dialog für alle Listen: felder = [{ k, label, typ: text|url|date|time|textarea|select|personen, opts, pflicht, ph }]
+  function pdDialog(kopf, felder, w, speichern, loeschen) {
+    const feld = f => {
+      const id = 'pd_' + f.k, v = w[f.k] == null ? '' : w[f.k], req = f.pflicht ? ' required' : '', ph = f.ph ? ' placeholder="' + esc(f.ph) + '"' : '';
+      if (f.typ === 'textarea') return '<div class="f"><label for="' + id + '">' + esc(f.label) + '</label><textarea id="' + id + '" rows="4" maxlength="4000"' + req + ph + '>' + esc(v) + '</textarea></div>';
+      if (f.typ === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.label) + '</label><select id="' + id + '">' + opt(f.opts, v) + '</select></div>';
+      if (f.typ === 'personen') {
+        const sel = Array.isArray(v) ? v : [];
+        return '<div class="f"><label>' + esc(f.label) + '</label><div style="display:flex;gap:6px 14px;flex-wrap:wrap">' + (D.mitglieder || []).filter(p => p.status !== 'gesperrt' && p.typ !== 'agent').map(p => '<label class="check" style="margin:0"><input type="checkbox" data-pdp="' + esc(f.k) + '" value="' + esc(p.mitglied_id) + '"' + (sel.includes(p.mitglied_id) ? ' checked' : '') + '><span>' + esc(p.name) + '</span></label>').join('') + '</div></div>';
+      }
+      return '<div class="f"><label for="' + id + '">' + esc(f.label) + '</label><input id="' + id + '" type="' + (f.typ || 'text') + '" maxlength="500"' + req + ph + ' value="' + esc(v) + '"></div>';
+    };
+    $('#dlgInner').innerHTML = '<h2>' + esc(kopf) + '</h2><form id="pdf">' + felder.map(feld).join('') +
+      '<div class="dlgbtns">' + (loeschen ? '<button type="button" class="btn danger left" id="pd_del">Löschen</button>' : '') + '<button type="button" class="btn sec" id="pd_c">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
+    const dlg = openDlg(false);
+    $('#pd_c').onclick = () => dlg.close();
+    const del = $('#pd_del'); if (del) del.onclick = async () => {
+      if (!del.dataset.sicher) { del.dataset.sicher = '1'; del.textContent = 'Wirklich löschen?'; return; }
+      del.disabled = true;
+      try { await loeschen(); dlg.close(); toast('Gelöscht'); } catch (e) { toast(e.message); del.disabled = false; }
+    };
+    $('#pdf').onsubmit = async ev => {
+      ev.preventDefault(); const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const o = {};
+      for (const f of felder) o[f.k] = f.typ === 'personen' ? [...document.querySelectorAll('[data-pdp="' + f.k + '"]:checked')].map(x => x.value) : String($('#pd_' + f.k).value || '').trim();
+      if (felder.some(f => f.typ === 'url' && o[f.k] && !pdLink(o[f.k]))) { toast('Der Link muss mit https:// beginnen.'); btn.disabled = false; return; }
+      try { await speichern(o); dlg.close(); toast('Gespeichert'); } catch (e) { toast(e.message); btn.disabled = false; }
+    };
+  }
+  const pdBinden = (name, kopfNeu, kopfAlt, felder, vorgabe) => {
+    const neu = $('#pd_neu'); if (neu) neu.onclick = () => pdDialog(kopfNeu, felder(), vorgabe ? vorgabe() : {}, pdSpeichern(name, null));
+    document.querySelectorAll('[data-pde]').forEach(b => b.onclick = () => { const e = pdListe(name).find(x => x.id === b.dataset.pde); if (e) pdDialog(kopfAlt, felder(), e, pdSpeichern(name, e), pdLoeschen(name, e)); });
+  };
+
+  // ---------- Videos (Links) ----------
+  const videoEinbettung = u => {
+    let m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,20})/i.exec(String(u || '')); if (m) return 'https://www.youtube-nocookie.com/embed/' + m[1];
+    m = /vimeo\.com\/(?:video\/)?(\d{6,12})/i.exec(String(u || '')); if (m) return 'https://player.vimeo.com/video/' + m[1];
+    return '';
+  };
+  const VIDEO_FELDER = () => [{ k: 'titel', label: 'Titel', pflicht: true }, { k: 'link', label: 'Link zum Video (https://…)', typ: 'url', pflicht: true, ph: 'https://…' }, { k: 'text', label: 'Worum geht es?', typ: 'textarea' }, { k: 'projekt', label: 'Projekt', typ: 'select', opts: [''].concat(projektNamen()) }];
+  function vVideos() {
+    const L = pdListe('videos');
+    $('#main').innerHTML = pdKopf('Videos', 'Erklärvideos, Aufzeichnungen und Schulungen an einem Ort. Link einfügen, speichern, alle im Team sehen ihn.', '+ Video-Link') +
+      (L.length ? '<div class="pdgrid">' + L.map(e => {
+        const emb = videoEinbettung(e.link), link = pdLink(e.link);
+        return '<div class="card" style="margin:0">' + (emb ? '<div class="pdvideo" data-emb="' + esc(emb) + '"><button class="btn" type="button" data-play>▶ Abspielen</button></div>' : '<div class="pdvideo pdleer"><span>🎬</span></div>') +
+          '<h3 style="margin:12px 0 4px">' + esc(e.titel) + '</h3>' + (e.text ? '<p class="small" style="margin:0 0 8px;white-space:pre-wrap">' + esc(e.text) + '</p>' : '') + pdMeta(e) +
+          '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (link ? '<a class="btn sec" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">Öffnen ↗</a>' : '') + (pdDarf(e) ? '<button class="btn ghost" data-pde="' + esc(e.id) + '">Bearbeiten</button>' : '') + '</div></div>';
+      }).join('') + '</div>' : '<div class="card"><p class="empty">Noch keine Videos. Mit „+ Video-Link“ legst du den ersten Link ab.</p></div>');
+    document.querySelectorAll('[data-play]').forEach(b => b.onclick = () => { const box = b.parentElement; box.innerHTML = '<iframe src="' + esc(box.dataset.emb) + '" title="Video" allow="fullscreen" allowfullscreen referrerpolicy="no-referrer"></iframe>'; });
+    pdBinden('videos', 'Video-Link ablegen', 'Video-Link bearbeiten', VIDEO_FELDER);
+  }
+
+  // ---------- Dokumente (Links auf Dokumente, Präsentationen und alles andere) ----------
+  const DOK_ARTEN = ['Dokument', 'Präsentation', 'Tabelle', 'PDF', 'Bild', 'Vorlage', 'Sonstiges'];
+  const DOK_ICON = { Dokument: '📄', 'Präsentation': '📊', Tabelle: '📈', PDF: '📕', Bild: '🖼️', Vorlage: '🧩', Sonstiges: '📎' };
+  let dokArt = '', dokSuche = '';
+  const DOK_FELDER = () => [{ k: 'titel', label: 'Titel', pflicht: true }, { k: 'art', label: 'Art', typ: 'select', opts: DOK_ARTEN }, { k: 'link', label: 'Link zur Datei (https://…)', typ: 'url', pflicht: true, ph: 'https://…' }, { k: 'text', label: 'Kurzbeschreibung', typ: 'textarea' }, { k: 'projekt', label: 'Projekt', typ: 'select', opts: [''].concat(projektNamen()) }];
+  function vDokumente() {
+    const alle = pdListe('dokumente'), q = dokSuche.trim().toLowerCase();
+    const L = alle.filter(e => (!dokArt || (e.art || 'Sonstiges') === dokArt) && (!q || (String(e.titel) + ' ' + String(e.text || '') + ' ' + String(e.projekt || '')).toLowerCase().includes(q)));
+    $('#main').innerHTML = pdKopf('Dokumente', 'Dokumente, Präsentationen, Tabellen und alles andere, was das Team braucht. Die Datei bleibt in eurer Ablage, hier steht der Link dazu.', '+ Dokument') +
+      '<div class="kpis">' + kpi(alle.length, 'abgelegt') + kpi(alle.filter(e => e.art === 'Präsentation').length, 'Präsentationen') + kpi(new Set(alle.map(e => e.projekt).filter(Boolean)).size, 'Projekte mit Unterlagen') + '</div>' +
+      '<div class="card"><div class="tools"><div class="seg"><button data-da="" class="' + (!dokArt ? 'on' : '') + '">Alle</button>' + DOK_ARTEN.filter(a => alle.some(e => (e.art || 'Sonstiges') === a)).map(a => '<button data-da="' + esc(a) + '" class="' + (dokArt === a ? 'on' : '') + '">' + esc(a) + '</button>').join('') + '</div>' +
+      '<input id="dok_such" type="search" placeholder="Suchen …" value="' + esc(dokSuche) + '" aria-label="Dokumente durchsuchen" style="flex:1;min-width:160px;max-width:280px"></div>' +
+      (L.length ? L.map(e => { const link = pdLink(e.link); return '<div class="pdzeile"><span class="pdicon">' + (DOK_ICON[e.art] || '📎') + '</span><div style="min-width:0;flex:1">' + (link ? '<a class="t" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(e.titel) + ' ↗</a>' : '<span class="t">' + esc(e.titel) + '</span>') + (e.text ? '<div class="small" style="margin-top:2px;white-space:pre-wrap">' + esc(e.text) + '</div>' : '') + '<div class="meta"><span class="chip">' + esc(e.art || 'Sonstiges') + '</span>' + pdMeta(e).replace('<div class="meta">', '').replace(/<\/div>$/, '') + '</div></div>' + (pdDarf(e) ? '<button class="btn ghost" data-pde="' + esc(e.id) + '">Bearbeiten</button>' : '') + '</div>'; }).join('')
+        : '<p class="empty">' + (alle.length ? 'Nichts gefunden.' : 'Noch nichts abgelegt. Mit „+ Dokument“ legst du den ersten Link ab.') + '</p>') + '</div>' +
+      '<p class="small muted">Hinweis: In dieser Fassung werden Links abgelegt. Das direkte Hochladen von Dateien folgt in der nächsten Ausbaustufe.</p>';
+    document.querySelectorAll('[data-da]').forEach(b => b.onclick = () => { dokArt = b.dataset.da; vDokumente(); });
+    const s = $('#dok_such'); s.oninput = () => { dokSuche = s.value; const p = s.selectionStart; vDokumente(); const n = $('#dok_such'); n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} };
+    pdBinden('dokumente', 'Dokument ablegen', 'Dokument bearbeiten', DOK_FELDER, () => ({ art: dokArt || 'Dokument' }));
+  }
+
+  // ---------- Meine Termine ----------
+  const TERMIN_FELDER = () => [{ k: 'titel', label: 'Was?', pflicht: true }, { k: 'datum', label: 'Datum', typ: 'date', pflicht: true }, { k: 'von', label: 'Beginn', typ: 'time' }, { k: 'bis', label: 'Ende', typ: 'time' }, { k: 'ort', label: 'Ort oder Link', ph: 'Besprechungsraum oder https://…' }, { k: 'teilnehmer', label: 'Wer ist dabei?', typ: 'personen' }, { k: 'text', label: 'Notiz', typ: 'textarea' }];
+  function vTermine() {
+    const ich = D.ich.mitglied_id, h = new Date().toLocaleDateString('sv-SE');
+    const meine = pdListe('termine').filter(e => e.autor === ich || (e.teilnehmer || []).includes(ich)).sort((a, b) => (String(a.datum) + String(a.von || '')).localeCompare(String(b.datum) + String(b.von || '')));
+    const zeile = e => {
+      const d = dDate(e.datum), ort = String(e.ort || ''), wer = [...new Set([e.autor].concat(e.teilnehmer || []))];
+      return '<div class="pdzeile"><div class="pdtag' + (e.datum === h ? ' heute' : '') + '"><b>' + (d && !isNaN(d) ? d.getDate() : '?') + '</b><span>' + (d && !isNaN(d) ? d.toLocaleDateString('de-DE', { month: 'short' }) : '') + '</span></div>' +
+        '<div style="min-width:0;flex:1"><span class="t">' + esc(e.titel) + '</span><div class="small muted">' + (d && !isNaN(d) ? esc(d.toLocaleDateString('de-DE', { weekday: 'long' })) : '') + (e.von ? ' · ' + esc(e.von) + (e.bis ? '–' + esc(e.bis) : '') + ' Uhr' : '') + (ort ? ' · ' + (pdLink(ort) ? '<a href="' + esc(ort) + '" target="_blank" rel="noopener noreferrer">Link öffnen ↗</a>' : esc(ort)) : '') + '</div>' +
+        (e.text ? '<div class="small" style="margin-top:2px;white-space:pre-wrap">' + esc(e.text) + '</div>' : '') + '<div class="meta">' + wer.map(av).join('') + '<span>' + esc(wer.map(id => mitglied(id).name).join(', ')) + '</span></div></div>' +
+        (pdDarf(e) ? '<button class="btn ghost" data-pde="' + esc(e.id) + '">Bearbeiten</button>' : '') + '</div>';
+    };
+    const heuteL = meine.filter(e => e.datum === h), kommend = meine.filter(e => e.datum > h), alt = meine.filter(e => e.datum < h).reverse();
+    $('#main').innerHTML = pdKopf('Meine Termine', 'Deine Termine und die, zu denen dich jemand aus dem Team eingetragen hat.', '+ Termin') +
+      '<div class="kpis">' + kpi(heuteL.length, 'heute') + kpi(kommend.length, 'kommen noch') + kpi(kommend.filter(e => (dDate(e.datum) - heute()) / 864e5 <= 7).length, 'in den nächsten 7 Tagen') + '</div>' +
+      '<div class="card"><h2 style="margin-top:0">Heute</h2>' + (heuteL.length ? heuteL.map(zeile).join('') : '<p class="empty">Heute steht nichts an.</p>') + '</div>' +
+      '<div class="card"><h2 style="margin-top:0">Demnächst</h2>' + (kommend.length ? kommend.map(zeile).join('') : '<p class="empty">Keine kommenden Termine. Mit „+ Termin“ trägst du einen ein.</p>') + '</div>' +
+      (alt.length ? '<details class="card"><summary style="cursor:pointer;font-weight:600">Vergangene Termine (' + alt.length + ')</summary>' + alt.slice(0, 30).map(zeile).join('') + '</details>' : '');
+    pdBinden('termine', 'Neuer Termin', 'Termin bearbeiten', TERMIN_FELDER, () => ({ datum: h, teilnehmer: [] }));
+  }
+
+  // ---------- Wiki (DokuWiki, eingebettet) ----------
+  const wikiUrl = () => { const e = pdListe('einstellungen').find(x => x.k === 'wiki_url'); const u = String((e && e.v) || M.wiki_url || ''); return /^https:\/\/\S+$/.test(u) ? u : ''; };
+  function vWiki() {
+    const u = wikiUrl(), admin = istAdmin();
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Wiki</h1><p class="sub">Euer Firmenwissen zum Nachschlagen: Anleitungen, Abläufe, Antworten auf wiederkehrende Fragen. Das Wiki (DokuWiki) ist direkt ins Portal eingebettet.</p></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (u ? '<a class="btn sec" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">In neuem Fenster öffnen ↗</a>' : '') + (admin ? '<button class="btn' + (u ? ' ghost' : '') + '" id="wk_set">' + (u ? 'Adresse ändern' : 'Wiki-Adresse eintragen') + '</button>' : '') + '</div></div>' +
+      (u ? '<div class="card" style="padding:0;overflow:hidden"><iframe src="' + esc(u) + '" title="Wiki" referrerpolicy="no-referrer" style="display:block;width:100%;height:75vh;border:0"></iframe></div><p class="small muted">Bleibt die Fläche leer, erlaubt das Wiki die Einbettung noch nicht. Dann öffnest du es über „In neuem Fenster öffnen“.</p>'
+        : '<div class="card"><h2 style="margin-top:0">Hier kommt euer DokuWiki hinein</h2><p>DokuWiki ist ein freies Wiki, das auf dem eigenen Server läuft und ohne Datenbank auskommt. Sobald es eingerichtet ist, erscheint es an dieser Stelle, mit Suche, Seitenbaum und Versionen.</p>' +
+          '<div class="pdgrid" style="margin-top:12px"><div class="note"><b>📚 Handbuch</b><br>Wie wir arbeiten, Schritt für Schritt.</div><div class="note"><b>🧭 Abläufe</b><br>Vom Auftrag bis zur Rechnung, wer macht was.</div><div class="note"><b>❓ Häufige Fragen</b><br>Antworten, die sonst immer wieder jemand sucht.</div><div class="note"><b>🧾 Vorlagen</b><br>Texte und Checklisten zum Kopieren.</div></div>' +
+          '<p class="small muted" style="margin-bottom:0">' + (admin ? 'Als Admin trägst du die Adresse über „Wiki-Adresse eintragen“ ein.' : 'Die Adresse trägt ein Admin ein.') + '</p></div>');
+    const b = $('#wk_set'); if (b) b.onclick = () => pdDialog('Wiki-Adresse', [{ k: 'v', label: 'Adresse eures DokuWiki (https://…), leer = entfernen', typ: 'url', ph: 'https://…' }], { v: u }, o => pdAendern('einstellungen', l => l.filter(x => x.k !== 'wiki_url').concat(o.v ? [{ k: 'wiki_url', v: o.v }] : [])));
+  }
+
+  // ---------- Informationen mit @ (Karte in der Übersicht) ----------
+  // @Vorname oder @alle im Text: Die markierten Personen sehen die Information oben in ihrer Übersicht, bis sie „Gelesen“ drücken.
+  function hinweisKarte() {
+    const m = $('#main'); if (!m || $('#hinweisKarte')) return;
+    const ich = D.ich.mitglied_id, H = pdListe('hinweise');
+    const fuerMich = H.filter(x => (x.an || []).includes(ich) && !(x.gelesen || []).includes(ich));
+    const gesendet = H.filter(x => x.von === ich).slice(0, 3);
+    const leute = (D.mitglieder || []).filter(p => p.status !== 'gesperrt' && p.typ !== 'agent' && p.mitglied_id !== ich);
+    const vor = p => String(p.name || '').split(/\s+/)[0];
+    const html = '<div class="card" id="hinweisKarte"><h2 style="margin-top:0">📨 Informationen' + (fuerMich.length ? ' <span class="chip fd-neu">' + fuerMich.length + ' neu</span>' : '') + '</h2>' +
+      fuerMich.map(x => '<div class="note" style="margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div style="min-width:0;flex:1"><b>' + esc(mitglied(x.von).name) + '</b> <span class="small muted">· ' + fmtDT(x.zeit) + '</span><div style="white-space:pre-wrap">' + esc(x.text) + '</div></div><button class="btn ghost" type="button" data-hgel="' + esc(x.id) + '">Gelesen ✓</button></div>').join('') +
+      '<form id="hf"><div class="f"><label for="h_t">Markiere jemanden mit @Vorname und schreib deine Information dazu. Die Person sieht sie in ihrer Übersicht.</label><textarea id="h_t" rows="2" maxlength="1000" required placeholder="@' + esc(leute[0] ? vor(leute[0]) : 'Vorname') + ' Die Unterlagen für Freitag liegen unter Dokumente."></textarea></div>' +
+      '<div class="meta" style="margin:-4px 0 10px">' + leute.map(p => '<button type="button" class="chip" data-hat="' + esc(vor(p)) + '" style="cursor:pointer;border:0">@' + esc(vor(p)) + '</button>').join('') + '<button type="button" class="chip" data-hat="alle" style="cursor:pointer;border:0">@alle</button></div>' +
+      '<button class="btn" type="submit">Senden</button></form>' +
+      (gesendet.length ? '<p class="small muted" style="margin:12px 0 0">Zuletzt von dir: ' + gesendet.map(x => '„' + esc(String(x.text).slice(0, 60)) + (String(x.text).length > 60 ? '…' : '') + '“ an ' + esc((x.an || []).map(id => mitglied(id).name).join(', ')) + ' (gelesen ' + (x.gelesen || []).length + '/' + (x.an || []).length + ')').join(' · ') + '</p>' : '') + '</div>';
+    const fd = $('#fuerDich'); if (fd) fd.insertAdjacentHTML('afterend', html); else m.insertAdjacentHTML('beforeend', html);
+    document.querySelectorAll('[data-hat]').forEach(b => b.onclick = () => { const t = $('#h_t'); t.value = (t.value && !/\s$/.test(t.value) ? t.value + ' ' : t.value) + '@' + b.dataset.hat + ' '; t.focus(); });
+    document.querySelectorAll('[data-hgel]').forEach(b => b.onclick = async () => { b.disabled = true; try { await pdAendern('hinweise', l => l.map(x => x.id === b.dataset.hgel ? Object.assign({}, x, { gelesen: [...new Set((x.gelesen || []).concat([ich]))] }) : x)); } catch (e) { toast(e.message); b.disabled = false; } });
+    $('#hf').onsubmit = async ev => {
+      ev.preventDefault();
+      const text = $('#h_t').value.trim(), an = new Set(), rand = '(^|[^\\p{L}\\d_])@', ende = '(?![\\p{L}\\d_])';
+      if (new RegExp(rand + 'alle' + ende, 'iu').test(text)) leute.forEach(p => an.add(p.mitglied_id));
+      for (const p of leute) { const v = vor(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); if (v && new RegExp(rand + v + ende, 'iu').test(text)) an.add(p.mitglied_id); }
+      if (!an.size) return toast('Bitte markiere mindestens eine Person mit @Vorname.');
+      const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      try { await pdAendern('hinweise', l => { l.unshift({ id: pdId(), von: ich, an: [...an], text, zeit: new Date().toISOString(), gelesen: [] }); return l.slice(0, 200); }); toast('Gesendet an ' + [...an].map(id => mitglied(id).name).join(', ')); }
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }

@@ -55,7 +55,7 @@ test('index.html lädt die Konfiguration und trägt keine feste Webhook- oder Po
   assert.ok(!/n8n\.[a-z0-9-]+\.[a-z]+\/webhook/i.test(html), 'keine feste n8n-Adresse');
   assert.ok(!/https?:\/\/[^'" ]*\/webhook\//.test(html), 'keine feste Webhook-Adresse');
   const extern = [...html.matchAll(/https?:\/\/[^'" <)…]+/g)].map(m => m[0]);
-  assert.deepEqual([...new Set(extern)].sort(), ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://wa.me/'], 'nur jsPDF (PDF-Export) und wa.me (Nachricht an ein Teammitglied) als feste Adressen');
+  assert.deepEqual([...new Set(extern)].sort(), ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://player.vimeo.com/video/', 'https://wa.me/', 'https://www.youtube-nocookie.com/embed/'], 'nur jsPDF (PDF-Export), wa.me (Nachricht an ein Teammitglied) und die Einbettung von Videos (Register Videos) als feste Adressen');
 });
 
 test('n8n-Workflows (auch optional/): keine Supabase-Projekt-ID, keine Credential-IDs, keine Chat-IDs, Ausführungsdaten aus', () => {

@@ -21,7 +21,11 @@
     "skills": false,
     "tresor": false,
     "webseite": false,
-    "office": false
+    "office": false,
+    "termine": false,
+    "dokumente": false,
+    "videos": false,
+    "wiki": false
   },
   "social_kanaele": [],
   "anleitung_video": "",

@@ -248,3 +248,15 @@ oder den lokalen Socket; `psql -d postgres` muss funktionieren. Testdatenbanken:
   lokal ablegen.
 - **Register Kurs & Teilnehmer, Skills, Webseite** sind nur Platzhalter.
 - **Logo:** `assets/logo.svg` ist ein Platzhalter und wird je Kunde ersetzt.
+
+## Präsentationsfassung vom 18.11.2026 (schnell gebaut, wird später sauber nachgezogen)
+
+Neue Register, alle über `register` in `mandant.js` schaltbar (Standard aus): `termine` (Meine Termine), `dokumente` (Links auf Dokumente und Präsentationen), `videos` (Video-Links, YouTube und Vimeo spielen direkt ab), `wiki` (eingebettetes DokuWiki, Adresse trägt ein Admin ein). Dazu in der Übersicht die Karte „Informationen“: mit `@Vorname` oder `@alle` jemandem eine Information schicken. Das Register „Vorschläge“ heißt jetzt „Verbesserungsvorschläge“, der Tresor ist ein vorhandenes Register (`tresor`).
+
+Wichtig zu wissen:
+- **Keine eigenen Tabellen.** Die Einträge liegen als JSON in versteckten Notizen mit dem Titel „Portal-Daten: …“ (videos, dokumente, termine, hinweise, einstellungen). Die Oberfläche blendet diese Notizen aus. Technisch kann jedes Teammitglied sie lesen, auch Termine und Informationen anderer. Für vertrauliche Inhalte ist das nichts.
+- **Dokumente sind Links**, kein Datei-Upload.
+- **Keine Tests** für diese Teile, nur ein Durchlauf von Hand gegen den Testserver (echter API-Code, Speicher-Betriebsart).
+- Sauberer Nachbau: eigene Tabellen mit Rechten je Person, Aktionen in der Portal-API, Datei-Upload über Supabase Storage, Tests.
+
+Pages-Kopie mit den neuen Registern: `node portal-pilot/dev/pages-kopie.mjs --ziel docs/pilot --n8n … --portal … --an tresor,termine,dokumente,videos,wiki`
