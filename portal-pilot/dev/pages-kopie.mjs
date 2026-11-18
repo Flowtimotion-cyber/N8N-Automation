@@ -23,6 +23,8 @@ for (const r of String(arg('an', '')).split(',').map(x => x.trim()).filter(Boole
 if (existsSync(ziel)) rmSync(ziel, { recursive: true, force: true });
 mkdirSync(join(ziel, 'config'), { recursive: true });
 cpSync(join(paket, 'frontend'), join(ziel, 'frontend'), { recursive: true });
+// Zwischenspeicher: Die Kopie hängt eine Versionsnummer an die Konfigurationsdatei, damit der Browser nach einem Update nicht die alte Fassung nimmt.
+{ const ip = join(ziel, 'frontend', 'index.html'); const marke = '<script src="../config/mandant.js"></script>'; const h = readFileSync(ip, 'utf8'); if (!h.includes(marke)) { console.error('Einbindung der Konfiguration in index.html nicht gefunden.'); process.exit(1); } writeFileSync(ip, h.replace(marke, '<script src="../config/mandant.js?v=' + Date.now().toString(36) + '"></script>')); }
 writeFileSync(join(ziel, 'config', 'mandant.js'), '// Erzeugt von portal-pilot/dev/pages-kopie.mjs. Nicht von Hand ändern, sondern das Skript erneut ausführen.\nwindow.MANDANT = ' + JSON.stringify(konfig, null, 2) + ';\n');
 writeFileSync(join(ziel, 'README.md'), '# Pilot-Oberfläche (Kopie für GitHub Pages)\n\nErzeugt von `portal-pilot/dev/pages-kopie.mjs`. Quelle ist `portal-pilot/frontend/`; Änderungen dort machen und das Skript erneut ausführen.\n\n- Oberfläche: `frontend/index.html`\n- Konfiguration: `config/mandant.js` (Firma, Adressen, Register)\n- Backend: n8n-Webhook `' + konfig.n8n_basis_url + '/portal-api`\n');
 console.log('Kopie geschrieben nach', ziel);
