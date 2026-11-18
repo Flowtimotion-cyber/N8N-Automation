@@ -318,11 +318,12 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .msgs-ico{position:relative;border:0;background:none;cursor:pointer;padding:4px;border-radius:8px;line-height:0;color:var(--mut)}.msgs-ico:hover{background:var(--tint,#F3EEFD)}.msgs-ico.rot{color:var(--acc)}
 .msgs-n{position:absolute;top:-4px;right:-6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#D92D20;color:#fff;font-size:11px;font-weight:700;line-height:17px;text-align:center}
 details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdtr:first-of-type{border-top:0}details.pdtr summary{cursor:pointer;list-style:none}details.pdtr summary::-webkit-details-marker{display:none}details.pdtr .t{font-weight:600}
+.btn.tg{background:#229ED9;border-color:#229ED9;color:#fff;display:inline-flex;align-items:center;gap:6px}.btn.tg:hover{background:#1b8ac0;border-color:#1b8ac0}.btn.tg svg{flex:none}
 </style></head>
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
 <!-- Mandanten-Konfiguration (Firma, Farben, Adressen, Register). Vorlage: ../config/mandant.example.json -->
-<script src="../config/mandant.js?v=mwmey4k5"></script>
+<script src="../config/mandant.js?v=mwmfo3t0"></script>
 <dialog id="dlg"><div class="dlg" id="dlgInner"></div></dialog>
 <div id="toast"></div>
 <script>
@@ -807,7 +808,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   }
 
   // ---------- Meine Termine ----------
-  const TERMIN_FELDER = () => [{ k: 'titel', label: 'Was?', pflicht: true }, { k: 'datum', label: 'Datum', typ: 'date', pflicht: true }, { k: 'von', label: 'Beginn', typ: 'time' }, { k: 'bis', label: 'Ende', typ: 'time' }, { k: 'ort', label: 'Ort oder Link', ph: 'Besprechungsraum oder https://…' }, { k: 'teilnehmer', label: 'Wer ist dabei?', typ: 'personen' }, { k: 'text', label: 'Notiz', typ: 'textarea' }, { k: 'info', label: 'Die Teilnehmenden informieren: Info mit Link zum Termin, im Portal und per ' + MESSENGER + ' (folgt)', typ: 'check' }];
+  const TERMIN_FELDER = () => [{ k: 'titel', label: 'Was?', pflicht: true }, { k: 'datum', label: 'Datum', typ: 'date', pflicht: true }, { k: 'von', label: 'Beginn', typ: 'time' }, { k: 'bis', label: 'Ende', typ: 'time' }, { k: 'ort', label: 'Ort oder Link', ph: 'Besprechungsraum oder https://…' }, { k: 'teilnehmer', label: 'Wer ist dabei?', typ: 'personen' }, { k: 'text', label: 'Notiz', typ: 'textarea' }];
   function vTermine() {
     const ich = D.ich.mitglied_id, h = new Date().toLocaleDateString('sv-SE');
     const meine = pdListe('termine').filter(e => e.autor === ich || (e.teilnehmer || []).includes(ich)).sort((a, b) => (String(a.datum) + String(a.von || '')).localeCompare(String(b.datum) + String(b.von || '')));
@@ -826,12 +827,19 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
       (alt.length ? '<details class="card"><summary style="cursor:pointer;font-weight:600">Vergangene Termine (' + alt.length + ')</summary>' + alt.slice(0, 30).map(zeile).join('') + '</details>' : '');
     // Neuer Termin: speichern und, wenn angekreuzt, die Teilnehmenden informieren
     const terminNeu = async o => {
+      o.info = terminInfo && (o.teilnehmer || []).some(id => id !== ich); terminInfo = false;
       await pdSpeichern('termine', null)(o);
       const an = (o.teilnehmer || []).filter(id => id !== ich);
       if (o.info && an.length) { return stupsen(an, '📅 Neuer Termin: ' + o.titel + ' am ' + fmtD(o.datum) + (o.von ? ' um ' + o.von + ' Uhr' : '') + (o.ort ? ' · ' + o.ort : '') + ' · ' + PORTAL + '#/tab/termine'); }
     };
-    pdBinden('termine', 'Neuer Termin', 'Termin bearbeiten', TERMIN_FELDER, () => ({ datum: h, teilnehmer: [], info: true }));
-    const tn = $('#pd_neu'); if (tn) tn.onclick = () => pdDialog('Neuer Termin', TERMIN_FELDER(), { datum: h, teilnehmer: [], info: true }, terminNeu);
+    pdBinden('termine', 'Neuer Termin', 'Termin bearbeiten', TERMIN_FELDER, () => ({ datum: h, teilnehmer: [] }));
+    const tn = $('#pd_neu'); if (tn) tn.onclick = () => {
+      terminInfo = false; pdDialog('Neuer Termin', TERMIN_FELDER(), { datum: h, teilnehmer: [] }, terminNeu);
+      const bb = document.querySelector('#pdf .dlgbtns'); if (!bb) return;
+      const tg = document.createElement('button'); tg.type = 'button'; tg.className = 'btn tg'; tg.innerHTML = TG_ICON + ' Speichern und per ' + esc(MESSENGER) + ' informieren';
+      tg.onclick = () => { if (!$('#pdf').reportValidity()) return; if (![...document.querySelectorAll('[data-pdp="teilnehmer"]:checked')].some(x => x.value !== ich)) return toast('Bitte ankreuzen, wer dabei ist. Die Info geht an diese Personen.'); terminInfo = true; $('#pdf').requestSubmit(); };
+      bb.appendChild(tg);
+    };
   }
 
   // ---------- Wiki (DokuWiki, eingebettet) ----------
@@ -1064,6 +1072,8 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   // Heute landet die Info im Portal (Karte „Informationen“ und Symbol oben rechts). Der Versand über den Messenger wird in der nächsten Stufe angebunden.
   // Name des Messengers kommt aus der Konfiguration (mandant.js: messenger), ohne Angabe steht neutral „Messenger“ da
   const MESSENGER = String(M.messenger || 'Messenger').trim().slice(0, 30) || 'Messenger';
+  const TG_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.5 13.2 1.8 11.7c-1-.3-1-1 .2-1.5l18.5-7.1c.9-.3 1.6.2 1.4 1.2z"/></svg>';
+  let hwPerTg = false, terminInfo = false;
   async function stupsen(an, text) {
     const ich = D.ich.mitglied_id;
     await pdAendern('hinweise', l => { l.unshift({ id: pdId(), von: ich, an: an.slice(), text: String(text).slice(0, 1000), zeit: new Date().toISOString(), gelesen: [], kanal: 'messenger' }); return l.slice(0, 200); });
@@ -1072,7 +1082,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   }
   function stupsDialog(p) {
     pdDialog('📣 ' + p.name + ' auf ' + MESSENGER + ' anstupsen', [{ k: 'text', label: 'Nachricht', typ: 'textarea', pflicht: true }], { text: 'Hallo ' + String(p.name).split(/\s+/)[0] + ', im Portal gibt es einen neuen Eintrag für dich. Schau bitte kurz rein: ' + PORTAL }, o => stupsen([p.mitglied_id], o.text));
-    const b = document.querySelector('#pdf [type=submit]'); if (b) b.textContent = 'Anstupsen';
+    const b = document.querySelector('#pdf [type=submit]'); if (b) { b.classList.add('tg'); b.innerHTML = TG_ICON + ' Anstupsen'; }
   }
 
   // ---------- Informationen mit @ (Karte in der Übersicht) ----------
@@ -1088,19 +1098,20 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
       fuerMich.map(x => '<div class="note" style="margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><div style="min-width:0;flex:1"><b>' + esc(mitglied(x.von).name) + '</b> <span class="small muted">· ' + fmtDT(x.zeit) + '</span><div style="white-space:pre-wrap">' + esc(x.text) + '</div></div><button class="btn ghost" type="button" data-hgel="' + esc(x.id) + '">Gelesen ✓</button></div>').join('') +
       '<form id="hf"><div class="f"><label for="h_t">Markiere jemanden mit @Vorname und schreib deine Information dazu. Die Person sieht sie in ihrer Übersicht.</label><textarea id="h_t" rows="2" maxlength="1000" required placeholder="@' + esc(leute[0] ? vor(leute[0]) : 'Vorname') + ' Die Unterlagen für Freitag liegen unter Dokumente."></textarea></div>' +
       '<div class="meta" style="margin:-4px 0 10px">' + leute.map(p => '<button type="button" class="chip" data-hat="' + esc(vor(p)) + '" style="cursor:pointer;border:0">@' + esc(vor(p)) + '</button>').join('') + '<button type="button" class="chip" data-hat="alle" style="cursor:pointer;border:0">@alle</button></div>' +
-      '<button class="btn" type="submit">Senden</button></form>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Senden</button><button class="btn tg" type="button" id="h_tg">' + TG_ICON + ' Per ' + esc(MESSENGER) + ' senden</button></div></form>' +
       (gesendet.length ? '<p class="small muted" style="margin:12px 0 0">Zuletzt von dir: ' + gesendet.map(x => '„' + esc(String(x.text).slice(0, 60)) + (String(x.text).length > 60 ? '…' : '') + '“ an ' + esc((x.an || []).map(id => mitglied(id).name).join(', ')) + ' (gelesen ' + (x.gelesen || []).length + '/' + (x.an || []).length + ')').join(' · ') + '</p>' : '') + '</div>';
     const fd = $('#fuerDich'); if (fd) fd.insertAdjacentHTML('afterend', html); else m.insertAdjacentHTML('beforeend', html);
     document.querySelectorAll('[data-hat]').forEach(b => b.onclick = () => { const t = $('#h_t'); t.value = (t.value && !/\s$/.test(t.value) ? t.value + ' ' : t.value) + '@' + b.dataset.hat + ' '; t.focus(); });
     document.querySelectorAll('[data-hgel]').forEach(b => b.onclick = async () => { b.disabled = true; try { await pdAendern('hinweise', l => l.map(x => x.id === b.dataset.hgel ? Object.assign({}, x, { gelesen: [...new Set((x.gelesen || []).concat([ich]))] }) : x)); } catch (e) { toast(e.message); b.disabled = false; } });
+    const htg = $('#h_tg'); if (htg) htg.onclick = () => { if (!$('#hf').reportValidity()) return; hwPerTg = true; $('#hf').requestSubmit(); };
     $('#hf').onsubmit = async ev => {
-      ev.preventDefault();
+      ev.preventDefault(); const perTg = hwPerTg; hwPerTg = false;
       const text = $('#h_t').value.trim(), an = new Set(), rand = '(^|[^\\p{L}\\d_])@', ende = '(?![\\p{L}\\d_])';
       if (new RegExp(rand + 'alle' + ende, 'iu').test(text)) leute.forEach(p => an.add(p.mitglied_id));
       for (const p of leute) { const v = vor(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); if (v && new RegExp(rand + v + ende, 'iu').test(text)) an.add(p.mitglied_id); }
       if (!an.size) return toast('Bitte markiere mindestens eine Person mit @Vorname.');
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-      try { await pdAendern('hinweise', l => { l.unshift({ id: pdId(), von: ich, an: [...an], text, zeit: new Date().toISOString(), gelesen: [] }); return l.slice(0, 200); }); toast('Gesendet an ' + [...an].map(id => mitglied(id).name).join(', ')); }
+      try { await pdAendern('hinweise', l => { l.unshift({ id: pdId(), von: ich, an: [...an], text, zeit: new Date().toISOString(), gelesen: [], kanal: perTg ? 'messenger' : 'portal' }); return l.slice(0, 200); }); toast(perTg ? 'Info an ' + [...an].map(id => mitglied(id).name).join(', ') + ' im Portal hinterlegt. Der Versand per ' + MESSENGER + ' wird in der nächsten Stufe angebunden.' : 'Gesendet an ' + [...an].map(id => mitglied(id).name).join(', ')); }
       catch (e) { toast(e.message); btn.disabled = false; }
     };
   }
@@ -3085,7 +3096,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
         '<div class="small" style="margin-top:6px;overflow-wrap:anywhere">' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a><br>' : '') + (p.telefon ? '<a href="tel:' + esc(p.telefon) + '">' + esc(p.telefon) + '</a>' + (p.whatsapp_ok ? ' · WhatsApp ✓' : '') : '') + '</div>' +
         '<div class="small muted" style="margin-top:4px">' + offenVon(p.mitglied_id) + ' offene Aufgaben' + (an('zeit') && hatVertrag(p) ? ' · Vertrag: ' + std(Math.round(Number(p.vertrag_std) * 60)) + ' pro Monat · Konto: ' + stdPM(kontoStand(p.mitglied_id).konto) : '') + '</div>' +
         '<div class="act">' + (p.typ === 'agent' ? '<button class="btn" style="padding:6px 10px" data-akte="' + esc(p.mitglied_id) + '">Akte öffnen</button>' : '') + (waNummer(p.telefon) && p.mitglied_id !== D.ich.mitglied_id ? '<a class="btn wa" style="padding:6px 10px" target="_blank" rel="noopener" href="https://wa.me/' + waNummer(p.telefon) + '">WhatsApp</a>' : '') +
-        (p.typ !== 'agent' && p.status !== 'gesperrt' && p.mitglied_id !== D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-stups="' + esc(p.mitglied_id) + '" title="Kurze Info: Es gibt einen neuen Eintrag">📣 Auf ' + MESSENGER + ' anstupsen</button>' : '') +
+        (p.typ !== 'agent' && p.status !== 'gesperrt' && p.mitglied_id !== D.ich.mitglied_id ? '<button class="btn tg" style="padding:6px 10px" data-stups="' + esc(p.mitglied_id) + '" title="Kurze Info: Es gibt einen neuen Eintrag">' + TG_ICON + ' Auf ' + esc(MESSENGER) + ' anstupsen</button>' : '') +
         (p.mitglied_id === D.ich.mitglied_id ? '<button class="btn sec" style="padding:6px 10px" data-profil>Meine Daten ändern</button>' : '') +
         (an('zeit') && p.typ !== 'agent' && (admin || p.mitglied_id === D.ich.mitglied_id) ? '<button class="btn sec" style="padding:6px 10px" data-vertrag="' + esc(p.mitglied_id) + '">Vertrag</button>' : '') +
         (admin ? '<button class="btn sec" style="padding:6px 10px" data-m="' + esc(p.mitglied_id) + '">Verwalten</button>' + (p.token ? '<button class="btn sec" style="padding:6px 10px" data-link="' + esc(p.mitglied_id) + '">' + (p.typ === 'agent' ? 'Agenten-Code kopieren' : 'Link kopieren') + '</button>' : '') : '') + '</div></div></div>').join('') + '</div>' +
