@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import { PILOT } from './hilfe.mjs';
 
 const SCHLUESSEL = ['firma', 'kurzname', 'logo', 'farben', 'n8n_basis_url', 'portal_url', 'register', 'social_kanaele', 'anleitung_video', 'standard_projekt', 'sprache'];
-const REGISTER = ['uebersicht', 'aufgaben', 'projekte', 'notizen', 'vorschlaege', 'team', 'arbeitszeit', 'social', 'vertrieb', 'whatsapp', 'kurs', 'systeme', 'skills', 'tresor', 'webseite', 'office', 'termine', 'dokumente', 'videos', 'wiki'];
+const REGISTER = ['uebersicht', 'aufgaben', 'projekte', 'notizen', 'vorschlaege', 'team', 'arbeitszeit', 'social', 'vertrieb', 'whatsapp', 'kurs', 'systeme', 'skills', 'tresor', 'webseite', 'office', 'termine', 'dokumente', 'videos', 'wiki', 'transkription', 'ki'];
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 function pruefe(k, name) {

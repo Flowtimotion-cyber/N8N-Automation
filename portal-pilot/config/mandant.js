@@ -29,7 +29,9 @@ window.MANDANT = {
     "termine": false,
     "dokumente": false,
     "videos": false,
-    "wiki": false
+    "wiki": false,
+    "transkription": false,
+    "ki": false
   },
   "social_kanaele": [],
   "anleitung_video": "",

@@ -260,3 +260,11 @@ Wichtig zu wissen:
 - Sauberer Nachbau: eigene Tabellen mit Rechten je Person, Aktionen in der Portal-API, Datei-Upload über Supabase Storage, Tests.
 
 Pages-Kopie mit den neuen Registern: `node portal-pilot/dev/pages-kopie.mjs --ziel docs/pilot --n8n … --portal … --an tresor,termine,dokumente,videos,wiki`
+
+### Nachtrag 18.11.2026, abends: nur Oberfläche (Vorschau), noch ohne KI-Dienst
+
+- **Nachrichten-Symbol** oben rechts neben dem Namen: zeigt die Zahl ungelesener Informationen, Klick führt zur Karte „Informationen“.
+- **Transkription** (`transkription`): mitschreiben per Mikrofon (Spracherkennung des Browsers, Chrome und Edge), Text speichern und durchsuchen. „Auswerten“ ruft den KI-Dienst `n8n_basis_url + '/portal-ki'` (Aktion `zusammenfassen`); solange der fehlt, öffnet sich derselbe Bestätigungsdialog zum Eintragen von Hand: Aufgaben zuordnen, bestätigen, anlegen.
+- **KI-Agent** (`ki`): „Finden“ (Beschreibung eingeben) und „Bauen“ (Präsentation, Wiki-Seite, Notiz). Ohne KI-Dienst: Stichwortsuche über die Portal-Inhalte und Vorlagen zum Ausfüllen, beides als „Vorschau ohne KI“ gekennzeichnet.
+- **Anstupsen** im Register Team und **Info beim Termin**: legt die Information im Portal ab (Karte „Informationen“). Der Versand über einen Messenger ist noch nicht angebunden; der Name des Messengers kommt aus `mandant.js` (Feld `messenger`, in der Pages-Kopie über `--messenger`).
+- Der KI-Dienst (Workflow mit den Aktionen `zusammenfassen`, `finden`, `bauen`) ist noch nicht gebaut. Vor dem Anschluss klären: Anbieter und Datenstandort, weil Mitschriften und Portal-Inhalte an den KI-Dienst gehen.
