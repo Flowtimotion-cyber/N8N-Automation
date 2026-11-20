@@ -192,6 +192,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .md .kasten{border-radius:10px;padding:10px 14px;margin:0 0 10px;border:1px solid rgba(20,18,58,.08)}.md .kasten .kt{font-weight:700;margin-bottom:4px}.md .kasten p:last-child,.md .kasten ul:last-child{margin-bottom:0}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99;max-width:calc(100vw - 32px)}
 #toast.show{opacity:1}
+#toast.mitte{top:50%;bottom:auto;transform:translate(-50%,-50%);padding:14px 20px;font-size:15px;box-shadow:0 12px 32px rgba(20,18,58,.3)}
 .plinks{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
 .plinks a{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:600;color:var(--acc);background:var(--tint);border-radius:999px;padding:3px 10px;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plinks a:hover{background:var(--tint2)}
@@ -402,7 +403,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   // ---------- Helfer ----------
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const toast = t => { if (t && t === toast.leise) { toast.leise = ''; return; } const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 2600); };
+  const toast = (t, art) => { if (t && t === toast.leise) { toast.leise = ''; return; } const e = $('#toast'); e.textContent = t; e.classList.toggle('mitte', art === 'mitte'); e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), art === 'mitte' ? 5000 : 2600); };
   const heute = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
   const dDate = s => s ? new Date(s + 'T00:00:00') : null;
   const fmtD = s => { if (!s) return ''; const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? dDate(s) : new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
@@ -1314,7 +1315,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
     s = s.replace(/\[([^\]\n]+)\]\((#\/[\w\/-]+)\)/g, (m, t, u) => keep('<a href="' + u + '">' + t + '</a>'));
     s = s.replace(/\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g, (m, t, u) => keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + t + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + t + '</a>'));
     s = s.replace(/(^|[\s(])((?:https?:\/\/)[^\s<]+[^\s<.,;:!?)])/g, (m, a, u) => a + keep(u.startsWith(PORTAL + '#/') ? '<a href="' + u.slice(PORTAL.length) + '">' + portalLinkText(u.slice(PORTAL.length)) + '</a>' : '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>'));
-    // Lokale Laufwerke und Netzpfade: Browser dürfen file:-Adressen aus Webseiten nicht öffnen, darum kopiert ein Klick den Pfad (Strg+L im Explorer, einfügen)
+    // Lokale Laufwerke und Netzpfade: Browser dürfen file:-Adressen aus Webseiten nicht öffnen, darum kopiert ein Klick den Pfad (im Explorer Strg+L, dann Strg+V)
     s = s.replace(/\[([^\]\n]+)\]\((file:\/\/\/[^\s)]+|\\\\[^)\n]+|[A-Za-z]:\\[^)\n]+)\)/g, (m, t, u) => keep('<a href="#" class="pfad" data-pfad="' + u + '" title="Klicken: Pfad kopieren">📁 ' + t + '</a>'));
     s = s.replace(/(^|[\s(])(file:\/\/\/[^\s<]+[^\s<.,;:!?)]|\\\\[\w.$-]+\\[^\s<]*[^\s<.,;:!?)]|[A-Za-z]:\\[^\s<]*[^\s<.,;:!?)])/g, (m, a, u) => a + keep('<a href="#" class="pfad" data-pfad="' + u + '" title="Klicken: Pfad kopieren">📁 ' + u + '</a>'));
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
@@ -3208,7 +3209,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
     ev.preventDefault();
     let pfad = a.dataset.pfad || '';
     if (/^file:\/\/\//i.test(pfad)) { try { pfad = decodeURI(pfad.slice(8)); } catch (e) { pfad = pfad.slice(8); } if (/^[A-Za-z]:/.test(pfad)) pfad = pfad.replace(/\//g, '\\'); else pfad = '/' + pfad; }
-    const fertig = () => toast('Pfad kopiert. Im Explorer mit Strg+L einfügen.');
+    const fertig = () => toast('Pfad kopiert. Im Explorer mit Strg+L in die Adresszeile wechseln und mit Strg+V einfügen.', 'mitte');
     (navigator.clipboard ? navigator.clipboard.writeText(pfad).then(fertig) : Promise.reject()).catch(() => { window.prompt('Pfad kopieren (Strg+C):', pfad); });
   });
   leseHash();
