@@ -75,7 +75,7 @@ h3{font-size:15px;margin:0 0 8px}
 .task:hover{background:#FAFAFE}
 .task .t{font-weight:600}
 .task.done .t{text-decoration:line-through;color:var(--mut)}
-.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}.meta .adat{opacity:.85;white-space:nowrap}
 .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:var(--soft);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap}
 .p1{background:#FCE3DE;color:#B0321F}.p2{background:#FDEBD3;color:#A35D06}.p3{background:var(--soft);color:var(--mut)}
 .st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
@@ -184,7 +184,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .sum{font-size:22px;font-weight:700}
 .md{line-height:1.55;overflow-wrap:anywhere}.md h2{font-size:20px;margin:14px 0 6px}.md h3{font-size:17px;margin:12px 0 6px}.md h4{font-size:15px;margin:10px 0 4px}
 .md p{margin:0 0 8px}.md ul,.md ol{margin:0 0 8px;padding-left:22px}.md ul.tasklist{list-style:none;padding-left:4px}.md blockquote{margin:0 0 8px;padding:6px 12px;border-left:3px solid var(--acc);background:#F6F3FE;border-radius:0 8px 8px 0}
-.md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md a.wl{text-decoration:underline dotted}
+.md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md hr.hr-schwarz{border-top-color:#000}.md hr.hr-dick{border-top:2px solid #000}.md .leerz{height:1.4em}.md a.wl{text-decoration:underline dotted}
 .md .tab{overflow-x:auto;margin:0 0 8px}.md .tab table{width:auto;border-collapse:collapse}.md .tab th,.md .tab td{border:1px solid var(--line);padding:5px 9px;vertical-align:top;overflow-wrap:break-word;font-size:inherit;color:inherit;text-transform:none;letter-spacing:normal}.md .tab th{background:var(--soft);font-weight:600}
 .ed .edhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.edmode button{padding:5px 10px;font-size:13px}
 .toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#FAFAFE}
@@ -198,6 +198,19 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(480px,96vw)}
 .zieh{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:5;border-radius:0 0 18px 0;background:linear-gradient(135deg,transparent 0 45%,#B9B5D6 45% 52%,transparent 52% 62%,#B9B5D6 62% 69%,transparent 69% 79%,#B9B5D6 79% 86%,transparent 86%)}.zieh:hover{background-color:#F1ECFD}
 dialog.breit{overflow:visible;margin-top:3vh;margin-bottom:auto;max-height:calc(97vh - 12px)}dialog.breit .dlg{max-height:calc(97vh - 12px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
+/* Vorschlag Kurt (Scroll-Problem): Das Fenster bleibt im Browserfenster, Eingabe/Vorschau und Kommentare scrollen jeweils für sich.
+   Textfeld und Vorschau haben eine Höchsthöhe (ziehen lässt sich höchstens bis dahin), der Verlauf eine eigene Scrollbox. */
+@supports(height:100dvh){dialog.breit{max-height:calc(97dvh - 12px)}dialog.breit .dlg{max-height:calc(97dvh - 12px)}}
+#dlg .edbody textarea{max-height:62vh;overflow:auto}#dlg .edbody .vorschau{max-height:62vh;overflow:auto}
+#dlg .edbody.m-vorschau .vorschau{min-height:160px}
+.vliste{max-height:34vh;overflow:auto;overscroll-behavior:contain;padding-right:4px;margin-bottom:4px}
+dialog.voll .vliste{max-height:40vh}
+/* Breites Aufgabenfenster: Beschreibung links, Verlauf rechts daneben (gleich hoch wie das Textfeld, scrollt für sich) */
+#af.zwei{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);column-gap:18px}
+#af.zwei>*{grid-column:1/-1}#af.zwei>.ed{grid-column:1;grid-row:2}
+#af.zwei>.verlauf{grid-column:2;grid-row:2;contain:size;min-height:0;display:flex;flex-direction:column;border-top:0;margin-top:0;padding-top:0;margin-bottom:12px}
+#af.zwei>.verlauf .vliste{max-height:none;flex:1 1 auto;min-height:60px;border:1px solid var(--line);border-radius:10px;padding:8px}
+#af.zwei>.verlauf .f{margin:8px 0 0}#af.zwei>.verlauf textarea{min-height:64px}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
@@ -1103,6 +1116,29 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (a.deadline) return -1; if (b.deadline) return 1;
     return String(b.geaendert).localeCompare(String(a.geaendert));
   }
+  // Sortierung der Aufgabenliste (Vorschlag Kurt): Standard = Priorität, dann Deadline
+  const SORTEN = [['prio', 'Priorität & Deadline'], ['erstellt_neu', 'Neueste zuerst (erstellt)'], ['erstellt_alt', 'Älteste zuerst (erstellt)'], ['geaendert', 'Zuletzt geändert'], ['ersteller', 'Ersteller (A–Z)'], ['bearbeiter', 'Zuständig (A–Z)']];
+  const SORT_TEXT = { prio: 'Prio 1 zuerst, dann nach Deadline.', erstellt_neu: 'Zuletzt angelegte Aufgaben zuerst.', erstellt_alt: 'Am längsten bestehende Aufgaben zuerst.', geaendert: 'Zuletzt geänderte Aufgaben zuerst (auch neue Kommentare zählen).', ersteller: 'Nach Ersteller, innerhalb nach Priorität.', bearbeiter: 'Nach zuständiger Person, innerhalb nach Priorität.' };
+  function aufgabenSortierer(art) {
+    const zeit = v => { const t = new Date(v || 0).getTime(); return isNaN(t) ? 0 : t; };
+    const nm = id => String(mitglied(id).name || id || '~').toLocaleLowerCase('de');
+    const erledigtHinten = (a, b) => (a.status === 'Erledigt') === (b.status === 'Erledigt') ? 0 : a.status === 'Erledigt' ? 1 : -1;
+    if (art === 'erstellt_neu') return (a, b) => zeit(b.erstellt) - zeit(a.erstellt) || sortAufgaben(a, b);
+    if (art === 'erstellt_alt') return (a, b) => zeit(a.erstellt) - zeit(b.erstellt) || sortAufgaben(a, b);
+    if (art === 'geaendert') return (a, b) => zeit(b.geaendert) - zeit(a.geaendert) || sortAufgaben(a, b);
+    if (art === 'ersteller') return (a, b) => erledigtHinten(a, b) || nm(a.erstellt_von).localeCompare(nm(b.erstellt_von), 'de') || sortAufgaben(a, b);
+    if (art === 'bearbeiter') return (a, b) => erledigtHinten(a, b) || nm(a.verantwortlich).localeCompare(nm(b.verantwortlich), 'de') || sortAufgaben(a, b);
+    return sortAufgaben;
+  }
+  // Erstellt-/Änderungsdatum kurz (TT.MM.JJ) für die Liste, lang mit Uhrzeit für den Dialog
+  const datumKurz = s => { const d = new Date(s); return !s || isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); };
+  const datumLang = s => { const d = new Date(s); return !s || isNaN(d) ? '–' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+  const aufgabeDaten = a => {
+    const e = datumKurz(a.erstellt), g = datumKurz(a.geaendert);
+    if (!e && !g) return '';
+    return '<span class="adat" title="Erstellt ' + esc(datumLang(a.erstellt)) + (a.erstellt_von ? ' von ' + esc(mitglied(a.erstellt_von).name) : '') + ' · zuletzt geändert ' + esc(datumLang(a.geaendert)) + '">' +
+      (e ? 'erstellt ' + e : '') + (g && g !== e ? (e ? ' · ' : '') + 'geändert ' + g : '') + '</span>';
+  };
   const hl = h => { const q = tab === 'aufgaben' && F.q ? F.q.trim() : ''; if (q.length < 2) return h; const e = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return h.replace(new RegExp('(' + e + ')', 'gi'), '<mark>$1</mark>'); };
   const vorschauText = b => { const k = klartext(b); const q = tab === 'aufgaben' && F.q ? F.q.trim().toLowerCase() : ''; const i = q ? k.toLowerCase().indexOf(q) : -1; return i > 120 ? '… ' + k.slice(i - 60, i + 160) : k.slice(0, 220); };
   function taskRow(a) {
@@ -1111,7 +1147,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
       (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
-      (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
+      (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + aufgabeDaten(a) + '</div></div>' +
       '<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
   }
   function bindTasks() { document.querySelectorAll('[data-a]').forEach(e => e.onclick = () => aufgabeDialog(D.aufgaben.find(a => a.aufgabe_id === e.dataset.a))); }
@@ -1127,12 +1163,14 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     else if (F.status === 'late') L = L.filter(ueberfaellig);
     else if (F.status) L = L.filter(a => a.status === F.status);
     if (F.q) { const q = F.q.toLowerCase(); L = L.filter(a => (a.titel + ' ' + a.beschreibung).toLowerCase().includes(q)); }
-    L.sort(sortAufgaben);
-    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
+    const sortArt = SORTEN.some(s => s[0] === F.sort) ? F.sort : 'prio';
+    L.sort(aufgabenSortierer(sortArt));
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">' + esc(SORT_TEXT[sortArt]) + ' Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
       '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
       (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
       '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
       '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
+      '<select id="fso" aria-label="Sortieren" title="Sortieren">' + SORTEN.map(([v, t]) => '<option value="' + v + '"' + (v === sortArt ? ' selected' : '') + '>↕ ' + esc(t) + '</option>').join('') + '</select>' +
       '<input class="grow" id="fq" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(F.q) + '">' +
       '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
       (F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
@@ -1141,12 +1179,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#fp').onchange = e => { F.person = e.target.value; saveF(); vAufgaben(); };
     $('#fj').onchange = e => { F.projekt = e.target.value; saveF(); vAufgaben(); };
     $('#fs').onchange = e => { F.status = e.target.value; saveF(); vAufgaben(); };
+    $('#fso').onchange = e => { F.sort = e.target.value; saveF(); vAufgaben(); };
     $('#fq').oninput = e => { F.q = e.target.value; clearTimeout(vAufgaben.t); vAufgaben.t = setTimeout(() => { vAufgaben(); const x = $('#fq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
     document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { F.ansicht = b.dataset.v; saveF(); vAufgaben(); });
   }
   function board(L) {
     return '<div class="board">' + BOARD.map(s => { const c = L.filter(a => a.status === s); return '<div class="col"><h3>' + esc(s) + '<span>' + c.length + '</span></h3>' +
-      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
+      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '" title="Erstellt ' + esc(datumLang(a.erstellt)) + ' · geändert ' + esc(datumLang(a.geaendert)) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
   }
 
   function aufgabeDialog(a) {
@@ -1165,10 +1204,21 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa" checked><span id="a_wa_t"></span></label>' +
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
-      (!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
+      (!neu ? '<p class="small muted" id="a_daten">Erstellt ' + (a.erstellt_von ? 'von ' + esc(mitglied(a.erstellt_von).name) + ' ' : '') + 'am ' + esc(datumLang(a.erstellt)) + ' · zuletzt geändert am ' + esc(datumLang(a.geaendert)) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">In den Papierkorb</button>' : '') +
       '<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
     const dlg = openDlg(true); bindEditor('a_b');
+    // Breites Fenster: Verlauf rechts neben der Beschreibung (Klasse „zwei“), sonst darunter; neueste Einträge zuerst sichtbar
+    let spalten = null;
+    const zweiSpalten = () => {
+      const f = $('#af'); if (!f) return;
+      const zwei = window.innerWidth > 900 && dlg.clientWidth >= 1050;
+      if (zwei === spalten) return;
+      spalten = zwei; f.classList.toggle('zwei', zwei);
+      const vl = $('#a_vl'); if (vl) vl.scrollTop = vl.scrollHeight;
+    };
+    zweiSpalten();
+    if (window.ResizeObserver) { const ro = new ResizeObserver(zweiSpalten); ro.observe(dlg); dlg.addEventListener('close', () => ro.disconnect(), { once: true }); }
     // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar
     const waZeile = () => {
       const id = $('#a_v').value, p = mitglied(id), wird = id !== D.ich.mitglied_id && (neu || a.verantwortlich !== id) && !istKI(id);
@@ -1218,9 +1268,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   function verlaufHtml(a) {
     const V = a.aufgabe_id ? (D.verlauf || []).filter(v => v.aufgabe_id === a.aufgabe_id) : [];
     const zeit = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
-    return '<div class="verlauf"><h3>Verlauf & Kommentare</h3>' +
-      (V.length ? V.map(v => '<div class="vl ' + esc(v.art) + '">' + av(v.autor) + '<div class="vt"><span class="small muted">' + esc(mitglied(v.autor).name) + ' · ' + zeit(v.erstellt) + (v.art === 'bericht' ? ' · Bericht' : '') + '</span>' +
-        (v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') : '<p class="small muted">Noch nichts.</p>') +
+    return '<div class="verlauf"><h3>Verlauf & Kommentare' + (V.length > 4 ? ' <span class="small muted">(' + V.length + ', scrollt für sich)</span>' : '') + '</h3>' +
+      (V.length ? '<div class="vliste" id="a_vl">' + V.map(v => '<div class="vl ' + esc(v.art) + '">' + av(v.autor) + '<div class="vt"><span class="small muted">' + esc(mitglied(v.autor).name) + ' · ' + zeit(v.erstellt) + (v.art === 'bericht' ? ' · Bericht' : '') + '</span>' +
+        (v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') + '</div>' : '<p class="small muted">Noch nichts.</p>') +
       '<div class="f" style="margin-top:8px"><label for="a_k">Kommentar hinzufügen (wird beim Speichern mitgespeichert)</label><textarea id="a_k" rows="2" maxlength="8000" placeholder="z. B. Rückfrage, Zwischenstand, Hinweis für den Agenten …"></textarea></div></div>';
   }
 
@@ -1300,16 +1350,19 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     for (let i = 0; i < L.length; i++) { const tb = tabelle(L, i); if (tb) { aus.push(...[tb.kopf, ...tb.zeilen].map(z => z.map(c => c.replace(/<br\s*\/?>/gi, ' ')).join(' · '))); i += tb.n - 1; } else aus.push(L[i]); }
     return aus.join('\n');
   };
-  const klartext = t => tabellenKlartext(t).replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  const klartext = t => tabellenKlartext(t).replace(/^[ \t]*(-{3,}|={3,}|\*{3,})[ \t]*$/gm, '').replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
   function md(text) {
     const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
-    let out = '', liste = null, para = [], kasten = false;
+    let out = '', liste = null, para = [], kasten = false, leer = 0;
     const flushP = () => { if (para.length) { out += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
     const flushL = () => { if (liste) { out += '</' + liste + '>'; liste = null; } };
     for (let i = 0; i < L.length; i++) {
       const l = L[i].replace(/\s+$/, '');
       let m;
+      // Mehrere Leerzeilen hintereinander bleiben sichtbar: ab der zweiten je eine leere Zeile Abstand (nicht am Anfang)
+      if (l.trim()) { if (leer > 1 && out) out += '<div class="leerz" aria-hidden="true"></div>'.repeat(Math.min(leer - 1, 20)); leer = 0; }
+      else leer++;
       const tb = tabelle(L, i);
       if (tb) {
         flushP(); flushL();
@@ -1330,6 +1383,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       if (!l.trim()) { flushP(); flushL(); continue; }
       if ((m = /^(#{1,3})\s+(.*)$/.exec(l))) { flushP(); flushL(); const n = m[1].length + 1; out += '<h' + n + '>' + mdInline(m[2]) + '</h' + n + '>'; continue; }
       if (/^(-{3,}|\*{3,})$/.test(l.trim())) { flushP(); flushL(); out += '<hr>'; continue; }
+      if (/^={3}$/.test(l.trim())) { flushP(); flushL(); out += '<hr class="hr-schwarz">'; continue; }
+      if (/^={4,}$/.test(l.trim())) { flushP(); flushL(); out += '<hr class="hr-dick">'; continue; }
       if ((m = /^&gt;\s?(.*)$/.exec(l))) { flushP(); flushL(); out += '<blockquote>' + mdInline(m[1]) + '</blockquote>'; continue; }
       if ((m = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul class="tasklist">'; liste = 'ul'; } out += '<li>' + (m[1].trim() ? '☑ ' : '☐ ') + mdInline(m[2]) + '</li>'; continue; }
       if ((m = /^\s*[-*]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul>'; liste = 'ul'; } out += '<li>' + mdInline(m[1]) + '</li>'; continue; }
@@ -1401,7 +1456,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
      ['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
      ['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
      ['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
-     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>'], ['@Vorname oder @Vorname_Nachname', 'Person markieren, z. B. @kurt oder @Anna_Müller (Leerzeichen im Namen als _): Sie bekommt beim Speichern eine Nachricht mit Link auf diese Stelle. Gibt es den Vornamen zweimal, nur mit ganzem Namen.']]
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie (dünn, grau)'], ['===', 'Trennlinie schwarz (allein in der Zeile)'], ['====', 'Trennlinie schwarz, 2 Pixel dick'], ['Leerzeile<br>Leerzeile', 'Mehrere Leerzeilen hintereinander bleiben als Abstand erhalten'], ['`code`', '<code>code</code>'], ['@Vorname oder @Vorname_Nachname', 'Person markieren, z. B. @kurt oder @Anna_Müller (Leerzeichen im Namen als _): Sie bekommt beim Speichern eine Nachricht mit Link auf diese Stelle. Gibt es den Vornamen zweimal, nur mit ganzem Namen.']]
       .map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>').replace(/⟨br⟩/g, '&lt;br&gt;') + '</code></td><td>' + b + '</td></tr>').join('') +
     '</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
   function editorHtml(id, wert, label, opts) {
@@ -1422,12 +1477,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   function bindEditor(id) {
     const ta = $('#' + id), vor = $('#' + id + '_v'), body = $('#' + id + '_b');
     const gespeichert = Number(ls.get('mt-edhoehe')) || 0;
-    if (gespeichert && window.innerWidth > 700) { ta.style.height = gespeichert + 'px'; ta.dataset.fix = '1'; }
+    // Höchstens so hoch, dass Textfeld und Verlauf gemeinsam ins Browserfenster passen (siehe .vliste)
+    if (gespeichert && window.innerWidth > 700) { ta.style.height = Math.min(gespeichert, edMaxHoehe()) + 'px'; ta.dataset.fix = '1'; }
     const grow = () => {
       if (ta.dataset.fix) return;
       const dlg = ta.closest('dialog'), st = dlg ? dlg.scrollTop : 0, alt = ta.offsetHeight, tst = ta.scrollTop;
       ta.style.height = 'auto';
-      const soll = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.7);
+      const soll = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.45);
       ta.style.height = Math.max(soll, alt) + 'px';
       ta.scrollTop = tst; if (dlg) dlg.scrollTop = st;
     };
@@ -1578,6 +1634,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   document.addEventListener('cancel', ev => {
     if (ev.target.id === 'dlg' && dlgGeaendert) { ev.preventDefault(); toast('Ungespeicherte Änderungen: bitte „Speichern“ (Strg+S) oder „Abbrechen“ klicken.'); }
   }, true);
+  const edMaxHoehe = () => Math.round(window.innerHeight * 0.62);
   function openDlg(breit) {
     dlgGeaendert = false;
     const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.classList.remove('voll'); d.style.height = '';
@@ -1592,7 +1649,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         const x0 = ev.clientX, y0 = ev.clientY, w0 = d.offsetWidth, ta = d.querySelector('.edbody textarea'), h0 = ta ? ta.offsetHeight : 0;
         const move = e => {
           d.style.width = Math.max(480, Math.min(window.innerWidth * 0.9, w0 + 2 * (e.clientX - x0))) + 'px';
-          if (ta) { ta.style.height = Math.max(160, h0 + (e.clientY - y0)) + 'px'; ta.dataset.fix = '1'; }
+          if (ta) { ta.style.height = Math.max(160, Math.min(edMaxHoehe(), h0 + (e.clientY - y0))) + 'px'; ta.dataset.fix = '1'; }
         };
         const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); ls.set('mt-dlgbreite', String(parseInt(d.style.width))); if (ta) ls.set('mt-edhoehe', String(parseInt(ta.style.height))); };
         h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
