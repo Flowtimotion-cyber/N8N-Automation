@@ -10,7 +10,11 @@ Nur Python-Standardbibliothek, läuft überall.
   team.py start <aufgabe_id>            Status „In Arbeit“
   team.py bericht <aufgabe_id> "Text"   Bericht schreiben, Status „Wird getestet“
   team.py kommentar <aufgabe_id> "Text" nur Kommentar/Rückfrage
-  team.py neu "Titel" --projekt "Name" [--beschreibung "..."] [--prio 1|2|3] [--fuer agent-claude|m_...] [--deadline JJJJ-MM-TT]
+  team.py neu "Titel" --projekt "Name" [--beschreibung "..."] [--prio 1..10] [--fuer agent-claude|m_...[,m_...]] [--deadline JJJJ-MM-TT]
+
+Priorität: 1 bis 10, 1 = am wichtigsten, 5 = normal (Standard), 10 = wenn Zeit ist.
+Bearbeiter: Eine Aufgabe kann mehrere gleichberechtigte Bearbeiter haben (Feld „bearbeiter“, Liste). „meine“ zeigt alle,
+bei denen du in dieser Liste stehst. „start“ trägt dich zusätzlich ein, ohne andere herauszunehmen.
   team.py projekte | notizen | notiz "Titel"
   team.py notiz-speichern "Titel" --inhalt "Markdown" [--projekt "Name"]
   team.py roh <aktion> '<json-daten>'    beliebige erlaubte Aktion
@@ -39,6 +43,11 @@ def api(aktion, daten=None):
     return res
 
 
+def bearbeiter(a):
+    # Liste der Bearbeiter; ältere Einträge ohne Liste: Feld verantwortlich
+    return a.get('bearbeiter') or ([a['verantwortlich']] if a.get('verantwortlich') else [])
+
+
 def kurz(a):
     return '%s  [P%s | %s | %s] %s%s' % (a['aufgabe_id'], a.get('prio'), a.get('status'), a.get('projekt'), a.get('titel'),
                                      ('  bis ' + a['deadline']) if a.get('deadline') else '')
@@ -55,7 +64,7 @@ def main():
     p = argparse.ArgumentParser(description='Momentum Team-Portal für Agenten')
     p.add_argument('befehl')
     p.add_argument('args', nargs='*')
-    p.add_argument('--projekt'); p.add_argument('--beschreibung', default=''); p.add_argument('--prio', type=int, default=2)
+    p.add_argument('--projekt'); p.add_argument('--beschreibung', default=''); p.add_argument('--prio', type=int, default=5, choices=range(1, 11), metavar='1..10')
     p.add_argument('--fuer'); p.add_argument('--deadline', default=''); p.add_argument('--inhalt', default='')
     p.add_argument('--json', action='store_true', help='Rohdaten als JSON ausgeben')
     o = p.parse_args()
@@ -68,20 +77,22 @@ def main():
     if b in ('meine', 'offen'):
         ids = d['meine_aufgaben'] if b == 'meine' else d['agent_geeignet']
         L = [a for a in d['aufgaben'] if a['aufgabe_id'] in ids]
-        L.sort(key=lambda a: (a.get('prio') or 2, a.get('deadline') or '9999'))
+        L.sort(key=lambda a: (a.get('prio') or 5, a.get('deadline') or '9999'))
         print(json.dumps(L, ensure_ascii=False, indent=2) if o.json else ('\n'.join(map(kurz, L)) or 'Nichts offen.'))
     elif b == 'zeige':
         a = finde(d, A[0]); V = [v for v in d['verlauf'] if v['aufgabe_id'] == A[0]]
         if o.json:
             print(json.dumps({'aufgabe': a, 'verlauf': V}, ensure_ascii=False, indent=2)); return
-        print(kurz(a)); print('Zuständig:', a.get('verantwortlich'), '| Agent geeignet:', a.get('agent_geeignet'))
+        print(kurz(a)); print('Bearbeiter:', ', '.join(bearbeiter(a)) or '-', '| Agent geeignet:', a.get('agent_geeignet'))
         print('\n' + (a.get('beschreibung') or '(keine Beschreibung)') + '\n\nVerlauf:')
         for v in V:
             print(' - %s %s (%s): %s' % (v['erstellt'][:16], v['autor'], v['art'], v['text']))
     elif b in ('start', 'bericht'):
         a = finde(d, A[0])
         daten = {'aufgabe_id': a['aufgabe_id'], 'titel': a['titel'], 'status': 'In Arbeit' if b == 'start' else 'Wird getestet'}
-        if b == 'start' and not a.get('verantwortlich', '').startswith('agent-'):
+        if b == 'start' and ich not in bearbeiter(a):
+            # mich dazunehmen, die anderen bleiben (ältere Portal-API ohne Liste: wie bisher über verantwortlich)
+            daten['bearbeiter'] = bearbeiter(a) + [ich]
             daten['verantwortlich'] = ich
         if b == 'bericht':
             daten['kommentar'] = A[1] if len(A) > 1 else sys.stdin.read()
@@ -91,9 +102,10 @@ def main():
     elif b == 'neu':
         if not o.projekt:
             sys.exit('Bitte --projekt angeben. Vorhanden: ' + ', '.join(x['name'] for x in d['projekte']))
-        r = api('aufgabe_speichern', {'titel': A[0], 'beschreibung': o.beschreibung, 'projekt': o.projekt, 'prio': o.prio,
-                                      'status': 'Offen', 'verantwortlich': o.fuer or ich, 'deadline': o.deadline,
-                                      'agent_geeignet': (o.fuer or ich).startswith('agent-')})
+        fuer = [x.strip() for x in (o.fuer or ich).split(',') if x.strip()]
+        r = api('aufgabe_speichern', {'titel': A[0], 'beschreibung': o.beschreibung, 'projekt': o.projekt, 'prio': o.prio, 'skala': 10,
+                                      'status': 'Offen', 'bearbeiter': fuer, 'verantwortlich': fuer[0], 'deadline': o.deadline,
+                                      'agent_geeignet': any(x.startswith('agent-') for x in fuer)})
         print('Angelegt:', r.get('id'))
     elif b == 'projekte':
         for x in d['projekte']:
