@@ -107,30 +107,51 @@ switch (aktion) {
     const alt = d.aufgabe_id ? aufgaben.find(a => a.aufgabe_id === d.aufgabe_id) : null;
     if (d.aufgabe_id && !alt) return raus(404, 'Diese Aufgabe gibt es nicht mehr.');
     if (veraltet(alt)) return konflikt('Diese Aufgabe', alt);
-    const verantwortlich = mitgliedDa(d.verantwortlich) ? d.verantwortlich : (alt ? alt.verantwortlich : ich.mitglied_id);
+    // Bearbeiter (Vorschlag Kurt, Entscheidung 21.11.2026): Liste gleichberechtigter Personen. „verantwortlich“ bleibt als
+    // Einzelfeld für alte Programme und Auswertungen und ist immer eine Person aus der Liste (Supabase-Trigger hält beides synchron).
+    // Alte Programme schicken nur „verantwortlich“: Dann wird die bisherige Person in der Liste ersetzt, die übrigen bleiben.
+    const listeAlt = alt ? (Array.isArray(alt.bearbeiter) && alt.bearbeiter.length ? alt.bearbeiter : (alt.verantwortlich ? [alt.verantwortlich] : [])) : [];
+    let bearbeiter;
+    if (Array.isArray(d.bearbeiter)) bearbeiter = [...new Set(d.bearbeiter.map(String).filter(mitgliedDa))].slice(0, 12);
+    else if (mitgliedDa(d.verantwortlich) && (!alt || alt.verantwortlich !== d.verantwortlich)) bearbeiter = [d.verantwortlich, ...listeAlt.filter(x => x !== d.verantwortlich && (!alt || x !== alt.verantwortlich))];
+    else bearbeiter = listeAlt;
+    if (!bearbeiter.length) bearbeiter = listeAlt.length ? listeAlt : [ich.mitglied_id];
+    const verantwortlich = alt && bearbeiter.includes(alt.verantwortlich) ? alt.verantwortlich : bearbeiter[0];
     let status = STATUS_A.includes(d.status) ? d.status : (alt ? alt.status : 'Offen');
     if (istAgent && status === 'Erledigt') status = 'Wird getestet';
     const deadline = /^\d{4}-\d{2}-\d{2}$/.test(String(d.deadline || '')) ? d.deadline : (alt && d.deadline === undefined ? (alt.deadline || '') : '');
-    const prio = [1, 2, 3].includes(Number(d.prio)) ? Number(d.prio) : (alt ? (Number(alt.prio) || 2) : 2);
+    // Priorität 1–10, 1 = am wichtigsten (Entscheidung 21.11.2026). Das neue Portal und team.py schicken „skala: 10“.
+    // Ohne skala kommt die Angabe von einem alten Programm (Skala 1–3): 1 → 1, 2 → 5, 3 → 8. Steht an der Aufgabe schon ein Wert
+    // der neuen Skala (> 3), bleibt er, denn das alte Programm kann ihn nicht anzeigen und würde ihn sonst verstellen.
+    const PRIO_ALT = { 1: 1, 2: 5, 3: 8 };
+    const prioWunsch = Math.round(Number(d.prio));
+    let prio = alt ? (Number(alt.prio) || 5) : 5;
+    if (Number(d.skala) === 10) { if (prioWunsch >= 1 && prioWunsch <= 10) prio = prioWunsch; }
+    else if (PRIO_ALT[prioWunsch] && !(alt && Number(alt.prio) > 3)) prio = PRIO_ALT[prioWunsch];
     const row = {
       aufgabe_id: alt ? alt.aufgabe_id : neueId('a'), titel, beschreibung: d.beschreibung === undefined && alt ? (alt.beschreibung || '') : txt(d.beschreibung, 20000), status, prio,
       label: LABELS.includes(d.label) ? d.label : (alt && d.label === undefined ? (alt.label || '') : ''),
       projekt: PROJEKTE.includes(d.projekt) ? d.projekt : (alt ? (alt.projekt || 'Sonstiges') : 'Sonstiges'),
-      verantwortlich, deadline, geaendert: jetzt
+      verantwortlich, bearbeiter, deadline, geaendert: jetzt
     };
     if (typeof d.agent_geeignet === 'boolean') row.agent_geeignet = d.agent_geeignet;
     if (!alt) { row.erstellt = jetzt; row.erstellt_von = ich.mitglied_id; }
     if (status === 'Erledigt' && (!alt || alt.status !== 'Erledigt')) row.erledigt_am = jetzt;
-    const neuZugewiesen = (!alt || alt.verantwortlich !== verantwortlich) && verantwortlich !== ich.mitglied_id;
-    const empf = alle.find(m => m.mitglied_id === verantwortlich) || {};
-    const benachrichtigen = neuZugewiesen && empf.typ !== 'agent' && empf.whatsapp_ok === true && /^\+\d{8,15}$/.test(empf.telefon || '');
+    // WhatsApp über den bestehenden Knoten (eine Nachricht): an die erste neu hinzugekommene Person mit Einwilligung.
+    // Alle neu Hinzugekommenen landen zusätzlich über den Supabase-Trigger in der Warteschlange und sehen die Aufgabe im Portal.
+    const neuDabei = bearbeiter.filter(x => !listeAlt.includes(x) && x !== ich.mitglied_id);
+    const empf = neuDabei.map(id => alle.find(m => m.mitglied_id === id) || {})
+      .find(m => m.typ !== 'agent' && m.whatsapp_ok === true && /^\+\d{8,15}$/.test(m.telefon || '')) || {};
+    const benachrichtigen = !!empf.mitglied_id;
     const dl = deadline ? deadline.split('-').reverse().join('.') : 'keine';
     const name = id => (alle.find(m => m.mitglied_id === id) || {}).name || id;
     const ops = [alt ? aend('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, row) : neu('team_aufgaben', row)];
-    if (!alt) ops.push(verlauf(row.aufgabe_id, 'status', 'Angelegt' + (verantwortlich !== ich.mitglied_id ? ', zugewiesen an ' + name(verantwortlich) : '')));
+    const andere = bearbeiter.filter(x => x !== ich.mitglied_id);
+    if (!alt) ops.push(verlauf(row.aufgabe_id, 'status', 'Angelegt' + (andere.length ? ', Bearbeiter: ' + bearbeiter.map(name).join(', ') : '')));
     else {
       if (alt.status !== status) ops.push(verlauf(row.aufgabe_id, 'status', 'Status: ' + (alt.status || '–') + ' → ' + status));
-      if (alt.verantwortlich !== verantwortlich) ops.push(verlauf(row.aufgabe_id, 'status', 'Zugewiesen an ' + name(verantwortlich)));
+      const dazu = bearbeiter.filter(x => !listeAlt.includes(x)), weg = listeAlt.filter(x => !bearbeiter.includes(x));
+      if (dazu.length || weg.length) ops.push(verlauf(row.aufgabe_id, 'status', 'Bearbeiter: ' + dazu.map(x => '+ ' + name(x)).concat(weg.map(x => '− ' + name(x))).join(', ')));
     }
     const notiz = txt(d.kommentar, 8000);
     if (notiz) ops.push(verlauf(row.aufgabe_id, istAgent ? 'bericht' : 'kommentar', notiz));
@@ -220,10 +241,16 @@ switch (aktion) {
     if (tagX - Date.now() > 2 * 864e5) return raus(400, 'Zeiten für die Zukunft kannst du noch nicht eintragen.');
     const taetigkeit = txt(d.taetigkeit, 500);
     if (taetigkeit.length < 3) return raus(400, 'Schreib kurz dazu, was du gemacht hast.');
-    const aufgabe = aufgaben.find(a => a.aufgabe_id === d.aufgabe_id);
+    // Mehrere Aufgaben je Eintrag (Vorschlag Lillien, Entscheidung 21.11.2026): Liste aufgaben_ids, die Zeit zählt einmal.
+    // aufgabe_id bleibt die erste Aufgabe. Alte Programme schicken nur aufgabe_id; dann hält der Supabase-Trigger die Liste passend.
+    const neueListe = Array.isArray(d.aufgaben_ids);
+    const wunschIds = neueListe ? d.aufgaben_ids.map(String) : [String(d.aufgabe_id || '')];
+    const aufgListe = [...new Set(wunschIds)].map(id => aufgaben.find(a => a.aufgabe_id === id)).filter(Boolean).slice(0, 10);
+    const aufgabe = aufgListe[0];
     const row = { zeit_id: alt ? alt.zeit_id : neueId('z'), mitglied_id: alt ? alt.mitglied_id : ich.mitglied_id, datum, von: d.von, bis: d.bis,
       pause_min: pause, minuten, taetigkeit, aufgabe_id: aufgabe ? aufgabe.aufgabe_id : '', projekt: PROJEKTE.includes(d.projekt) ? d.projekt : (aufgabe ? aufgabe.projekt : 'Sonstiges'),
       kw: isoWoche(datum), status: alt && alt.status === 'eingereicht' ? 'eingereicht' : 'offen', geaendert: jetzt };
+    if (neueListe) row.aufgaben_ids = aufgListe.map(a => a.aufgabe_id);
     return schreiben([alt ? aend('team_zeiten', 'zeit_id', alt.zeit_id, row) : neu('team_zeiten', row)], { id: row.zeit_id });
   }
   case 'zeit_loeschen': {

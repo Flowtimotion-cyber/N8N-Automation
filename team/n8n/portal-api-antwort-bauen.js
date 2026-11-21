@@ -21,7 +21,8 @@ if (istAgent) {
   return [{ json: { antwort: { ok: true, ich: meins,
     mitglieder: alle.map(m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ, funktion: m.funktion || '' })),
     projekte: (D.projekte || []).map(ohne), aufgaben: aufg, verlauf,
-    meine_aufgaben: aufg.filter(a => a.verantwortlich === ich.mitglied_id && a.status !== 'Erledigt').map(a => a.aufgabe_id),
+    // Mehrere Bearbeiter (21.11.2026): „meine“ = ich stehe in der Bearbeiter-Liste (ältere Einträge ohne Liste: Feld verantwortlich)
+    meine_aufgaben: aufg.filter(a => (Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : [a.verantwortlich]).includes(ich.mitglied_id) && a.status !== 'Erledigt').map(a => a.aufgabe_id),
     agent_geeignet: aufg.filter(a => a.agent_geeignet === true && a.status !== 'Erledigt').map(a => a.aufgabe_id),
     notizen: (D.notizen || []).map(ohne), systeme: (D.systeme || []).map(ohne), social: (D.social || []).map(ohne),
     regeln: 'Status „Erledigt“ setzt nur ein Mensch; du setzt „Wird getestet“ und schreibst einen Bericht (Feld kommentar). Nichts löschen. Keine Zugangsdaten in Texte schreiben.',
