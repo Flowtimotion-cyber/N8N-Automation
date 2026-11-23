@@ -267,9 +267,10 @@ test('WhatsApp automatisch: Haken nennt alle mit Einwilligung, Handlink nur für
     await p.selectOption('#a_badd', 'm_timo');
     await p.selectOption('#a_badd', 'm_neu');
     assert.equal(await p.locator('#a_wa_l').isVisible(), true);
-    assert.equal(await p.isChecked('#a_wa'), true);
+    assert.equal(await p.isChecked('#a_wa'), false, 'Haken ist nie vorausgewählt (Timo 23.11.2026)');
     const zeile = await p.locator('#a_wa_t').innerText();
-    assert.match(zeile, /Timo \(Test\) automatisch per WhatsApp/); assert.match(zeile, /Neu \(Test\) ohne WhatsApp-Einwilligung/);
+    assert.match(zeile, /Timo \(Test\) per WhatsApp informieren \(Haken setzen/); assert.match(zeile, /Neu \(Test\) ohne WhatsApp-Einwilligung/);
+    await p.check('#a_wa');
     await shot(p, 'aufgabe-whatsapp-haken', DESKTOP);
     await p.click('#af [type=submit]');
     await p.waitForTimeout(400);
@@ -279,11 +280,11 @@ test('WhatsApp automatisch: Haken nennt alle mit Einwilligung, Handlink nur für
     assert.deepEqual(p.inbox, [], 'Haken gesetzt: nichts abbestellt');
     await shot(p, 'aufgabe-whatsapp-gespeichert', DESKTOP);
     await p.click('#z_x');
-    // Zweiter Fall: nur Timo neu, Haken abgewählt → Abbestellung, kein Dialog
+    // Zweiter Fall: nur Timo neu, Haken nicht gesetzt → Abbestellung, kein Dialog
     await p.click('#main .task[data-a="a_k4"]');
     await p.waitForTimeout(300);
     await p.selectOption('#a_badd', 'm_timo');
-    await p.uncheck('#a_wa');
+    assert.equal(await p.isChecked('#a_wa'), false);
     await p.click('#af [type=submit]');
     await p.waitForTimeout(400);
     assert.equal(await p.locator('#dlg').evaluate(d => d.open), false, 'Dialog geschlossen');
