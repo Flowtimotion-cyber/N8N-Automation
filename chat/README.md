@@ -61,6 +61,17 @@ Logik 8, SQL 1 (gegen echtes Postgres), Browser 5 (drei Personen, Handy). Bildsc
 
 Eigene Nachrichten lassen sich bis 24 Stunden nach dem Senden bearbeiten (✎ neben der Uhrzeit). Alle sehen „bearbeitet“ mit Uhrzeit, die alte Fassung bleibt gespeichert, neu Markierte bekommen einen Hinweis im Posteingang, nie eine WhatsApp. Regeln, SQL (`supabase/team_bearbeiten.sql`) und Deploy-Datei: `nachrichten/README.md`, Abschnitt „Nachrichten bearbeiten“.
 
+## Sprachnachricht und „KI korrigieren“ (Chat-Helfer)
+
+Timos Entscheidungen vom 23.11.2026: Sprachnachricht dürfen **alle im Team** (keine Agenten). Mit dem Haken **„✨ KI korrigieren“** korrigiert die KI beim Senden erst, zeigt die Fassung, und das **zweite Senden** schickt sie.
+
+- **🎙️ neben dem Eingabefeld:** Klick startet die Aufnahme (Anzeige ⏹ mit Zeit), zweiter Klick stoppt. Der Text erscheint im Eingabefeld (an vorhandenen Text angehängt). Gesendet wird erst mit „Senden“. Höchstens 5 Minuten. Kosten ca. 0,3 Cent je Sprechminute (OpenAI `gpt-4o-mini-transcribe`, wie das Vertriebs-Diktat). Die Aufnahme wird nicht gespeichert.
+- **Haken „✨ KI korrigieren“** (über dem Eingabefeld, merkt sich der Browser): Beim ersten Senden korrigiert die KI (`gpt-5-mini`) nur Rechtschreibung, Grammatik und Zeichensetzung. Steht danach etwas anderes im Feld, heißt es „Korrigiert. Prüfen und nochmal Senden.“ mit **Rückgängig**. Ist nichts zu korrigieren, geht die Nachricht gleich raus.
+- **Sicherheitsnetz:** Ändert die KI zu viel (Länge stark anders) oder verändert sie @-Markierungen, bleibt dein Text unverändert, und du siehst einen Hinweis. Ist der Dienst nicht erreichbar, wird nichts gesendet; ein zweites Senden schickt den Text so.
+- **Technik:** neuer n8n-Workflow **„TEAM: Chat-Helfer (Portal)“** (Webhook `team-chat-helfer`), Logik `chat/lib/helfer.js`, Bau `node chat/n8n/bauen-helfer.mjs` → `chat/n8n/helfer.workflow.gen.js`, Nachbildung ohne OpenAI `chat/dev/helfer-mock.mjs` (Testserver `/api/chat-helfer`). Das Vertriebs-Diktat („TEAM: Diktat“) und „TEAM: Chat (Portal)“ bleiben unverändert. Keine Datenbank-Änderung.
+- **Einrichten:** Workflow aus `chat/n8n/helfer.workflow.gen.js` per n8n-MCP anlegen, Zugangsdaten „Supabase account“ (Mitglied prüfen) und „OpenAI account“ (beide OpenAI-Knoten) setzen, Fehler-Workflow `pka7MaqDJwuhjHpY`, erfolgreiche Läufe nicht speichern (Datenschutz: Texte), veröffentlichen. Ohne Workflow zeigt das Portal „noch nicht eingerichtet“, der Chat läuft normal.
+- **Tests:** `node --test chat/test/helfer.test.mjs` (8, Logik und Sicherheitsnetz), `chat/test/helfer.browser.test.mjs` (4, mit simuliertem Mikrofon). Bildschirmfotos `chat/screenshots/*ki-korrigiert*`, `*sprachnachricht*`.
+
 ## Stufe 2 (noch nicht gebaut)
 
 @Claude / @Hermes im Chat: Die KI liest diesen einen Chat (oder den ganzen Verlauf, wenn eingeschaltet), antwortet im Chat und schlägt Aufgaben oder Notizen mit einem Knopf „Anlegen“ vor. Größere Arbeiten gehen als Auftrag ins KI Office. Danach: Chat in der Team-App.
