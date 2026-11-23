@@ -1,4 +1,4 @@
-// Test für die Code-Knoten „Anfrage prüfen“ und „Antwort bauen“ der n8n-Portal-API v2 (team/n8n/*.js).
+// Test für die Code-Knoten „Anfrage prüfen“ und „Antwort bauen“ der n8n-Portal-API v2 (team/n8n/*.js) und die Datenbank-Klassen (team/n8n/db).
 // Führt den Code wie n8n aus: $('Knoten').first().json bzw. .all() werden nachgebildet, kein Netz, keine echten Daten.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,9 +6,10 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { anfragePruefenCode, fehltFuer, workflowBauen, VARIANTEN } from '../n8n/bauen.mjs';
 
 const N8N = join(dirname(fileURLToPath(import.meta.url)), '..', 'n8n');
-const ANFRAGE = readFileSync(join(N8N, 'portal-api-anfrage-pruefen.js'), 'utf8');
+const ANFRAGE = anfragePruefenCode('supabase');   // so, wie er in den Knoten „Anfrage prüfen“ kommt (C_DataBase + C_dbSupabase + Logik)
 const ANTWORT = readFileSync(join(N8N, 'portal-api-antwort-bauen.js'), 'utf8');
 const TOK = { m_timo: 'tok-timo-0000000000000001', m_kurt: 'tok-kurt-0000000000000002', m_lillien: 'tok-lillien-00000000000003', 'agent-claude': 'tok-agent-0000000000000004' };
 const heute = new Date().toISOString().slice(0, 10);
@@ -129,8 +130,105 @@ test('Code-Knoten nutzen kein require (in n8n gesperrt)', () => {
 
 test('Deploy-Datei passt zu den Quelldateien (sonst: node team/n8n/bauen-deploy.mjs)', async () => {
   const { deployBauen } = await import('../n8n/bauen-deploy.mjs');
-  const datei = JSON.parse(readFileSync(join(N8N, 'deploy-portal-api-vorschlaege.json'), 'utf8'));
+  const datei = JSON.parse(readFileSync(join(N8N, 'deploy-portal-api.json'), 'utf8'));
   assert.deepEqual(datei, JSON.parse(JSON.stringify(deployBauen())));
   assert.ok(datei.versionName.startsWith('Claude Code: '));
-  assert.deepEqual(datei.operations.map(o => o.nodeName), ['Anfrage prüfen', 'Antwort bauen']);
+  assert.deepEqual(datei.operations.map(o => o.nodeName), ['Anfrage prüfen']);
+  assert.equal(datei.operations[0].value, ANFRAGE);
+});
+
+// ===== Datenbank-Klassen (team/n8n/db) =====
+const dbLauf = (klasse, ausdruck) => JSON.parse(JSON.stringify(vm.runInNewContext(
+	readFileSync(join(N8N, 'db', 'C_DataBase.js'), 'utf8') + '\n' + readFileSync(join(N8N, 'db', klasse + '.js'), 'utf8') + '\n' + 'const dataBase = new ' + klasse + '();\n' + ausdruck, {})));
+
+test('C_dbSupabase erzeugt Aufträge in PostgREST-Schreibweise (wie der HTTP-Knoten sie erwartet)', () => {
+	const r = dbLauf('C_dbSupabase', `[
+		dataBase.kennung,
+		dataBase.neu('team_aufgaben', { titel: 'x' }),
+		dataBase.aendern('team_projekte', 'projekt_id', 'p 2/ä', { name: 'y' }),
+		dataBase.aendernViele('team_zeiten', 'zeit_id', ['z1', 'z,2'], { status: 'eingereicht' }),
+		dataBase.loeschen('team_abrechnung', 'abrechnung_id', 'ab1'),
+		dataBase.funktion('team_tn_haken', { p_tn: 't1', p_wert: true })
+	]`);
+	assert.deepEqual(r, [
+		'supabase',
+		{ methode: 'POST', pfad: 'team_aufgaben', body: { titel: 'x' } },
+		{ methode: 'PATCH', pfad: 'team_projekte?projekt_id=eq.p%202%2F%C3%A4', body: { name: 'y' } },
+		{ methode: 'PATCH', pfad: 'team_zeiten?zeit_id=in.(z1,z%2C2)', body: { status: 'eingereicht' } },
+		{ methode: 'DELETE', pfad: 'team_abrechnung?abrechnung_id=eq.ab1', body: {} },
+		{ methode: 'POST', pfad: 'rpc/team_tn_haken', body: { p_tn: 't1', p_wert: true } }
+	]);
+});
+
+test('C_DataBase ist nur die Schnittstelle: direkt nicht anlegbar, fehlende Methoden melden sich klar', () => {
+	assert.throws(() => dbLauf('C_dbSupabase', 'new C_DataBase("x")'), /nur die Schnittstelle/);
+	assert.throws(() => dbLauf('C_dbSupabase', 'class C_dbHalb extends C_DataBase { constructor() { super("halb"); } }; new C_dbHalb().neu("t", {})'), /C_dbHalb implementiert neu\(\) nicht/);
+});
+
+test('Geschäftslogik schreibt nur über dataBase (keine PostgREST-Schreibweise mehr)', () => {
+	const logik = readFileSync(join(N8N, 'portal-api-anfrage-pruefen.js'), 'utf8');
+	assert.equal(/methode\s*:|pfad\s*:|=eq\.|=in\.\(|rpc\//.test(logik), false);
+});
+
+test('Generator: Supabase-Workflow = Vorlage mit eingesetztem Code; unbekannte Variante wird gemeldet', async () => {
+	assert.equal(fehltFuer('supabase'), null);
+	const wf = await workflowBauen('supabase');
+	const code = n => wf.nodes.find(k => k.name === n).parameters.jsCode;
+	assert.equal(code('Anfrage prüfen'), ANFRAGE);
+	assert.equal(code('Antwort bauen'), ANTWORT.replace(/\r\n/g, '\n'));
+	assert.match(code('Anfrage prüfen'), /const dataBase = new C_dbSupabase\(\);/);
+	assert.ok(VARIANTEN.some(v => v.kennung === 'postgre'));
+	assert.throws(() => anfragePruefenCode('oracle'), /Unbekannte Datenbank-Variante/);
+});
+
+test('C_dbPostgre: Beschreibung → parametrisiertes SQL, Werte nie im SQL-Text', () => {
+	const [ops, sql] = dbLauf('C_dbPostgre', `const ops = [
+		dataBase.neu('team_aufgaben', { titel: "x'); drop table t; --", bearbeiter: ['a', 'b'] }),
+		dataBase.aendern('team_projekte', 'projekt_id', 'p 2/ä', { name: 'y' }),
+		dataBase.aendernViele('team_zeiten', 'zeit_id', ['z1', 'z,2'], { status: 'eingereicht' }),
+		dataBase.loeschen('team_abrechnung', 'abrechnung_id', 'ab1'),
+		dataBase.funktion('team_tn_haken', { p_tn: 't1', p_wert: true, p_datum: null })
+	]; [ops, ops.map(o => C_dbPostgre.sql(o))]`);
+	assert.equal(ops[0].art, 'neu');
+	assert.deepEqual(ops[1], { art: 'aendern', tab: 'team_projekte', pk: 'projekt_id', id: 'p 2/ä', body: { name: 'y' } });
+	assert.deepEqual(sql, [
+		{ sql: 'INSERT INTO "team_aufgaben" ("titel", "bearbeiter") SELECT "titel", "bearbeiter" FROM json_populate_record(null::"team_aufgaben", $1::json)', params: [JSON.stringify({ titel: "x'); drop table t; --", bearbeiter: ['a', 'b'] })] },
+		{ sql: 'UPDATE "team_projekte" AS z SET "name" = r."name" FROM json_populate_record(null::"team_projekte", $1::json) AS r WHERE z."projekt_id"::text = $2', params: ['{"name":"y"}', 'p 2/ä'] },
+		{ sql: 'UPDATE "team_zeiten" AS z SET "status" = r."status" FROM json_populate_record(null::"team_zeiten", $1::json) AS r WHERE z."zeit_id"::text IN (SELECT json_array_elements_text($2::json))', params: ['{"status":"eingereicht"}', '["z1","z,2"]'] },
+		{ sql: 'DELETE FROM "team_abrechnung" WHERE "abrechnung_id"::text = $1', params: ['ab1'] },
+		{ sql: 'SELECT "team_tn_haken"("p_tn" := $1, "p_wert" := $2, "p_datum" := $3)', params: ['t1', 'true', null] }
+	]);
+	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.neu("x; drop", { a: 1 }))'), /ungültiger Name/);
+	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.aendern("t", "id", 1, { "a\\" --": 1 }))'), /ungültiger Name/);
+	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.neu("t", {}))'), /ohne Spalten/);
+});
+
+test('PostgreSQL-Logik erzeugt dieselben Inhalte wie Supabase, nur in anderer Form', () => {
+	const PG = anfragePruefenCode('postgre');
+	const j = lauf(PG, { 'Team-API': { body: { token: TOK.m_timo, aktion: 'aufgabe_speichern', daten: { aufgabe_id: 'a2', titel: 'Aufgabe mit Liste', status: 'Erledigt', bearbeiter: ['m_kurt'], skala: 10, prio: 7 } } }, 'Team-Daten laden': daten() })[0].json;
+	const s = anfrage('m_timo', 'aufgabe_speichern', { aufgabe_id: 'a2', titel: 'Aufgabe mit Liste', status: 'Erledigt', bearbeiter: ['m_kurt'], skala: 10, prio: 7 });
+	assert.deepEqual(j.ops.map(o => o.art + ' ' + o.tab), ['aendern team_aufgaben', 'neu team_aufgaben_verlauf', 'neu team_aufgaben_verlauf']);
+	assert.equal(j.ops.length, s.ops.length);
+	const ohneZeit = o => JSON.stringify(o.body, (k, v) => ['geaendert', 'erstellt', 'erledigt_am'].includes(k) ? undefined : v);
+	j.ops.forEach((o, i) => assert.equal(ohneZeit(o), ohneZeit(s.ops[i])));
+});
+
+test('Generator: PostgreSQL-Workflow aus der Supabase-Vorlage abgeleitet', async () => {
+	assert.equal(fehltFuer('postgre'), null);
+	const wf = await workflowBauen('postgre');
+	const k = n => wf.nodes.find(x => x.name === n);
+	assert.equal(wf.name, 'TEAM: Portal-API v2 (PostgreSQL, Agenten)');
+	assert.equal(k('Team-API').parameters.path, 'team-api-v2-pg');
+	assert.equal(k('In Supabase schreiben'), undefined);
+	assert.equal(k('In Datenbank schreiben').type, 'n8n-nodes-base.postgres');
+	assert.equal(k('Team-Daten lesen (SQL)').parameters.query, 'SELECT team_laden_plus() AS daten');
+	assert.equal(k('Team-Daten laden').type, 'n8n-nodes-base.code', 'Name bleibt, andere Knoten lesen $(„Team-Daten laden“)');
+	assert.match(k('Schreibaufträge').parameters.jsCode, /C_dbPostgre\.sql\(o\)/);
+	assert.match(k('Anfrage prüfen').parameters.jsCode, /const dataBase = new C_dbPostgre\(\);/);
+	const ziele = Object.values(wf.connections).flatMap(q => q.main.flat().map(z => z.node));
+	for (const z of ziele) assert.ok(k(z), 'Verbindung zu fehlendem Knoten ' + z);
+	assert.equal(new Set(wf.nodes.map(n => n.id)).size, wf.nodes.length);
+	const sb = await workflowBauen('supabase');
+	const sbIds = new Set(sb.nodes.map(n => n.id).concat(sb.nodes.map(n => n.webhookId).filter(Boolean)));
+	assert.equal(wf.nodes.some(n => sbIds.has(n.id) || sbIds.has(n.webhookId)), false, 'Kennungen dürfen nicht mit der Supabase-Fassung kollidieren');
 });

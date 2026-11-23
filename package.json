@@ -24,6 +24,12 @@
     "test:nachrichten": "node --test \"nachrichten/test/*.test.mjs\"",
     "nachrichten:bauen": "node nachrichten/n8n/bauen-nachrichten.mjs",
     "werbung:bauen": "node werbung/n8n/bauen-werbung.mjs",
-    "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs"
+    "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs",
+    "team:bauen": "node team/n8n/bauen.mjs",
+    "test:team": "node --test team/test/portal-api.test.mjs",
+    "test:team:pg": "node --test team/test/portal-api.pg.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16"
   }
 }

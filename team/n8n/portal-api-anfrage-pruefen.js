@@ -1,4 +1,4 @@
-// Prüft Zugang und Rechte und bereitet die Schreibaufträge für Supabase vor
+// Prüft Zugang und Rechte und bereitet die Schreibaufträge vor (über „dataBase“, siehe team/n8n/db)
 let b = $('Team-API').first().json.body || {};
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
 const D = $('Team-Daten laden').first().json || {};
@@ -9,12 +9,7 @@ const projekte = (D.projekte || []).filter(p => p && p.projekt_id);
 const notizen = (D.notizen || []).filter(n => n && n.notiz_id);
 const vorschlaege = (D.vorschlaege || []).filter(v => v && v.vorschlag_id);
 const raus = (code, fehler) => [{ json: { weiter: 0, code, antwort: { ok: false, fehler } } }];
-// Schreibaufträge an Supabase (PostgREST)
-const enc = v => encodeURIComponent(String(v));
-const neu = (tab, row) => ({ methode: 'POST', pfad: tab, body: row });
-const aend = (tab, pk, id, row) => ({ methode: 'PATCH', pfad: tab + '?' + pk + '=eq.' + enc(id), body: row });
-const aendViele = (tab, pk, ids, row) => ({ methode: 'PATCH', pfad: tab + '?' + pk + '=in.(' + ids.map(enc).join(',') + ')', body: row });
-const weg = (tab, pk, id) => ({ methode: 'DELETE', pfad: tab + '?' + pk + '=eq.' + enc(id), body: {} });
+// Schreibaufträge erzeugt das Objekt „dataBase“ (C_DataBase, eingesetzt von team/n8n/bauen.mjs)
 const tok = String(b.token || '');
 const ich = tok.length >= 20 ? alle.find(m => m.token === tok) : null;
 if (!ich || ich.status === 'gesperrt') return raus(401, 'Dein Zugang ist ungültig. Bitte frag Timo nach einem neuen Link.');
@@ -29,13 +24,13 @@ const istAgent = ich.rolle === 'agent';
 const ichKurz = { mitglied_id: ich.mitglied_id, name: ich.name, rolle: ich.rolle, status: ich.status };
 const laden = () => [{ json: { weiter: 1, ich: ichKurz } }];
 const schreiben = (ops, extra) => [{ json: { weiter: 2, ich: ichKurz, ops, ...extra } }];
-const verlauf = (aufgabe_id, art, text) => neu('team_aufgaben_verlauf', { aufgabe_id, autor: ich.mitglied_id, art, text: String(text).slice(0, 8000) });
+const verlauf = (aufgabe_id, art, text) => dataBase.neu('team_aufgaben_verlauf', { aufgabe_id, autor: ich.mitglied_id, art, text: String(text).slice(0, 8000) });
 const AGENT_DARF = ['aufgabe_speichern', 'kommentar', 'notiz_speichern', 'projekt_speichern', 'social_speichern', 'vorschlag_speichern'];
 const telefonNorm = t => { let s = String(t || '').replace(/[^\d+]/g, ''); if (s.startsWith('00')) s = '+' + s.slice(2); else if (s.startsWith('0')) s = '+49' + s.slice(1); return s.slice(0, 20); };
 const d = b.daten || {};
 const nameVon = id => (alle.find(m => m.mitglied_id === id) || {}).name || id || '';
-// Löschen geht in den Papierkorb: Supabase-Funktion team_loeschen kopiert die Zeile (bei Aufgaben samt Verlauf) und löscht sie in einem Schritt
-const inPapierkorb = (art, id) => ({ methode: 'POST', pfad: 'rpc/team_loeschen', body: { p_art: art, p_id: id, p_von: ich.mitglied_id } });
+// Löschen geht in den Papierkorb: Datenbank-Funktion team_loeschen kopiert die Zeile (bei Aufgaben samt Verlauf) und löscht sie in einem Schritt
+const inPapierkorb = (art, id) => dataBase.funktion('team_loeschen', { p_art: art, p_id: id, p_von: ich.mitglied_id });
 // Lesende Antworten ohne den großen Ladevorgang, über denselben Antwortknoten wie Fehler (Code 200)
 const lesen = antwort => [{ json: { weiter: 0, code: 200, antwort: { ok: true, ...antwort } } }];
 // Gleichzeitiges Bearbeiten: Das Portal schickt mit, welchen Stand es geöffnet hatte. Weicht er ab, wird nicht still überschrieben.
@@ -49,7 +44,7 @@ const tnListe = (D.teilnehmer || []).filter(t => t && t.tn_id);
 const tnSpalten = (D.tn_spalten || []).filter(s => s && s.spalte_id).sort((a, b) => (Number(a.reihenfolge) || 50) - (Number(b.reihenfolge) || 50) || String(a.titel).localeCompare(String(b.titel)));
 const TN_STATUS = ['interessent', 'aktiv', 'abgeschlossen', 'abgebrochen'];
 const tnDatum = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? v : null;
-const tnHaken = (tn, spalte, wert, datum) => ({ methode: 'POST', pfad: 'rpc/team_tn_haken', body: { p_tn: tn, p_spalte: spalte, p_wert: wert, p_datum: tnDatum(datum), p_von: ich.mitglied_id } });
+const tnHaken = (tn, spalte, wert, datum) => dataBase.funktion('team_tn_haken', { p_tn: tn, p_spalte: spalte, p_wert: wert, p_datum: tnDatum(datum), p_von: ich.mitglied_id });
 
 if (aktion === 'laden') return laden();
 if (istAgent && !AGENT_DARF.includes(aktion)) return raus(403, 'Das dürfen Agenten nicht. Erlaubt: ' + AGENT_DARF.join(', ') + ', laden.');
@@ -60,7 +55,7 @@ if (aktion === 'profil') {
   if (telefon && !/^\+\d{8,15}$/.test(telefon)) return raus(400, 'Bitte gib die Telefonnummer mit Vorwahl ein, z. B. +49 170 1234567.');
   const row = { mitglied_id: ich.mitglied_id, email, telefon, whatsapp_ok: d.whatsapp_ok === true && !!telefon, status: 'aktiv', zuletzt_aktiv: jetzt };
   if (ich.status !== 'aktiv') row.registriert = jetzt;
-  return schreiben([aend('team_mitglieder', 'mitglied_id', ich.mitglied_id, row)], { id: ich.mitglied_id });
+  return schreiben([dataBase.aendern('team_mitglieder', 'mitglied_id', ich.mitglied_id, row)], { id: ich.mitglied_id });
 }
 if (ich.status !== 'aktiv') return raus(403, 'Bitte trag zuerst deine E-Mail-Adresse ein.');
 
@@ -108,7 +103,7 @@ switch (aktion) {
     if (d.aufgabe_id && !alt) return raus(404, 'Diese Aufgabe gibt es nicht mehr.');
     if (veraltet(alt)) return konflikt('Diese Aufgabe', alt);
     // Bearbeiter (Vorschlag Kurt, Entscheidung 21.11.2026): Liste gleichberechtigter Personen. „verantwortlich“ bleibt als
-    // Einzelfeld für alte Programme und Auswertungen und ist immer eine Person aus der Liste (Supabase-Trigger hält beides synchron).
+    // Einzelfeld für alte Programme und Auswertungen und ist immer eine Person aus der Liste (Datenbank-Trigger hält beides synchron).
     // Alte Programme schicken nur „verantwortlich“: Dann wird die bisherige Person in der Liste ersetzt, die übrigen bleiben.
     const listeAlt = alt ? (Array.isArray(alt.bearbeiter) && alt.bearbeiter.length ? alt.bearbeiter : (alt.verantwortlich ? [alt.verantwortlich] : [])) : [];
     let bearbeiter;
@@ -138,14 +133,14 @@ switch (aktion) {
     if (!alt) { row.erstellt = jetzt; row.erstellt_von = ich.mitglied_id; }
     if (status === 'Erledigt' && (!alt || alt.status !== 'Erledigt')) row.erledigt_am = jetzt;
     // WhatsApp über den bestehenden Knoten (eine Nachricht): an die erste neu hinzugekommene Person mit Einwilligung.
-    // Alle neu Hinzugekommenen landen zusätzlich über den Supabase-Trigger in der Warteschlange und sehen die Aufgabe im Portal.
+    // Alle neu Hinzugekommenen landen zusätzlich über den Datenbank-Trigger in der Warteschlange und sehen die Aufgabe im Portal.
     const neuDabei = bearbeiter.filter(x => !listeAlt.includes(x) && x !== ich.mitglied_id);
     const empf = neuDabei.map(id => alle.find(m => m.mitglied_id === id) || {})
       .find(m => m.typ !== 'agent' && m.whatsapp_ok === true && /^\+\d{8,15}$/.test(m.telefon || '')) || {};
     const benachrichtigen = !!empf.mitglied_id;
     const dl = deadline ? deadline.split('-').reverse().join('.') : 'keine';
     const name = id => (alle.find(m => m.mitglied_id === id) || {}).name || id;
-    const ops = [alt ? aend('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, row) : neu('team_aufgaben', row)];
+    const ops = [alt ? dataBase.aendern('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, row) : dataBase.neu('team_aufgaben', row)];
     const andere = bearbeiter.filter(x => x !== ich.mitglied_id);
     if (!alt) ops.push(verlauf(row.aufgabe_id, 'status', 'Angelegt' + (andere.length ? ', Bearbeiter: ' + bearbeiter.map(name).join(', ') : '')));
     else {
@@ -170,7 +165,7 @@ switch (aktion) {
     const text = txt(d.text, 8000);
     if (text.length < 2) return raus(400, 'Bitte schreib einen Kommentar.');
     const art = istAgent ? 'bericht' : 'kommentar';
-    return schreiben([verlauf(alt.aufgabe_id, art, text), aend('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, { geaendert: jetzt })], { id: alt.aufgabe_id });
+    return schreiben([verlauf(alt.aufgabe_id, art, text), dataBase.aendern('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, { geaendert: jetzt })], { id: alt.aufgabe_id });
   }
   case 'community_antwort': {
     if (!istDozent) return raus(403, 'Community-Fragen beantworten Timo, Kurt und Murat.');
@@ -180,7 +175,7 @@ switch (aktion) {
     if (text.length < 2) return raus(400, 'Bitte schreib eine Antwort.');
     const row = { eintrag_id: 'c_' + Date.now().toString(36) + rnd(6), art: 'antwort', frage_id: f.eintrag_id, modul: f.modul, autor_typ: 'dozent', autor_id: ich.mitglied_id,
       name: ich.name + ' (Dozent)', text, status: f.art === 'nachricht' ? 'privat' : 'sichtbar' };
-    return schreiben([neu('kurs_community', row), aend('kurs_community', 'eintrag_id', f.eintrag_id, { erledigt: true })], { id: row.eintrag_id });
+    return schreiben([dataBase.neu('kurs_community', row), dataBase.aendern('kurs_community', 'eintrag_id', f.eintrag_id, { erledigt: true })], { id: row.eintrag_id });
   }
   case 'community_status': {
     if (!istDozent) return raus(403, 'Die Community verwalten Timo, Kurt und Murat.');
@@ -190,7 +185,7 @@ switch (aktion) {
     if (typeof d.erledigt === 'boolean') row.erledigt = d.erledigt;
     if (['sichtbar', 'versteckt'].includes(d.status) && c.status !== 'privat') row.status = d.status;
     if (!Object.keys(row).length) return raus(400, 'Nichts zu ändern.');
-    return schreiben([aend('kurs_community', 'eintrag_id', c.eintrag_id, row)], { id: c.eintrag_id });
+    return schreiben([dataBase.aendern('kurs_community', 'eintrag_id', c.eintrag_id, row)], { id: c.eintrag_id });
   }
   case 'social_speichern': {
     const thema = txt(d.thema, 160);
@@ -203,7 +198,7 @@ switch (aktion) {
       status: ST.includes(d.status) ? d.status : 'Idee', verantwortlich: mitgliedDa(d.verantwortlich) ? d.verantwortlich : ich.mitglied_id,
       link: /^https?:\/\//.test(String(d.link || '')) ? txt(d.link, 400) : '', geaendert: jetzt };
     if (istAgent && ['Geplant', 'Veröffentlicht'].includes(row.status)) row.status = 'Zur Freigabe';
-    return schreiben([altP ? aend('team_social', 'post_id', altP, row) : neu('team_social', row)], { id: row.post_id });
+    return schreiben([altP ? dataBase.aendern('team_social', 'post_id', altP, row) : dataBase.neu('team_social', row)], { id: row.post_id });
   }
   case 'social_loeschen':
     if (!/^p_[\w]+$/.test(d.post_id || '')) return raus(400, 'Unbekannter Beitrag.');
@@ -217,7 +212,7 @@ switch (aktion) {
       bereich: txt(d.bereich, 40) || 'Intern', status: ['läuft', 'im Bau', 'geplant', 'pausiert'].includes(d.status) ? d.status : 'geplant',
       werkzeug: txt(d.werkzeug, 120), link: /^https?:\/\//.test(String(d.link || '')) ? txt(d.link, 400) : '',
       verantwortlich: mitgliedDa(d.verantwortlich) ? d.verantwortlich : ich.mitglied_id, geaendert: jetzt };
-    return schreiben([altS ? aend('team_systeme', 'system_id', altS, row) : neu('team_systeme', row)], { id: row.system_id });
+    return schreiben([altS ? dataBase.aendern('team_systeme', 'system_id', altS, row) : dataBase.neu('team_systeme', row)], { id: row.system_id });
   }
   case 'system_loeschen':
     if (!istDozent) return raus(403, 'Systeme pflegen Timo, Kurt und Murat.');
@@ -242,7 +237,7 @@ switch (aktion) {
     const taetigkeit = txt(d.taetigkeit, 500);
     if (taetigkeit.length < 3) return raus(400, 'Schreib kurz dazu, was du gemacht hast.');
     // Mehrere Aufgaben je Eintrag (Vorschlag Lillien, Entscheidung 21.11.2026): Liste aufgaben_ids, die Zeit zählt einmal.
-    // aufgabe_id bleibt die erste Aufgabe. Alte Programme schicken nur aufgabe_id; dann hält der Supabase-Trigger die Liste passend.
+    // aufgabe_id bleibt die erste Aufgabe. Alte Programme schicken nur aufgabe_id; dann hält der Datenbank-Trigger die Liste passend.
     const neueListe = Array.isArray(d.aufgaben_ids);
     const wunschIds = neueListe ? d.aufgaben_ids.map(String) : [String(d.aufgabe_id || '')];
     const aufgListe = [...new Set(wunschIds)].map(id => aufgaben.find(a => a.aufgabe_id === id)).filter(Boolean).slice(0, 10);
@@ -251,7 +246,7 @@ switch (aktion) {
       pause_min: pause, minuten, taetigkeit, aufgabe_id: aufgabe ? aufgabe.aufgabe_id : '', projekt: PROJEKTE.includes(d.projekt) ? d.projekt : (aufgabe ? aufgabe.projekt : 'Sonstiges'),
       kw: isoWoche(datum), status: alt && alt.status === 'eingereicht' ? 'eingereicht' : 'offen', geaendert: jetzt };
     if (neueListe) row.aufgaben_ids = aufgListe.map(a => a.aufgabe_id);
-    return schreiben([alt ? aend('team_zeiten', 'zeit_id', alt.zeit_id, row) : neu('team_zeiten', row)], { id: row.zeit_id });
+    return schreiben([alt ? dataBase.aendern('team_zeiten', 'zeit_id', alt.zeit_id, row) : dataBase.neu('team_zeiten', row)], { id: row.zeit_id });
   }
   case 'zeit_loeschen': {
     const alt = zeiten.find(z => z.zeit_id === d.zeit_id);
@@ -264,7 +259,7 @@ switch (aktion) {
     const kw = String(d.kw || '');
     const ids = zeiten.filter(z => z.mitglied_id === ich.mitglied_id && z.kw === kw && (z.status === 'offen' || z.status === 'abgelehnt')).map(z => z.zeit_id);
     if (!ids.length) return raus(400, 'In dieser Woche gibt es nichts mehr einzureichen.');
-    return schreiben([aendViele('team_zeiten', 'zeit_id', ids, { status: 'eingereicht', eingereicht_am: jetzt, geaendert: jetzt })], { id: kw });
+    return schreiben([dataBase.aendernViele('team_zeiten', 'zeit_id', ids, { status: 'eingereicht', eingereicht_am: jetzt, geaendert: jetzt })], { id: kw });
   }
   case 'zeiten_pruefen': {
     if (!istAdmin) return raus(403, 'Arbeitszeiten gibt Timo frei.');
@@ -272,7 +267,7 @@ switch (aktion) {
     if (!ent) return raus(400, 'Bitte wähle Freigeben oder Zurückgeben.');
     const ids = zeiten.filter(z => z.mitglied_id === d.mitglied_id && z.kw === d.kw && z.status !== 'freigegeben').map(z => z.zeit_id);
     if (!ids.length) return raus(400, 'Für diese Woche ist nichts offen.');
-    return schreiben([aendViele('team_zeiten', 'zeit_id', ids, { status: ent, freigegeben_von: ich.mitglied_id, freigegeben_am: jetzt, kommentar: txt(d.kommentar, 500), geaendert: jetzt })], { id: d.kw });
+    return schreiben([dataBase.aendernViele('team_zeiten', 'zeit_id', ids, { status: ent, freigegeben_von: ich.mitglied_id, freigegeben_am: jetzt, kommentar: txt(d.kommentar, 500), geaendert: jetzt })], { id: d.kw });
   }
   case 'projekt_speichern': {
     const name = txt(d.name, 60);
@@ -302,7 +297,7 @@ switch (aktion) {
       verantwortlich: mitgliedDa(d.verantwortlich) ? d.verantwortlich : ich.mitglied_id,
       reihenfolge: alt ? (Number(alt.reihenfolge) || 50) : 50, geaendert: jetzt };
     if (links) row.links = links;
-    return schreiben([alt ? aend('team_projekte', 'projekt_id', alt.projekt_id, row) : neu('team_projekte', row)], { id: row.projekt_id });
+    return schreiben([alt ? dataBase.aendern('team_projekte', 'projekt_id', alt.projekt_id, row) : dataBase.neu('team_projekte', row)], { id: row.projekt_id });
   }
   case 'projekt_loeschen': {
     if (!istAdmin) return raus(403, 'Projekte löscht Timo. Setz es sonst auf „abgeschlossen“.');
@@ -310,7 +305,7 @@ switch (aktion) {
     if (!alt) return raus(404, 'Dieses Projekt gibt es nicht mehr.');
     const benutzt = aufgaben.some(a => a.projekt === alt.name) || zeiten.some(z => z.projekt === alt.name) || notizen.some(n => n.projekt === alt.name);
     if (benutzt) return raus(400, 'Das Projekt wird noch in Aufgaben, Zeiten oder Notizen verwendet. Setz es auf „abgeschlossen“.');
-    return schreiben([weg('team_projekte', 'projekt_id', alt.projekt_id)], { id: alt.projekt_id });
+    return schreiben([dataBase.loeschen('team_projekte', 'projekt_id', alt.projekt_id)], { id: alt.projekt_id });
   }
   case 'notiz_speichern': {
     const titel = txt(d.titel, 160);
@@ -323,7 +318,7 @@ switch (aktion) {
     const row = { notiz_id: alt ? alt.notiz_id : neueId('n'), titel, inhalt: txt(d.inhalt, 50000),
       projekt: PROJEKTE.includes(d.projekt) ? d.projekt : '', geaendert_von: ich.mitglied_id, geaendert: jetzt };
     if (!alt) { row.autor = ich.mitglied_id; row.erstellt = jetzt; }
-    return schreiben([alt ? aend('team_notizen', 'notiz_id', alt.notiz_id, row) : neu('team_notizen', row)], { id: row.notiz_id });
+    return schreiben([alt ? dataBase.aendern('team_notizen', 'notiz_id', alt.notiz_id, row) : dataBase.neu('team_notizen', row)], { id: row.notiz_id });
   }
   case 'notiz_loeschen': {
     const alt = notizen.find(n => n.notiz_id === d.notiz_id);
@@ -341,7 +336,7 @@ switch (aktion) {
     const sg = Number(d.startguthaben_std) || 0;
     if (sg < 0 || sg > 2000) return raus(400, 'Das Guthaben muss zwischen 0 und 2000 Stunden liegen.');
     const ab = /^\d{4}-\d{2}-\d{2}$/.test(String(d.abrechnung_ab || '')) ? d.abrechnung_ab : '2026-10-05';
-    return schreiben([aend('team_mitglieder', 'mitglied_id', mid, { vertrag_std: Math.round(std * 100) / 100, startguthaben_min: Math.round(sg * 60), abrechnung_ab: ab })], { id: mid });
+    return schreiben([dataBase.aendern('team_mitglieder', 'mitglied_id', mid, { vertrag_std: Math.round(std * 100) / 100, startguthaben_min: Math.round(sg * 60), abrechnung_ab: ab })], { id: mid });
   }
   case 'monat_abschliessen': {
     if (!istAdmin) return raus(403, 'Monate schließt Timo ab.');
@@ -359,13 +354,13 @@ switch (aktion) {
     if (!mo) return raus(400, 'Dieser Monat liegt vor dem Abrechnungsbeginn.');
     const row = { abrechnung_id: p.mitglied_id + '_' + monat, mitglied_id: p.mitglied_id, monat, soll_min: mo.soll, gearbeitet_min: mo.gearbeitet, ausgezahlt_min: mo.ausgezahlt,
       konto_vorher_min: mo.konto_vorher, konto_nachher_min: mo.konto_nachher, eintraege: mo.eintraege, erstellt: jetzt, erstellt_von: ich.mitglied_id };
-    return schreiben([neu('team_abrechnung', row)], { id: row.abrechnung_id });
+    return schreiben([dataBase.neu('team_abrechnung', row)], { id: row.abrechnung_id });
   }
   case 'monat_aufheben': {
     if (!istAdmin) return raus(403, 'Monatsabschlüsse verwaltet Timo.');
     const id = String(d.mitglied_id || '') + '_' + String(d.monat || '');
     if (!(D.abrechnung || []).some(r => r.abrechnung_id === id)) return raus(404, 'Diesen Abschluss gibt es nicht.');
-    return schreiben([weg('team_abrechnung', 'abrechnung_id', id)], { id });
+    return schreiben([dataBase.loeschen('team_abrechnung', 'abrechnung_id', id)], { id });
   }
   case 'vorschlag_speichern': {
     const titel = txt(d.titel, 160);
@@ -381,7 +376,7 @@ switch (aktion) {
       if (d.aufgabe_id !== undefined) row.aufgabe_id = txt(d.aufgabe_id, 80);
     }
     if (!alt) { row.vorschlag_id = neueId('v'); row.autor = ich.mitglied_id; row.erstellt = jetzt; row.stimmen = [ich.mitglied_id]; if (!row.status) row.status = 'neu'; }
-    return schreiben([alt ? aend('team_vorschlaege', 'vorschlag_id', alt.vorschlag_id, row) : neu('team_vorschlaege', row)], { id: alt ? alt.vorschlag_id : row.vorschlag_id });
+    return schreiben([alt ? dataBase.aendern('team_vorschlaege', 'vorschlag_id', alt.vorschlag_id, row) : dataBase.neu('team_vorschlaege', row)], { id: alt ? alt.vorschlag_id : row.vorschlag_id });
   }
   case 'vorschlag_stimme': {
     const alt = vorschlaege.find(v => v.vorschlag_id === d.vorschlag_id);
@@ -389,7 +384,7 @@ switch (aktion) {
     const st = Array.isArray(alt.stimmen) ? alt.stimmen.filter(x => typeof x === 'string') : [];
     const i = st.indexOf(ich.mitglied_id);
     if (i >= 0) st.splice(i, 1); else st.push(ich.mitglied_id);
-    return schreiben([aend('team_vorschlaege', 'vorschlag_id', alt.vorschlag_id, { stimmen: st })], { id: alt.vorschlag_id });
+    return schreiben([dataBase.aendern('team_vorschlaege', 'vorschlag_id', alt.vorschlag_id, { stimmen: st })], { id: alt.vorschlag_id });
   }
   case 'vorschlag_loeschen': {
     const alt = vorschlaege.find(v => v.vorschlag_id === d.vorschlag_id);
@@ -414,7 +409,7 @@ switch (aktion) {
     const e = papierkorb.find(x => x.eintrag_id === d.eintrag_id);
     if (!e) return raus(404, 'Dieser Eintrag ist nicht mehr im Papierkorb.');
     if (!istAdmin && e.geloescht_von !== ich.mitglied_id) return raus(403, 'Wiederherstellen kann, wer gelöscht hat, oder Timo.');
-    return schreiben([{ methode: 'POST', pfad: 'rpc/team_wiederherstellen', body: { p_eintrag: e.eintrag_id } }], { id: e.objekt_id });
+    return schreiben([dataBase.funktion('team_wiederherstellen', { p_eintrag: e.eintrag_id })], { id: e.objekt_id });
   }
   case 'notiz_versionen': {
     const n = notizen.find(x => x.notiz_id === d.notiz_id);
@@ -442,7 +437,7 @@ switch (aktion) {
     const row = { tn_id: alt ? alt.tn_id : neueId('tn'), name, email, telefon: txt(d.telefon, 40), massnahme: txt(d.massnahme, 80), start: tnDatum(d.start), ende: tnDatum(d.ende),
       status: TN_STATUS.includes(d.status) ? d.status : (alt ? alt.status || 'aktiv' : 'aktiv'), notiz: txt(d.notiz, 4000), geaendert: jetzt, geaendert_von: ich.mitglied_id };
     if (!alt) { row.erstellt = jetzt; row.erstellt_von = ich.mitglied_id; row.haken = {}; }
-    const ops = [alt ? aend('team_teilnehmer', 'tn_id', alt.tn_id, row) : neu('team_teilnehmer', row)];
+    const ops = [alt ? dataBase.aendern('team_teilnehmer', 'tn_id', alt.tn_id, row) : dataBase.neu('team_teilnehmer', row)];
     for (const h of (Array.isArray(d.haken_aenderungen) ? d.haken_aenderungen : []).slice(0, 50)) {
       if (h && tnSpalten.some(s => s.spalte_id === h.spalte_id) && ['ja', 'entfaellt', ''].includes(h.wert)) ops.push(tnHaken(row.tn_id, h.spalte_id, h.wert, h.datum));
     }
@@ -471,7 +466,7 @@ switch (aktion) {
     if (tnSpalten.some(s => s.titel.toLowerCase() === titel.toLowerCase() && (!alt || s.spalte_id !== alt.spalte_id))) return raus(400, 'Eine Spalte mit diesem Namen gibt es schon.');
     const row = { spalte_id: alt ? alt.spalte_id : neueId('sp'), titel, reihenfolge: Math.max(0, Math.min(999, Math.round(Number(d.reihenfolge)))) || (alt ? Number(alt.reihenfolge) || 50 : (Math.max(0, ...tnSpalten.map(s => Number(s.reihenfolge) || 0)) + 10)),
       aktiv: typeof d.aktiv === 'boolean' ? d.aktiv : (alt ? alt.aktiv !== false : true) };
-    return schreiben([alt ? aend('team_tn_spalten', 'spalte_id', alt.spalte_id, row) : neu('team_tn_spalten', row)], { id: row.spalte_id });
+    return schreiben([alt ? dataBase.aendern('team_tn_spalten', 'spalte_id', alt.spalte_id, row) : dataBase.neu('team_tn_spalten', row)], { id: row.spalte_id });
   }
   case 'mitglied_speichern': {
     if (!istAdmin) return raus(403, 'Teammitglieder verwaltet Timo.');
@@ -492,7 +487,7 @@ switch (aktion) {
     else if (['aktiv', 'gesperrt', 'eingeladen'].includes(d.status) && alt.mitglied_id !== ich.mitglied_id) row.status = d.status;
     if (alt && d.neuer_link === true) { row.token = rnd(32); if (alt.status === 'eingeladen') row.status = 'eingeladen'; }
     if (alt && alt.typ === 'agent' && row.status === 'eingeladen') row.status = 'aktiv';
-    return schreiben([alt ? aend('team_mitglieder', 'mitglied_id', alt.mitglied_id, row) : neu('team_mitglieder', row)], { id: row.mitglied_id });
+    return schreiben([alt ? dataBase.aendern('team_mitglieder', 'mitglied_id', alt.mitglied_id, row) : dataBase.neu('team_mitglieder', row)], { id: row.mitglied_id });
   }
 }
 return raus(400, 'Unbekannte Aktion.');
