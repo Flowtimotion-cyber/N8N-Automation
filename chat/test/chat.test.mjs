@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { chatAnfrage, chatAntwort, CHAT_NICHT_EINGERICHTET } from '../lib/chat.js';
+import { chatAnfrage, chatAntwort, CHAT_NICHT_EINGERICHTET, CHAT_BEARBEITEN_FEHLT } from '../lib/chat.js';
 import { C_ChatDbNachbildung, chatAntwortMock } from '../dev/mock.mjs';
 
 const timo = { mitglied_id: 'm_timo', rolle: 'admin', status: 'aktiv', typ: 'mensch' };
@@ -73,6 +73,49 @@ test('Nachbildung: nur Mitglieder sehen den Chat, Markierung und WhatsApp', () =
 	const [, ae] = auf('b', 'aendern', { chat_id: id, ki_verlauf: true });
 	assert.equal(ae.chat.ki_verlauf, true);
 	assert.match(db.nachrichten[db.nachrichten.length - 1].text, /^🤖 Kurt hat eingeschaltet/);
+});
+
+test('Bearbeiten: Form prüfen, nur der Autor, 24 Stunden, nur neu Markierte bekommen einen Hinweis', () => {
+	assert.equal(chatAnfrage(timo, 'bearbeiten', { chat_id: C, nachricht_id: 'x', text: 'a' }).code, 400);
+	assert.equal(chatAnfrage(timo, 'bearbeiten', { chat_id: C, nachricht_id: 0, text: 'a' }).code, 400);
+	assert.equal(chatAnfrage(timo, 'bearbeiten', { chat_id: C, nachricht_id: 3, text: ' ' }).code, 400);
+	assert.equal(chatAnfrage(timo, 'bearbeiten', { chat_id: 'chat_x', nachricht_id: 3, text: 'a' }).code, 400);
+	assert.deepEqual(chatAnfrage(timo, 'bearbeiten', { chat_id: C, nachricht_id: '3', text: 'a', erwaehnt: ['m_kurt', 'm_kurt'], whatsapp: ['m_kurt'], p_mitglied: 'm_kurt' }).body,
+		{ p_mitglied: 'm_timo', p_chat: C, p_nachricht_id: 3, p_text: 'a', p_erwaehnt: ['m_kurt'] }, 'nie WhatsApp beim Bearbeiten');
+	assert.equal(chatAntwort(chatAnfrage(timo, 'bearbeiten', { chat_id: C, nachricht_id: 3, text: 'a' }), { statusCode: 404, body: { code: 'PGRST202' } }).antwort.fehler, CHAT_BEARBEITEN_FEHLT);
+
+	const M = [{ ...timo, name: 'Timo T', token: 'a'.repeat(32) }, { mitglied_id: 'm_kurt', name: 'Kurt K', status: 'aktiv', typ: 'mensch', token: 'b'.repeat(32) }, { mitglied_id: 'm_lillien', name: 'Lillien L', status: 'aktiv', typ: 'mensch', token: 'c'.repeat(32) }];
+	let jetzt = '2026-11-23T10:00:00.000Z';
+	const db = new C_ChatDbNachbildung({ mitglieder: () => M, jetzt: () => jetzt });
+	const auf = (wer, aktion, daten) => chatAntwortMock({ token: wer.repeat(32), aktion, daten }, M, db);
+	const id = auf('a', 'anlegen', { art: 'gruppe', titel: 'Kursteam', mitglieder: ['m_kurt', 'm_lillien'] })[1].chat.chat_id;
+	const n = auf('a', 'senden', { chat_id: id, text: 'Hallo @Kurt', erwaehnt: ['m_kurt'] })[1].nachricht;
+	const kurtSieht = auf('b', 'verlauf', { chat_id: id })[1];
+	const kurtBis = kurtSieht.nachrichten[kurtSieht.nachrichten.length - 1].nachricht_id;
+	db.posteingang = [];
+	// Nur der Autor
+	assert.match(auf('b', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'gefälscht' })[1].fehler, /nur, wer die Nachricht geschrieben hat/);
+	// Lillien neu markiert → nur sie bekommt einen Hinweis; Kurt war schon markiert
+	jetzt = '2026-11-23T10:03:00.000Z';
+	const [c1, a1] = auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'Hallo @Kurt und @Lillien', erwaehnt: ['m_kurt', 'm_lillien'] });
+	assert.equal(c1, 200); assert.deepEqual(a1.benachrichtigt, ['m_lillien']); assert.equal(a1.nachricht.bearbeitet, jetzt);
+	assert.deepEqual(db.posteingang.map(p => p.empfaenger), [['m_lillien']]);
+	assert.deepEqual(db.fassungen.map(f => [f.text, f.erwaehnt]), [['Hallo @Kurt', ['m_kurt']]]);
+	// Kurt holt nur Neues (nach) und bekommt die bearbeitete Nachricht trotzdem mit
+	const nach = auf('b', 'verlauf', { chat_id: id, nach: kurtBis })[1];
+	assert.deepEqual(nach.nachrichten, []); assert.deepEqual(nach.bearbeitete.map(x => x.text), ['Hallo @Kurt und @Lillien']);
+	// Lillien raus, wieder rein: kein zweiter Hinweis (war in einer früheren Fassung markiert)
+	auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'Hallo @Kurt', erwaehnt: ['m_kurt'] });
+	auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'Hallo @Kurt @Lillien!', erwaehnt: ['m_kurt', 'm_lillien'] });
+	assert.equal(db.posteingang.length, 1); assert.equal(db.fassungen.length, 3);
+	// Gleicher Text und gleiche Markierungen: nichts gespeichert
+	assert.equal(auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'Hallo @Kurt @Lillien!', erwaehnt: ['m_lillien', 'm_kurt'] })[1].unveraendert, true);
+	assert.equal(db.fassungen.length, 3);
+	// Hinweise des Portals (ohne Autor) kann niemand bearbeiten; nach 24 Stunden geht es nicht mehr
+	const hinweis = db.nachrichten.find(x => !x.autor);
+	assert.equal(auf('a', 'bearbeiten', { chat_id: id, nachricht_id: hinweis.nachricht_id, text: 'x' })[0], 400);
+	jetzt = '2026-11-24T10:00:01.000Z';
+	assert.match(auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'zu spät' })[1].fehler, /24 Stunden/);
 });
 
 test('Eingebetteter Code läuft ohne URL und ohne require (wie im n8n-Code-Knoten)', () => {

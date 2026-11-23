@@ -11,7 +11,7 @@
 // Wer der Absender ist, steht immer im Token, nie in den Daten des Browsers. Agenten haben in Stufe 1 keinen Zugriff
 // (die KI liest Chats nur auf Zuruf, das kommt in Stufe 2 mit eigenem Weg).
 
-const CHAT_AKTIONEN = ['liste', 'verlauf', 'senden', 'anlegen', 'aendern'];
+const CHAT_AKTIONEN = ['liste', 'verlauf', 'senden', 'anlegen', 'aendern', 'bearbeiten'];
 const CHAT_ARTEN = ['gruppe', 'direkt', 'projekt'];
 const CHAT_TEXT_MAX = 8000;
 const CHAT_PERSONEN_MAX = 50;
@@ -19,6 +19,9 @@ const CHAT_ID = /^chat_[a-f0-9]{8,40}$/;
 const PERSON_ID = /^[\w:.-]{1,80}$/;
 /** Meldung, wenn der Chat noch nicht eingerichtet ist. Derselbe Text steht in docs/team/index.html (CHAT_NICHT_EINGERICHTET). */
 const CHAT_NICHT_EINGERICHTET = 'Der Team-Chat ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei chat/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
+
+/** Meldung, wenn supabase/team_bearbeiten.sql noch fehlt (Chat läuft, Bearbeiten noch nicht). */
+const CHAT_BEARBEITEN_FEHLT = 'Bearbeiten ist noch nicht eingerichtet: Die Datei supabase/team_bearbeiten.sql muss noch in Supabase ausgeführt werden. Bitte gib Timo Bescheid.';
 
 const chatFehler = (code, fehler) => ({ aktion: 'antwort', code, antwort: { ok: false, fehler } });
 
@@ -73,6 +76,16 @@ function chatAnfrage(ich, aktion, daten) {
 		const whatsapp = personenLesen(d.whatsapp).filter(x => erwaehnt.includes(x));
 		return { aktion: 'rpc', was: aktion, fn: 'team_chat_senden', body: { p_mitglied: wer, p_chat: chat, p_text: t, p_erwaehnt: erwaehnt, p_whatsapp: whatsapp } };
 	}
+	if (aktion === 'bearbeiten') {
+		// Nur der Autor darf bearbeiten und nur 24 Stunden lang: Das prüft die Datenbank (team_chat_bearbeiten), hier nur die Form
+		const nr = Number(d.nachricht_id);
+		if (!Number.isSafeInteger(nr) || nr < 1) return chatFehler(400, 'Diese Nachricht gibt es nicht.');
+		const t = text(d.text, CHAT_TEXT_MAX + 1);
+		if (!t.trim()) return chatFehler(400, 'Die Nachricht ist leer.');
+		if (t.length > CHAT_TEXT_MAX) return chatFehler(400, 'Die Nachricht ist zu lang (höchstens ' + CHAT_TEXT_MAX + ' Zeichen).');
+		const erwaehnt = personenLesen(d.erwaehnt).slice(0, CHAT_PERSONEN_MAX);
+		return { aktion: 'rpc', was: aktion, fn: 'team_chat_bearbeiten', body: { p_mitglied: wer, p_chat: chat, p_nachricht_id: nr, p_text: t, p_erwaehnt: erwaehnt } };
+	}
 	// aendern: nur bekannte Felder, jedes für sich optional
 	const a = {};
 	if (typeof d.titel === 'string') a.titel = text(d.titel, 80).trim();
@@ -108,6 +121,7 @@ function chatAntwort(anfrage, http) {
 	}
 	if (chatFehltDb(status, b)) {
 		if (was === 'liste') return { code: 200, antwort: { ok: true, vorhanden: false, chats: [] } };
+		if (was === 'bearbeiten') return { code: 503, antwort: { ok: false, fehler: CHAT_BEARBEITEN_FEHLT } };
 		return { code: 503, antwort: { ok: false, fehler: CHAT_NICHT_EINGERICHTET } };
 	}
 	// Fehler aus den SQL-Funktionen (raise exception, Code P0001) sind für Menschen geschrieben und gehen unverändert durch
@@ -115,4 +129,4 @@ function chatAntwort(anfrage, http) {
 	return { code: 502, antwort: { ok: false, fehler: 'Der Chat ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.' } };
 }
 
-export { CHAT_NICHT_EINGERICHTET, CHAT_AKTIONEN, CHAT_ARTEN, CHAT_TEXT_MAX, CHAT_ID, personenLesen, chatAnfrage, chatAntwort };
+export { CHAT_NICHT_EINGERICHTET, CHAT_BEARBEITEN_FEHLT, CHAT_AKTIONEN, CHAT_ARTEN, CHAT_TEXT_MAX, CHAT_ID, personenLesen, chatAnfrage, chatAntwort };

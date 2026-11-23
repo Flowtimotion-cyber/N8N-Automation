@@ -14,6 +14,7 @@
 //   POST /api/werbung     Nachbildung von „TEAM: ChatGPT-Werbung (Portal)“ { token, daten: { tage } } mit Musterdaten; Szenario per POST /api/test/werbung {szenario}
 //   POST /api/nachrichten Nachbildung von „TEAM: Nachrichten (Portal)“ { token, aktion, daten } im Speicher; ohne Datenbank per POST /api/test/nachrichten {eingerichtet:false}
 //   POST /api/chat        Nachbildung von „TEAM: Chat (Portal)“ { token, aktion, daten } im Speicher; ohne Datenbank per POST /api/test/chat {eingerichtet:false}
+//                         Bearbeiten-Frist prüfen: POST /api/test/nachrichten-alt {msg_id} bzw. /api/test/chat-alt {nachricht_id} macht die Nachricht 25 Stunden älter
 //   GET  /api/test/zustand, POST /api/test/zeit {sek}, POST /api/test/wartung, POST /api/test/neustart, POST /api/test/reset {szenario}
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -124,6 +125,9 @@ const server = createServer(async (req, res) => {
       if (was === 'werbung') { WZ = werbungZustand(); if (WERBUNG_SZENARIEN.includes(b.szenario)) WZ.szenario = b.szenario; return json(res, 200, { ok: true, szenario: WZ.szenario }); }
 		if (was === 'nachrichten') { MSGS = msgsDb(b.eingerichtet !== false); return json(res, 200, { ok: true, eingerichtet: MSGS.eingerichtet }); }
 		if (was === 'chat') { CHAT = chatDb(b.eingerichtet !== false); return json(res, 200, { ok: true, eingerichtet: CHAT.eingerichtet }); }
+		// Nachricht (Posteingang) oder Chat-Nachricht 25 Stunden älter machen, z. B. um die 24-Stunden-Grenze beim Bearbeiten zu prüfen
+		if (was === 'nachrichten-alt') { const m = MSGS.msgs.find(x => x.msg_id === b.msg_id); if (!m) return json(res, 404, { ok: false }); m.gesendet = new Date(Date.parse(m.gesendet) - 25 * 3600000).toISOString(); return json(res, 200, { ok: true, gesendet: m.gesendet }); }
+		if (was === 'chat-alt') { const n = CHAT.nachrichten.find(x => x.nachricht_id === Number(b.nachricht_id)); if (!n) return json(res, 404, { ok: false }); n.erstellt = new Date(Date.parse(n.erstellt) - 25 * 3600000).toISOString(); return json(res, 200, { ok: true, erstellt: n.erstellt }); }
       if (was === 'reset') { szenario = b.szenario === 'leer' ? 'leer' : 'standard'; welt = testSpeicher({ szenario }); VD = vertriebDaten(Date.now()); naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000; return json(res, 200, { ok: true, szenario }); }
       return json(res, 404, { ok: false });
     }

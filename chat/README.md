@@ -57,6 +57,10 @@ NODE_PATH=<Hauptordner>/node_modules node --test chat/test/chat.browser.test.mjs
 
 Logik 8, SQL 1 (gegen echtes Postgres), Browser 5 (drei Personen, Handy). Bildschirmfotos in `chat/screenshots/`.
 
+## Nachrichten bearbeiten
+
+Eigene Nachrichten lassen sich bis 24 Stunden nach dem Senden bearbeiten (✎ neben der Uhrzeit). Alle sehen „bearbeitet“ mit Uhrzeit, die alte Fassung bleibt gespeichert, neu Markierte bekommen einen Hinweis im Posteingang, nie eine WhatsApp. Regeln, SQL (`supabase/team_bearbeiten.sql`) und Deploy-Datei: `nachrichten/README.md`, Abschnitt „Nachrichten bearbeiten“.
+
 ## Stufe 2 (noch nicht gebaut)
 
 @Claude / @Hermes im Chat: Die KI liest diesen einen Chat (oder den ganzen Verlauf, wenn eingeschaltet), antwortet im Chat und schlägt Aufgaben oder Notizen mit einem Knopf „Anlegen“ vor. Größere Arbeiten gehen als Auftrag ins KI Office. Danach: Chat in der Team-App.

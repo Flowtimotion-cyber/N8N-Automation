@@ -9,12 +9,12 @@ export class C_ChatDbNachbildung {
 		this.mitglieder = mitglieder;
 		this.projekte = projekte;
 		this.jetzt = jetzt;
-		this.chats = []; this.mit = []; this.nachrichten = []; this.posteingang = []; this.whatsapp = [];
+		this.chats = []; this.mit = []; this.nachrichten = []; this.posteingang = []; this.whatsapp = []; this.fassungen = [];
 		this.nr = 0; this.cnr = 0;
 	}
 
 	rpc(fn, body) {
-		const f = this.eingerichtet && { team_chat_liste: this.liste, team_chat_verlauf: this.verlauf, team_chat_anlegen: this.anlegen, team_chat_aendern: this.aendern, team_chat_senden: this.senden }[fn];
+		const f = this.eingerichtet && { team_chat_liste: this.liste, team_chat_verlauf: this.verlauf, team_chat_anlegen: this.anlegen, team_chat_aendern: this.aendern, team_chat_senden: this.senden, team_chat_bearbeiten: this.bearbeiten }[fn];
 		if (!f) return { statusCode: 404, body: { code: 'PGRST202', message: 'Could not find the function public.' + fn } };
 		try { return { statusCode: 200, body: JSON.parse(JSON.stringify(f.call(this, body || {}))) }; }
 		catch (e) { return { statusCode: 400, body: { code: 'P0001', message: e.message } }; }
@@ -33,7 +33,7 @@ export class C_ChatDbNachbildung {
 		if (!c || !this.dabei(chat, wer)) throw new Error('Diesen Chat gibt es nicht oder du bist nicht (mehr) dabei.');
 		return c;
 	}
-	hinweis(chat, t) { const n = { nachricht_id: ++this.nr, chat_id: chat, autor: null, text: t, erwaehnt: [], whatsapp: [], erstellt: this.jetzt() }; this.nachrichten.push(n); this.chats.find(c => c.chat_id === chat).letzte = n.erstellt; }
+	hinweis(chat, t) { const n = { nachricht_id: ++this.nr, chat_id: chat, autor: null, text: t, erwaehnt: [], whatsapp: [], erstellt: this.jetzt(), bearbeitet: null }; this.nachrichten.push(n); this.chats.find(c => c.chat_id === chat).letzte = n.erstellt; }
 	json(chat, wer) {
 		const c = this.chats.find(x => x.chat_id === chat), me = this.dabei(chat, wer), N = this.nachrichten.filter(n => n.chat_id === chat), l = N[N.length - 1];
 		return { ...c, mitglieder: this.mit.filter(m => m.chat_id === chat).map(m => m.mitglied_id),
@@ -48,7 +48,10 @@ export class C_ChatDbNachbildung {
 		this.pruefen(p_chat, p_mitglied);
 		const N = this.nachrichten.filter(n => n.chat_id === p_chat && n.nachricht_id > (Number(p_nach) || 0)).slice(-Math.max(1, Math.min(Number(p_max) || 200, 500)));
 		if (N.length) { const me = this.dabei(p_chat, p_mitglied); me.gelesen_bis = Math.max(me.gelesen_bis, N[N.length - 1].nachricht_id); }
-		return { chat: this.json(p_chat, p_mitglied), nachrichten: N };
+		// Wie team_bearbeiten.sql: beim Nachladen (p_nach > 0) auch ältere Nachrichten, die in den letzten zwei Tagen bearbeitet wurden
+		const seit = Date.parse(this.jetzt()) - 2 * 86400000;
+		const bearbeitete = (Number(p_nach) || 0) > 0 ? this.nachrichten.filter(n => n.chat_id === p_chat && n.nachricht_id <= Number(p_nach) && n.bearbeitet && Date.parse(n.bearbeitet) > seit) : [];
+		return { chat: this.json(p_chat, p_mitglied), nachrichten: N, bearbeitete };
 	}
 	anlegen({ p_mitglied, p_art, p_titel, p_mitglieder, p_projekt }) {
 		const wer = this.personen([p_mitglied, ...(p_mitglieder || [])]);
@@ -102,12 +105,31 @@ export class C_ChatDbNachbildung {
 		if (!t.trim()) throw new Error('Die Nachricht ist leer.');
 		const erw = [...new Set(p_erwaehnt || [])].filter(e => e !== p_mitglied && this.dabei(p_chat, e));
 		const wa = [...new Set(p_whatsapp || [])].filter(e => erw.includes(e));
-		const nn = { nachricht_id: ++this.nr, chat_id: p_chat, autor: p_mitglied, text: t, erwaehnt: erw, whatsapp: wa, erstellt: this.jetzt() };
+		const nn = { nachricht_id: ++this.nr, chat_id: p_chat, autor: p_mitglied, text: t, erwaehnt: erw, whatsapp: wa, erstellt: this.jetzt(), bearbeitet: null };
 		this.nachrichten.push(nn); c.letzte = nn.erstellt;
 		this.dabei(p_chat, p_mitglied).gelesen_bis = nn.nachricht_id;
 		if (erw.length) this.posteingang.push({ absender: p_mitglied, empfaenger: erw, chat_id: p_chat });
 		wa.forEach(e => this.whatsapp.push({ art: 'chat_erwaehnung', mitglied_id: e, aufgabe_id: p_chat, von: p_mitglied }));
 		return { nachricht: nn, chat: this.json(p_chat, p_mitglied) };
+	}
+	// Nachbildung von team_chat_bearbeiten (supabase/team_bearbeiten.sql)
+	bearbeiten({ p_mitglied, p_chat, p_nachricht_id, p_text, p_erwaehnt }) {
+		const c = this.pruefen(p_chat, p_mitglied);
+		const n = this.nachrichten.find(x => x.chat_id === p_chat && x.nachricht_id === Number(p_nachricht_id));
+		if (!n) throw new Error('Diese Nachricht gibt es nicht (mehr).');
+		if (n.autor !== p_mitglied) throw new Error('Bearbeiten kann nur, wer die Nachricht geschrieben hat.');
+		if (Date.parse(n.erstellt) < Date.parse(this.jetzt()) - 86400000) throw new Error('Nachrichten kann man nur bis 24 Stunden nach dem Senden bearbeiten.');
+		const t = String(p_text || '');
+		if (!t.trim()) throw new Error('Die Nachricht ist leer.');
+		const erw = [...new Set(p_erwaehnt || [])].filter(e => e !== p_mitglied && this.dabei(p_chat, e));
+		const gleich = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+		if (t === n.text && gleich(erw, n.erwaehnt)) return { nachricht: n, unveraendert: true, chat: this.json(p_chat, p_mitglied) };
+		const schon = new Set(n.erwaehnt.concat(...this.fassungen.filter(f => f.quelle === 'chat' && f.nachricht === String(n.nachricht_id)).map(f => f.erwaehnt)));
+		const neu = erw.filter(e => !schon.has(e));
+		this.fassungen.push({ quelle: 'chat', nachricht: String(n.nachricht_id), autor: p_mitglied, text: n.text, erwaehnt: n.erwaehnt, gueltig_bis: this.jetzt() });
+		Object.assign(n, { text: t, erwaehnt: erw, bearbeitet: this.jetzt() });
+		if (neu.length) this.posteingang.push({ absender: p_mitglied, empfaenger: neu, chat_id: p_chat, bearbeitet: true, art: c.art });
+		return { nachricht: n, benachrichtigt: neu, chat: this.json(p_chat, p_mitglied) };
 	}
 }
 
