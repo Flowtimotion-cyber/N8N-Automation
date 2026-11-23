@@ -1226,7 +1226,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
       '<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
-      '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa" checked><span id="a_wa_t"></span></label>' +
+      '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa"><span id="a_wa_t"></span></label>' +
       '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
       verlaufHtml(a) +
       (!neu ? '<p class="small muted" id="a_daten">Erstellt ' + (a.erstellt_von ? 'von ' + esc(mitglied(a.erstellt_von).name) + ' ' : '') + 'am ' + esc(datumLang(a.erstellt)) + ' · zuletzt geändert am ' + esc(datumLang(a.geaendert)) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
@@ -1260,8 +1260,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const neuM = neuDabei().filter(x => !istKI(x)), mitWa = neuM.filter(waAuto), ohne = neuM.filter(x => !waAuto(x));
       $('#a_wa_l').style.display = neuM.length && WA_AUTO_AKTIV ? '' : 'none';
       const kann = mitWa.length > 0;
-      $('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
-      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(namen(mitWa)) + ' automatisch per WhatsApp informieren (über HermetikFlow)' + (ohne.length ? ' · ' + esc(namen(ohne)) + ' ohne WhatsApp-Einwilligung im Profil' : '')
+      // Timo 23.11.2026: Der Haken ist nie vorausgewählt, die WhatsApp geht nur raus, wenn man ihn selbst setzt
+      $('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false;
+      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(namen(mitWa)) + ' per WhatsApp informieren (Haken setzen, sonst geht keine WhatsApp raus)' + (ohne.length ? ' · ' + esc(namen(ohne)) + ' ohne WhatsApp-Einwilligung im Profil' : '')
         : '📲 Automatische WhatsApp nicht möglich: ' + esc(namen(ohne)) + (ohne.length > 1 ? ' haben' : ' hat') + ' keine Handynummer oder WhatsApp-Benachrichtigungen im Profil nicht aktiviert.';
     };
     $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; bZeigen();
