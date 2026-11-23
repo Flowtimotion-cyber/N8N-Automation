@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 // Lokaler Proxy für Tests gegen die ECHTEN Daten: liefert docs/ aus und reicht /webhook/* an den produktiven n8n weiter.
 // Umgeht die CORS-Sperre (n8n erlaubt nur flowtimotion-cyber.github.io), ohne Dateien im Repo zu ändern:
-// die n8n-Adressen werden beim Ausliefern in HTML/JS auf /webhook/ umgeschrieben.
+// die n8n-Adressen werden beim Ausliefern in HTML/JS auf den Proxy umgeschrieben.
+// Die Adresse der n8n-Instanz kommt aus der Konfiguration des Team-Portals (docs/team/konfig.js).
 //
 //   node proxy.mjs <Pfad zu docs> [--port 8788]
 //   http://127.0.0.1:8788/team/
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
 
 const DOCS = resolve(process.argv[2] || '.');
 const i = process.argv.indexOf('--port');
 const PORT = Number(i > 0 ? process.argv[i + 1] : 8788);
-const ZIEL = 'https://n8n.hm-storage.de';
+// konfig.js ist ein klassisches Browser-Skript (kein Modul): in einer leeren Umgebung ausführen und teamPortalKonfig() aufrufen
+const ZIEL = runInNewContext(await readFile(join(DOCS, 'team', 'konfig.js'), 'utf8') + '\n;teamPortalKonfig()').n8n.instanz;
 const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
 	'.json': 'application/json; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp',
 	'.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.md': 'text/plain; charset=utf-8' };
@@ -39,7 +42,10 @@ createServer(async (req, res) => {
 		let daten = await readFile(pfad);
 		const ext = extname(pfad).toLowerCase();
 		if (ext === '.html' || ext === '.js' || ext === '.mjs') {
+			// Team-Portal (konfig.js): das Literal der n8n-Adresse wird zu location.origin, alle Webhooks laufen so über den Proxy.
+			// Andere Seiten (z. B. Pilot-Konfiguration) enthalten noch vollständige Webhook-Adressen: auf /webhook/ kürzen.
 			daten = daten.toString('utf8')
+				.replaceAll("'" + ZIEL + "'", 'location.origin')
 				.replaceAll(ZIEL + '/webhook/', '/webhook/')
 				.replaceAll("'/api/office'", "'/webhook/office-api'");
 		}
@@ -50,7 +56,7 @@ createServer(async (req, res) => {
 		res.end(String(e.message));
 	}
 }).listen(PORT, '127.0.0.1', () => {
-	console.log('PROXY auf ECHTE Daten · docs: ' + DOCS);
+	console.log('PROXY auf ECHTE Daten · docs: ' + DOCS + ' · n8n: ' + ZIEL);
 	console.log('  Team-Portal: http://127.0.0.1:' + PORT + '/team/');
 	console.log('  KI Office:   http://127.0.0.1:' + PORT + '/office/');
 });
