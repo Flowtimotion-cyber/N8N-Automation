@@ -61,9 +61,10 @@ export function projektStand(D, p) {
   const blockaden = offen.filter(a => a.status === 'Wartet' || /Blockiert|wartet auf/i.test(a.label || ''));
   const ueber = offen.filter(ueberfaellig);
   const meilensteine = offen.filter(a => a.deadline).sort((a, b) => a.deadline.localeCompare(b.deadline));
-  const prio = offen.length ? Math.min(...offen.map(a => Number(a.prio) || 2)) : null;
-  const naechster = offen.slice().sort((a, b) => (Number(a.prio) || 2) - (Number(b.prio) || 2) || String(a.deadline || '9999').localeCompare(String(b.deadline || '9999')))[0] || null;
-  const menschen = new Set([p.verantwortlich, ...A.map(a => a.verantwortlich)].filter(id => id && mitglied(D, id).typ !== 'agent'));
+  // Priorität 1–10 (1 = am wichtigsten, Standard 5)
+  const prio = offen.length ? Math.min(...offen.map(a => Number(a.prio) || 5)) : null;
+  const naechster = offen.slice().sort((a, b) => (Number(a.prio) || 5) - (Number(b.prio) || 5) || String(a.deadline || '9999').localeCompare(String(b.deadline || '9999')))[0] || null;
+  const menschen = new Set([p.verantwortlich, ...A.flatMap(a => Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : [a.verantwortlich])].filter(id => id && mitglied(D, id).typ !== 'agent'));
   const agenten = (D.agenten || []).filter(a => (a.projekte || []).includes(p.name));
   const workflows = agenten.filter(a => a.ausfuehrer === 'n8n').map(a => ({ agent_id: a.agent_id, name: a.name, version: a.workflow_version || '' }));
   // Letzte belegte Aktivität: Verlauf der Aufgaben, Run-Ereignisse, Aufgabenänderungen – mit Quelle
