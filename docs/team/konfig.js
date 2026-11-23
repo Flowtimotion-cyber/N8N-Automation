@@ -33,8 +33,8 @@
 // Server-Seite:
 //	- n8n (Adresse siehe N8N_INSTANZ unten): Jede Funktion des Portals ist ein eigener Webhook-Workflow.
 //	  Das Portal schickt nur den persönlichen Mitglieds-Token mit; n8n prüft Token und Rolle.
-//	- Supabase: Datenbank hinter n8n. Das Portal spricht Supabase NIE direkt an (kein Schlüssel im
-//	  Browser); die Angaben unten dienen nur der Orientierung.
+//	- Datenbank hinter n8n: Supabase oder eigenes PostgreSQL (Wahl: DATENBANK unten). Das Portal spricht
+//	  die Datenbank NIE direkt an (kein Schlüssel im Browser); die Supabase-Angaben unten dienen nur der Orientierung.
 //
 // -----------------------------------------------------------------------------------------------------
 // Konventionen
@@ -58,17 +58,29 @@ function teamPortalKonfig() {
 	// Gemeinsame Basis aller Portal-Webhooks
 	const N8N_WEBHOOK_BASIS = N8N_INSTANZ + '/webhook/';
 
+	// Datenbank hinter der Portal-API: 'supabase' oder 'postgre'.
+	// Für jede Variante gibt es einen eigenen n8n-Workflow (gebaut von team/n8n/bauen.mjs); das Portal spricht nur
+	// den hier gewählten an. Ist dessen Workflow in n8n nicht eingerichtet, zeigt das Portal eine Fehlermeldung und stoppt.
+	const DATENBANK = 'supabase';
+	const PORTAL_API = {
+		supabase: { name: 'Supabase',   url: N8N_WEBHOOK_BASIS + 'team-api-v2',    workflow: 'TEAM: Portal-API v2 (Supabase, Agenten)',   id: 'kMuDaDmT9rCN5Vs2' },
+		postgre:  { name: 'PostgreSQL', url: N8N_WEBHOOK_BASIS + 'team-api-v2-pg', workflow: 'TEAM: Portal-API v2 (PostgreSQL, Agenten)', id: '' }
+	};
+
 	const n8n = {
 		instanz:       N8N_INSTANZ,
 		webhookBasis:  N8N_WEBHOOK_BASIS,
+		// Gewählte Datenbank-Variante und alle bekannten Varianten (für die Fehlermeldung im Portal)
+		datenbank:     DATENBANK,
+		portalApis:    PORTAL_API,
 		// Fehler-Workflow, den alle TEAM-Workflows in ihren Einstellungen eingetragen haben
 		fehlerWorkflowId: 'pka7MaqDJwuhjHpY',
 
 		// Endpunkte des Portals. Je Eintrag: url, Workflow-Name in n8n, Workflow-ID, Konstante in index.html.
 		webhooks: {
 			// Hauptschnittstelle: Anmeldung, Aufgaben, Projekte, Notizen, Arbeitszeit, Team …
-			// → index.html: API
-			portal:      { url: N8N_WEBHOOK_BASIS + 'team-api-v2',      workflow: 'TEAM: Portal-API v2 (Supabase, Agenten)',            id: 'kMuDaDmT9rCN5Vs2' },
+			// Workflow je nach DATENBANK (oben); null bei unbekannter Variante. → index.html: API
+			portal:      Object.prototype.hasOwnProperty.call(PORTAL_API, DATENBANK) ? PORTAL_API[DATENBANK] : null,
 			// Chat-Assistent (Knopf unten rechts). → index.html: KI_API
 			assistent:   { url: N8N_WEBHOOK_BASIS + 'team-assistent',   workflow: 'TEAM: Portal-Assistent (Fragen zu Firma und Portal)', id: 'TJ5E1KT5MvzxvoD9' },
 			// Nachrichtendienst (@-Markierungen). → index.html: MSGS_API

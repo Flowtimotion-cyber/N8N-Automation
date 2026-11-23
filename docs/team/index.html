@@ -380,7 +380,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 <body>
 <div id="app"><div class="loading">Lade Team-Portal …</div></div>
 <!-- Konfiguration (n8n-Webhooks, Supabase, Adressen, Einstellungen). Nach Änderungen an konfig.js die Versionsnummer erhöhen. -->
-<script src="konfig.js?v=1"></script>
+<script src="konfig.js?v=2"></script>
 <dialog id="dlg"><div class="dlg" id="dlgInner"></div></dialog>
 <div id="toast"></div>
 <script>
@@ -393,6 +393,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	}
 	const KONFIG = teamPortalKonfig();
 	const WH = KONFIG.n8n.webhooks;
+	// Programm anhalten: nur noch die Meldung zeigen, nichts weiter tun
+	const stoppen = (titel, html) => { document.getElementById('app').innerHTML = '<div class="center card"><h2>' + titel + '</h2><p>' + html + '</p></div>'; };
+	const escK = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+	// Datenbank-Variante (konfig.js: DATENBANK) muss bekannt sein
+	if (!WH.portal) {
+		stoppen('Portal falsch eingerichtet', 'In konfig.js ist die Datenbank-Variante „' + escK(KONFIG.n8n.datenbank) + '“ eingetragen. Bekannt sind: ' +
+			Object.keys(KONFIG.n8n.portalApis || {}).map(k => '„' + escK(k) + '“').join(', ') + '. Bitte Timo Bescheid geben.');
+		return;
+	}
 	const API = WH.portal.url;
 	const PORTAL = KONFIG.adressen.portal;
 	const projOpts = cur => { const l = projektNamen(); return cur && !l.includes(cur) ? l.concat([cur]) : l; };
@@ -500,6 +509,19 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	window.addEventListener('hashchange', nachHash);
 	window.addEventListener('popstate', nachHash);
 
+	// Fehlt der Workflow der gewählten Datenbank-Variante in n8n?
+	// Über den TesterProxy (gleiche Herkunft) kommt n8ns Antwort 404 „webhook … is not registered“ an.
+	// Direkt im Browser (GitHub Pages) schickt n8n für unbekannte Webhooks keine CORS-Freigabe, der Browser meldet
+	// nur einen Netzwerkfehler. Dann prüfen, ob n8n selbst erreichbar ist. Ist es das, fehlt der Workflow vermutlich;
+	// genauso sieht es aber aus, wenn der Webhook diese Adresse nicht zulässt („Allowed Origins“) oder abbricht.
+	// Ergebnis: 'sicher' (n8n sagt: nicht registriert), 'vermutlich' oder false (anderer Fehler, z. B. kein Netz)
+	async function apiFehlt(e) {
+		if (e.status === 404 && /not registered/i.test(String((e.daten && e.daten.message) || ''))) return 'sicher';
+		if (e.status !== undefined) return false;
+		try { await fetch(KONFIG.n8n.instanz + '/healthz', { mode: 'no-cors', cache: 'no-store' }); return 'vermutlich'; }
+		catch (e2) { return false; }
+	}
+
 	async function laden(still) {
 		if (!TOKEN) return ohneZugang();
 		try {
@@ -509,6 +531,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		MsgsList_User.laden();
 		} catch (e) {
 			if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
+			const fehlt = still ? false : await apiFehlt(e);
+			if (fehlt) return stoppen('Portal-API nicht eingerichtet', 'Das Portal ist für die Datenbank-Variante „' + esc(WH.portal.name) + '“ eingerichtet (konfig.js). ' +
+				'Der zugehörige n8n-Workflow „' + esc(WH.portal.workflow) + '“ (Webhook „' + esc(API.split('/').pop()) + '“) ' + (fehlt === 'sicher'
+					? 'ist auf dem Server nicht eingerichtet oder nicht veröffentlicht.'
+					: 'antwortet nicht. Mögliche Ursachen: Er fehlt auf dem Server oder ist nicht veröffentlicht, er lässt diese Adresse (' + esc(location.origin) + ') nicht zu, oder er bricht mit einem Fehler ab.') +
+				' Bitte Timo Bescheid geben.');
 			if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
 			else toast(e.message);
 		}
