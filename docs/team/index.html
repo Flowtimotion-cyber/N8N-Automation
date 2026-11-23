@@ -75,7 +75,7 @@ h3{font-size:15px;margin:0 0 8px}
 .task:hover{background:#FAFAFE}
 .task .t{font-weight:600}
 .task.done .t{text-decoration:line-through;color:var(--mut)}
-.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}.meta .adat{opacity:.85;white-space:nowrap}
 .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:var(--soft);font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap}
 .p1{background:#FCE3DE;color:#B0321F}.p2{background:#FDEBD3;color:#A35D06}.p3{background:var(--soft);color:var(--mut)}
 .st-Offen{background:#E9E7F7}.st-Geplant{background:#DDE6FB}.st-In-Arbeit{background:#FFF1C7}.st-Wartet{background:#F4E5FA}.st-Wird-getestet{background:#D9F2EC}.st-Erledigt{background:#E2F3E8;color:var(--green)}
@@ -83,6 +83,13 @@ h3{font-size:15px;margin:0 0 8px}
 .cpost{border-top:1px solid var(--line);padding:12px 0}.cpost.erl{opacity:.7}.cpost.versteckt{opacity:.45}.crow textarea{width:100%;box-sizing:border-box;margin:6px 0;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px}.crow .act{display:flex;gap:6px;flex-wrap:wrap}
 .av.ki{background:#1F2937;font-size:15px}
 .verlauf{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}.verlauf h3{font-size:14px;margin:0 0 8px}.vl{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}.vl .vt{flex:1;min-width:0;font-size:13.5px}.vl .vt .md p{margin:2px 0}.vl.status .vt{color:var(--mut);font-size:12.5px}.vl.bericht .vt{background:#F4F1FD;border-radius:10px;padding:6px 10px}.chip.ki{background:#1F2937;color:#fff}
+.avs{display:inline-flex;flex:none}.avs .av{box-shadow:0 0 0 2px var(--card,#fff)}.avs .av+.av{margin-left:-9px}.av.mehr{background:var(--soft);color:var(--mut);font-size:11px}
+.bchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:42px;border:1px solid var(--line);border-radius:10px;padding:5px 6px;background:#fff}
+.bchip{display:inline-flex;align-items:center;gap:5px;background:var(--soft);border-radius:999px;padding:2px 4px 2px 3px;font-size:13px}.bchip .av{width:22px;height:22px;font-size:11px}
+.bchip button{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;color:var(--mut);padding:0 4px}.bchip button:hover{color:#B0321F}
+.bchips select{border:0!important;padding:4px!important;width:auto!important;flex:1 1 140px;background:transparent!important}
+.zaufg{display:flex;gap:6px;align-items:center;margin-bottom:6px}.zaufg select{flex:1;min-width:0}.zaufg .erl{white-space:nowrap;font-size:12.5px;display:flex;gap:4px;align-items:center;color:var(--mut)}
+.zaufg .weg{border:1px solid var(--line);background:#fff;border-radius:8px;width:34px;height:36px;cursor:pointer;color:var(--mut);font-size:16px;flex:none}
 .av{width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
 .av.c1{background:#7B3FE4}.av.c2{background:#1FA9B0}.av.c3{background:#E98A15}.av.c4{background:#5B6EE6}.av.c5{background:#D9452F}.av.c6{background:#1F9D6B}
 .board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
@@ -184,7 +191,7 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 .sum{font-size:22px;font-weight:700}
 .md{line-height:1.55;overflow-wrap:anywhere}.md h2{font-size:20px;margin:14px 0 6px}.md h3{font-size:17px;margin:12px 0 6px}.md h4{font-size:15px;margin:10px 0 4px}
 .md p{margin:0 0 8px}.md ul,.md ol{margin:0 0 8px;padding-left:22px}.md ul.tasklist{list-style:none;padding-left:4px}.md blockquote{margin:0 0 8px;padding:6px 12px;border-left:3px solid var(--acc);background:#F6F3FE;border-radius:0 8px 8px 0}
-.md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md a.wl{text-decoration:underline dotted}
+.md code,.hilfe code{background:var(--soft);padding:1px 5px;border-radius:5px;font-size:.92em}.md mark,.hilfe mark{background:#FFF0A8;padding:0 2px}.md hr{border:0;border-top:1px solid var(--line);margin:12px 0}.md hr.hr-schwarz{border-top-color:#000}.md hr.hr-dick{border-top:2px solid #000}.md .leerz{height:1.4em}.md a.wl{text-decoration:underline dotted}
 .md .tab{overflow-x:auto;margin:0 0 8px}.md .tab table{width:auto;border-collapse:collapse}.md .tab th,.md .tab td{border:1px solid var(--line);padding:5px 9px;vertical-align:top;overflow-wrap:break-word;font-size:inherit;color:inherit;text-transform:none;letter-spacing:normal}.md .tab th{background:var(--soft);font-weight:600}
 .ed .edhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.edmode button{padding:5px 10px;font-size:13px}
 .toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#FAFAFE}
@@ -198,6 +205,19 @@ dialog::backdrop{background:rgba(20,18,58,.45)}
 dialog.breit{width:min(1000px,90vw);max-width:90vw;min-width:min(480px,96vw)}
 .zieh{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:5;border-radius:0 0 18px 0;background:linear-gradient(135deg,transparent 0 45%,#B9B5D6 45% 52%,transparent 52% 62%,#B9B5D6 62% 69%,transparent 69% 79%,#B9B5D6 79% 86%,transparent 86%)}.zieh:hover{background-color:#F1ECFD}
 dialog.breit{overflow:visible;margin-top:3vh;margin-bottom:auto;max-height:calc(97vh - 12px)}dialog.breit .dlg{max-height:calc(97vh - 12px);overflow:auto}dialog.voll .dlg{height:94vh;max-height:94vh}
+/* Vorschlag Kurt (Scroll-Problem): Das Fenster bleibt im Browserfenster, Eingabe/Vorschau und Kommentare scrollen jeweils für sich.
+   Textfeld und Vorschau haben eine Höchsthöhe (ziehen lässt sich höchstens bis dahin), der Verlauf eine eigene Scrollbox. */
+@supports(height:100dvh){dialog.breit{max-height:calc(97dvh - 12px)}dialog.breit .dlg{max-height:calc(97dvh - 12px)}}
+#dlg .edbody textarea{max-height:62vh;overflow:auto}#dlg .edbody .vorschau{max-height:62vh;overflow:auto}
+#dlg .edbody.m-vorschau .vorschau{min-height:160px}
+.vliste{max-height:34vh;overflow:auto;overscroll-behavior:contain;padding-right:4px;margin-bottom:4px}
+dialog.voll .vliste{max-height:40vh}
+/* Breites Aufgabenfenster: Beschreibung links, Verlauf rechts daneben (gleich hoch wie das Textfeld, scrollt für sich) */
+#af.zwei{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);column-gap:18px}
+#af.zwei>*{grid-column:1/-1}#af.zwei>.ed{grid-column:1;grid-row:2}
+#af.zwei>.verlauf{grid-column:2;grid-row:2;contain:size;min-height:0;display:flex;flex-direction:column;border-top:0;margin-top:0;padding-top:0;margin-bottom:12px}
+#af.zwei>.verlauf .vliste{max-height:none;flex:1 1 auto;min-height:60px;border:1px solid var(--line);border-radius:10px;padding:8px}
+#af.zwei>.verlauf .f{margin:8px 0 0}#af.zwei>.verlauf textarea{min-height:64px}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
@@ -419,6 +439,16 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	const istAdmin = () => D && D.ich && D.ich.rolle === 'admin';
 	const istDozent = () => D && D.ich && (D.ich.rolle === 'admin' || D.ich.rolle === 'dozent');
 	const opt = (arr, sel, lab) => arr.map(v => '<option value="' + esc(v) + '"' + (String(v) === String(sel) ? ' selected' : '') + '>' + esc(lab ? lab(v) : (v || '–')) + '</option>').join('');
+  // Mehrere gleichberechtigte Bearbeiter je Aufgabe (Vorschlag Kurt, Entscheidung 21.11.2026). Ältere Einträge ohne Liste: Feld verantwortlich.
+  const bearbeiterVon = a => a && Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : (a && a.verantwortlich ? [a.verantwortlich] : []);
+  const istBearbeiter = (a, id) => bearbeiterVon(a).includes(id);
+  const bearbeiterNamen = a => bearbeiterVon(a).map(id => mitglied(id).name).join(', ');
+  const avs = a => { const L = bearbeiterVon(a); return L.length ? '<span class="avs">' + L.slice(0, 4).map(av).join('') + (L.length > 4 ? '<span class="av mehr" title="' + esc(bearbeiterNamen(a)) + '">+' + (L.length - 4) + '</span>' : '') + '</span>' : av(''); };
+  // Priorität 1–10, 1 = am wichtigsten (Entscheidung 21.11.2026). Farbe: 1–2 dringend, 3–6 normal, 7–10 wenn Zeit ist.
+  const PRIOS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const prioZahl = p => { const n = Math.round(Number(p)); return n >= 1 && n <= 10 ? n : 5; };
+  const prioKl = p => { const n = prioZahl(p); return n <= 2 ? 'p1' : n <= 6 ? 'p2' : 'p3'; };
+  const prioText = v => 'Prio ' + v + ({ 1: ' (am wichtigsten)', 5: ' (normal)', 10: ' (wenn Zeit ist)' }[v] || '');
 	const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + (p.typ === 'agent' ? ' 🤖 (KI-Agent)' : '') + '</option>').join('');
 	const saveF = () => ls.set('mt-filter', JSON.stringify(F));
 	const waNummer = t => String(t || '').replace(/[^\d]/g, '');
@@ -426,6 +456,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	const WA_AUTO_AKTIV = KONFIG.einstellungen.whatsapp.autoAktiv;
 
 	async function api(aktion, daten) {
+    // Prio-Skala 1–10: Die Portal-API rechnet Angaben ohne „skala“ als alte Skala 1–3 um
+    if (aktion === 'aufgabe_speichern' && daten && daten.skala === undefined) daten = Object.assign({}, daten, { skala: 10 });
 		const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
 		let j = null; try { j = await r.json(); } catch (e) {}
 		if (!r.ok || !j || j.ok === false) { const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; err.daten = j; throw err; }
@@ -982,7 +1014,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				const titel = 'Portal: ' + $('#v_t').value;
 				const beschreibung = ($('#v_x').value || '') + '\n\nAus dem Vorschlag von ' + mitglied(v.autor).name + ' (Bereich ' + $('#v_b').value + ').';
 				const projekt = projektNamen().includes('Team-Portal') ? 'Team-Portal' : (projektNamen()[0] || '');
-				const r = await api('aufgabe_speichern', { titel, beschreibung, verantwortlich: D.ich.mitglied_id, deadline: '', prio: 2, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
+        const r = await api('aufgabe_speichern', { titel, beschreibung, bearbeiter: [D.ich.mitglied_id], deadline: '', prio: 5, status: 'Geplant', projekt, label: '', agent_geeignet: false, kommentar: '' });
 				await api('vorschlag_speichern', { vorschlag_id: v.vorschlag_id, titel: $('#v_t').value, text: $('#v_x').value, bereich: $('#v_b').value, status: 'geplant', antwort: $('#v_a') ? $('#v_a').value : (v.antwort || ''), aufgabe_id: r.id || '' });
 				dlg.close(); toast('Aufgabe angelegt und Vorschlag auf „geplant“ gesetzt'); await laden(true);
 			} catch (e) { toast(e.message); auf.disabled = false; }
@@ -1071,9 +1103,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function vStart() {
 		const ich = D.ich.mitglied_id;
 		const offen = D.aufgaben.filter(a => a.status !== 'Erledigt');
-		const meine = offen.filter(a => a.verantwortlich === ich).sort(sortAufgaben);
+    const meine = offen.filter(a => istBearbeiter(a, ich)).sort(sortAufgaben);
 		const late = offen.filter(ueberfaellig);
-		const p1 = offen.filter(a => Number(a.prio) === 1);
+    const p1 = offen.filter(a => prioZahl(a.prio) <= 2);
 		const posts = D.social.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= heute()).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 4);
 		const anfr = (D.anfragen || []).filter(a => a.typ === 'angebot').slice(0, 4);
 		const k = D.kurs || {};
@@ -1081,7 +1113,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const h = new Date().getHours();
 		$('#main').innerHTML = '<h1>' + (h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend') + ', ' + esc(D.ich.name) + '</h1><p class="sub">Das läuft gerade bei Momentum. Stand: ' + fmtDT(D.stand) + '</p>' +
 			'<div class="kpis">' +
-			kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1') +
+      kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1–2') +
 			kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
 			anleitungVideoHtml() +
 			(zurFreigabe.length ? '<div class="card" style="border:2px solid #9b2fc7"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">📣 ' + zurFreigabe.length + (zurFreigabe.length === 1 ? 'Social-Beitrag wartet' : ' Social-Beiträge warten') + ' auf deine Freigabe</h2><button class="btn" data-goto="social">Alle im Plan ansehen →</button></div>' +
@@ -1106,43 +1138,69 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 
 	// ---------- Aufgaben ----------
 	function sortAufgaben(a, b) {
-		const pa = Number(a.prio) || 2, pb = Number(b.prio) || 2;
+    const pa = prioZahl(a.prio), pb = prioZahl(b.prio);
 		if ((a.status === 'Erledigt') !== (b.status === 'Erledigt')) return a.status === 'Erledigt' ? 1 : -1;
 		if (pa !== pb) return pa - pb;
 		if (a.deadline && b.deadline) return a.deadline.localeCompare(b.deadline);
 		if (a.deadline) return -1; if (b.deadline) return 1;
 		return String(b.geaendert).localeCompare(String(a.geaendert));
 	}
+  // Sortierung der Aufgabenliste (Vorschlag Kurt): Standard = Priorität, dann Deadline
+  const SORTEN = [['prio', 'Priorität & Deadline'], ['erstellt_neu', 'Neueste zuerst (erstellt)'], ['erstellt_alt', 'Älteste zuerst (erstellt)'], ['geaendert', 'Zuletzt geändert'], ['ersteller', 'Ersteller (A–Z)'], ['bearbeiter', 'Bearbeiter (A–Z)']];
+  const SORT_TEXT = { prio: 'Prio 1 zuerst, dann nach Deadline.', erstellt_neu: 'Zuletzt angelegte Aufgaben zuerst.', erstellt_alt: 'Am längsten bestehende Aufgaben zuerst.', geaendert: 'Zuletzt geänderte Aufgaben zuerst (auch neue Kommentare zählen).', ersteller: 'Nach Ersteller, innerhalb nach Priorität.', bearbeiter: 'Nach Bearbeitern, innerhalb nach Priorität.' };
+  function aufgabenSortierer(art) {
+    const zeit = v => { const t = new Date(v || 0).getTime(); return isNaN(t) ? 0 : t; };
+    const nm = id => String(mitglied(id).name || id || '~').toLocaleLowerCase('de');
+    const erledigtHinten = (a, b) => (a.status === 'Erledigt') === (b.status === 'Erledigt') ? 0 : a.status === 'Erledigt' ? 1 : -1;
+    if (art === 'erstellt_neu') return (a, b) => zeit(b.erstellt) - zeit(a.erstellt) || sortAufgaben(a, b);
+    if (art === 'erstellt_alt') return (a, b) => zeit(a.erstellt) - zeit(b.erstellt) || sortAufgaben(a, b);
+    if (art === 'geaendert') return (a, b) => zeit(b.geaendert) - zeit(a.geaendert) || sortAufgaben(a, b);
+    if (art === 'ersteller') return (a, b) => erledigtHinten(a, b) || nm(a.erstellt_von).localeCompare(nm(b.erstellt_von), 'de') || sortAufgaben(a, b);
+    const nmListe = a => bearbeiterVon(a).map(nm).sort((x, y) => x.localeCompare(y, 'de')).join(', ') || '~';
+    if (art === 'bearbeiter') return (a, b) => erledigtHinten(a, b) || nmListe(a).localeCompare(nmListe(b), 'de') || sortAufgaben(a, b);
+    return sortAufgaben;
+  }
+  // Erstellt-/Änderungsdatum kurz (TT.MM.JJ) für die Liste, lang mit Uhrzeit für den Dialog
+  const datumKurz = s => { const d = new Date(s); return !s || isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }); };
+  const datumLang = s => { const d = new Date(s); return !s || isNaN(d) ? '–' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
+  const aufgabeDaten = a => {
+    const e = datumKurz(a.erstellt), g = datumKurz(a.geaendert);
+    if (!e && !g) return '';
+    return '<span class="adat" title="Erstellt ' + esc(datumLang(a.erstellt)) + (a.erstellt_von ? ' von ' + esc(mitglied(a.erstellt_von).name) : '') + ' · zuletzt geändert ' + esc(datumLang(a.geaendert)) + '">' +
+      (e ? 'erstellt ' + e : '') + (g && g !== e ? (e ? ' · ' : '') + 'geändert ' + g : '') + '</span>';
+  };
 	const hl = h => { const q = tab === 'aufgaben' && F.q ? F.q.trim() : ''; if (q.length < 2) return h; const e = esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); return h.replace(new RegExp('(' + e + ')', 'gi'), '<mark>$1</mark>'); };
 	const vorschauText = b => { const k = klartext(b); const q = tab === 'aufgaben' && F.q ? F.q.trim().toLowerCase() : ''; const i = q ? k.toLowerCase().indexOf(q) : -1; return i > 120 ? '… ' + k.slice(i - 60, i + 160) : k.slice(0, 220); };
 	function taskRow(a) {
 		const late = ueberfaellig(a);
-		return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + av(a.verantwortlich) +
-			'<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">Prio ' + esc(a.prio) + '</span>' +
+    return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + avs(a) +
+      '<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip ' + prioKl(a.prio) + '">Prio ' + esc(prioZahl(a.prio)) + '</span>' +
 			'<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
 			(a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
-			(a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + '</div></div>' +
-			'<div class="right small muted">' + esc(mitglied(a.verantwortlich).name) + '</div></div>';
+      (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + aufgabeDaten(a) + '</div></div>' +
+      '<div class="right small muted">' + esc(bearbeiterNamen(a)) + '</div></div>';
 	}
 	function bindTasks() { document.querySelectorAll('[data-a]').forEach(e => e.onclick = () => aufgabeDialog(D.aufgaben.find(a => a.aufgabe_id === e.dataset.a))); }
 
 	function vAufgaben() {
 		const ich = D.ich.mitglied_id;
 		let L = D.aufgaben.slice();
-		if (F.person === 'ich') L = L.filter(a => a.verantwortlich === ich);
+    if (F.person === 'ich') L = L.filter(a => istBearbeiter(a, ich));
 		else if (F.person === 'von_mir') L = L.filter(a => a.erstellt_von === ich);
-		else if (F.person) L = L.filter(a => a.verantwortlich === F.person);
+    else if (F.person) L = L.filter(a => istBearbeiter(a, F.person));
 		if (F.projekt) L = L.filter(a => a.projekt === F.projekt);
 		if (F.status === 'offen') L = L.filter(a => a.status !== 'Erledigt');
 		else if (F.status === 'late') L = L.filter(ueberfaellig);
 		else if (F.status) L = L.filter(a => a.status === F.status);
 		if (F.q) { const q = F.q.toLowerCase(); L = L.filter(a => (a.titel + ' ' + a.beschreibung).toLowerCase().includes(q)); }
-		L.sort(sortAufgaben);
-		$('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">Prio 1 zuerst, dann nach Deadline. Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
+    const sortArt = SORTEN.some(s => s[0] === F.sort) ? F.sort : 'prio';
+    L.sort(aufgabenSortierer(sortArt));
+    $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">' + esc(SORT_TEXT[sortArt]) + ' Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
 			'<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
 			(D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
 			'<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
 			'<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
+      '<select id="fso" aria-label="Sortieren" title="Sortieren">' + SORTEN.map(([v, t]) => '<option value="' + v + '"' + (v === sortArt ? ' selected' : '') + '>↕ ' + esc(t) + '</option>').join('') + '</select>' +
 			'<input class="grow" id="fq" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(F.q) + '">' +
 			'<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
 			(F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
@@ -1151,44 +1209,68 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		$('#fp').onchange = e => { F.person = e.target.value; saveF(); vAufgaben(); };
 		$('#fj').onchange = e => { F.projekt = e.target.value; saveF(); vAufgaben(); };
 		$('#fs').onchange = e => { F.status = e.target.value; saveF(); vAufgaben(); };
+    $('#fso').onchange = e => { F.sort = e.target.value; saveF(); vAufgaben(); };
 		$('#fq').oninput = e => { F.q = e.target.value; clearTimeout(vAufgaben.t); vAufgaben.t = setTimeout(() => { vAufgaben(); const x = $('#fq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
 		document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { F.ansicht = b.dataset.v; saveF(); vAufgaben(); });
 	}
 	function board(L) {
 		return '<div class="board">' + BOARD.map(s => { const c = L.filter(a => a.status === s); return '<div class="col"><h3>' + esc(s) + '<span>' + c.length + '</span></h3>' +
-			(c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip p' + esc(a.prio) + '">P' + esc(a.prio) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + av(a.verantwortlich) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
+      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '" title="Erstellt ' + esc(datumLang(a.erstellt)) + ' · geändert ' + esc(datumLang(a.geaendert)) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip ' + prioKl(a.prio) + '">P' + esc(prioZahl(a.prio)) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + avs(a) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
 	}
 
 	function aufgabeDialog(a) {
 		const neu = !a;
-		a = a || { titel: '', beschreibung: '', status: 'Offen', prio: 2, label: '', projekt: tab === 'web' ? 'Webseite' : (F.projekt || 'Kurs Modul 1'), verantwortlich: D.ich.mitglied_id, deadline: '' };
+    a = a || { titel: '', beschreibung: '', status: 'Offen', prio: 5, label: '', projekt: tab === 'web' ? 'Webseite' : (F.projekt || 'Kurs Modul 1'), verantwortlich: D.ich.mitglied_id, bearbeiter: [D.ich.mitglied_id], deadline: '' };
+    const alteBearbeiter = neu ? [] : bearbeiterVon(a).slice();
+    let bListe = bearbeiterVon(a).slice();
 		const darfLoeschen = !neu && (istAdmin() || a.erstellt_von === D.ich.mitglied_id);
 		$('#dlgInner').innerHTML = '<h2>' + (neu ? 'Neue Aufgabe' : 'Aufgabe bearbeiten') + '</h2><form id="af">' +
 			'<div class="f"><label for="a_t">Titel</label><input id="a_t" required maxlength="160" value="' + esc(a.titel) + '"></div>' +
 			editorHtml('a_b', a.beschreibung, 'Beschreibung (Ziel, was ist zu tun, was wird gebraucht?)', { rows: 12, max: 20000 }) +
-			'<div class="f2"><div class="f"><label for="a_v">Zuständig</label><select id="a_v">' + personOpts(a.verantwortlich) + '</select></div>' +
+      '<div class="f"><label for="a_badd">Bearbeiter <span class="small muted">(alle gleichberechtigt, alle sehen die Aufgabe bei „Meine Aufgaben“)</span></label><div class="bchips" id="a_bw"></div></div>' +
+      '<div class="f2">' +
 			'<div class="f"><label for="a_d">Deadline</label><input id="a_d" type="date" value="' + esc(a.deadline) + '"></div>' +
-			'<div class="f"><label for="a_p">Priorität</label><select id="a_p">' + opt([1, 2, 3], a.prio, v => 'Prio ' + v + (v === 1 ? ' (dringend)' : v === 3 ? ' (wenn Zeit ist)' : '')) + '</select></div>' +
+      '<div class="f"><label for="a_p">Priorität</label><select id="a_p">' + opt(PRIOS, prioZahl(a.prio), prioText) + '</select></div>' +
 			'<div class="f"><label for="a_s">Status</label><select id="a_s">' + opt(STATUS, a.status) + '</select></div>' +
 			'<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
 			'<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
 			'<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa" checked><span id="a_wa_t"></span></label>' +
 			'<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
 			verlaufHtml(a) +
-			(!neu ? '<p class="small muted">Erstellt von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + fmtD(a.erstellt) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
+      (!neu ? '<p class="small muted" id="a_daten">Erstellt ' + (a.erstellt_von ? 'von ' + esc(mitglied(a.erstellt_von).name) + ' ' : '') + 'am ' + esc(datumLang(a.erstellt)) + ' · zuletzt geändert am ' + esc(datumLang(a.geaendert)) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
 			'<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">In den Papierkorb</button>' : '') +
 			'<button type="button" class="btn sec" id="a_x">Abbrechen</button><button class="btn" type="submit">Speichern</button></div></form>';
 		const dlg = openDlg(true); bindEditor('a_b');
-		// Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar
+    // Breites Fenster: Verlauf rechts neben der Beschreibung (Klasse „zwei“), sonst darunter; neueste Einträge zuerst sichtbar
+    let spalten = null;
+    const zweiSpalten = () => {
+      const f = $('#af'); if (!f) return;
+      const zwei = window.innerWidth > 900 && dlg.clientWidth >= 1050;
+      if (zwei === spalten) return;
+      spalten = zwei; f.classList.toggle('zwei', zwei);
+      const vl = $('#a_vl'); if (vl) vl.scrollTop = vl.scrollHeight;
+    };
+    zweiSpalten();
+    if (window.ResizeObserver) { const ro = new ResizeObserver(zweiSpalten); ro.observe(dlg); dlg.addEventListener('close', () => ro.disconnect(), { once: true }); }
+    // Bearbeiter als Namens-Chips: × nimmt jemanden heraus, die Auswahl fügt hinzu (mindestens eine Person)
+    const neuDabei = () => bListe.filter(id => !alteBearbeiter.includes(id) && id !== D.ich.mitglied_id);
+    const bZeigen = () => {
+      $('#a_bw').innerHTML = bListe.map(id => '<span class="bchip" data-bid="' + esc(id) + '">' + av(id) + esc(mitglied(id).name) + (bListe.length > 1 ? '<button type="button" data-bweg="' + esc(id) + '" title="' + esc(mitglied(id).name) + ' herausnehmen" aria-label="' + esc(mitglied(id).name) + ' herausnehmen">×</button>' : '') + '</span>').join('') +
+        '<select id="a_badd" aria-label="Person hinzufügen"><option value="">+ Person hinzufügen …</option>' + (D.mitglieder || []).filter(p => p.status !== 'gesperrt' && !bListe.includes(p.mitglied_id)).map(p => '<option value="' + esc(p.mitglied_id) + '">' + esc(p.name) + (p.typ === 'agent' ? ' 🤖 (KI-Agent)' : '') + '</option>').join('') + '</select>';
+      $('#a_bw').querySelectorAll('[data-bweg]').forEach(b => b.onclick = () => { bListe = bListe.filter(x => x !== b.dataset.bweg); dlgGeaendert = true; bZeigen(); });
+      $('#a_badd').onchange = e => { if (e.target.value) { bListe.push(e.target.value); dlgGeaendert = true; bZeigen(); } };
+      waZeile();
+    };
+    // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar (an die erste neu hinzugekommene Person, wie die Portal-API)
 		const waZeile = () => {
-			const id = $('#a_v').value, p = mitglied(id), wird = id !== D.ich.mitglied_id && (neu || a.verantwortlich !== id) && !istKI(id);
+      const id = neuDabei().filter(x => !istKI(x))[0] || '', p = mitglied(id), wird = !!id;
 			const kann = wird && p.whatsapp_ok && waNummer(p.telefon);
 			$('#a_wa_l').style.display = wird && WA_AUTO_AKTIV ? '' : 'none';
 			$('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
 			$('#a_wa_t').innerHTML = kann ? '📲 ' + esc(p.name) + ' automatisch per WhatsApp informieren (über HermetikFlow)'
 				: '📲 Automatische WhatsApp nicht möglich: ' + esc(p.name) + (waNummer(p.telefon) ? ' hat WhatsApp-Benachrichtigungen im Profil nicht aktiviert.' : ' hat keine Handynummer eingetragen.');
 		};
-		$('#a_v').addEventListener('change', waZeile); $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; waZeile();
+    $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; bZeigen();
 		if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
 		$('#a_x').onclick = () => { if (verwerfenOk()) dlg.close(); };
 		projNeu('a_j');
@@ -1201,21 +1283,24 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			ev.preventDefault();
 			if (projOffen('a_j')) return;
 			const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-			const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, verantwortlich: $('#a_v').value, deadline: $('#a_d').value,
-				prio: Number($('#a_p').value), status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
+      if (!bListe.length) { btn.disabled = false; return toast('Bitte mindestens eine Person als Bearbeiter auswählen.'); }
+      const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, bearbeiter: bListe.slice(), verantwortlich: bListe.includes(a.verantwortlich) ? a.verantwortlich : bListe[0], deadline: $('#a_d').value,
+        prio: Number($('#a_p').value), skala: 10, status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
 				kommentar: $('#a_k') ? $('#a_k').value : '' };
 			if (!neu) daten.stand = a.geaendert || '';
 			if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
 			try {
 				const res = await api('aufgabe_speichern', daten);
-				const neuZu = daten.verantwortlich !== D.ich.mitglied_id && (neu || a.verantwortlich !== daten.verantwortlich);
-				const zp = mitglied(daten.verantwortlich), waMoeglich = WA_AUTO_AKTIV && neuZu && zp.whatsapp_ok && waNummer(zp.telefon) && !istKI(daten.verantwortlich);
+        const neuP = neuDabei(), neuMenschen = neuP.filter(x => !istKI(x)), erster = neuMenschen[0];
+        const zp = mitglied(erster), waMoeglich = WA_AUTO_AKTIV && !!erster && zp.whatsapp_ok && waNummer(zp.telefon);
 				daten.wa_auto = waMoeglich && $('#a_wa').checked;
 				const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
 		MsgsList_Global.markierungenMelden([[neu ? '' : a.beschreibung, daten.beschreibung], ['', daten.kommentar]], { art: 'Aufgabe', titel: daten.titel, hash: aid ? '#/aufgabe/' + aid : '#/tab/aufgaben' });
 				if (waMoeglich && !daten.wa_auto && aid) waApi('benachrichtigung_aus', { aufgabe_id: aid }).catch(() => toast('Die automatische WhatsApp ließ sich nicht abbestellen.'));
-				if (neuZu && istKI(daten.verantwortlich)) { dlg.close(); toast('Gespeichert. ' + mitglied(daten.verantwortlich).name + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
-				else if (neuZu) zugewiesen(daten); else { dlg.close(); toast('Gespeichert'); }
+        const kiNeu = neuP.filter(istKI);
+        if (neuMenschen.length) zugewiesen(daten, neuMenschen, kiNeu);
+        else if (kiNeu.length) { dlg.close(); toast('Gespeichert. ' + kiNeu.map(x => mitglied(x).name).join(' und ') + ' holt sich die Aufgabe beim nächsten Lauf ab.'); }
+        else { dlg.close(); toast('Gespeichert'); }
 				await laden(true);
 			} catch (e) {
 				btn.disabled = false;
@@ -1228,23 +1313,25 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function verlaufHtml(a) {
 		const V = a.aufgabe_id ? (D.verlauf || []).filter(v => v.aufgabe_id === a.aufgabe_id) : [];
 		const zeit = t => { const d = new Date(t); return isNaN(d) ? '' : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
-		return '<div class="verlauf"><h3>Verlauf & Kommentare</h3>' +
-			(V.length ? V.map(v => '<div class="vl ' + esc(v.art) + '">' + av(v.autor) + '<div class="vt"><span class="small muted">' + esc(mitglied(v.autor).name) + ' · ' + zeit(v.erstellt) + (v.art === 'bericht' ? ' · Bericht' : '') + '</span>' +
-				(v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') : '<p class="small muted">Noch nichts.</p>') +
+    return '<div class="verlauf"><h3>Verlauf & Kommentare' + (V.length > 4 ? ' <span class="small muted">(' + V.length + ', scrollt für sich)</span>' : '') + '</h3>' +
+      (V.length ? '<div class="vliste" id="a_vl">' + V.map(v => '<div class="vl ' + esc(v.art) + '">' + av(v.autor) + '<div class="vt"><span class="small muted">' + esc(mitglied(v.autor).name) + ' · ' + zeit(v.erstellt) + (v.art === 'bericht' ? ' · Bericht' : '') + '</span>' +
+        (v.art === 'status' ? '<div>' + esc(v.text) + '</div>' : '<div class="md">' + md(v.text) + '</div>') + '</div></div>').join('') + '</div>' : '<p class="small muted">Noch nichts.</p>') +
 			'<div class="f" style="margin-top:8px"><label for="a_k">Kommentar hinzufügen (wird beim Speichern mitgespeichert)</label><textarea id="a_k" rows="2" maxlength="8000" placeholder="z. B. Rückfrage, Zwischenstand, Hinweis für den Agenten …"></textarea></div></div>';
 	}
 
-	function zugewiesen(d) {
-		const p = mitglied(d.verantwortlich);
-		const text = 'Hallo ' + p.name + ', ich habe dir im Momentum Team-Portal eine Aufgabe zugewiesen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
-		const nr = waNummer(p.telefon);
-		if (d.wa_auto) { $('#dlg').close(); toast('Gespeichert. ' + p.name + ' bekommt in etwa einer Minute automatisch eine WhatsApp.'); return; }
-		if (WA_AUTO_AKTIV && p.whatsapp_ok && nr) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
-		$('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(p.name) + ' übergeben</h2>' +
-			'<p>Gespeichert. ' + (nr && WA_AUTO_AKTIV ? esc(p.name) + ' hat die automatische WhatsApp im Profil nicht aktiviert.' : '') + '</p>' +
-			(nr ? '<p class="muted">Gib ' + esc(p.name) + ' jetzt kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:14px">' + esc(text) + '</div>'
-				: '<div class="note warn" style="margin-bottom:14px">' + esc(p.name) + ' hat noch keine Handynummer eingetragen. Sag am besten kurz persönlich Bescheid.</div>') +
-			'<div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button>' + (nr ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text) + '">Per WhatsApp schicken</a>' : '') + '</div>';
+  // Nach dem Speichern: neu hinzugekommene Bearbeiter kurz informieren (je Person ein fertiger WhatsApp-Text)
+  function zugewiesen(d, ids, kiNeu) {
+    const text = p => 'Hallo ' + p.name + ', ich habe dich im Momentum Team-Portal als Bearbeiter bei einer Aufgabe eingetragen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
+    const P = ids.map(mitglied), erster = P[0];
+    if (d.wa_auto && P.length === 1) { $('#dlg').close(); toast('Gespeichert. ' + erster.name + ' bekommt in etwa einer Minute automatisch eine WhatsApp.'); return; }
+    if (WA_AUTO_AKTIV && P.length === 1 && erster.whatsapp_ok && waNummer(erster.telefon)) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
+    $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(P.map(p => p.name).join(', ')) + ' übergeben</h2>' +
+      '<p>Gespeichert.' + (kiNeu && kiNeu.length ? ' ' + esc(kiNeu.map(x => mitglied(x).name).join(' und ')) + ' holt sich die Aufgabe beim nächsten Lauf ab.' : '') + '</p>' +
+      P.map((p, i) => { const nr = waNummer(p.telefon);
+        return '<div class="zuw" style="margin-bottom:12px">' + (nr ? '<p class="muted" style="margin:0 0 6px">Gib ' + esc(p.name) + ' kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:8px">' + esc(text(p)) + '</div>' +
+          '<a class="btn wa" target="_blank" rel="noopener" data-wa="' + i + '" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text(p)) + '">Per WhatsApp an ' + esc(p.name) + '</a>'
+          : '<div class="note warn">' + esc(p.name) + ' hat noch keine Handynummer eingetragen. Sag am besten kurz persönlich Bescheid.</div>') + '</div>'; }).join('') +
+      '<div class="dlgbtns"><button class="btn sec" id="z_x">Schließen</button></div>';
 		$('#z_x').onclick = () => $('#dlg').close();
 	}
 
@@ -1310,16 +1397,19 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		for (let i = 0; i < L.length; i++) { const tb = tabelle(L, i); if (tb) { aus.push(...[tb.kopf, ...tb.zeilen].map(z => z.map(c => c.replace(/<br\s*\/?>/gi, ' ')).join(' · '))); i += tb.n - 1; } else aus.push(L[i]); }
 		return aus.join('\n');
 	};
-	const klartext = t => tabellenKlartext(t).replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  const klartext = t => tabellenKlartext(t).replace(/^[ \t]*(-{3,}|={3,}|\*{3,})[ \t]*$/gm, '').replace(/\{(?:[a-zäöüß:]+|hg:#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})|#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4}))\}|\{\/\}/g, '').replace(/\[\[([^\]]+)\]\]/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 		.replace(/[*_~=`>#]+/g, '').replace(/^\s*([-*]|\d+[.)])\s+(\[[ xX]\]\s+)?/gm, '').replace(/\s+/g, ' ').trim();
 	function md(text) {
 		const L = esc(String(text || '').replace(/\r/g, '')).split('\n');
-		let out = '', liste = null, para = [], kasten = false;
+    let out = '', liste = null, para = [], kasten = false, leer = 0;
 		const flushP = () => { if (para.length) { out += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
 		const flushL = () => { if (liste) { out += '</' + liste + '>'; liste = null; } };
 		for (let i = 0; i < L.length; i++) {
 			const l = L[i].replace(/\s+$/, '');
 			let m;
+      // Mehrere Leerzeilen hintereinander bleiben sichtbar: ab der zweiten je eine leere Zeile Abstand (nicht am Anfang)
+      if (l.trim()) { if (leer > 1 && out) out += '<div class="leerz" aria-hidden="true"></div>'.repeat(Math.min(leer - 1, 20)); leer = 0; }
+      else leer++;
 			const tb = tabelle(L, i);
 			if (tb) {
 				flushP(); flushL();
@@ -1340,6 +1430,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			if (!l.trim()) { flushP(); flushL(); continue; }
 			if ((m = /^(#{1,3})\s+(.*)$/.exec(l))) { flushP(); flushL(); const n = m[1].length + 1; out += '<h' + n + '>' + mdInline(m[2]) + '</h' + n + '>'; continue; }
 			if (/^(-{3,}|\*{3,})$/.test(l.trim())) { flushP(); flushL(); out += '<hr>'; continue; }
+      if (/^={3}$/.test(l.trim())) { flushP(); flushL(); out += '<hr class="hr-schwarz">'; continue; }
+      if (/^={4,}$/.test(l.trim())) { flushP(); flushL(); out += '<hr class="hr-dick">'; continue; }
 			if ((m = /^&gt;\s?(.*)$/.exec(l))) { flushP(); flushL(); out += '<blockquote>' + mdInline(m[1]) + '</blockquote>'; continue; }
 			if ((m = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul class="tasklist">'; liste = 'ul'; } out += '<li>' + (m[1].trim() ? '☑ ' : '☐ ') + mdInline(m[2]) + '</li>'; continue; }
 			if ((m = /^\s*[-*]\s+(.*)$/.exec(l))) { flushP(); if (liste !== 'ul') { flushL(); out += '<ul>'; liste = 'ul'; } out += '<li>' + mdInline(m[1]) + '</li>'; continue; }
@@ -1411,7 +1503,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		['==markiert==', '<mark>markiert</mark> (gelb, Schriftfarbe bleibt)'], ['{hg:blau}Text{/}', '<span class="hg" style="background:#DCEBFF">Hintergrundfarbe</span> (gelb, gruen, blau, rosa, orange, lila, rot, grau oder Farbcode wie #fe8, #ffee88 oder halbtransparent #f008)'],
 		['::: gruen Unterthema A<br>Text …<br>:::', '<span class="hg" style="background:#D5F5E3">farbiger Kasten</span> für einen ganzen Bereich, mit optionaler Überschrift'], ['{gross}Text{/} / {klein}Text{/}', '<span style="font-size:1.3em">groß</span> / <span style="font-size:.85em">klein</span>'], ['{rot}Text{/}', '<span style="color:#D9452F">Text</span> (auch rosa, orange, gelb, gruen, blau, lila, grau oder Farbcode: #f0a, #ff00aa, mit Transparenz #f008 oder #ff000088)'],
 		['[Linktext](https://…)', '<a>Linktext</a>'], ['[Ordner](\\\\Server\\Freigabe\\Ordner)', 'Link auf ein Laufwerk, einen Ordner oder eine Datei: Klick kopiert den Pfad (Browser öffnen lokale Dateien nicht selbst). C:\\Ordner\\Datei, \\\\Server\\Freigabe und file:///… werden auch ohne Klammern erkannt, Pfade mit Leerzeichen in die eckigen Klammern setzen.'], ['[[Titel einer Notiz]]', 'Link auf eine Notiz'], ['Portal-Adresse einfügen', 'Jede Notiz, Aufgabe und jedes Projekt hat „🔗 Link kopieren“. Die Adresse einfach einfügen, sie erscheint automatisch mit Titel.'], ['# Überschrift', 'große Überschrift (## kleiner, ### noch kleiner)'],
-		['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie'], ['`code`', '<code>code</code>'], ['@Vorname oder @Vorname_Nachname', 'Person markieren, z. B. @kurt oder @Anna_Müller (Leerzeichen im Namen als _): Sie bekommt beim Speichern eine Nachricht mit Link auf diese Stelle. Gibt es den Vornamen zweimal, nur mit ganzem Namen.']]
+     ['- Punkt', 'Aufzählung'], ['1. Punkt', 'nummerierte Liste'], ['- [ ] offen / - [x] erledigt', 'Checkliste'], ['| Zeile 1⟨br⟩Zeile 2 |', 'Zeilenumbruch innerhalb einer Tabellenzelle (wie bei GitHub und Obsidian)'],['| Name | Wert |<br>| --- | ---: |<br>| A | 1 |', 'Tabelle: Kopfzeile, Trennzeile und mindestens eine weitere Zeile, jede beginnt mit | und hat gleich viele Spalten (sonst bleibt es normaler Text). Ausrichtung in der Trennzeile: :--- links, :---: mittig, ---: rechts. Ein | im Zellentext als \\|'],['> Zitat', 'eingerücktes Zitat'], ['---', 'Trennlinie (dünn, grau)'], ['===', 'Trennlinie schwarz (allein in der Zeile)'], ['====', 'Trennlinie schwarz, 2 Pixel dick'], ['Leerzeile<br>Leerzeile', 'Mehrere Leerzeilen hintereinander bleiben als Abstand erhalten'], ['`code`', '<code>code</code>'], ['@Vorname oder @Vorname_Nachname', 'Person markieren, z. B. @kurt oder @Anna_Müller (Leerzeichen im Namen als _): Sie bekommt beim Speichern eine Nachricht mit Link auf diese Stelle. Gibt es den Vornamen zweimal, nur mit ganzem Namen.']]
 			.map(([a, b]) => '<tr><td><code>' + esc(a).replace(/&lt;br&gt;/g, '<br>').replace(/⟨br⟩/g, '&lt;br&gt;') + '</code></td><td>' + b + '</td></tr>').join('') +
 		'</table><p class="small muted">Tipp: Text markieren und oben auf ein Symbol klicken. Formatierter Text aus Word, LibreOffice oder Webseiten wird beim Einfügen übernommen (fett, kursiv, Farben, Links, Listen). Strg+B fett, Strg+I kursiv, Strg+K Link. Schriftarten werden bewusst nicht übernommen, damit alles einheitlich lesbar bleibt (Festbreiten-Schrift wird zu <code>code</code>).</p></div>';
 	function editorHtml(id, wert, label, opts) {
@@ -1432,12 +1524,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function bindEditor(id) {
 		const ta = $('#' + id), vor = $('#' + id + '_v'), body = $('#' + id + '_b');
 		const gespeichert = Number(ls.get('mt-edhoehe')) || 0;
-		if (gespeichert && window.innerWidth > 700) { ta.style.height = gespeichert + 'px'; ta.dataset.fix = '1'; }
+    // Höchstens so hoch, dass Textfeld und Verlauf gemeinsam ins Browserfenster passen (siehe .vliste)
+    if (gespeichert && window.innerWidth > 700) { ta.style.height = Math.min(gespeichert, edMaxHoehe()) + 'px'; ta.dataset.fix = '1'; }
 		const grow = () => {
 			if (ta.dataset.fix) return;
 			const dlg = ta.closest('dialog'), st = dlg ? dlg.scrollTop : 0, alt = ta.offsetHeight, tst = ta.scrollTop;
 			ta.style.height = 'auto';
-			const soll = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.7);
+      const soll = Math.min(Math.max(ta.scrollHeight + 4, 260), window.innerHeight * 0.45);
 			ta.style.height = Math.max(soll, alt) + 'px';
 			ta.scrollTop = tst; if (dlg) dlg.scrollTop = st;
 		};
@@ -1588,6 +1681,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	document.addEventListener('cancel', ev => {
 		if (ev.target.id === 'dlg' && dlgGeaendert) { ev.preventDefault(); toast('Ungespeicherte Änderungen: bitte „Speichern“ (Strg+S) oder „Abbrechen“ klicken.'); }
 	}, true);
+  const edMaxHoehe = () => Math.round(window.innerHeight * 0.62);
 	function openDlg(breit) {
 		dlgGeaendert = false;
 		const d = $('#dlg'); d.classList.toggle('breit', !!breit); d.classList.remove('voll'); d.style.height = '';
@@ -1602,7 +1696,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				const x0 = ev.clientX, y0 = ev.clientY, w0 = d.offsetWidth, ta = d.querySelector('.edbody textarea'), h0 = ta ? ta.offsetHeight : 0;
 				const move = e => {
 					d.style.width = Math.max(480, Math.min(window.innerWidth * 0.9, w0 + 2 * (e.clientX - x0))) + 'px';
-					if (ta) { ta.style.height = Math.max(160, h0 + (e.clientY - y0)) + 'px'; ta.dataset.fix = '1'; }
+          if (ta) { ta.style.height = Math.max(160, Math.min(edMaxHoehe(), h0 + (e.clientY - y0))) + 'px'; ta.dataset.fix = '1'; }
 				};
 				const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); ls.set('mt-dlgbreite', String(parseInt(d.style.width))); if (ta) ls.set('mt-edhoehe', String(parseInt(ta.style.height))); };
 				h.addEventListener('pointermove', move); h.addEventListener('pointerup', up);
@@ -2162,13 +2256,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function dashTeam() {
 		const A = D.aufgaben || [], offen = A.filter(a => a.status !== 'Erledigt');
 		const neu = proWoche(A, a => a.erstellt, 8), erl = proWoche(A.filter(a => a.status === 'Erledigt'), a => a.erledigt_am || (a.status === 'Erledigt' ? a.geaendert : null), 8);
-		const jePerson = {}; offen.forEach(a => { const n = mitglied(a.verantwortlich).name || 'ohne'; jePerson[n] = (jePerson[n] || 0) + 1; });
+    const jePerson = {}; offen.forEach(a => { const L = bearbeiterVon(a); (L.length ? L : ['']).forEach(id => { const n = id ? mitglied(id).name : 'ohne'; jePerson[n] = (jePerson[n] || 0) + 1; }); });
 		const jeProjekt = {}; offen.forEach(a => { const n = a.projekt || 'ohne Projekt'; jeProjekt[n] = (jeProjekt[n] || 0) + 1; });
 		const ym = new Date().toLocaleDateString('sv-SE').slice(0, 7);
 		const Z = (D.zeiten || []).filter(z => String(z.datum).slice(0, 7) === ym);
 		const std = {}; Z.forEach(z => { const n = mitglied(z.mitglied_id).name || z.mitglied_id; std[n] = (std[n] || 0) + (Number(z.minuten) || 0); });
 		const erl30 = A.filter(a => a.status === 'Erledigt' && (a.erledigt_am || a.geaendert) && (Date.now() - new Date(a.erledigt_am || a.geaendert)) < 30 * 864e5).length;
-		return '<div class="dmini">' + kpi(offen.length, 'offene Aufgaben') + kpi(offen.filter(ueberfaellig).length, 'überfällig', offen.some(ueberfaellig)) + kpi(erl30, 'erledigt (30 Tage)') + kpi(offen.filter(a => String(a.verantwortlich).startsWith('agent-')).length, 'bei KI-Agenten') + '</div>' +
+    return '<div class="dmini">' + kpi(offen.length, 'offene Aufgaben') + kpi(offen.filter(ueberfaellig).length, 'überfällig', offen.some(ueberfaellig)) + kpi(erl30, 'erledigt (30 Tage)') + kpi(offen.filter(a => bearbeiterVon(a).some(x => String(x).startsWith('agent-'))).length, 'bei KI-Agenten') + '</div>' +
 			'<div class="dgrid">' + karte('Neue Aufgaben je Woche', saeulen(neu, 'neue Aufgaben')) + karte('Erledigt je Woche', saeulen(erl, 'erledigt', true)) +
 			karte('Offen je Person', bars(Object.entries(jePerson).sort((a, b) => b[1] - a[1]))) + karte('Offen je Projekt', bars(Object.entries(jeProjekt).sort((a, b) => b[1] - a[1]).slice(0, 10), 'var(--acc2)')) +
 			karte('Stunden ' + new Date().toLocaleDateString('de-DE', { month: 'long' }), bars(Object.entries(std).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v / 6) / 10]), 'var(--teal)'), istAdmin() ? 'Alle eingetragenen Stunden des Monats.' : 'Deine eigenen Stunden; Team-Stunden sieht nur die Leitung.') + '</div>';
@@ -2641,12 +2735,14 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			'<button type="button" data-zk title="Noch nicht abgerechnetes Stundenguthaben"><small>Überstundenkonto</small><b class="' + (k.konto > 0 ? 'plus' : '') + '">' + stdPM(k.konto) + '</b></button></div>';
 	}
 
+  // Aufgaben eines Zeiteintrags: Liste aufgaben_ids, ältere Einträge nur aufgabe_id
+  const zeitAufgaben = z => z && Array.isArray(z.aufgaben_ids) && z.aufgaben_ids.length ? z.aufgaben_ids : (z && z.aufgabe_id ? [z.aufgabe_id] : []);
 	function zeitRow(z, mitName) {
-		const a = z.aufgabe_id ? D.aufgaben.find(x => x.aufgabe_id === z.aufgabe_id) : null;
+    const AL = zeitAufgaben(z).map(id => D.aufgaben.find(x => x.aufgabe_id === id)).filter(Boolean);
 		const darf = istAdmin() || (z.mitglied_id === D.ich.mitglied_id && z.status !== 'freigegeben');
 		const d = dDate(z.datum);
 		return '<div class="zt' + (darf ? ' click' : '') + '"' + (darf ? ' data-z="' + esc(z.zeit_id) + '"' : '') + '><div><b>' + (d ? d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '') + '</b><div class="small muted">' + esc(z.von) + '–' + esc(z.bis) + (z.pause_min ? ' · ' + esc(z.pause_min) + ' min Pause' : '') + '</div></div>' +
-			'<div>' + (mitName ? '<b>' + esc(mitglied(z.mitglied_id).name) + ':</b> ' : '') + esc(z.taetigkeit) + '<div class="meta">' + (a ? '<span class="chip">✓ ' + esc(a.titel) + '</span>' : '') + '<span>' + esc(z.projekt) + '</span>' + zChip(z.status) + (z.kommentar ? '<span>„' + esc(z.kommentar) + '“</span>' : '') + '</div></div>' +
+      '<div>' + (mitName ? '<b>' + esc(mitglied(z.mitglied_id).name) + ':</b> ' : '') + esc(z.taetigkeit) + '<div class="meta">' + AL.map(a => '<span class="chip">✓ ' + esc(a.titel) + '</span>').join('') + '<span>' + esc(z.projekt) + '</span>' + zChip(z.status) + (z.kommentar ? '<span>„' + esc(z.kommentar) + '“</span>' : '') + '</div></div>' +
 			'<div style="font-weight:700;white-space:nowrap">' + std(z.minuten) + '</div></div>';
 	}
 	// Vertrag und Konto als Kopfkarte (eigene Person)
@@ -2979,18 +3075,22 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const neu = !z;
 		const jetztH = new Date();
 		z = z || { datum: ymd(wkOff ? montag(wkOff) : heute()), von: '09:00', bis: String(Math.max(10, jetztH.getHours())).padStart(2, '0') + ':00', pause_min: 0, taetigkeit: '', aufgabe_id: '', projekt: '' };
-		const offeneA = D.aufgaben.filter(a => a.status !== 'Erledigt' || a.aufgabe_id === z.aufgabe_id);
-		const meineA = offeneA.filter(a => a.verantwortlich === D.ich.mitglied_id), andereA = offeneA.filter(a => a.verantwortlich !== D.ich.mitglied_id);
-		const aOpt = arr => arr.sort(sortAufgaben).map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === z.aufgabe_id ? ' selected' : '') + '>' + esc(a.titel) + '</option>').join('');
+    // Mehrere Aufgaben je Eintrag (Vorschlag Lillien, Entscheidung 21.11.2026): Die Zeit zählt einmal, die Aufgaben sind die Zuordnung.
+    const zIds = zeitAufgaben(z);
+    let zListe = zIds.length ? zIds.slice() : [''];
+    const offeneA = D.aufgaben.filter(a => a.status !== 'Erledigt' || zIds.includes(a.aufgabe_id));
+    const meineA = offeneA.filter(a => istBearbeiter(a, D.ich.mitglied_id)).sort(sortAufgaben), andereA = offeneA.filter(a => !istBearbeiter(a, D.ich.mitglied_id)).sort(sortAufgaben);
+    const aOpt = (arr, sel) => arr.map(a => '<option value="' + esc(a.aufgabe_id) + '"' + (a.aufgabe_id === sel ? ' selected' : '') + '>' + esc(a.titel) + '</option>').join('');
+    const aSelect = (sel, i) => '<select data-ta="' + i + '" aria-label="Aufgabe ' + (i + 1) + '"><option value="">' + (i ? '– Aufgabe wählen –' : '– keine bestimmte Aufgabe –') + '</option>' +
+      (meineA.length ? '<optgroup label="Meine Aufgaben">' + aOpt(meineA, sel) + '</optgroup>' : '') + (andereA.length ? '<optgroup label="Andere Aufgaben">' + aOpt(andereA, sel) + '</optgroup>' : '') + '</select>';
 		$('#dlgInner').innerHTML = '<h2>' + (neu ? 'Zeit eintragen' : 'Eintrag bearbeiten') + '</h2><form id="zeitf">' +
 			'<div class="f2"><div class="f"><label for="t_d">Datum</label><input id="t_d" type="date" required max="' + ymd(heute()) + '" value="' + esc(z.datum) + '"></div>' +
 						'<div class="f"><label for="t_p">Pause (Minuten)</label><input id="t_p" type="number" min="0" max="480" step="5" value="' + esc(z.pause_min || 0) + '"></div>' +
 			'<div class="f"><label for="t_v">Beginn</label><input id="t_v" type="time" required value="' + esc(z.von) + '"></div>' +
 			'<div class="f"><label for="t_b">Ende</label><input id="t_b" type="time" required value="' + esc(z.bis) + '"></div>' + '</div>' +
 			'<p class="small muted" id="t_sum" style="margin-top:-4px"></p>' +
-			'<div class="f"><label for="t_a">An welcher Aufgabe hast du gearbeitet? (optional)</label><select id="t_a"><option value="">– keine bestimmte Aufgabe –</option>' +
-			(meineA.length ? '<optgroup label="Meine Aufgaben">' + aOpt(meineA) + '</optgroup>' : '') + (andereA.length ? '<optgroup label="Andere Aufgaben">' + aOpt(andereA) + '</optgroup>' : '') + '</select></div>' +
-			'<label class="check" id="t_erl_w" style="margin-bottom:12px;display:none"><input type="checkbox" id="t_erl"><span>Diese Aufgabe ist damit <b>erledigt</b></span></label>' +
+      '<div class="f"><label>An welchen Aufgaben hast du gearbeitet? <span class="small muted">(optional, mehrere möglich – die Zeit zählt einmal)</span></label><div id="t_al"></div>' +
+      '<div><button type="button" class="btn ghost" id="t_plus" style="padding:4px 8px">+ Aufgabe hinzufügen</button></div></div>' +
 			'<div class="f"><label for="t_t">Was hast du gemacht?</label><textarea id="t_t" required maxlength="500" placeholder="z. B. Kundentermin vorbereitet, Lernstand-Workflow getestet">' + esc(z.taetigkeit) + '</textarea></div>' +
 			'<div class="f" id="t_j_w"><label for="t_j">Projekt</label>' + projSelect('t_j', z.projekt || 'Sonstiges') + '</div>' +
 			(z.status === 'abgelehnt' && z.kommentar ? '<div class="note warn" style="margin-bottom:10px">Timo: „' + esc(z.kommentar) + '“</div>' : '') +
@@ -3000,11 +3100,22 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			const m = t => /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null;
 			const v = m($('#t_v').value), b = m($('#t_b').value), p = Number($('#t_p').value) || 0;
 			$('#t_sum').textContent = v !== null && b !== null && b - v - p > 0 ? 'Arbeitszeit: ' + std(b - v - p) : '';
-			const aid = $('#t_a').value; const a = D.aufgaben.find(x => x.aufgabe_id === aid);
-			$('#t_erl_w').style.display = a && a.status !== 'Erledigt' ? 'flex' : 'none';
-			$('#t_j_w').style.display = a ? 'none' : '';
+      $('#t_j_w').style.display = zListe.some(Boolean) ? 'none' : '';
 		};
-		['#t_v', '#t_b', '#t_p', '#t_a'].forEach(s => $(s).addEventListener('input', upd)); upd();
+    // Aufgabenzeilen: Auswahl, „erledigt“-Haken (nur bei offenen Aufgaben), × zum Entfernen; erledigt-Haken bleiben beim Neuzeichnen erhalten
+    const erl = new Set();
+    const zeilenZeigen = () => {
+      $('#t_al').innerHTML = zListe.map((id, i) => { const a = D.aufgaben.find(x => x.aufgabe_id === id);
+        return '<div class="zaufg">' + aSelect(id, i) + (a && a.status !== 'Erledigt' ? '<label class="erl" title="Aufgabe beim Speichern auf „Erledigt“ setzen"><input type="checkbox" data-terl="' + esc(id) + '"' + (erl.has(id) ? ' checked' : '') + '>erledigt</label>' : '') +
+          (zListe.length > 1 ? '<button type="button" class="weg" data-tweg="' + i + '" title="Aufgabe entfernen" aria-label="Aufgabe ' + (i + 1) + ' entfernen">×</button>' : '') + '</div>'; }).join('');
+      $('#t_al').querySelectorAll('[data-ta]').forEach(sel => sel.onchange = () => { erl.delete(zListe[Number(sel.dataset.ta)]); zListe[Number(sel.dataset.ta)] = sel.value; zeilenZeigen(); });
+      $('#t_al').querySelectorAll('[data-terl]').forEach(c => c.onchange = () => { if (c.checked) erl.add(c.dataset.terl); else erl.delete(c.dataset.terl); });
+      $('#t_al').querySelectorAll('[data-tweg]').forEach(b => b.onclick = () => { erl.delete(zListe[Number(b.dataset.tweg)]); zListe.splice(Number(b.dataset.tweg), 1); if (!zListe.length) zListe = ['']; dlgGeaendert = true; zeilenZeigen(); });
+      $('#t_plus').style.display = zListe.length >= 10 ? 'none' : '';
+      upd();
+    };
+    $('#t_plus').onclick = () => { zListe.push(''); zeilenZeigen(); const L = $('#t_al').querySelectorAll('[data-ta]'); L[L.length - 1].focus(); };
+    ['#t_v', '#t_b', '#t_p'].forEach(s => $(s).addEventListener('input', upd)); zeilenZeigen();
 		$('#t_c').onclick = () => dlg.close();
 		projNeu('t_j');
 		if (!neu) $('#t_del').onclick = async () => {
@@ -3012,13 +3123,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			try { await api('zeit_loeschen', { zeit_id: z.zeit_id }); dlg.close(); toast('In den Papierkorb verschoben, 30 Tage wiederherstellbar'); await laden(true); } catch (e) { toast(e.message); }
 		};
 		$('#zeitf').onsubmit = async ev => {
-			ev.preventDefault(); if (!$('#t_a').value && projOffen('t_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
-			const aid = $('#t_a').value; const a = D.aufgaben.find(x => x.aufgabe_id === aid);
+      const ids = [...new Set(zListe.filter(Boolean))];
+      ev.preventDefault(); if (!ids.length && projOffen('t_j')) return; const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
+      const a = D.aufgaben.find(x => x.aufgabe_id === ids[0]);
+      const fertigA = ids.filter(id => erl.has(id)).map(id => D.aufgaben.find(x => x.aufgabe_id === id)).filter(x => x && x.status !== 'Erledigt');
 			try {
 				await api('zeit_speichern', { zeit_id: z.zeit_id, datum: $('#t_d').value, von: $('#t_v').value, bis: $('#t_b').value, pause_min: Number($('#t_p').value) || 0,
-					taetigkeit: $('#t_t').value, aufgabe_id: aid, projekt: a ? a.projekt : $('#t_j').value });
-				if (a && $('#t_erl').checked) await api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt' }));
-				dlg.close(); toast(a && $('#t_erl').checked ? 'Gespeichert und Aufgabe erledigt' : 'Gespeichert'); await laden(true);
+          taetigkeit: $('#t_t').value, aufgaben_ids: ids, aufgabe_id: ids[0] || '', projekt: a ? a.projekt : $('#t_j').value });
+        for (const x of fertigA) await api('aufgabe_speichern', Object.assign({}, x, { status: 'Erledigt' }));
+        dlg.close(); toast(fertigA.length ? 'Gespeichert, ' + (fertigA.length === 1 ? 'Aufgabe' : fertigA.length + ' Aufgaben') + ' erledigt' : 'Gespeichert'); await laden(true);
 			} catch (e) { toast(e.message); btn.disabled = false; }
 		};
 	}
@@ -3602,7 +3715,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const L = D.aufgaben.filter(a => a.projekt === 'Webseite').sort(sortAufgaben);
 		const offen = L.filter(a => a.status !== 'Erledigt');
 		$('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Webseite</h1><p class="sub"><a href="https://momentum-ki-akademie.de/" target="_blank" rel="noopener">momentum-ki-akademie.de ↗</a> · gebaut mit Lovable</p></div><button class="btn" id="neuw">+ Aufgabe für die Webseite</button></div>' +
-			'<div class="kpis">' + kpi(offen.length, 'offene Punkte') + kpi(offen.filter(a => Number(a.prio) === 1).length, 'davon Prio 1', offen.some(a => Number(a.prio) === 1)) + kpi(L.length - offen.length, 'erledigt') + '</div>' +
+      '<div class="kpis">' + kpi(offen.length, 'offene Punkte') + kpi(offen.filter(a => prioZahl(a.prio) <= 2).length, 'davon Prio 1–2', offen.some(a => prioZahl(a.prio) <= 2)) + kpi(L.length - offen.length, 'erledigt') + '</div>' +
 			'<div class="grid"><div class="card"><h2>Offene Punkte</h2>' + (offen.length ? offen.map(taskRow).join('') : '<p class="empty">Alles erledigt.</p>') + '</div>' +
 			'<div class="card"><h2>Aufbau der Seite</h2><p class="small muted">Zur Orientierung, Stand der letzten Prüfung (14.10.2026).</p><ol class="small" style="padding-left:18px;margin:0">' +
 			['Start: „Dein KI-Führerschein für die neue Arbeitswelt“ mit Fördercheck-Button', 'Rechner: Was Routinearbeit kostet', 'Warum Schulung allein nicht reicht', 'Stufenmodell „Von der Fahrschule …“', 'Der Kipppunkt', 'Montagmorgen-Szenario', 'Drei Agenten, die bleiben', 'Curriculum: 8 Module', 'Förderung (QCG, Maßnahme-ID M-26-25682-5)', 'Die drei Wege', 'Wer dahintersteht (Team)', 'Einwände', 'Fördercheck (Quiz)', 'Footer mit Kontakt, Impressum, Datenschutz'].map(x => '<li>' + esc(x) + '</li>').join('') +
@@ -3655,10 +3768,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const inFreigabe = new Set(), gesehen = new Set();
 		// 1) Freigaben aus dem Portal
 		for (const a of A) {
-			if (a.status === 'Wird getestet' && (a.erstellt_von === ich || (admin && !fdMensch(a.verantwortlich)))) {
+      if (a.status === 'Wird getestet' && (a.erstellt_von === ich || (admin && !bearbeiterVon(a).some(fdMensch)))) {
 				inFreigabe.add(a.aufgabe_id);
-				P.freigabe.push({ typ: 'test', zeit: a.geaendert, titel: a.titel, text: mitglied(a.verantwortlich).name + ' meldet „Wird getestet“', aufgabe: a });
-			} else if (a.status !== 'Erledigt' && a.verantwortlich === ich && a.erstellt_von && !fdMensch(a.erstellt_von) && (D.mitglieder || []).some(m => m.mitglied_id === a.erstellt_von)) {
+        P.freigabe.push({ typ: 'test', zeit: a.geaendert, titel: a.titel, text: bearbeiterNamen(a) + ' meldet „Wird getestet“', aufgabe: a });
+      } else if (a.status !== 'Erledigt' && istBearbeiter(a, ich) && a.erstellt_von && !fdMensch(a.erstellt_von) && (D.mitglieder || []).some(m => m.mitglied_id === a.erstellt_von)) {
 				inFreigabe.add(a.aufgabe_id);
 				const hatLink = /https?:\/\//.test(String(a.beschreibung || ''));
 				// Reine Berichte („Tagesbericht“, „Wochenbericht“ … ohne Frage oder Freigabe im Titel) nur zur Kenntnis, nicht als Freigabe
@@ -3701,13 +3814,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		for (const n of N) if ((n.geaendert_von || n.autor) !== ich && fdZeit(n.geaendert) >= grenze && fdErwaehnt(n.inhalt, ich))
 			P.erwaehnt.push({ typ: 'notiz', zeit: n.geaendert, titel: n.titel, text: 'Notiz von ' + mitglied(n.geaendert_von || n.autor).name, notiz: n });
 		// 4) Neu zugewiesen
-		for (const a of A) if (!inFreigabe.has(a.aufgabe_id) && a.verantwortlich === ich && a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.erstellt) >= seit)
+    for (const a of A) if (!inFreigabe.has(a.aufgabe_id) && istBearbeiter(a, ich) && a.erstellt_von !== ich && a.status !== 'Erledigt' && fdZeit(a.erstellt) >= seit)
 			P.neu.push({ typ: 'aufgabe', zeit: a.erstellt, titel: a.titel, text: 'von ' + mitglied(a.erstellt_von).name + (a.deadline ? ', bis ' + fmtD(a.deadline) : ''), aufgabe: a });
 		// 5) Änderungen an eigenen Aufgaben seit dem letzten Besuch (je Aufgabe zusammengefasst)
 		const proA = {};
 		for (const v of V) {
 			if (v.autor === ich || fdZeit(v.erstellt) < seit || inFreigabe.has(v.aufgabe_id) || gesehen.has(v.aufgabe_id + '|' + v.erstellt)) continue;
-			const a = aufgabe(v.aufgabe_id); if (!a || (a.verantwortlich !== ich && a.erstellt_von !== ich)) continue;
+      const a = aufgabe(v.aufgabe_id); if (!a || (!istBearbeiter(a, ich) && a.erstellt_von !== ich)) continue;
 			const x = proA[a.aufgabe_id] || (proA[a.aufgabe_id] = { zeit: v.erstellt, n: 0, letzt: v, a });
 			x.n++; if (fdZeit(v.erstellt) >= fdZeit(x.zeit)) { x.zeit = v.erstellt; x.letzt = v; }
 		}
@@ -3793,7 +3906,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			$('#dlg').close();
 			const vonAgent = x.erstellt_von && !fdMensch(x.erstellt_von) && (D.mitglieder || []).some(m => m.mitglied_id === x.erstellt_von);
 			if (x.status === 'Wird getestet') fdPruefen({ typ: 'test', titel: x.titel, aufgabe: x }, off);
-			else if (vonAgent && x.verantwortlich === D.ich.mitglied_id) fdPruefen({ typ: fdIstBericht(x.titel) ? 'bericht' : 'agent', titel: x.titel, aufgabe: x }, off);
+      else if (vonAgent && istBearbeiter(x, D.ich.mitglied_id)) fdPruefen({ typ: fdIstBericht(x.titel) ? 'bericht' : 'agent', titel: x.titel, aufgabe: x }, off);
 			else aufgabeDialog(x);
 		});
 		const fertig = async (msg, fn) => {
@@ -3818,7 +3931,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const fn = $('#fd_nein'); if (fn) fn.onclick = () => {
 			if (!pflicht()) return;
 			if (p.typ === 'agent') fertig('Änderungswunsch gesendet', k => api('kommentar', { aufgabe_id: a.aufgabe_id, text: 'Änderungswunsch: ' + k }));
-			else if (p.typ === 'test') fertig('Zurück an ' + mitglied(a.verantwortlich).name, k => api('aufgabe_speichern', Object.assign({}, a, { status: 'In Arbeit', kommentar: 'Zurück zur Überarbeitung: ' + k })));
+      else if (p.typ === 'test') fertig('Zurück an ' + bearbeiterNamen(a), k => api('aufgabe_speichern', Object.assign({}, a, { status: 'In Arbeit', kommentar: 'Zurück zur Überarbeitung: ' + k })));
 			else if (p.typ === 'run') fertig('Zurückgewiesen', k => officeApi('run_abnehmen', { run_id: r.run_id, abgenommen: false, kommentar: k }));
 			else if (p.typ === 'formal') fertig('Abgelehnt', k => officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: 'abgelehnt', begruendung: k }));
 		};
@@ -3853,7 +3966,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		if (agentAkte && istKI(agentAkte)) return vAgentAkte(agentAkte);
 		const admin = istAdmin();
 		const L = (D.mitglieder || []).slice().sort((a, b) => (a.status === 'gesperrt') - (b.status === 'gesperrt') || a.name.localeCompare(b.name));
-		const offenVon = id => D.aufgaben.filter(a => a.verantwortlich === id && a.status !== 'Erledigt').length;
+    const offenVon = id => D.aufgaben.filter(a => istBearbeiter(a, id) && a.status !== 'Erledigt').length;
 		$('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Team</h1><p class="sub">Wer bei Momentum was macht und wie ihr euch erreicht.</p></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="msgneu">✉ Nachricht schreiben</button>' + (admin ? '<button class="btn sec" id="neua">+ KI-Agent</button><button class="btn" id="neum">+ Mitglied</button>' : '') + '</div></div>' +
 			'<div class="grid">' + L.map(p => '<div class="member">' + av(p.mitglied_id) + '<div style="min-width:0;flex:1"><b>' + esc(p.name) + '</b>' + (p.mitglied_id === D.ich.mitglied_id ? ' <span class="chip">Du</span>' : '') +
 				(p.typ === 'agent' ? ' <span class="chip ki">KI-Agent</span>' : '') +
@@ -3887,11 +4000,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function vAgentAkte(id) {
 		const p = mitglied(id);
 		const akte = (D.notizen || []).find(n => n.titel.toLowerCase() === akteTitel(p).toLowerCase());
-		const A = D.aufgaben.filter(a => a.verantwortlich === id);
+    const A = D.aufgaben.filter(a => istBearbeiter(a, id));
 		const offen = A.filter(a => !['Erledigt', 'Wird getestet'].includes(a.status)).sort(sortAufgaben);
 		const pruefen = A.filter(a => a.status === 'Wird getestet');
 		const fertig = A.filter(a => a.status === 'Erledigt');
-		const geeignet = D.aufgaben.filter(a => a.agent_geeignet === true && a.status !== 'Erledigt' && !a.verantwortlich.startsWith('agent-'));
+    const geeignet = D.aufgaben.filter(a => a.agent_geeignet === true && a.status !== 'Erledigt' && !bearbeiterVon(a).some(x => String(x).startsWith('agent-')));
 		const V = (D.verlauf || []).filter(v => v.autor === id).sort((a, b) => String(b.erstellt).localeCompare(String(a.erstellt)));
 		const zuletzt = V[0] ? fmtDT(V[0].erstellt) : 'noch nie';
 		const titelVon = aid => (D.aufgaben.find(a => a.aufgabe_id === aid) || {}).titel || 'gelöschte Aufgabe';
