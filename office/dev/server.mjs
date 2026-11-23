@@ -14,6 +14,8 @@
 //   POST /api/werbung     Nachbildung von „TEAM: ChatGPT-Werbung (Portal)“ { token, daten: { tage } } mit Musterdaten; Szenario per POST /api/test/werbung {szenario}
 //   POST /api/nachrichten Nachbildung von „TEAM: Nachrichten (Portal)“ { token, aktion, daten } im Speicher; ohne Datenbank per POST /api/test/nachrichten {eingerichtet:false}
 //   POST /api/chat        Nachbildung von „TEAM: Chat (Portal)“ { token, aktion, daten } im Speicher; ohne Datenbank per POST /api/test/chat {eingerichtet:false}
+//   POST /api/chat-helfer Nachbildung von „TEAM: Chat-Helfer (Portal)“ (multipart: token, aktion transkribieren|korrigieren, text, datei), ohne OpenAI;
+//                         ohne Workflow per POST /api/test/chat-helfer {eingerichtet:false}
 //                         Bearbeiten-Frist prüfen: POST /api/test/nachrichten-alt {msg_id} bzw. /api/test/chat-alt {nachricht_id} macht die Nachricht 25 Stunden älter
 //   GET  /api/test/zustand, POST /api/test/zeit {sek}, POST /api/test/wartung, POST /api/test/neustart, POST /api/test/reset {szenario}
 import { createServer } from 'node:http';
@@ -27,6 +29,7 @@ import { vertriebDaten, vertriebAntwort, multipartLesen, diktatAntwortMock } fro
 import { werbungAntwortMock, werbungZustand, SZENARIEN as WERBUNG_SZENARIEN } from '../../werbung/dev/mock.mjs';
 import { C_MsgsDbNachbildung, msgsAntwortMock } from '../../nachrichten/dev/mock.mjs';
 import { C_ChatDbNachbildung, chatAntwortMock } from '../../chat/dev/mock.mjs';
+import { helferAntwortMock, multipartLesen as helferMultipartLesen } from '../../chat/dev/helfer-mock.mjs';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const DOCS = resolve(hier, '..', '..', 'docs');
@@ -43,6 +46,7 @@ const msgsDb = eingerichtet => new C_MsgsDbNachbildung({ eingerichtet, mitgliede
 let MSGS = msgsDb(true);
 const chatDb = eingerichtet => new C_ChatDbNachbildung({ eingerichtet, mitglieder: () => welt.speicher.T.team_mitglieder, projekte: () => welt.speicher.T.team_projekte || [], jetzt: () => new Date().toISOString() });
 let CHAT = chatDb(true);
+let HELFER_EINGERICHTET = true;   // false: Workflow „TEAM: Chat-Helfer (Portal)“ fehlt (Webhook antwortet 404)
 const WARTUNG_ALLE_SEK = 300;
 let naechsteWartung = welt.uhr.ms + WARTUNG_ALLE_SEK * 1000;
 const wartung = () => welt.speicher.aufruf({ aktion: 'wartung', intern: true });
@@ -104,6 +108,10 @@ const server = createServer(async (req, res) => {
       const [code, antwort] = werbungAntwortMock(b, welt.speicher.T.team_mitglieder, WZ, Date.now());
       return json(res, code, antwort);
     }
+	if (url.pathname === '/api/chat-helfer' && req.method === 'POST') {
+		const [code, antwort] = helferAntwortMock(helferMultipartLesen(await rohBody(req), req.headers['content-type']), welt.speicher.T.team_mitglieder, { eingerichtet: HELFER_EINGERICHTET });
+		return json(res, code, antwort);
+	}
 	if (url.pathname === '/api/chat' && req.method === 'POST') {
 		const b = await body(req);
 		const [code, antwort] = chatAntwortMock(b, welt.speicher.T.team_mitglieder, CHAT);
@@ -125,6 +133,7 @@ const server = createServer(async (req, res) => {
       if (was === 'werbung') { WZ = werbungZustand(); if (WERBUNG_SZENARIEN.includes(b.szenario)) WZ.szenario = b.szenario; return json(res, 200, { ok: true, szenario: WZ.szenario }); }
 		if (was === 'nachrichten') { MSGS = msgsDb(b.eingerichtet !== false); return json(res, 200, { ok: true, eingerichtet: MSGS.eingerichtet }); }
 		if (was === 'chat') { CHAT = chatDb(b.eingerichtet !== false); return json(res, 200, { ok: true, eingerichtet: CHAT.eingerichtet }); }
+		if (was === 'chat-helfer') { HELFER_EINGERICHTET = b.eingerichtet !== false; return json(res, 200, { ok: true, eingerichtet: HELFER_EINGERICHTET }); }
 		// Nachricht (Posteingang) oder Chat-Nachricht 25 Stunden älter machen, z. B. um die 24-Stunden-Grenze beim Bearbeiten zu prüfen
 		if (was === 'nachrichten-alt') { const m = MSGS.msgs.find(x => x.msg_id === b.msg_id); if (!m) return json(res, 404, { ok: false }); m.gesendet = new Date(Date.parse(m.gesendet) - 25 * 3600000).toISOString(); return json(res, 200, { ok: true, gesendet: m.gesendet }); }
 		if (was === 'chat-alt') { const n = CHAT.nachrichten.find(x => x.nachricht_id === Number(b.nachricht_id)); if (!n) return json(res, 404, { ok: false }); n.erstellt = new Date(Date.parse(n.erstellt) - 25 * 3600000).toISOString(); return json(res, 200, { ok: true, erstellt: n.erstellt }); }

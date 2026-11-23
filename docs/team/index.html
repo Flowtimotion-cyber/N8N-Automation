@@ -372,6 +372,9 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .wa-chat .wc-ein{border-top:1px solid var(--line);padding:10px;display:flex;gap:8px;align-items:flex-end}
 .wa-chat .wc-ein textarea{flex:1;resize:none;min-height:42px;max-height:160px;border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit}
 .wa-chat .wc-hinweis{padding:8px 12px;font-size:13px;background:#FFF4E5;color:#9A5B00;border-top:1px solid var(--line)}
+.wa-chat .ch-werk{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px 0;border-top:1px solid var(--line);font-size:13px}.wa-chat .ch-werk .check{margin:0}
+.wa-chat .ch-werk + .wc-ein{border-top:0}.wa-chat .ch-mic{min-width:44px;padding-left:10px;padding-right:10px}.wa-chat .ch-mic.rec{background:#FDECEA;border-color:#E5534B;color:#B42318}
+.wa-chat .ch-mstat{color:var(--mut)}.wa-chat .ch-mstat.ok{color:#1E7B3A}.wa-chat .ch-mstat button{border:0;background:none;color:var(--acc);cursor:pointer;font:inherit;text-decoration:underline;padding:0 2px}
 .chip.ki{background:#EDE7FC;color:#5B2BB5}.chip.mensch{background:#E9F7F0;color:#146C47}.chip.wart{background:#FDECEA;color:var(--red)}.chip.erl{background:#EEF0F3;color:#5A6170}
 .wa-zurueck{display:none}
 /* Team-Chat */
@@ -1843,7 +1846,64 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const CHAT_LISTE_TAKT_MS = 60000, CHAT_VERLAUF_TAKT_MS = 5000, CHAT_TEXT_MAX = 8000;
   // Gleicher Text wie in chat/lib/chat.js (Antwort des Servers, wenn die Datenbank fehlt)
   const CHAT_NICHT_EINGERICHTET = 'Der Team-Chat ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei chat/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
-  const CH = { liste: null, vorhanden: null, fehler: '', laedt: false, offen: null, verlauf: {}, sendet: false, q: '', listeTimer: null, verlaufTimer: null, entwurf: {} };
+  const CH = { liste: null, vorhanden: null, fehler: '', laedt: false, offen: null, verlauf: {}, sendet: false, q: '', listeTimer: null, verlaufTimer: null, entwurf: {},
+    korrRunde: {}, korrVorher: {}, mstat: {}, aufnahme: null, diktat: null };
+  // Chat-Helfer: 🎙️ Sprachnachricht → Text im Eingabefeld, Haken „KI korrigieren“ (n8n „TEAM: Chat-Helfer (Portal)“, chat/lib/helfer.js).
+  // Timo 23.11.2026: Sprachnachricht dürfen alle im Team; mit Haken korrigiert die KI beim Senden erst, zeigt die Fassung, das zweite Senden schickt.
+  const HELFER_API = 'https://n8n.hm-storage.de/webhook/team-chat-helfer';
+  const HELFER_NICHT_EINGERICHTET = 'Sprachnachricht und KI-Korrektur sind noch nicht eingerichtet (n8n-Workflow „TEAM: Chat-Helfer (Portal)“ fehlt). Bitte gib Timo Bescheid.';
+  const HELFER_AUFNAHME_MAX_SEK = 5 * 60;
+  async function helferApi(felder, datei, name) {
+    const fd = new FormData(); fd.append('token', TOKEN);
+    Object.entries(felder || {}).forEach(([k, v]) => fd.append(k, String(v)));
+    if (datei) fd.append('datei', datei, name || 'aufnahme.webm');
+    const r = await fetch(HELFER_API, { method: 'POST', body: fd });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || (r.status === 404 ? HELFER_NICHT_EINGERICHTET : 'Der Chat-Helfer ist gerade nicht erreichbar. Bitte versuch es gleich noch einmal.'));
+    return j;
+  }
+  const chKiHaken = () => { try { return ls.get('mt-chat-ki') === '1'; } catch (e) { return false; } };
+  const chMikroDa = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  // Statuszeile unter dem Haken; html nur für den festen Knopf „Rückgängig“
+  function chStatus(id, text, art, html) { CH.mstat[id] = { text: text || '', art: art || '', html: !!html }; const e = $('#ch_mstat'); if (e && CH.offen === id) chStatusZeigen(id); }
+  function chStatusZeigen(id) {
+    const e = $('#ch_mstat'); if (!e) return; const st = CH.mstat[id] || { text: '' };
+    e.className = 'ch-mstat' + (st.art ? ' ' + st.art : ''); e.innerHTML = esc(st.text) + (st.html ? ' <button type="button" id="ch_rueck">Rückgängig</button>' : '');
+    const b = $('#ch_rueck'); if (b) b.onclick = () => { const ta = $('#ch_text'); if (!ta || CH.korrVorher[id] === undefined) return; ta.value = CH.korrVorher[id]; delete CH.korrVorher[id]; ta.dispatchEvent(new Event('input')); chStatus(id, 'Dein ursprünglicher Text ist wieder da. Senden schickt ihn so.'); ta.focus(); };
+  }
+  function chMikroZeigen() {
+    const b = $('#ch_mic'); if (!b) return; const a = CH.aufnahme;
+    if (a) { const s = Math.round((Date.now() - a.start) / 1000); b.classList.add('rec'); b.textContent = '⏹ ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); b.title = 'Aufnahme beenden und als Text einfügen'; b.disabled = false; }
+    else { b.classList.remove('rec'); b.textContent = CH.diktat ? '…' : '🎙️'; b.disabled = !!CH.diktat || !chMikroDa(); b.title = chMikroDa() ? 'Sprachnachricht: einsprechen, wird als Text eingefügt' : 'Aufnahme wird in diesem Browser nicht unterstützt'; }
+  }
+  // Aufnahme starten/stoppen. Der Text landet im Eingabefeld des Chats, in dem aufgenommen wurde, gesendet wird erst mit „Senden“.
+  async function chMikro(id) {
+    if (CH.aufnahme) { if (CH.aufnahme.rec.state !== 'inactive') CH.aufnahme.rec.stop(); return; }
+    if (CH.diktat || !chMikroDa()) return;
+    let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e) { return chStatus(id, 'Kein Zugriff aufs Mikrofon. Bitte im Browser erlauben.'); }
+    const typ = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || '';
+    let rec; try { rec = new MediaRecorder(stream, typ ? { mimeType: typ } : undefined); } catch (e) { stream.getTracks().forEach(t => t.stop()); return chStatus(id, 'Die Aufnahme konnte nicht gestartet werden: ' + e.message); }
+    const teile = [];
+    CH.aufnahme = { rec, stream, start: Date.now(), chat: id, timer: setInterval(() => { chMikroZeigen(); if (CH.aufnahme && Date.now() - CH.aufnahme.start > HELFER_AUFNAHME_MAX_SEK * 1000) rec.stop(); }, 500) };
+    rec.ondataavailable = e => { if (e.data && e.data.size) teile.push(e.data); };
+    rec.onstop = async () => {
+      const a = CH.aufnahme; CH.aufnahme = null; clearInterval(a.timer); stream.getTracks().forEach(t => t.stop());
+      const dauer = Math.round((Date.now() - a.start) / 1000), mt = rec.mimeType || typ || 'audio/webm', blob = new Blob(teile, { type: mt });
+      if (blob.size < 1000 || dauer < 1) { chMikroZeigen(); return chStatus(id, 'Die Aufnahme war zu kurz.'); }
+      CH.diktat = id; chMikroZeigen(); chStatus(id, '🎙️ Wird in Text umgewandelt …');
+      try {
+        const r = await helferApi({ aktion: 'transkribieren', dauer_sek: dauer }, blob, 'sprachnachricht.' + (/mp4/.test(mt) ? 'm4a' : /ogg/.test(mt) ? 'ogg' : 'webm'));
+        const alt = CH.offen === id && $('#ch_text') ? $('#ch_text').value : (CH.entwurf[id] || '');
+        const neu = (alt.trim() ? alt.replace(/\s+$/, '') + ' ' : '') + r.text;
+        CH.entwurf[id] = neu; delete CH.korrRunde[id]; delete CH.korrVorher[id];
+        chStatus(id, '🎙️ Eingefügt. Lies kurz gegen, dann Senden.', 'ok');
+        const ta = CH.offen === id && $('#ch_text'); if (ta) { ta.value = neu; ta.dispatchEvent(new Event('input')); ta.focus(); }
+      } catch (e) { chStatus(id, e.message); }
+      finally { CH.diktat = null; chMikroZeigen(); }
+    };
+    rec.start(1000); chMikroZeigen(); chStatus(id, '⏺ Aufnahme läuft. Sprich deine Nachricht, dann ⏹ klicken (höchstens 5 Minuten).');
+  }
   async function chatApi(aktion, daten) {
     const r = await fetch(CHAT_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) });
     let j = null; try { j = await r.json(); } catch (e) {}
@@ -2016,7 +2076,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       (c.projekt ? '<details class="ch-proj"><summary>📁 Offene Aufgaben in „' + esc(c.projekt) + '“ (' + offeneA.length + ')</summary>' + (offeneA.length ? offeneA.slice(0, 8).map(a => '<button type="button" class="ch-aufg" data-a="' + esc(a.aufgabe_id) + '"><span class="chip ' + prioKl(a.prio) + '">P' + esc(a.prio) + '</span> ' + esc(a.titel) + '</button>').join('') : '<p class="small muted">Keine offenen Aufgaben.</p>') + '</details>' : '') +
       '<div class="wc-msgs" id="ch_msgs">' + (msgs || '<p class="muted" style="align-self:center">Noch keine Nachrichten.</p>') + '</div>' +
       '<div id="ch_hinw"></div>' +
-      '<form class="wc-ein" id="ch_form"><textarea id="ch_text" rows="1" maxlength="' + CHAT_TEXT_MAX + '" placeholder="Nachricht … (Enter sendet, Umschalt+Enter = neue Zeile, @Vorname markiert)">' + esc(CH.entwurf[id] || '') + '</textarea><button class="btn" type="submit" id="ch_senden">Senden</button></form>';
+      '<div class="ch-werk"><label class="check" title="Die KI korrigiert Rechtschreibung und Zeichensetzung, der Inhalt bleibt. Du siehst die Fassung, bevor sie rausgeht."><input type="checkbox" id="ch_kik"' + (chKiHaken() ? ' checked' : '') + '><span>✨ KI korrigieren</span></label><span id="ch_mstat" class="ch-mstat" aria-live="polite"></span></div>' +
+      '<form class="wc-ein" id="ch_form"><button type="button" class="btn sec ch-mic" id="ch_mic" aria-label="Sprachnachricht aufnehmen">🎙️</button><textarea id="ch_text" rows="1" maxlength="' + CHAT_TEXT_MAX + '" placeholder="Nachricht … (Enter sendet, Umschalt+Enter = neue Zeile, @Vorname markiert)">' + esc(CH.entwurf[id] || '') + '</textarea><button class="btn" type="submit" id="ch_senden">Senden</button></form>';
     const box = $('#ch_msgs'); if (box && (warUnten || !scroll)) box.scrollTop = box.scrollHeight;
     $('#ch_zur').onclick = () => { CH.offen = null; setzeHash('#/tab/chat'); $('#ch').classList.remove('offen'); chListeZeigen(); chChatZeigen(); };
     $('#ch_einst').onclick = () => chEinstellungen(c);
@@ -2035,14 +2096,36 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     };
     ta.addEventListener('input', hinweise); hinweise();
     ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('#ch_form').requestSubmit(); } });
+    chStatusZeigen(id); chMikroZeigen();
+    $('#ch_mic').onclick = () => chMikro(id);
+    $('#ch_kik').onchange = e => { try { ls.set('mt-chat-ki', e.target.checked ? '1' : ''); } catch (x) {} if (!e.target.checked) { delete CH.korrRunde[id]; chStatus(id, ''); } };
+    ta.addEventListener('input', () => { if (!ta.value.trim()) { delete CH.korrRunde[id]; delete CH.korrVorher[id]; if (CH.mstat[id] && CH.mstat[id].html) chStatus(id, ''); } });
     $('#ch_form').onsubmit = async ev => {
       ev.preventDefault();
-      const text = ta.value; if (!text.trim() || CH.sendet) return;
+      let text = ta.value; if (!text.trim() || CH.sendet) return;
+      // Haken „KI korrigieren“: erste Runde korrigiert und zeigt; ist nichts zu ändern, geht die Nachricht gleich raus
+      if ($('#ch_kik').checked && !CH.korrRunde[id]) {
+        CH.sendet = true; $('#ch_senden').disabled = true; chStatus(id, '✨ KI korrigiert …');
+        let r = null;
+        try { r = await helferApi({ aktion: 'korrigieren', text }); }
+        catch (e) { chStatus(id, e.message + ' Nicht gesendet. Haken weg oder nochmal Senden.'); CH.korrRunde[id] = true; }
+        finally { CH.sendet = false; const b = $('#ch_senden'); if (b) b.disabled = false; }
+        if (!r) return;
+        CH.korrRunde[id] = true;
+        const t2 = $('#ch_text') || ta;
+        if (r.geaendert && t2.value === text) {
+          CH.korrVorher[id] = text; t2.value = r.text; t2.dispatchEvent(new Event('input'));
+          chStatus(id, '✨ Korrigiert. Prüfen und nochmal Senden.', 'ok', true); t2.focus(); return;
+        }
+        if (r.hinweis) { chStatus(id, r.hinweis + ' Nochmal Senden schickt ihn so.'); return; }
+        chStatus(id, '✨ Nichts zu korrigieren.', 'ok');
+        text = t2.value;
+      }
       const m = chMarkiert(text, c), wa = $('#ch_wa') && $('#ch_wa').checked ? m.ids.filter(waAuto) : [];
       CH.sendet = true; $('#ch_senden').disabled = true;
       try {
         await chatApi('senden', { chat_id: id, text, erwaehnt: m.ids, whatsapp: wa });
-        CH.entwurf[id] = ''; ta.value = ''; hinweise();
+        CH.entwurf[id] = ''; ta.value = ''; hinweise(); delete CH.korrRunde[id]; delete CH.korrVorher[id]; if (!(CH.mstat[id] && /Nichts zu korrigieren/.test(CH.mstat[id].text))) chStatus(id, '');
         if (wa.length) toast(wa.map(x => mitglied(x).name).join(', ') + (wa.length > 1 ? ' bekommen' : ' bekommt') + ' in etwa einer Minute eine WhatsApp.');
         await chVerlaufLaden(id, true);
         const t2 = $('#ch_text'); if (t2) t2.focus();

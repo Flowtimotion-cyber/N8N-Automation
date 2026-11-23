@@ -21,7 +21,7 @@ async function seite(vp, name) {
   p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|Blocked script execution/.test(m.text())) fehler.push(name + ' console: ' + m.text()); });
   p.on('dialog', d => d.accept());
   const um = (muster, ziel) => p.route(muster, async r => { const res = await fetch(S.base + ziel, { method: 'POST', headers: { 'content-type': r.request().headers()['content-type'] || 'text/plain' }, body: r.request().postDataBuffer() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
-  await um(/webhook\/team-api-v2/, '/api/team'); await um(/webhook\/team-vertrieb/, '/api/vertrieb'); await um(/webhook\/team-diktat/, '/api/diktat');
+  await um(/webhook\/team-api-v2/, '/api/team'); await um(/webhook\/team-vertrieb/, '/api/vertrieb'); await um(/webhook\/team-diktat/, '/api/diktat'); await um(/webhook\/team-msgs/, '/api/nachrichten'); await um(/webhook\/team-chat$/, '/api/chat');  // Posteingang und Chat lädt das Portal beim Start
   return p;
 }
 const text = async (p, sel) => (await p.locator(sel).first().textContent()) || '';
