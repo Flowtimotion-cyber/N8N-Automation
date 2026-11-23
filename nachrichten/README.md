@@ -30,6 +30,29 @@ Schreibt jemand in einem Text `@Vorname`, z. B. `@kurt`, bekommt diese Person be
 - **„Für dich“** (Übersicht, „Du wurdest erwähnt“) nutzt dieselben Regeln.
 - **Wo das steckt:** in der Klasse `C_MsgsList_Global` in `docs/team/index.html`: `kennungen(m)`, `markierungen(text)`, `markierte(text)` und `markierungenMelden(paare, ort)`. Der Versand läuft über den normalen Nachrichtendienst; n8n und Supabase bleiben unverändert.
 
+## Nachrichten bearbeiten (Posteingang und Team-Chat)
+
+Timos Entscheidungen vom 23.11.2026:
+
+- **Wer:** nur wer die Nachricht geschrieben hat. Nachrichten des Portals (ohne Absender) und Hinweise im Chat kann niemand bearbeiten.
+- **Wie lange:** bis **24 Stunden** nach dem Senden. Danach verschwindet der Knopf, und die Datenbank lehnt ab.
+- **Was die anderen sehen:** „bearbeitet“ mit Zeitpunkt (im Chat unter der Nachricht, im Posteingang in der Liste und im Lesedialog). Der Lesestand bleibt; eine bearbeitete Nachricht wird nicht wieder ungelesen.
+- **Alte Fassung:** bleibt in der Tabelle `team_nachricht_fassungen` gespeichert (eine Zeile je Bearbeitung, Text vor der Änderung). Im Portal wird sie nicht gezeigt.
+- **@-Markierungen im Chat:** Kommt beim Bearbeiten jemand neu dazu, bekommt nur diese Person einen Hinweis im Posteingang („… in einer bearbeiteten Nachricht“). Wer schon einmal markiert war, auch in einer früheren Fassung, bekommt nichts. Beim Bearbeiten nie eine WhatsApp. Im Posteingang lösen @-Namen wie bisher nichts aus.
+
+**Wo man bearbeitet:**
+- **Chat:** an der eigenen Nachricht das kleine **✎** neben der Uhrzeit.
+- **Posteingang:** oben im Posteingang der Reiter **📤 Gesendet** (auch im Register „Team“ neben „✉ Nachricht schreiben“), Nachricht öffnen, **✎ Bearbeiten**. Dort steht auch, wer die Nachricht wann zuerst geöffnet hat. Nachrichten an sich selbst lassen sich auch direkt im Lesedialog bearbeiten.
+
+**Technik:** `supabase/team_bearbeiten.sql` (neue Spalte `bearbeitet` in `team_msgs` und `team_chat_nachrichten`, Tabelle `team_nachricht_fassungen`, Funktionen `team_msgs_gesendet`, `team_msgs_bearbeiten`, `team_chat_bearbeiten`; `team_chat_verlauf` liefert zusätzlich `bearbeitete`, damit alle die Änderung beim Nachladen sehen). Neue Aktionen im Server: `gesendet` und `bearbeiten` (Nachrichten), `bearbeiten` (Chat). Alles rückwärtsverträglich: Alte Portal-Fassung, Team-App und n8n laufen ohne Änderung weiter.
+
+**Einspielen (Reihenfolge egal, bis alles da ist, meldet „Bearbeiten“ verständlich, dass es noch fehlt):**
+1. **Timo:** `supabase/team_bearbeiten.sql` im Supabase SQL Editor ausführen. Die Kontrollabfrage am Ende zeigt zweimal `bearbeitet` und `team_nachricht_fassungen`.
+2. **n8n nach Timos Ja:** `nachrichten/n8n/deploy/bearbeiten-deploy.json` (gebaut mit `node nachrichten/n8n/bauen-deploy-bearbeiten.mjs`). Ändert in „TEAM: Nachrichten (Portal)“ und „TEAM: Chat (Portal)“ nur den Code von „Anfrage prüfen“ und „Antwort bauen“. Abgleich und Schritte stehen in der Datei („anleitung“). Achtung: Im Nachrichten-Workflow lag am 23.11.2026 ein unveröffentlichter Entwurf über der Live-Version.
+3. **PR mergen**, GitHub Pages liefert die Oberfläche aus.
+
+**Tests:** `nachrichten/test/nachrichten.test.mjs` (Logik, Nachbildung, Deploy-Datei), `nachrichten/test/sql-bearbeiten.test.mjs` (SQL gegen echtes Postgres, mit `PGLITE_PFAD`, siehe `chat/README.md`), `nachrichten/test/bearbeiten.browser.test.mjs` (Chat und Posteingang, Desktop und Handy, 24-Stunden-Grenze). Bildschirmfotos: `nachrichten/screenshots/*bearbeit*.png`, `desktop-gesendet.png`.
+
 ## Aufbau
 
 | Ebene | Datenbank | Im Portal |
@@ -69,7 +92,7 @@ POST https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/rpc/team_msgs_senden
 | `nachrichten/lib/nachrichten.js` | Logik des Servers: Anfragen prüfen, Antworten der Datenbank auswerten. Läuft in n8n und im Test. |
 | `nachrichten/n8n/bauen-nachrichten.mjs` | baut `nachrichten/n8n/nachrichten.workflow.gen.js` (n8n-SDK-Datei für den Import per n8n-MCP) |
 | `nachrichten/dev/mock.mjs` | Nachbildung der SQL-Funktionen im Speicher, für Testserver (`/api/nachrichten`) und Tests |
-| `nachrichten/test/` | 9 Logik-Tests, 4 Browsertests (Desktop und Handy) |
+| `nachrichten/test/` | Logik-Tests, SQL-Test „Bearbeiten“ (PGlite), Browsertests (Desktop und Handy) |
 | `nachrichten/screenshots/` | Bildschirmfotos aus den Browsertests |
 
 ## Tests
