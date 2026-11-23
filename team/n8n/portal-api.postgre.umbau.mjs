@@ -67,13 +67,14 @@ export function umbau(wf, { dbCode }) {
 		postgres('In Datenbank schreiben', '={{ $json.sql }}', http.position, { onError: 'continueRegularOutput', options: { queryReplacement: '={{ $json.params }}' } }));
 	umbenennen(wf, 'In Supabase schreiben', 'In Datenbank schreiben');
 
-	wf.nodes.find(n => n.name === 'Ergebnis prüfen').parameters.jsCode = `// Prüft, ob alle Schreibaufträge geklappt haben (Postgres-Knoten: Fehler kommen als { error })
+	wf.nodes.find(n => n.name === 'Ergebnis prüfen').parameters.jsCode = `// Prüft, ob alle Schreibaufträge geklappt haben (Postgres-Knoten mit „continueRegularOutput“:
+// Fehler kommen als { message, error }; message ist die Meldung von PostgreSQL, error.description oft nur die Zeile)
 const res = $input.all().map(i => i.json);
 const fehler = res.filter(r => r && r.error);
 const p = $('Anfrage prüfen').first().json;
 if (fehler.length) {
-	const e = fehler[0].error;
-	return [{ json: { ok: false, fehler: 'Speichern hat nicht geklappt: ' + String((e && (e.message || e.description)) || e).slice(0, 300) } }];
+	const f = fehler[0], e = f.error;
+	return [{ json: { ok: false, fehler: 'Speichern hat nicht geklappt: ' + String(f.message || (e && (e.message || e.description)) || e).slice(0, 300) } }];
 }
 return [{ json: { ok: true, id: p.id || '' } }];
 `;
