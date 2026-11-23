@@ -442,8 +442,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const personOpts = sel => (D.mitglieder || []).filter(p => p.status !== 'gesperrt').map(p => '<option value="' + esc(p.mitglied_id) + '"' + (p.mitglied_id === sel ? ' selected' : '') + '>' + esc(p.name) + (p.typ === 'agent' ? ' 🤖 (KI-Agent)' : '') + '</option>').join('');
   const saveF = () => ls.set('mt-filter', JSON.stringify(F));
   const waNummer = t => String(t || '').replace(/[^\d]/g, '');
-  // Automatische Aufgaben-WhatsApp (HermetikFlow): erst einschalten, wenn Meta den Vorlagenversand freigibt (Zahlungsmethode). Bis dahin manueller Weg.
-  const WA_AUTO_AKTIV = false;
+  // Automatische WhatsApp bei neuer Zuweisung: seit 23.11.2026 an (Vorlage neue_aufgabe im WhatsApp-Konto der Absendernummer freigegeben, Testversand ok)
+  const WA_AUTO_AKTIV = true;
+  // Bekommt diese Person die automatische WhatsApp? Mensch, Handynummer, Einwilligung im Profil (wie kom_benachrichtigungen_holen in Supabase)
+  const waAuto = id => { const p = mitglied(id); return !istKI(id) && p.whatsapp_ok === true && waNummer(p.telefon).length >= 8; };
 
   async function api(aktion, daten) {
     // Prio-Skala 1–10: Die Portal-API rechnet Angaben ohne „skala“ als alte Skala 1–3 um
@@ -1251,14 +1253,16 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       $('#a_badd').onchange = e => { if (e.target.value) { bListe.push(e.target.value); dlgGeaendert = true; bZeigen(); } };
       waZeile();
     };
-    // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar (an die erste neu hinzugekommene Person, wie die Portal-API)
+    // Automatische WhatsApp (HermetikFlow) bei neuer Zuweisung – abwählbar. Die Datenbank schickt sie jeder neu hinzugekommenen
+    // Person mit Handynummer und WhatsApp-Einwilligung (Warteschlange kom_benachrichtigungen, n8n „KOM: WhatsApp an Team bei neuer Aufgabe“).
+    const namen = ids => ids.map(x => mitglied(x).name).join(', ').replace(/, ([^,]*)$/, ' und $1');
     const waZeile = () => {
-      const id = neuDabei().filter(x => !istKI(x))[0] || '', p = mitglied(id), wird = !!id;
-      const kann = wird && p.whatsapp_ok && waNummer(p.telefon);
-      $('#a_wa_l').style.display = wird && WA_AUTO_AKTIV ? '' : 'none';
+      const neuM = neuDabei().filter(x => !istKI(x)), mitWa = neuM.filter(waAuto), ohne = neuM.filter(x => !waAuto(x));
+      $('#a_wa_l').style.display = neuM.length && WA_AUTO_AKTIV ? '' : 'none';
+      const kann = mitWa.length > 0;
       $('#a_wa').disabled = !kann; if (!kann) $('#a_wa').checked = false; else if ($('#a_wa').dataset.angefasst !== '1') $('#a_wa').checked = true;
-      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(p.name) + ' automatisch per WhatsApp informieren (über HermetikFlow)'
-        : '📲 Automatische WhatsApp nicht möglich: ' + esc(p.name) + (waNummer(p.telefon) ? ' hat WhatsApp-Benachrichtigungen im Profil nicht aktiviert.' : ' hat keine Handynummer eingetragen.');
+      $('#a_wa_t').innerHTML = kann ? '📲 ' + esc(namen(mitWa)) + ' automatisch per WhatsApp informieren (über HermetikFlow)' + (ohne.length ? ' · ' + esc(namen(ohne)) + ' ohne WhatsApp-Einwilligung im Profil' : '')
+        : '📲 Automatische WhatsApp nicht möglich: ' + esc(namen(ohne)) + (ohne.length > 1 ? ' haben' : ' hat') + ' keine Handynummer oder WhatsApp-Benachrichtigungen im Profil nicht aktiviert.';
     };
     $('#a_wa').onchange = () => { $('#a_wa').dataset.angefasst = '1'; }; bZeigen();
     if (!neu) dialogAdresse('#/aufgabe/' + a.aufgabe_id, a.titel);
@@ -1281,8 +1285,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
       try {
         const res = await api('aufgabe_speichern', daten);
-        const neuP = neuDabei(), neuMenschen = neuP.filter(x => !istKI(x)), erster = neuMenschen[0];
-        const zp = mitglied(erster), waMoeglich = WA_AUTO_AKTIV && !!erster && zp.whatsapp_ok && waNummer(zp.telefon);
+        const neuP = neuDabei(), neuMenschen = neuP.filter(x => !istKI(x));
+        const waMoeglich = WA_AUTO_AKTIV && neuMenschen.some(waAuto);
         daten.wa_auto = waMoeglich && $('#a_wa').checked;
         const aid = daten.aufgabe_id || (res && (res.id || res.aufgabe_id));
 		MsgsList_Global.markierungenMelden([[neu ? '' : a.beschreibung, daten.beschreibung], ['', daten.kommentar]], { art: 'Aufgabe', titel: daten.titel, hash: aid ? '#/aufgabe/' + aid : '#/tab/aufgaben' });
@@ -1312,11 +1316,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   // Nach dem Speichern: neu hinzugekommene Bearbeiter kurz informieren (je Person ein fertiger WhatsApp-Text)
   function zugewiesen(d, ids, kiNeu) {
     const text = p => 'Hallo ' + p.name + ', ich habe dich im Momentum Team-Portal als Bearbeiter bei einer Aufgabe eingetragen: „' + d.titel + '“ (Prio ' + d.prio + (d.deadline ? ', bis ' + fmtD(d.deadline) : '') + '). Hier geht’s zum Portal: ' + PORTAL;
-    const P = ids.map(mitglied), erster = P[0];
-    if (d.wa_auto && P.length === 1) { $('#dlg').close(); toast('Gespeichert. ' + erster.name + ' bekommt in etwa einer Minute automatisch eine WhatsApp.'); return; }
-    if (WA_AUTO_AKTIV && P.length === 1 && erster.whatsapp_ok && waNummer(erster.telefon)) { $('#dlg').close(); toast('Gespeichert, ohne WhatsApp.'); return; }
+    // Wer die automatische WhatsApp bekommt, braucht keinen fertigen Text mehr (sonst käme die Nachricht doppelt)
+    const auto = WA_AUTO_AKTIV ? ids.filter(waAuto) : [], rest = ids.filter(x => !auto.includes(x));
+    const nm = L => L.map(x => mitglied(x).name).join(', ').replace(/, ([^,]*)$/, ' und $1');
+    const kiText = kiNeu && kiNeu.length ? ' ' + nm(kiNeu) + ' holt sich die Aufgabe beim nächsten Lauf ab.' : '';
+    const autoText = auto.length ? (d.wa_auto ? ' ' + nm(auto) + (auto.length > 1 ? ' bekommen' : ' bekommt') + ' in etwa einer Minute automatisch eine WhatsApp.' : ' Ohne WhatsApp an ' + nm(auto) + '.') : '';
+    if (!rest.length) { $('#dlg').close(); toast('Gespeichert.' + autoText + kiText); return; }
+    const P = rest.map(mitglied);
     $('#dlgInner').innerHTML = '<h2>Aufgabe an ' + esc(P.map(p => p.name).join(', ')) + ' übergeben</h2>' +
-      '<p>Gespeichert.' + (kiNeu && kiNeu.length ? ' ' + esc(kiNeu.map(x => mitglied(x).name).join(' und ')) + ' holt sich die Aufgabe beim nächsten Lauf ab.' : '') + '</p>' +
+      '<p>Gespeichert.' + esc(autoText + kiText) + '</p>' +
       P.map((p, i) => { const nr = waNummer(p.telefon);
         return '<div class="zuw" style="margin-bottom:12px">' + (nr ? '<p class="muted" style="margin:0 0 6px">Gib ' + esc(p.name) + ' kurz per WhatsApp Bescheid. Der Text ist schon fertig:</p><div class="note" style="margin-bottom:8px">' + esc(text(p)) + '</div>' +
           '<a class="btn wa" target="_blank" rel="noopener" data-wa="' + i + '" href="https://wa.me/' + nr + '?text=' + encodeURIComponent(text(p)) + '">Per WhatsApp an ' + esc(p.name) + '</a>'
