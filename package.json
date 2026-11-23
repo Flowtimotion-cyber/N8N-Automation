@@ -24,6 +24,7 @@
     "test:nachrichten": "node --test \"nachrichten/test/*.test.mjs\"",
     "nachrichten:bauen": "node nachrichten/n8n/bauen-nachrichten.mjs",
     "werbung:bauen": "node werbung/n8n/bauen-werbung.mjs",
-    "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs"
+    "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs",
+    "test:chat": "node --test \"chat/test/*.test.mjs\""
   }
 }
