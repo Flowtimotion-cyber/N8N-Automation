@@ -191,6 +191,60 @@ test('PC-Ton mit „Mikro aus“: nur Ton vom Computer, kein Mikrofonzugriff', a
   await p.close();
 });
 
+test('Mikro während der Aufnahme aus- und wieder einschalten (auch nach Start mit „Mikro aus“)', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Mikro umschalten'); await p.addInitScript(PC_STUB);
+  await p.addInitScript(() => { window.__gum = 0; window.__micStroeme = []; const o = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = async c => { window.__gum++; const st = await o(c); window.__micStroeme.push(st); return st; }; window.__vdStueckSek = 60; });
+  await dialogOeffnen(p, TOKENS.m_murat);
+  assert.equal(await p.locator('#vd_mikro').isHidden(), true, 'Knopf erst während der Aufnahme');
+  await p.locator('#vd_rec').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_mikro').hidden, null, { timeout: 5000 });
+  assert.match(await text(p, '#vd_mikro'), /Mikro aus/); assert.equal(await p.locator('#vd_pegel').isVisible(), true);
+  await p.locator('#vd_mikro').click(); await p.waitForTimeout(300);
+  assert.equal(await p.evaluate(() => window.__micStroeme[0].getAudioTracks().every(t => !t.enabled)), true, 'Mikrofonspur stumm');
+  assert.match(await text(p, '#vd_mikro'), /Mikro an/); assert.equal(await p.locator('#vd_pegel').isHidden(), true); assert.match(await text(p, '#vd_status'), /Mikro aus/);
+  await shot(p, 'vertrieb-diktat-mikro-umschalten', DESKTOP);
+  await p.locator('#vd_mikro').click(); await p.waitForTimeout(300);
+  assert.equal(await p.evaluate(() => window.__micStroeme[0].getAudioTracks().every(t => t.enabled)), true, 'Mikrofonspur wieder an');
+  assert.equal(await p.locator('#vd_pegel').isVisible(), true);
+  await p.waitForTimeout(2000); await p.locator('#vd_stop').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
+  assert.equal(await p.locator('#vd_mikro').isHidden(), true, 'Knopf nach Stopp weg');
+  await p.locator('#vd_weg').click();
+  // Start mit „Mikro aus“, später dazuschalten
+  await p.locator('#vd_ohnemikro').check(); const vorher = await p.evaluate(() => window.__gum);
+  await p.locator('#vd_rec').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_mikro').hidden, null, { timeout: 5000 });
+  assert.equal(await p.evaluate(() => window.__gum), vorher, 'kein Mikrofon beim Start');
+  assert.match(await text(p, '#vd_mikro'), /Mikro an/);
+  await p.locator('#vd_mikro').click();
+  await p.waitForFunction(n => window.__gum === n + 1, vorher, { timeout: 5000 });
+  await p.waitForFunction(() => !document.querySelector('#vd_pegel').hidden, null, { timeout: 5000 });
+  assert.match(await text(p, '#vd_mikro'), /Mikro aus/);
+  await p.waitForTimeout(2000); await p.locator('#vd_stop').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
+  assert.equal(await p.evaluate(() => window.__micStroeme[window.__micStroeme.length - 1].getTracks().every(t => t.readyState === 'ended')), true, 'nachträgliches Mikrofon nach Stopp beendet');
+  await p.close();
+});
+
+for (const vp of [DESKTOP, MOBIL]) {
+  const n = vp.width > 600 ? 'Desktop' : 'Mobil';
+  test(n + ': Jedes Fenster hat einen sichtbaren Schließen-Knopf (✕), am Handy groß genug', async t => {
+    if (!B) return t.skip();
+    const p = await seite(vp, n + ' Schließen');
+    await dialogOeffnen(p, TOKENS.m_murat);
+    const x = p.locator('#dlg > .dlg-zu');
+    assert.equal(await x.isVisible(), true, '✕ sichtbar');
+    const box = await x.boundingBox(); assert.ok(box.width >= (vp.width > 600 ? 36 : 44) - 1, 'Größe ' + box.width);
+    await p.evaluate(() => { const i = document.querySelector('#dlg .dlg'); if (i) i.scrollTop = i.scrollHeight; });
+    assert.equal(await x.isVisible(), true, '✕ bleibt beim Scrollen sichtbar');
+    await shot(p, 'vertrieb-dialog-schliessen', vp);
+    await x.click(); await p.waitForTimeout(300);
+    assert.equal(await p.evaluate(() => document.querySelector('#dlg').open), false, 'Fenster geschlossen');
+    await p.close();
+  });
+}
+
 test('Auffrischen alle 2 Minuten pausiert während der Aufnahme (Aufnahme läuft weiter)', async t => {
   if (!B) return t.skip();
   const p = await seite(DESKTOP, 'Auffrischen'); await p.clock.install(); await p.addInitScript(PC_STUB);
