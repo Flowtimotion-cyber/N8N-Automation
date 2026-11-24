@@ -183,3 +183,16 @@ Timos Entscheidung (24.11.2026): Im Diktat ist „PC-Ton mit aufnehmen“ **stan
 | Keine Speicherung von Audio | Art. 5 | ja | ✅ unverändert: Stücke (je ca. 4 Min.) werden nur durchgereicht, das Bild der Bildschirmfreigabe wird nie aufgenommen | `vertrieb/lib/diktat.js` | wie oben (`EXECUTIONS_DATA_MAX_AGE`) | Timo |
 
 Keine Rechtsberatung; Einordnung als Arbeitshilfe.
+
+## Ergänzung 24.11.2026 (2): Ablage aller Diktate und Haken „KI darf lesen“
+
+Timos Wunsch (24.11.2026): Alle Aufnahmen erscheinen unter „Letzte Diktate“, der ganze Text ist abrufbar, und die KI darf eine Aufnahme lesen, wenn der Haken gesetzt ist.
+
+| Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | Offener Punkt | Verantwortlich |
+|---|---|---|---|---|---|---|
+| Speicherung von Gesprächsinhalten | Art. 5 Abs. 1 lit. c, e; Art. 6 | ja | 🔶 Text (bereinigt + roh) und Zusammenfassung in Supabase `team_diktate`, **kein Audio**; nur die aufnehmende Person sieht ihre Aufnahmen (auch Admins nicht fremde) | `supabase/team_diktate.sql`, `diktatDbAnfrage` (Filter mitglied_id), Tests | Löschfrist festlegen (Vorschlag: nach 12 Monaten automatisch leeren) | Timo |
+| Löschen auf Wunsch | Art. 17 | ja | ✅ „Löschen“ im Portal leert Text, Rohtranskript, Zusammenfassung sofort; Zeile bleibt nur als Markierung | `diktatDbAnfrage` (loeschen), Browsertest | In Twenty gespeicherte Aktivität separat löschen | Team |
+| KI-Zugriff nur mit Freigabe | Art. 5, 25 | ja | ✅ Standard aus; Haken „KI darf lesen“ je Aufnahme (vor der Aufnahme oder später in der Liste); KI liest nur die Sicht `team_diktate_ki` (service_role) | `supabase/team_diktate.sql` | Welche KI die Sicht nutzt, festlegen | Timo |
+| Twenty-Notizen über 50.000 Zeichen | – | ja | ✅ gekürzt mit Hinweis, ganzer Text bleibt in der Ablage | `twentyText` im Portal | – | – |
+
+Keine Rechtsberatung; Einordnung als Arbeitshilfe.

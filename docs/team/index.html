@@ -2355,6 +2355,19 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   // Daten liegen in Twenty (twenty.hm-storage.de); das Portal ist nur die Oberfläche. Schnittstelle: n8n „TEAM: Vertrieb-Pipeline (Twenty)“.
   const VERTRIEB_API = API.replace('team-api-v2', 'team-vertrieb');
   const DIKTAT_API = API.replace('team-api-v2', 'team-diktat');   // n8n-Workflow „TEAM: Diktat“ (vertrieb/n8n/)
+  // Gespeicherte Diktate (Supabase team_diktate über „TEAM: Diktat“): liste, lesen, ki, zuordnen, loeschen
+  async function dkApi(aktion, felder) {
+    const fd = new FormData(); fd.append('token', TOKEN); fd.append('aktion', aktion);
+    Object.entries(felder || {}).forEach(([k, v]) => fd.append(k, v == null ? '' : String(v)));
+    const r = await fetch(DIKTAT_API, { method: 'POST', body: fd });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die gespeicherten Diktate sind gerade nicht erreichbar.');
+    return j;
+  }
+  const dkDownload = (name, text) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+  const dkDateiname = (titel, zeit) => ('Transkript ' + (zeit ? new Date(zeit) : new Date()).toISOString().slice(0, 16).replace('T', ' ').replace(':', '-') + ' ' + String(titel || '').replace(/[^\p{L}\p{N} ._-]+/gu, ' ').replace(/\s+/g, ' ').trim()).slice(0, 90).trim() + '.txt';
+  // Twenty nimmt höchstens 50.000 Zeichen je Notiz; längere Mitschnitte gekürzt, der ganze Text bleibt unter „Letzte Diktate“
+  const twentyText = t => t.length > 48000 ? t.slice(0, 47000) + '\n\n… (gekürzt: Twenty speichert höchstens 50.000 Zeichen. Der ganze Text steht im Portal unter „Diktat“ → „Letzte Diktate“.)' : t;
   const TWENTY = 'https://twenty.hm-storage.de';
   const VSTUFEN = [['NEW', '(Noch) kein Termin gebucht', '#9CA3AF'], ['ERSTKONTAKT', 'Fokus Erstkontakt', '#5B6EE6'], ['PITCH', 'Pitch auf KI Flow', '#38BDF8'], ['TIMO_CALL', 'Timo Call', '#7B3FE4'],
     ['UNGUELTIG', 'Ungültiger Kontakt', '#D9452F'], ['NICHT_ERREICHBAR', 'Nicht erreichbar', '#E98A15'], ['SPAETER', 'Später nochmal melden', '#EAB308'], ['NICHT_INTERESSIERT', 'Nicht interessiert', '#D9452F'],
@@ -2596,8 +2609,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const pcTonMoeglich = () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder && (window.AudioContext || window.webkitAudioContext)) &&
     /Chrome\/|Edg\//.test(navigator.userAgent) && !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
   // Lange Aufnahmen gehen in Stücken an n8n: Die Spracherkennung liefert pro Datei höchstens ca. 8–10 Minuten Text (siehe vertrieb/lib/diktat.js).
-  // 4 Minuten lassen Luft, falls Chrome den Zeitgeber im Hintergrund-Tab bremst. window.__vdStueckSek nur für Tests.
-  const VD_STUECK_SEK = () => Number(window.__vdStueckSek) || 4 * 60;
+  // 1 Minute: Die Modelle hören bei längeren Stücken teils vorzeitig auf (Timo 24.11.2026: Text brach nach ~1 Min. ab); so geht höchstens
+  // ein kleiner Rest eines Stücks verloren. Bremst Chrome den Zeitgeber im Hintergrund-Tab, wird ein Stück etwas länger. window.__vdStueckSek nur für Tests.
+  const VD_STUECK_SEK = () => Number(window.__vdStueckSek) || 60;
   const VD_MAX_SEK = 4 * 60 * 60;
   function diktatBox() {
     const pc = pcTonMoeglich(), desktop = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
@@ -2606,14 +2620,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<span class="vd-pegelbox" id="vd_pegelbox" hidden><span class="vd-pl" title="Mikrofon">🎙️ Du</span><canvas class="pegel" id="vd_pegel" hidden aria-hidden="true" title="Pegel Mikrofon: schlägt aus, wenn du sprichst"></canvas><span class="vd-pl" id="vd_pegel_pc_l" hidden title="Ton vom Computer">🖥️ PC</span><canvas class="pegel" id="vd_pegel_pc" hidden aria-hidden="true" title="Pegel PC-Ton: schlägt aus, wenn im Meeting oder Video jemand spricht"></canvas></span>' +
       '<button type="button" class="btn sec" id="vd_wahl">Audiodatei wählen</button><input type="file" id="vd_datei" accept="audio/*,video/webm,video/mp4" hidden>' +
       (pc ? '<label class="check small" style="margin:0" id="vd_pc_l" title="Nimmt zusätzlich zum Mikrofon den Ton vom Computer auf: Zoom, Meeting-Portale, Workshops, YouTube"><input type="checkbox" id="vd_pc" checked><span>🖥️ PC-Ton mit aufnehmen</span></label>' : '') +
-      '<label class="check small" style="margin:0" id="vd_mit_l" title="Mitschnitte von Gesprächen nur mit Einwilligung aller Beteiligten (§ 201 StGB)"><input type="checkbox" id="vd_mit"><span>Gesprächsmitschnitt, alle Beteiligten haben zugestimmt</span></label></div>' +
+      '<label class="check small" style="margin:0" id="vd_ki_l" title="Jede Aufnahme wird als Text gespeichert (Letzte Diktate, nur für dich sichtbar). Mit Haken darf die KI sie lesen."><input type="checkbox" id="vd_ki"><span>🤖 KI darf lesen</span></label>' +
+      '<label class="check small" style="margin:0" id="vd_mit_l" title=""Mitschnitte von Gesprächen nur mit Einwilligung aller Beteiligten (§ 201 StGB)"><input type="checkbox" id="vd_mit"><span>Gesprächsmitschnitt, alle Beteiligten haben zugestimmt</span></label></div>' +
       (pc ? '<div class="vd-pc small" id="vd_pc_hinweis">🖥️ <b>Mit PC-Ton:</b> Nach „Aufnehmen“ fragt Chrome, was du teilen willst. Meeting oder Video im Browser: den <b>Tab</b> wählen und „Tab-Audio teilen“ anlassen. Zoom-App: „<b>Ganzer Bildschirm</b>“ und „Systemaudio teilen“ einschalten. Gespeichert wird nur der Ton. Am Balken „PC“ siehst du, ob der Ton ankommt. <span class="muted">Mitschnitte nur mit Einverständnis aller; YouTube und Workshops nur für den internen Gebrauch.</span></div>'
         : desktop ? '<div class="small muted" style="margin-top:4px">PC-Ton (Zoom, YouTube) mit aufnehmen geht nur in Chrome oder Edge am Computer.</div>' : '') +
       '<div class="vd-zoom small" id="vd_zoom" hidden>🎧 <b>Zoom oder Telefon über den Computer:</b> Aufgenommen wird nur, was das Mikrofon hört. Mit Kopfhörern hört es die andere Person nicht. Stell den Ton auf Lautsprecher und achte auf den Pegel: Er muss auch ausschlagen, wenn die andere Person spricht.' + (pc ? ' Einfacher: Haken „PC-Ton mit aufnehmen“ setzen.' : '') + '</div>' +
       '<div id="vd_status" class="small muted" aria-live="polite" style="margin-top:6px"></div>' +
       '<div id="vd_erg" hidden><div class="f" style="margin-top:8px"><label for="vd_text">Ergebnis (bitte gegenlesen, du kannst es ändern)</label><textarea id="vd_text" rows="9" maxlength="400000"></textarea></div><div class="small muted" id="vd_meta"></div>' +
       '<details class="small" style="margin:6px 0"><summary>Rohtranskript anzeigen</summary><div id="vd_roh" style="white-space:pre-wrap;margin-top:4px"></div></details>' +
-      '<div class="dlgbtns" style="margin-top:4px;justify-content:flex-start"><button type="button" class="btn" id="vd_save">Als Aktivität speichern</button><button type="button" class="btn sec" id="vd_weg">Verwerfen</button></div></div></div>';
+      '<div class="dlgbtns" style="margin-top:4px;justify-content:flex-start"><button type="button" class="btn" id="vd_save">Als Aktivität speichern</button><button type="button" class="btn sec" id="vd_dl" title="Bereinigter Text und Rohtranskript als Textdatei">⬇ Ganzes Transkript</button><button type="button" class="btn sec" id="vd_weg">Verwerfen</button></div></div></div>';
   }
   function diktatAnbinden(c, nachSpeichern, opts) {
     if (!$('#v_diktat')) return;
@@ -2623,7 +2638,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const unterstuetzt = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
     if (!unterstuetzt) { $('#vd_rec').disabled = true; status('Aufnahme wird in diesem Browser nicht unterstützt. Du kannst eine Audiodatei wählen.'); }
     // A = laufende Aufnahme. stuecke: fertige Audio-Stücke (je eine eigene WebM-Datei), werden schon während der Aufnahme umgewandelt.
-    let A = null;
+    let A = null, letzte = null;
     const mitPc = () => !!($('#vd_pc') && $('#vd_pc').checked);
     const anzeigen = () => {
       const pc = mitPc(), z = $('#vd_zoom'), ml = $('#vd_mit_l'), h = $('#vd_pc_hinweis');
@@ -2638,7 +2653,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const beimVerlassen = e => { e.preventDefault(); e.returnValue = ''; };
     const felderDazu = (fd, dauer) => {
       fd.append('token', TOKEN); fd.append('chance_id', (c && c.id) || ''); fd.append('chance_name', (c && c.name) || ''); fd.append('kontakt_name', ((c && c.kontakt) || {}).name || '');
-      fd.append('art', $('#v_art') ? $('#v_art').value : 'anruf'); fd.append('modus', A ? A.modus : modus()); fd.append('dauer_sek', String(Math.round(dauer || 0))); fd.append('pc_ton', A && A.pc ? '1' : '0');
+      fd.append('art', $('#v_art') ? $('#v_art').value : 'anruf'); fd.append('modus', A ? A.modus : modus()); fd.append('dauer_sek', String(Math.round(dauer || 0))); fd.append('pc_ton', A && A.pc ? '1' : '0'); fd.append('ki_lesen', $('#vd_ki') && $('#vd_ki').checked ? '1' : '0');
     };
     const tracksStoppen = () => { if (!A) return; [A.mic, A.anzeige].forEach(s => { if (s) s.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); }); A.pegel.forEach(p => p.stopp()); if (A.ctx) { try { A.ctx.close(); } catch (e) {} } };
     const pegelZeigen = an => { ['#vd_pegelbox', '#vd_pegel'].forEach(s => { const e = $(s); if (e) e.hidden = !an; }); ['#vd_pegel_pc', '#vd_pegel_pc_l'].forEach(s => { const e = $(s); if (e) e.hidden = !(an && A && A.pc); }); };
@@ -2769,7 +2784,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       status('Alle ' + B.stuecke.length + ' Abschnitte sind Text. Die KI fasst jetzt zusammen …');
       let j = null;
       try {
-        const fd = new FormData(); felderDazu(fd, dauer); fd.append('aktion', 'zusammenfassen'); fd.append('transkript', text);
+        const fd = new FormData(); felderDazu(fd, dauer); fd.append('aktion', 'zusammenfassen'); fd.append('transkript', text); fd.append('roh', roh);
         const r = await fetch(DIKTAT_API, { method: 'POST', body: fd });
         try { j = await r.json(); } catch (e) {}
         if (!r.ok || !j || j.ok === false || !j.gesamt) j = null;
@@ -2785,10 +2800,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       ergebnisZeigen(j, null, dauer);
     }
     function ergebnisZeigen(j, blob, dauer) {
+      letzte = j;
       if (!$('#vd_text')) return;
       $('#vd_text').value = j.aktivitaet || j.text || ''; $('#vd_roh').textContent = j.roh || '';
       const min = Math.round(((Number(j.dauer_sek) || dauer || 0) / 60) * 10) / 10;
-      $('#vd_meta').textContent = (j.gesamt ? (j.zusammengefasst ? 'KI-bereinigt und zusammengefasst' : 'KI-bereinigt') : j.bereinigt ? 'KI-bereinigt und zusammengefasst' : 'Rohtranskript, die KI-Bereinigung war nicht verfügbar') + (min ? ' · Aufnahme ' + min + ' Min.' : '') + ' · Kosten ' + (j.kosten && typeof j.kosten.usd === 'number' ? j.kosten.usd.toFixed(3) + ' USD (' + j.kosten.hinweis + ')' : 'unbekannt') + (j.hinweis ? ' · ' + j.hinweis : '');
+      $('#vd_meta').textContent = (j.gesamt ? (j.zusammengefasst ? 'KI-bereinigt und zusammengefasst' : 'KI-bereinigt') : j.bereinigt ? 'KI-bereinigt und zusammengefasst' : 'Rohtranskript, die KI-Bereinigung war nicht verfügbar') + (min ? ' · Aufnahme ' + min + ' Min.' : '') + ' · Kosten ' + (j.kosten && typeof j.kosten.usd === 'number' ? j.kosten.usd.toFixed(3) + ' USD (' + j.kosten.hinweis + ')' : 'unbekannt') + (j.gespeichert ? ' · gespeichert unter „Letzte Diktate“' + (j.ki_lesen || ($('#vd_ki') && $('#vd_ki').checked) ? ', KI darf lesen' : '') : '') + (j.hinweis ? ' · ' + j.hinweis : '');
       $('#vd_erg').hidden = false; if (c) dlgGeaendert = true; status(opts.onErgebnis ? 'Fertig. Lies den Text kurz gegen und ordne ihn rechts einem Lead zu.' : 'Fertig. Lies den Text kurz gegen und speichere ihn dann als Aktivität.');
       if (opts.onErgebnis) opts.onErgebnis(j, blob, dauer); else $('#vd_text').focus();
     }
@@ -2808,11 +2824,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#vd_rec').onclick = aufnehmen; $('#vd_stop').onclick = stopp;
     $('#vd_wahl').onclick = () => $('#vd_datei').click();
     $('#vd_datei').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; if (f.size > 25 * 1024 * 1024) { status('Die Datei ist größer als 25 MB.'); e.target.value = ''; return; } senden(f, 0, f.name, false); e.target.value = ''; };
+    $('#vd_dl').onclick = () => { const t = $('#vd_text').value, roh = $('#vd_roh').textContent || ''; dkDownload(dkDateiname((letzte && (letzte.modus === 'gespraech' ? 'Mitschnitt' : 'Diktat')) || 'Diktat'), t + (roh ? '\n\n--- Rohtranskript ---\n\n' + roh : '')); };
     $('#vd_weg').onclick = () => { $('#vd_erg').hidden = true; $('#vd_text').value = ''; $('#vd_roh').textContent = ''; status(''); if (opts.onVerwerfen) opts.onVerwerfen(); };
     $('#vd_save').onclick = async ev => {
       const text = $('#vd_text').value.trim(); if (text.length < 2) return toast('Der Text ist leer.');
       ev.target.disabled = true;
-      try { await vApi('notiz', { id: c.id, personId: (c.kontakt || {}).id || '', art: $('#v_art') ? $('#v_art').value : 'anruf', text }); toast('Aktivität in Twenty gespeichert'); c.notizen = (c.notizen || 0) + 1; c.letzterKontakt = new Date().toISOString(); dlgGeaendert = false; $('#vd_erg').hidden = true; $('#vd_text').value = ''; status(''); nachSpeichern(); }
+      try { await vApi('notiz', { id: c.id, personId: (c.kontakt || {}).id || '', art: $('#v_art') ? $('#v_art').value : 'anruf', text: twentyText(text) }); if (letzte && letzte.diktat_id) dkApi('zuordnen', { diktat_id: letzte.diktat_id, ziel: c.name || '', chance_id: c.id || '' }).catch(() => {}); toast('Aktivität in Twenty gespeichert'); c.notizen = (c.notizen || 0) + 1; c.letzterKontakt = new Date().toISOString(); dlgGeaendert = false; $('#vd_erg').hidden = true; $('#vd_text').value = ''; status(''); nachSpeichern(); }
       catch (e) { toast(e.message); }
       ev.target.disabled = false;
     };
@@ -2822,7 +2839,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   }
 
   // ---------- Register „Diktat“: freies Diktat, danach Lead wählen oder per E-Mail Kontakt finden/anlegen ----------
-  const DK = { ergebnis: null, ziel: null, kontakt: null, laedt: false };
+  const DK = { ergebnis: null, ziel: null, kontakt: null, laedt: false, liste: null, listeFehler: '', listeLaedt: false, offen: {} };
   const dkVerlauf = () => { try { return JSON.parse(ls.get('mt-diktate') || '[]'); } catch (e) { return []; } };
   const dkMerken = e => { const L = [e].concat(dkVerlauf()).slice(0, 10); ls.set('mt-diktate', JSON.stringify(L)); };
   function vDiktat() {
@@ -2832,13 +2849,68 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Diktat</h1><p class="sub">Erst sprechen, dann zuordnen: Die KI schreibt deine Gesprächsnotiz sauber auf und fasst zusammen. Danach wählst du den Lead oder trägst eine E-Mail-Adresse ein; der Kontakt wird in Twenty gefunden oder neu angelegt.</p></div><a class="btn sec" href="#/tab/vertrieb" style="text-decoration:none">Zur Pipeline →</a></div>' +
       '<div class="grid"><div class="card" style="margin:0"><h2>1. Aufnehmen</h2><div class="f" style="max-width:240px"><label for="v_art">Art der Aktivität</label><select id="v_art"><option value="anruf">📞 Anruf</option><option value="notiz">📝 Notiz</option><option value="termin">📆 Termin</option><option value="mail">✉️ E-Mail</option></select></div>' + diktatBox() + '</div>' +
       '<div class="card" style="margin:0"><h2>2. Zuordnen</h2><div id="dk_ziel"></div></div></div>' +
-      '<div class="card" style="margin-top:14px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Letzte Diktate (nur in diesem Browser)</h2>' + (V.length ? '<span class="small muted">' + V.length + ' Diktate · ' + (Math.round(minuten * 10) / 10) + ' Min. · ca. ' + kosten.toFixed(3) + ' USD geschätzt</span><button class="btn ghost" id="dk_leeren">Verlauf löschen</button>' : '') + '</div>' +
-      (V.length ? V.map((e, i) => '<div class="vnotiz"><div class="kopf">' + esc(fmtDT(e.zeit)) + ' · ' + esc(e.ziel || 'nicht zugeordnet') + '</div><div class="small" style="white-space:pre-wrap">' + esc(String(e.text || '').slice(0, 400)) + (String(e.text || '').length > 400 ? ' …' : '') + '</div><div class="act" style="margin-top:4px"><button class="btn ghost" data-dkcopy="' + i + '">Text kopieren</button></div></div>').join('') : '<p class="empty">Noch keine Diktate. Die Liste bleibt nur in diesem Browser und enthält keine Audioaufnahmen.</p>') + '</div>';
+      '<div class="card" style="margin-top:14px" id="dk_liste">' + dkListeHtml(V, minuten, kosten) + '</div>';
     dkZiel();
-    diktatAnbinden(null, () => {}, { onErgebnis: j => { DK.ergebnis = j; dkZiel(); $('#dk_ziel').scrollIntoView({ block: 'nearest' }); }, onVerwerfen: () => { DK.ergebnis = null; dkZiel(); } });
-    document.querySelectorAll('[data-dkcopy]').forEach(b => b.onclick = async () => { const e = V[Number(b.dataset.dkcopy)]; try { await navigator.clipboard.writeText(e.text || ''); toast('Text kopiert'); } catch (x) { window.prompt('Text kopieren:', e.text || ''); } });
-    const l = $('#dk_leeren'); if (l) l.onclick = () => { if (confirm('Verlauf der Diktate in diesem Browser löschen?')) { ls.del('mt-diktate'); vDiktat(); } };
+    diktatAnbinden(null, () => {}, { onErgebnis: j => { DK.ergebnis = j; dkZiel(); $('#dk_ziel').scrollIntoView({ block: 'nearest' }); dkListeLaden(); }, onVerwerfen: () => { DK.ergebnis = null; dkZiel(); } });
+    dkListeAnbinden(); dkListeLaden();
     if (!VT.d && !DK.laedt) { DK.laedt = true; vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DK.laedt = false; if (tab === 'diktat') dkZiel(); }); }
+  }
+  // „Letzte Diktate“: alle eigenen Aufnahmen aus der Ablage (Supabase), sonst die letzten aus diesem Browser
+  function dkListeLaden() {
+    if (DK.listeLaedt) return; DK.listeLaedt = true;
+    dkApi('liste').then(j => { DK.liste = j.diktate || []; DK.listeFehler = ''; }).catch(e => { DK.listeFehler = e.message; }).finally(() => { DK.listeLaedt = false; dkListeZeigen(); });
+  }
+  function dkListeZeigen() {
+    const k = $('#dk_liste'); if (!k) return;
+    const V = dkVerlauf();
+    k.innerHTML = dkListeHtml(V, V.reduce((s, e) => s + (Number(e.dauer_sek) || 0), 0) / 60, V.reduce((s, e) => s + (Number(e.kosten_usd) || 0), 0)); dkListeAnbinden();
+  }
+  function dkListeHtml(V, minuten, kosten) {
+    const L = DK.liste, kopf = t => '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Letzte Diktate</h2>' + (t || '') + '</div>';
+    if (L === null) {
+      if (!DK.listeFehler) return kopf() + '<p class="small muted">Gespeicherte Aufnahmen werden geladen …</p>';
+      return kopf(V.length ? '<span class="small muted">' + V.length + ' Diktate · ' + (Math.round(minuten * 10) / 10) + ' Min. · ca. ' + kosten.toFixed(3) + ' USD geschätzt</span><button class="btn ghost" id="dk_leeren">Verlauf löschen</button>' : '') +
+        '<p class="small muted">' + esc(DK.listeFehler) + ' Hier die letzten Diktate aus diesem Browser:</p>' +
+        (V.length ? V.map((e, i) => '<div class="vnotiz"><div class="kopf">' + esc(fmtDT(e.zeit)) + ' · ' + esc(e.ziel || 'nicht zugeordnet') + '</div><div class="small" style="white-space:pre-wrap">' + esc(String(e.text || '').slice(0, 400)) + (String(e.text || '').length > 400 ? ' …' : '') + '</div><div class="act" style="margin-top:4px"><button class="btn ghost" data-dkcopy="' + i + '">Text kopieren</button></div></div>').join('') : '<p class="empty">Noch keine Diktate in diesem Browser.</p>');
+    }
+    const min = Math.round(L.reduce((s, d) => s + (Number(d.dauer_sek) || 0), 0) / 6) / 10;
+    if (!L.length) return kopf() + '<p class="empty">Noch keine Aufnahmen. Jede fertige Aufnahme erscheint hier automatisch (nur Text, kein Audio, nur für dich sichtbar).</p>';
+    return kopf('<span class="small muted">' + L.length + ' Aufnahme' + (L.length === 1 ? '' : 'n') + ' · ' + min + ' Min. · nur für dich sichtbar</span>') +
+      L.map((d, i) => { const g = DK.offen[d.diktat_id];
+        return '<div class="vnotiz dk-eintrag" data-dkid="' + esc(d.diktat_id) + '"><div class="kopf">' + esc(fmtDT(d.erstellt)) + ' · ' + esc(d.titel || 'Diktat') + (d.ziel && !String(d.titel || '').includes(d.ziel) ? ' · ' + esc(d.ziel) : '') + (d.ki_lesen ? ' · 🤖' : '') + '</div>' +
+          (d.zusammenfassung ? '<div class="small" style="margin-bottom:4px"><b>Zusammenfassung:</b> ' + esc(d.zusammenfassung) + '</div>' : '') +
+          (g ? '<div class="small dk-ganz" style="white-space:pre-wrap;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 8px">' + esc(g.text || '') + '</div>' + (g.roh ? '<details class="small" style="margin-top:4px"><summary>Rohtranskript</summary><div style="white-space:pre-wrap;max-height:300px;overflow:auto">' + esc(g.roh) + '</div></details>' : '')
+            : '<div class="small" style="white-space:pre-wrap">' + esc(d.vorschau || '') + (String(d.vorschau || '').length >= 600 ? ' …' : '') + '</div>') +
+          '<div class="act" style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn ghost" data-dkganz="' + i + '">' + (g ? 'Weniger' : 'Ganzer Text') + '</button><button class="btn ghost" data-dkkopie="' + i + '">Kopieren</button><button class="btn ghost" data-dkdl="' + i + '">⬇ Herunterladen</button>' +
+          '<label class="check small" style="margin:0" title="Die KI darf diese Aufnahme lesen (z. B. für Zusammenfassungen und Aufgaben)"><input type="checkbox" data-dkki="' + i + '"' + (d.ki_lesen ? ' checked' : '') + '><span>🤖 KI darf lesen</span></label><button class="btn ghost" data-dkweg="' + i + '">Löschen</button></div></div>'; }).join('');
+  }
+  async function dkGanz(d) {
+    if (DK.offen[d.diktat_id]) return DK.offen[d.diktat_id];
+    const j = await dkApi('lesen', { diktat_id: d.diktat_id }); return j.diktat;
+  }
+  const dkAlsText = g => [g.titel || 'Diktat', fmtDT(g.erstellt) + (g.ziel ? ' · ' + g.ziel : ''), g.zusammenfassung ? 'Zusammenfassung: ' + g.zusammenfassung : '', (g.naechste_schritte || []).length ? 'Nächste Schritte:\n' + g.naechste_schritte.map(x => '- ' + x).join('\n') : '', '--- Text ---', g.text || '', g.roh ? '--- Rohtranskript ---\n\n' + g.roh : ''].filter(Boolean).join('\n\n');
+  function dkListeAnbinden() {
+    const V = dkVerlauf(), L = DK.liste || [];
+    document.querySelectorAll('[data-dkcopy]').forEach(b => b.onclick = async () => { const e = V[Number(b.dataset.dkcopy)]; try { await navigator.clipboard.writeText(e.text || ''); toast('Text kopiert'); } catch (x) { window.prompt('Text kopieren:', e.text || ''); } });
+    const l = $('#dk_leeren'); if (l) l.onclick = () => { if (confirm('Verlauf der Diktate in diesem Browser löschen?')) { ls.del('mt-diktate'); dkListeZeigen(); } };
+    const mit = (attr, f) => document.querySelectorAll('[' + attr + ']').forEach(b => { const d = L[Number(b.getAttribute(attr))]; if (d) f(b, d); });
+    mit('data-dkganz', (b, d) => b.onclick = async () => {
+      if (DK.offen[d.diktat_id]) { delete DK.offen[d.diktat_id]; return dkListeZeigen(); }
+      b.disabled = true; try { DK.offen[d.diktat_id] = await dkGanz(d); dkListeZeigen(); } catch (e) { toast(e.message); b.disabled = false; }
+    });
+    mit('data-dkkopie', (b, d) => b.onclick = async () => { let g; try { g = await dkGanz(d); } catch (e) { return toast(e.message); } try { await navigator.clipboard.writeText(g.text || ''); toast('Ganzer Text kopiert'); } catch (x) { window.prompt('Text kopieren:', g.text || ''); } });
+    mit('data-dkdl', (b, d) => b.onclick = async () => { try { const g = await dkGanz(d); dkDownload(dkDateiname(g.titel, g.erstellt), dkAlsText(g)); } catch (e) { toast(e.message); } });
+    mit('data-dkki', (b, d) => b.onchange = async () => {
+      const an = b.checked; b.disabled = true;
+      try { await dkApi('ki', { diktat_id: d.diktat_id, ki_lesen: an ? '1' : '0' }); d.ki_lesen = an; toast(an ? 'Die KI darf diese Aufnahme lesen' : 'Die KI darf diese Aufnahme nicht mehr lesen'); dkListeZeigen(); }
+      catch (e) { b.checked = !an; b.disabled = false; toast(e.message); }
+    });
+    mit('data-dkweg', (b, d) => b.onclick = async () => {
+      if (!confirm('Diese Aufnahme löschen? Text, Rohtranskript und Zusammenfassung werden entfernt. Eine in Twenty gespeicherte Aktivität bleibt.')) return;
+      b.disabled = true;
+      try { await dkApi('loeschen', { diktat_id: d.diktat_id }); DK.liste = DK.liste.filter(x => x !== d); delete DK.offen[d.diktat_id]; toast('Aufnahme gelöscht'); dkListeZeigen(); }
+      catch (e) { b.disabled = false; toast(e.message); }
+    });
   }
   function dkZiel() {
     const box = $('#dk_ziel'); if (!box) return;
@@ -2901,14 +2973,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
           if (!ziel) throw new Error('Die Verkaufschance wurde angelegt, konnte aber nicht wiedergefunden werden. Bitte in der Pipeline nachsehen.');
           personId = (ziel.kontakt || {}).id || personId;
         }
-        await vApi('notiz', { id: ziel.id, personId, art: $('#v_art').value, text });
+        await vApi('notiz', { id: ziel.id, personId, art: $('#v_art').value, text: twentyText(text) });
+        if (DK.ergebnis && DK.ergebnis.diktat_id) await dkApi('zuordnen', { diktat_id: DK.ergebnis.diktat_id, ziel: ziel.name || (ziel.kontakt || {}).name || '', chance_id: ziel.id }).catch(() => {});
         dkMerken({ zeit: new Date().toISOString(), ziel: ziel.name || (ziel.kontakt || {}).name || ziel.id, text, dauer_sek: DK.ergebnis && DK.ergebnis.dauer_sek, kosten_usd: DK.ergebnis && DK.ergebnis.kosten ? DK.ergebnis.kosten.usd : 0 });
         toast('Aktivität bei „' + (ziel.name || 'Lead') + '“ in Twenty gespeichert');
         DK.ergebnis = null; DK.ziel = null; DK.kontakt = null; ziel.notizen = (ziel.notizen || 0) + 1;
         vDiktat();
       } catch (e) { status(e.message); ev.target.disabled = false; }
     };
-    const cp = $('#dk_copy'); if (cp) cp.onclick = async () => { const tx = $('#vd_text').value; try { await navigator.clipboard.writeText(tx); toast('Text kopiert'); } catch (e) { window.prompt('Text kopieren:', tx); } dkMerken({ zeit: new Date().toISOString(), ziel: 'nur kopiert', text: tx, dauer_sek: DK.ergebnis && DK.ergebnis.dauer_sek, kosten_usd: DK.ergebnis && DK.ergebnis.kosten ? DK.ergebnis.kosten.usd : 0 }); };
+    const cp = $('#dk_copy'); if (cp) cp.onclick = async () => { const tx = $('#vd_text').value; try { await navigator.clipboard.writeText(tx); toast('Text kopiert'); } catch (e) { window.prompt('Text kopieren:', tx); } if (DK.ergebnis && DK.ergebnis.diktat_id) dkApi('zuordnen', { diktat_id: DK.ergebnis.diktat_id, ziel: 'nur kopiert' }).then(() => dkListeLaden()).catch(() => {}); dkMerken({ zeit: new Date().toISOString(), ziel: 'nur kopiert', text: tx, dauer_sek: DK.ergebnis && DK.ergebnis.dauer_sek, kosten_usd: DK.ergebnis && DK.ergebnis.kosten ? DK.ergebnis.kosten.usd : 0 }); };
   }
 
   // ---------- Dashboard (Übersicht) ----------
