@@ -382,7 +382,7 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 /* Team-Chat */
 .chat-n{display:inline-block;min-width:18px;height:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;vertical-align:1px}
 .wb .ch-wer{display:block;font-size:12px;font-weight:650;color:var(--acc);margin-bottom:1px}.wb .md p{margin:0 0 4px}.wb .md p:last-child{margin:0}.wb{white-space:normal}
-.wb .ch-bearb{font-style:italic;margin-right:4px}.wb .ch-edit{border:0;background:none;cursor:pointer;color:var(--mut);font:inherit;padding:0 6px 0 0}.wb .ch-edit:hover,.wb .ch-edit:focus-visible{color:var(--acc)}
+.wb .ch-bearb{font-style:italic;margin-right:4px}.wb .ch-akt{border:0;background:none;cursor:pointer;color:var(--mut);font:inherit;padding:0 5px 0 0}.wb .ch-akt:hover,.wb .ch-akt:focus-visible{color:var(--acc)}.wb .ch-zitat{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--acc);background:rgba(109,59,216,.07);border-radius:6px;padding:4px 8px;margin:2px 0 5px;font:inherit;font-size:12.5px;color:var(--ink);cursor:pointer}.wb .ch-zitat b{display:block;color:var(--acc);font-size:12px}.wb .ch-reak{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.wb .ch-reak button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:0 7px;font:inherit;font-size:13px;line-height:22px;cursor:pointer}.wb .ch-reak button.mein{border-color:var(--acc);background:#EDE7FC}.wb .ch-wahl{display:flex;gap:2px;margin-top:4px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 4px;width:max-content;max-width:100%;box-shadow:0 2px 6px rgba(0,0,0,.08)}.wb .ch-wahl button{border:0;background:none;font-size:18px;line-height:26px;cursor:pointer;border-radius:50%;padding:0 3px}.wb .ch-wahl button:hover{background:#F1ECFD}.wb.ch-blitz{animation:chblitz 1.6s ease-out}@keyframes chblitz{0%{box-shadow:0 0 0 3px var(--acc)}100%{box-shadow:0 0 0 0 transparent}}@media (prefers-reduced-motion:reduce){.wb.ch-blitz{animation:none;outline:2px solid var(--acc)}}.wa-chat .ch-antw{display:flex;gap:8px;align-items:center;padding:6px 12px;border-top:1px solid var(--line);background:#F7F5FE;font-size:13px}.wa-chat .ch-antw span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wa-chat .ch-antw button{border:0;background:none;cursor:pointer;font-size:16px;color:var(--mut)}.wb .ch-edit{border:0;background:none;cursor:pointer;color:var(--mut);font:inherit;padding:0 6px 0 0}.wb .ch-edit:hover,.wb .ch-edit:focus-visible{color:var(--acc)}
 .wb.ch-mich{box-shadow:0 0 0 2px #F6C343}.ch-at{background:#EDE7FC;color:#5B2BB5;border-radius:5px;padding:0 3px;font-weight:600}
 .ch-hinweis{max-width:85%;text-align:center;background:#F1ECFD;color:#5B4A8A}
 .wa-chat .ch-ki{background:#EDE7FC;color:#4B2A8F}
@@ -1849,7 +1849,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   // Gleicher Text wie in chat/lib/chat.js (Antwort des Servers, wenn die Datenbank fehlt)
   const CHAT_NICHT_EINGERICHTET = 'Der Team-Chat ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei chat/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
   const CH = { liste: null, vorhanden: null, fehler: '', laedt: false, offen: null, verlauf: {}, sendet: false, q: '', listeTimer: null, verlaufTimer: null, entwurf: {},
-    korrRunde: {}, korrVorher: {}, mstat: {}, aufnahme: null, diktat: null };
+    korrRunde: {}, korrVorher: {}, mstat: {}, aufnahme: null, diktat: null, antwort: {}, wahl: null };
+  // Smiley-Reaktionen (Timo 24.11.2026: sechs feste; gleiche Liste wie chat/lib/chat.js und supabase/team_chat_reaktionen.sql)
+  const CHAT_REAKTIONEN = ['👍', '❤️', '😂', '😮', '🙏', '✅'];
   // Chat-Helfer: 🎙️ Sprachnachricht → Text im Eingabefeld, Haken „KI korrigieren“ (n8n „TEAM: Chat-Helfer (Portal)“, chat/lib/helfer.js).
   // Timo 23.11.2026: Sprachnachricht dürfen alle im Team; mit Haken korrigiert die KI beim Senden erst, zeigt die Fassung, das zweite Senden schickt.
   const HELFER_API = 'https://n8n.hm-storage.de/webhook/team-chat-helfer';
@@ -1992,10 +1994,29 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     let geaendert = false;
     (liste || []).forEach(b => {
       const i = v.nachrichten.findIndex(x => x.nachricht_id === b.nachricht_id);
-      if (i >= 0 && (v.nachrichten[i].bearbeitet !== b.bearbeitet || v.nachrichten[i].text !== b.text)) { v.nachrichten[i] = b; geaendert = true; }
+      const alt = i >= 0 ? v.nachrichten[i] : null;
+      if (alt && (alt.bearbeitet !== b.bearbeitet || alt.text !== b.text || JSON.stringify(alt.reaktionen || {}) !== JSON.stringify(b.reaktionen || {}))) {
+        v.nachrichten[i] = Object.assign({ zitat: alt.zitat }, b); geaendert = true;
+      }
     });
     return geaendert;
   }
+  // Smiley setzen oder wegnehmen
+  async function chReagieren(c, nr, emoji) {
+    CH.wahl = null;
+    try {
+      const r = await chatApi('reagieren', { chat_id: c.chat_id, nachricht_id: nr, emoji });
+      const v = CH.verlauf[c.chat_id]; if (v && r.nachricht) chBearbeiteteUebernehmen(v, [r.nachricht]);
+    } catch (e) { toast(e.message); }
+    if (CH.offen === c.chat_id) chChatZeigen();
+  }
+  // Zitierte Nachricht im Verlauf anspringen und kurz hervorheben
+  function chSpringen(nr) {
+    const el = document.getElementById('chn_' + nr);
+    if (!el) return toast('Die Nachricht ist weiter oben im Verlauf und gerade nicht geladen.');
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('ch-blitz'); void el.offsetWidth; el.classList.add('ch-blitz');
+  }
+  const chKurz = t => { const k = klartext(t || '').replace(/\s+/g, ' ').trim(); return k.length > 90 ? k.slice(0, 89) + '…' : k; };
   // Eigene Chat-Nachricht bearbeiten (bis 24 Stunden nach dem Senden). Neu Markierte bekommen einen Hinweis im Posteingang, nie eine WhatsApp.
   function chBearbeitenDialog(c, n) {
     if (!bearbeitbar(n.autor, n.erstellt)) return toast('Nachrichten kann man nur bis 24 Stunden nach dem Senden bearbeiten.');
@@ -2058,15 +2079,24 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const v = CH.verlauf[id] || { chat: null, nachrichten: [] };
     const c = v.chat || (CH.liste || []).find(x => x.chat_id === id);
     if (!c) { el.innerHTML = '<div class="wc-msgs" style="align-items:center;justify-content:center"><p class="muted">' + esc(v.fehler || 'Lädt …') + '</p></div>'; return; }
-    const scroll = $('#ch_msgs'), warUnten = !scroll || scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 60;
+    const scroll = $('#ch_msgs'), warUnten = !scroll || CH.nachUnten || scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 60, altTop = scroll ? scroll.scrollTop : 0;
+    CH.nachUnten = false;
     let tag = '';
     const msgs = v.nachrichten.map(n => {
       const d = new Date(n.erstellt), t = isNaN(d) ? '' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
       const trenner = t && t !== tag ? '<div class="wtag">' + esc(t) + '</div>' : ''; tag = t || tag;
       if (!n.autor) return trenner + '<div class="wtag ch-hinweis">' + esc(n.text) + '</div>';
       const ich = n.autor === D.ich.mitglied_id, mich = (n.erwaehnt || []).includes(D.ich.mitglied_id);
-      return trenner + '<div class="wb ' + (ich ? 'aus' : 'ein') + (mich ? ' ch-mich' : '') + '">' + (ich ? '' : '<span class="ch-wer">' + esc(mitglied(n.autor).name) + '</span>') +
-        '<div class="md">' + chTextHtml(n.text) + '</div><span class="wz">' +
+      const z = n.antwort_auf ? (n.zitat || v.nachrichten.find(x => x.nachricht_id === n.antwort_auf) || null) : null;
+      const reak = Object.entries(n.reaktionen || {}).filter(([e, l]) => CHAT_REAKTIONEN.includes(e) && (l || []).length);
+      return trenner + '<div class="wb ' + (ich ? 'aus' : 'ein') + (mich ? ' ch-mich' : '') + '" id="chn_' + esc(n.nachricht_id) + '">' + (ich ? '' : '<span class="ch-wer">' + esc(mitglied(n.autor).name) + '</span>') +
+        (z ? '<button type="button" class="ch-zitat" data-chspring="' + esc(z.nachricht_id) + '" title="Zur Nachricht springen"><b>↩ ' + esc(z.autor ? (z.autor === D.ich.mitglied_id ? 'Du' : mitglied(z.autor).name) : 'Hinweis') + '</b>' + esc(chKurz(z.text)) + '</button>' : '') +
+        '<div class="md">' + chTextHtml(n.text) + '</div>' +
+        (reak.length ? '<div class="ch-reak">' + reak.map(([e, l]) => '<button type="button" data-chreak="' + esc(n.nachricht_id) + '" data-emoji="' + esc(e) + '" class="' + (l.includes(D.ich.mitglied_id) ? 'mein' : '') + '" title="' + esc(l.map(x => x === D.ich.mitglied_id ? 'Du' : mitglied(x).name).join(', ')) + '" aria-label="' + esc(e + ' ' + l.length) + '">' + e + ' ' + l.length + '</button>').join('') + '</div>' : '') +
+        (CH.wahl === n.nachricht_id ? '<div class="ch-wahl" role="group" aria-label="Smiley wählen">' + CHAT_REAKTIONEN.map(e => '<button type="button" data-chreak="' + esc(n.nachricht_id) + '" data-emoji="' + esc(e) + '" aria-label="' + esc(e) + '">' + e + '</button>').join('') + '</div>' : '') +
+        '<span class="wz">' +
+        '<button type="button" class="ch-akt" data-chantw="' + esc(n.nachricht_id) + '" title="Auf diese Nachricht antworten" aria-label="Antworten">↩</button>' +
+        '<button type="button" class="ch-akt" data-chwahl="' + esc(n.nachricht_id) + '" title="Mit Smiley reagieren" aria-label="Mit Smiley reagieren" aria-expanded="' + (CH.wahl === n.nachricht_id) + '">☺</button>' +
         (ich && bearbeitbar(n.autor, n.erstellt) ? '<button type="button" class="ch-edit" data-chedit="' + esc(n.nachricht_id) + '" title="Nachricht bearbeiten (bis 24 Stunden nach dem Senden)" aria-label="Nachricht bearbeiten">✎</button>' : '') +
         (n.bearbeitet ? '<span class="ch-bearb" title="' + esc(bearbeitetText(n.bearbeitet)) + '">bearbeitet ' + esc(new Date(n.bearbeitet).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })) + ' ·</span>' : '') +
         ((n.whatsapp || []).length ? '<span title="Per WhatsApp benachrichtigt: ' + esc((n.whatsapp || []).map(x => mitglied(x).name).join(', ')) + '">📲</span> ' : '') + esc(isNaN(d) ? '' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })) + '</span></div>';
@@ -2081,13 +2111,20 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       (c.projekt ? '<details class="ch-proj"><summary>📁 Offene Aufgaben in „' + esc(c.projekt) + '“ (' + offeneA.length + ')</summary>' + (offeneA.length ? offeneA.slice(0, 8).map(a => '<button type="button" class="ch-aufg" data-a="' + esc(a.aufgabe_id) + '"><span class="chip ' + prioKl(a.prio) + '">P' + esc(a.prio) + '</span> ' + esc(a.titel) + '</button>').join('') : '<p class="small muted">Keine offenen Aufgaben.</p>') + '</details>' : '') +
       '<div class="wc-msgs" id="ch_msgs">' + (msgs || '<p class="muted" style="align-self:center">Noch keine Nachrichten.</p>') + '</div>' +
       '<div id="ch_hinw"></div>' +
+      (CH.antwort[id] ? (() => { const a = v.nachrichten.find(x => x.nachricht_id === CH.antwort[id]); return a ? '<div class="ch-antw" id="ch_antw"><span>↩ Antwort an <b>' + esc(a.autor === D.ich.mitglied_id ? 'dich' : mitglied(a.autor).name) + '</b>: ' + esc(chKurz(a.text)) + '</span><button type="button" id="ch_antw_weg" title="Nicht mehr antworten" aria-label="Antwort abbrechen">✕</button></div>' : ''; })() : '') +
       '<div class="ch-werk"><label class="check" title="Die KI korrigiert Rechtschreibung und Zeichensetzung, der Inhalt bleibt. Du siehst die Fassung, bevor sie rausgeht."><input type="checkbox" id="ch_kik"' + (chKiHaken() ? ' checked' : '') + '><span>✨ KI korrigieren</span></label><canvas class="pegel" id="ch_pegel" hidden aria-hidden="true" title="Pegel: schlägt aus, wenn das Mikrofon etwas hört"></canvas><span id="ch_mstat" class="ch-mstat" aria-live="polite"></span></div>' +
       '<form class="wc-ein" id="ch_form"><button type="button" class="btn sec ch-mic" id="ch_mic" aria-label="Sprachnachricht aufnehmen">🎙️</button><textarea id="ch_text" rows="1" maxlength="' + CHAT_TEXT_MAX + '" placeholder="Nachricht … (Enter sendet, Umschalt+Enter = neue Zeile, @Vorname markiert)">' + esc(CH.entwurf[id] || '') + '</textarea><button class="btn" type="submit" id="ch_senden">Senden</button></form>';
-    const box = $('#ch_msgs'); if (box && (warUnten || !scroll)) box.scrollTop = box.scrollHeight;
+    // Unten bleiben, wenn man unten war; sonst die Stelle halten (Neuzeichnen setzt die Scrollposition sonst auf den Anfang)
+    const box = $('#ch_msgs'); if (box) box.scrollTop = (warUnten || !scroll) ? box.scrollHeight : altTop;
     $('#ch_zur').onclick = () => { CH.offen = null; setzeHash('#/tab/chat'); $('#ch').classList.remove('offen'); chListeZeigen(); chChatZeigen(); };
     $('#ch_einst').onclick = () => chEinstellungen(c);
     el.querySelectorAll('.ch-aufg').forEach(b => b.onclick = () => { const a = D.aufgaben.find(x => x.aufgabe_id === b.dataset.a); if (a) aufgabeDialog(a); });
     el.querySelectorAll('[data-chedit]').forEach(b => b.onclick = () => { const n = v.nachrichten.find(x => String(x.nachricht_id) === b.dataset.chedit); if (n) chBearbeitenDialog(c, n); });
+    el.querySelectorAll('[data-chwahl]').forEach(b => b.onclick = () => { const nr = Number(b.dataset.chwahl); CH.wahl = CH.wahl === nr ? null : nr; chChatZeigen(); });
+    el.querySelectorAll('[data-chreak]').forEach(b => b.onclick = () => chReagieren(c, Number(b.dataset.chreak), b.dataset.emoji));
+    el.querySelectorAll('[data-chspring]').forEach(b => b.onclick = () => chSpringen(b.dataset.chspring));
+    el.querySelectorAll('[data-chantw]').forEach(b => b.onclick = () => { CH.antwort[id] = Number(b.dataset.chantw); CH.wahl = null; chChatZeigen(); const t = $('#ch_text'); if (t) t.focus(); });
+    if ($('#ch_antw_weg')) $('#ch_antw_weg').onclick = () => { delete CH.antwort[id]; chChatZeigen(); };
     const ta = $('#ch_text');
     const hoehe = () => { ta.style.height = 'auto'; ta.style.height = Math.min(160, ta.scrollHeight + 2) + 'px'; };
     const hinweise = () => {
@@ -2129,7 +2166,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const m = chMarkiert(text, c), wa = $('#ch_wa') && $('#ch_wa').checked ? m.ids.filter(waAuto) : [];
       CH.sendet = true; $('#ch_senden').disabled = true;
       try {
-        await chatApi('senden', { chat_id: id, text, erwaehnt: m.ids, whatsapp: wa });
+        await chatApi('senden', Object.assign({ chat_id: id, text, erwaehnt: m.ids, whatsapp: wa }, CH.antwort[id] ? { antwort_auf: CH.antwort[id] } : {}));
+        delete CH.antwort[id]; CH.nachUnten = true;   // nach dem eigenen Senden ans Ende
         CH.entwurf[id] = ''; ta.value = ''; hinweise(); delete CH.korrRunde[id]; delete CH.korrVorher[id]; if (!(CH.mstat[id] && /Nichts zu korrigieren/.test(CH.mstat[id].text))) chStatus(id, '');
         if (wa.length) toast(wa.map(x => mitglied(x).name).join(', ') + (wa.length > 1 ? ' bekommen' : ' bekommt') + ' in etwa einer Minute eine WhatsApp.');
         await chVerlaufLaden(id, true);

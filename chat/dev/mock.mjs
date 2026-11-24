@@ -14,7 +14,7 @@ export class C_ChatDbNachbildung {
 	}
 
 	rpc(fn, body) {
-		const f = this.eingerichtet && { team_chat_liste: this.liste, team_chat_verlauf: this.verlauf, team_chat_anlegen: this.anlegen, team_chat_aendern: this.aendern, team_chat_senden: this.senden, team_chat_bearbeiten: this.bearbeiten }[fn];
+		const f = this.eingerichtet && { team_chat_liste: this.liste, team_chat_verlauf: this.verlauf, team_chat_anlegen: this.anlegen, team_chat_aendern: this.aendern, team_chat_senden: this.senden, team_chat_bearbeiten: this.bearbeiten, team_chat_reagieren: this.reagieren }[fn];
 		if (!f) return { statusCode: 404, body: { code: 'PGRST202', message: 'Could not find the function public.' + fn } };
 		try { return { statusCode: 200, body: JSON.parse(JSON.stringify(f.call(this, body || {}))) }; }
 		catch (e) { return { statusCode: 400, body: { code: 'P0001', message: e.message } }; }
@@ -33,7 +33,7 @@ export class C_ChatDbNachbildung {
 		if (!c || !this.dabei(chat, wer)) throw new Error('Diesen Chat gibt es nicht oder du bist nicht (mehr) dabei.');
 		return c;
 	}
-	hinweis(chat, t) { const n = { nachricht_id: ++this.nr, chat_id: chat, autor: null, text: t, erwaehnt: [], whatsapp: [], erstellt: this.jetzt(), bearbeitet: null }; this.nachrichten.push(n); this.chats.find(c => c.chat_id === chat).letzte = n.erstellt; }
+	hinweis(chat, t) { const n = { nachricht_id: ++this.nr, chat_id: chat, autor: null, text: t, erwaehnt: [], whatsapp: [], erstellt: this.jetzt(), bearbeitet: null, antwort_auf: null, reaktionen: {}, reaktion_am: null }; this.nachrichten.push(n); this.chats.find(c => c.chat_id === chat).letzte = n.erstellt; }
 	json(chat, wer) {
 		const c = this.chats.find(x => x.chat_id === chat), me = this.dabei(chat, wer), N = this.nachrichten.filter(n => n.chat_id === chat), l = N[N.length - 1];
 		return { ...c, mitglieder: this.mit.filter(m => m.chat_id === chat).map(m => m.mitglied_id),
@@ -50,8 +50,9 @@ export class C_ChatDbNachbildung {
 		if (N.length) { const me = this.dabei(p_chat, p_mitglied); me.gelesen_bis = Math.max(me.gelesen_bis, N[N.length - 1].nachricht_id); }
 		// Wie team_bearbeiten.sql: beim Nachladen (p_nach > 0) auch ältere Nachrichten, die in den letzten zwei Tagen bearbeitet wurden
 		const seit = Date.parse(this.jetzt()) - 2 * 86400000;
-		const bearbeitete = (Number(p_nach) || 0) > 0 ? this.nachrichten.filter(n => n.chat_id === p_chat && n.nachricht_id <= Number(p_nach) && n.bearbeitet && Date.parse(n.bearbeitet) > seit) : [];
-		return { chat: this.json(p_chat, p_mitglied), nachrichten: N, bearbeitete };
+		const neu = t => t && Date.parse(t) > seit;
+		const bearbeitete = (Number(p_nach) || 0) > 0 ? this.nachrichten.filter(n => n.chat_id === p_chat && n.nachricht_id <= Number(p_nach) && (neu(n.bearbeitet) || neu(n.reaktion_am))) : [];
+		return { chat: this.json(p_chat, p_mitglied), nachrichten: N.map(n => this.mitZitat(n)), bearbeitete: bearbeitete.map(n => this.mitZitat(n)) };
 	}
 	anlegen({ p_mitglied, p_art, p_titel, p_mitglieder, p_projekt }) {
 		const wer = this.personen([p_mitglied, ...(p_mitglieder || [])]);
@@ -99,18 +100,35 @@ export class C_ChatDbNachbildung {
 		}
 		return this.dabei(p_chat, p_mitglied) ? { chat: this.json(p_chat, p_mitglied) } : { chat: null, verlassen: true };
 	}
-	senden({ p_mitglied, p_chat, p_text, p_erwaehnt, p_whatsapp }) {
+	senden({ p_mitglied, p_chat, p_text, p_erwaehnt, p_whatsapp, p_antwort_auf }) {
 		const c = this.pruefen(p_chat, p_mitglied);
 		const t = String(p_text || '');
 		if (!t.trim()) throw new Error('Die Nachricht ist leer.');
 		const erw = [...new Set(p_erwaehnt || [])].filter(e => e !== p_mitglied && this.dabei(p_chat, e));
 		const wa = [...new Set(p_whatsapp || [])].filter(e => erw.includes(e));
-		const nn = { nachricht_id: ++this.nr, chat_id: p_chat, autor: p_mitglied, text: t, erwaehnt: erw, whatsapp: wa, erstellt: this.jetzt(), bearbeitet: null };
+		const nn = { nachricht_id: ++this.nr, chat_id: p_chat, autor: p_mitglied, text: t, erwaehnt: erw, whatsapp: wa, erstellt: this.jetzt(), bearbeitet: null, reaktionen: {}, reaktion_am: null,
+			antwort_auf: this.nachrichten.some(x => x.chat_id === p_chat && x.nachricht_id === Number(p_antwort_auf)) ? Number(p_antwort_auf) : null };
 		this.nachrichten.push(nn); c.letzte = nn.erstellt;
 		this.dabei(p_chat, p_mitglied).gelesen_bis = nn.nachricht_id;
 		if (erw.length) this.posteingang.push({ absender: p_mitglied, empfaenger: erw, chat_id: p_chat });
 		wa.forEach(e => this.whatsapp.push({ art: 'chat_erwaehnung', mitglied_id: e, aufgabe_id: p_chat, von: p_mitglied }));
-		return { nachricht: nn, chat: this.json(p_chat, p_mitglied) };
+		return { nachricht: this.mitZitat(nn), chat: this.json(p_chat, p_mitglied) };
+	}
+	// Nachbildung von team_chat_nachricht_json und team_chat_reagieren (supabase/team_chat_reaktionen.sql)
+	mitZitat(n) {
+		const z = n.antwort_auf ? this.nachrichten.find(x => x.nachricht_id === n.antwort_auf && x.chat_id === n.chat_id) : null;
+		return { ...n, zitat: z ? { nachricht_id: z.nachricht_id, autor: z.autor, text: z.text.slice(0, 160) } : null };
+	}
+	reagieren({ p_mitglied, p_chat, p_nachricht_id, p_emoji }) {
+		this.pruefen(p_chat, p_mitglied);
+		if (!['👍', '❤️', '😂', '😮', '🙏', '✅'].includes(p_emoji)) throw new Error('Diesen Smiley gibt es hier nicht.');
+		const n = this.nachrichten.find(x => x.chat_id === p_chat && x.nachricht_id === Number(p_nachricht_id));
+		if (!n || !n.autor) throw new Error('Auf diese Nachricht kann man nicht reagieren.');
+		const r = { ...(n.reaktionen || {}) }, liste = (r[p_emoji] || []).slice();
+		const i = liste.indexOf(p_mitglied); if (i >= 0) liste.splice(i, 1); else liste.push(p_mitglied);
+		if (liste.length) r[p_emoji] = liste; else delete r[p_emoji];
+		n.reaktionen = r; n.reaktion_am = this.jetzt();
+		return { nachricht: this.mitZitat(n) };
 	}
 	// Nachbildung von team_chat_bearbeiten (supabase/team_bearbeiten.sql)
 	bearbeiten({ p_mitglied, p_chat, p_nachricht_id, p_text, p_erwaehnt }) {
