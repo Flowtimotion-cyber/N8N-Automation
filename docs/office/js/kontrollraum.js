@@ -27,7 +27,7 @@ const zustandChip = (zustand) => '<span class="zustand"><i style="background:' +
 export function guthabenHtml(k) {
   const g = k.guthaben, kz = k.kz;
   if (g) return '<div class="guthaben ' + g.stufe + '" role="img" aria-label="Guthaben: ' + esc(euro(g.rest)) + ' von ' + esc(euro(g.monat)) + ' übrig"><div class="gb-zeile"><span>Guthaben diesen Monat</span><b>' + esc(euro(g.rest)) + ' <span class="gb-von">von ' + esc(euro(g.monat)) + '</span></b></div><div class="gb-balken"><i style="width:' + Math.round(g.anteil * 100) + '%"></i></div></div>';
-  const text = kz.kosten_eur == null ? (kz.gelaufen ? 'unbekannt' : 'noch keine Läufe') : euro(kz.kosten_eur) + (kz.kosten_geschaetzt ? ' teils geschätzt' : ' gemessen');
+  const text = kz.kosten_eur == null ? (kz.gelaufen ? 'unbekannt' : 'noch keine Läufe') : euro(kz.kosten_eur) + (!kz.kosten_geschaetzt ? ' gemessen' : kz.kosten_geschaetzt >= kz.kosten_gemeldet ? ' geschätzt' : ' teils geschätzt');
   const hinweis = kz.kosten_eur == null ? (kz.gelaufen ? 'Der Ausführer hat für ' + kz.gelaufen + (kz.gelaufen === 1 ? ' Lauf' : ' Läufe') + ' keinen Verbrauch gemeldet.' : '') : (kz.kosten_unbekannt ? kz.kosten_unbekannt + (kz.kosten_unbekannt === 1 ? ' Lauf' : ' Läufe') + ' ohne Angabe' : '');
   return '<div class="guthaben ohne"' + (hinweis ? ' title="' + esc(hinweis) + '"' : '') + '><div class="gb-zeile"><span>Kosten (4 Wochen)</span><b>' + esc(text) + '</b></div>' + (kz.kosten_eur != null && kz.kosten_unbekannt ? '<div class="gb-von">' + esc(hinweis) + '</div>' : '') + '</div>';
 }

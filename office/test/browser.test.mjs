@@ -660,7 +660,7 @@ for (const vp of [DESKTOP, MOBIL]) {
     const texter = '.akarte[data-agent="marketing-texter"]';
     assert.ok((await p.locator(texter + '.z-wartet_freigabe').count()) === 1, 'Texter wartet auf Freigabe');
     assert.ok((await text(p, texter)).includes('LinkedIn-Beitrag KW 43 (Vorschau)'), 'letztes Ergebnis auf der Karte');
-    assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('Kosten (4 Wochen)')); assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('unbekannt'));
+    assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('Kosten (4 Wochen)')); assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('geschätzt'), 'Claude-Code-Läufe: Kosten geschätzt und so gekennzeichnet'); assert.ok((await text(p, '.akarte[data-agent="kurs-waechter"]')).includes('unbekannt'), 'ohne Kostenangabe: unbekannt');
     assert.ok((await p.locator('.akarte.still').count()) >= 1, 'stiller Agent bekommt einen roten Rand'); assert.ok((await text(p, '.akarte.still')).includes('kein Lebenszeichen'));
     const main = await text(p, '#main'); assert.ok(!main.includes('undefined') && !main.includes('NaN'));
     // Für dich: Freigaben mit Knöpfen (gleicher Dialog wie im Register Freigaben), Rückfrage, stiller Agent, Abnahmen
@@ -683,7 +683,7 @@ for (const vp of [DESKTOP, MOBIL]) {
     await p.locator('.akarte[data-agent="akademie-redakteur"] h3 a').click(); await p.waitForTimeout(250); assert.equal(await p.evaluate(() => location.hash), '#/agent/akademie-redakteur');
     // Run-Seite: Kennzahlenzeile über der Zeitleiste
     const ab = z.tabellen.office_runs.find(r => r.status === 'abgeschlossen' && r.abgenommen === true);
-    await oeffne(p, '#/run/' + ab.run_id); assert.equal(await p.locator('#runKz > div').count(), 5); assert.ok((await text(p, '#runKz')).includes('Kosten')); assert.ok((await text(p, '#runKz')).includes('abgenommen'));
+    await oeffne(p, '#/run/' + ab.run_id); assert.equal(await p.locator('#runKz > div').count(), 6); assert.ok((await text(p, '#runKz')).includes('Kosten')); assert.ok((await text(p, '#runKz')).includes('Ergebnis-Typ')); assert.ok((await text(p, '#runKz')).includes('Wirkung')); assert.ok((await text(p, '#runKz')).includes('abgenommen'));
     // Die Büro-Szene liegt jetzt unter „szene“; die alte Adresse „buero“ zeigt den Kontrollraum (Einbettung im Portal bleibt gültig)
     await oeffne(p, '#/tab/szene'); assert.ok(await p.locator('svg.buero').count()); await oeffne(p, '#/tab/buero'); assert.equal(await p.locator('svg.buero').count(), 0);
     // Kompakte Einbettung für die Portal-Übersicht: nur Agenten, bei denen etwas läuft oder wartet, alle anderen als Zeile; kein eigener Kopf, kein „Für dich“
@@ -696,5 +696,53 @@ for (const vp of [DESKTOP, MOBIL]) {
     await p.close();
   });
 }
+
+// KI Office 2.0, Paket 2: Register „Auswertung“ mit Musterdaten, Wirkung beim Abnehmen und nachträglich, Rückfall ohne Kennzahlen vom Server
+test('Auswertung: Rangliste und Tabelle aus den Musterdaten, Wirkung eintragen, Rückfall ohne Kennzahlen-Tabelle', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'auswertung ' + vp.width });
+    await oeffne(p, '#/tab/auswertung'); assert.match(await text(p, 'h1'), /Auswertung/);
+    assert.equal(await p.locator('.rang[data-stufe]').count(), 4); assert.equal(await p.locator('#auswHinweis').count(), 0, 'Server liefert die Kennzahlen');
+    assert.ok((await text(p, '.rang[data-stufe="liefert"]')).includes('Vertriebs-Recherche')); assert.ok((await text(p, '.rang[data-stufe="liefert"]')).includes('Marketing-Texter'));
+    assert.ok((await text(p, '.rang[data-stufe="liefert_nicht"]')).includes('Social-Planer')); assert.ok((await text(p, '.rang[data-stufe="liefert_nicht"]')).includes('50 % zurückgewiesen'));
+    assert.ok((await text(p, '.rang[data-stufe="beobachten"]')).includes('Kosten unbekannt')); assert.ok((await text(p, '.rang[data-stufe="zu_wenig"]')).includes('Rekruiter'));
+    const z = await fetch(S.base + '/api/test/zustand').then(r => r.json());
+    assert.equal(await p.locator('table.auswertung tbody tr').count(), z.tabellen.office_agenten.filter(a => a.aktiv !== false).length);
+    const vr = await text(p, 'table.auswertung tr[data-agent="vertrieb-recherche"]');
+    assert.ok(vr.includes('42 qualifizierte Firmen')); assert.ok(vr.includes('4 Termine')); assert.ok(vr.includes('geschätzt')); assert.ok(vr.includes('liefert'));
+    assert.ok((await text(p, 'table.auswertung tr[data-agent="marketing-texter"]')).includes('gemessen')); assert.ok((await p.locator('table.auswertung tr[data-agent="vertrieb-recherche"] svg.spark').count()) === 1, 'Trend über vier Wochen');
+    const main = await text(p, '#main'); assert.ok(!main.includes('undefined') && !main.includes('NaN')); assert.ok(main.includes('So wird gerechnet'));
+    assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'kein seitliches Scrollen der Seite, nur der Tabelle');
+    await shot(p, 'auswertung', vp);
+    // Kontrollraum nutzt dieselben Kennzahlen: Kosten je abgenommenem Ergebnis auf der Karte
+    await oeffne(p, '#/tab/buero'); assert.ok((await text(p, '.akarte[data-agent="vertrieb-recherche"]')).includes('je abgenommenem Ergebnis')); assert.ok((await p.locator('.akarte[data-agent="vertrieb-recherche"] svg.spark').count()) === 1);
+    await p.close();
+  }
+  // Wirkung: beim Abnehmen eintragen, danach ergänzen (nur Desktop, der Zustand ändert sich)
+  const p = await neueSeite(DESKTOP, { name: 'wirkung' });
+  const z = await fetch(S.base + '/api/test/zustand').then(r => r.json());
+  const r2 = z.tabellen.office_runs.find(r => r.agent_id === 'vertrieb-recherche' && r.status === 'abgeschlossen' && r.abgenommen == null);
+  await oeffne(p, '#/run/' + r2.run_id); assert.equal(await p.locator('#wirkungKnopf').count(), 1);
+  assert.ok((await text(p, '#runKz')).includes('geschätzt')); assert.ok((await text(p, '#runKz')).includes('Textlänge'), 'Basis der Schätzung steht dabei');
+  await p.locator('#runAktionen button.ok').click(); await p.waitForTimeout(150);
+  assert.equal(await p.locator('#dlg [data-wirkung]').count(), 3, 'Vertrieb: Dossiers, qualifizierte Firmen, Termine');
+  await p.locator('#dlg [data-wirkung="firmen"]').fill('12'); await p.locator('#dlg [data-wirkung="dossiers"]').fill('1'); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.ok((await text(p, '#toast')).includes('Abgenommen')); assert.ok((await text(p, '#runKz')).includes('12 qualifizierte Firmen'));
+  await p.locator('#wirkungKnopf').click(); await p.waitForTimeout(150); assert.equal(await p.evaluate(() => document.querySelector('#dlg [data-wirkung="firmen"]').value), '12', 'vorbelegt mit dem Stand');
+  await p.locator('#dlg [data-wirkung="termine"]').fill('4'); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.ok((await text(p, '#runKz')).includes('4 Termine')); await shot(p, 'run-wirkung', DESKTOP);
+  const z2 = await fetch(S.base + '/api/test/zustand').then(r => r.json());
+  assert.deepEqual(z2.tabellen.office_kennzahlen.find(k => k.run_id === r2.run_id).wirkung, { dossiers: 1, firmen: 12, termine: 4 });
+  await p.close();
+  // Rückfall: der Server liefert noch keine Kennzahlen (SQL und Bündel noch nicht eingespielt) → Hinweis, gerechnet wird aus den Läufen
+  const q = await neueSeite(DESKTOP, { name: 'auswertung-rueckfall' });
+  await q.route(/\/api\/office$/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); const j = await res.json(); delete j.kennzahlen; delete j.kennzahl_zeilen; delete j.auswertung; r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) }); });
+  await oeffne(q, '#/tab/auswertung'); assert.equal(await q.locator('#auswHinweis').count(), 1); assert.ok((await q.locator('table.auswertung tbody tr').count()) >= 10); assert.ok(!(await text(q, '#main')).includes('undefined'));
+  await oeffne(q, '#/run/' + r2.run_id); assert.equal(await q.locator('#wirkungKnopf').count(), 0, 'ohne Tabelle kein Wirkungs-Knopf'); assert.equal(await q.locator('#runKz > div').count(), 6);
+  await q.close();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+});
 
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });

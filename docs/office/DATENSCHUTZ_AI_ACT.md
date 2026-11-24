@@ -196,3 +196,20 @@ Timos Wunsch (24.11.2026): Alle Aufnahmen erscheinen unter „Letzte Diktate“,
 | Twenty-Notizen über 50.000 Zeichen | – | ja | ✅ gekürzt mit Hinweis, ganzer Text bleibt in der Ablage | `twentyText` im Portal | – | – |
 
 Keine Rechtsberatung; Einordnung als Arbeitshilfe.
+
+## Ergänzung 24.11.2026 (3): Kennzahlen und Auswertung der Agenten (KI Office 2.0, Paket 2; KI-erstellt: Claude Code, keine Rechtsberatung)
+
+**Was neu verarbeitet wird:** je beendetem Agentenlauf eine Zeile in `office_kennzahlen`: Agent (Registry-Eintrag), Raum, Ausführer, Modell, Status, Ende, Dauer, Token, Kosten mit Art und Basis, Ergebnis-Typ, Anzahl Ergebnisse, Abnahme (offen, abgenommen, zurückgewiesen) ohne Zeitpunkt und ohne Person, Wirkung als Zahlen, Zahl der Versuche. Daraus rechnet das Office je Agent eine Auswertung und ein Urteil (liefert, beobachten, liefert nicht, zu wenig Daten).
+
+**Was bewusst nicht gespeichert wird:** Auftraggeber, abnehmende Person, Auftragstext, Zusammenfassung, Kommentar der Abnahme, Projektname. Die Wirkung nimmt nur ganze Zahlen zu festen Feldern an; Text wird vom Server abgelehnt. Tests prüfen die Feldliste der Zeile und die Spalten der Tabelle.
+
+**Einordnung:**
+
+- **Personenbezug:** Die Zeile selbst enthält keine Angaben zu natürlichen Personen. Solange der zugehörige Run existiert (Regelfrist 180 Tage), lässt sie sich über `run_id` mit Auftraggeber und Abnehmer verknüpfen; in dieser Zeit ist sie wie der Run zu behandeln. Das ist Pseudonymisierung, keine Anonymisierung. Beim Löschen des Runs ersetzt die Office-API die Kennung der Zeile durch eine Zufallskennung; es bleiben Agent, Raum, Zahlen und der Zeitpunkt des Endes. Über diesen Zeitpunkt wäre eine Zuordnung nur noch möglich, wenn an anderer Stelle Reste des Runs liegen (Obsidian-Spiegelnotiz, Sicherungen des Anbieters); die Notiz ist bei einer Löschanfrage mitzulöschen. Der Modellname kommt nur aus einer festen Liste in die Zeile (sonst „sonstiges“), damit ein Ausführer dort keinen Fremdtext ablegen kann.
+- **Keine Leistungs- oder Verhaltenskontrolle von Beschäftigten:** Ausgewertet werden Agenten (Software), nicht Menschen. Es gibt keine Auswertung je Auftraggeber oder je abnehmender Person. Restrisiko im kleinen Team: Ein Raum hat oft eine zuständige Person, eine schlechte Bilanz des „Vertriebs-Agenten“ könnte ihr zugeschrieben werden. Für § 26 BDSG zählt die Eignung zur Kontrolle, nicht die Absicht. Maßnahmen: (a) Die Auswertung nie zur Beurteilung von Personen verwenden; diese Regel gehört schriftlich in die KI-Richtlinie fürs Team (DATENSCHUTZ_AI_ACT.md 4.2), bis dahin ist sie nur ein Vorsatz. (b) Die Oberfläche zeigt keine Kennzahl je auftraggebender oder abnehmender Person und keinen Zeitpunkt der Abnahme in den Kennzahlen. Ob eine Information ans Team genügt, entscheidet Timo; die Einordnung als Beschäftigtendaten gehört zum Anwalt. Bei Betriebsrat oder Kundenzugang vorher prüfen (§ 87 Abs. 1 Nr. 6 BetrVG wäre bei einer Auswertung je Person einschlägig, hier nicht gebaut).
+- **Kein automatisiertes Entscheiden (Art. 22 DSGVO):** Das Urteil betrifft Agenten und löst nichts aus; Skalieren, Pausieren und Abschalten bleiben Entscheidungen von Timo.
+- **Zugriff:** Tabelle mit Row Level Security ohne Policy, Funktionen nur für `service_role`. Im Browser sehen Menschen die Summen je Agent über alle Projekte, auch über Projekte, die ihre Rolle später einmal nicht sehen darf (heute sehen Teammitglieder alle Projekte; bei Kundenzugängen neu entscheiden, RESTPUNKTE.md); die einzelnen Zeilen nur zu Runs, die ihre Rolle ohnehin sieht. Agenten sehen nur die Kennzahlen der Registry-Einträge, die sie selbst ausführen.
+- **Drittland:** keine neue Übermittlung. Die Schätzung der Kosten rechnet lokal im Workflow, kein Modellaufruf.
+- **Aufbewahrung:** Vorschlag 24 Monate, Löschbefehl im Löschkonzept; Timo bestätigt oder ändert.
+
+**Offen:** Verzeichnis der Verarbeitungstätigkeiten um „Kennzahlen der KI-Agenten“ ergänzen; Satz in die Datenschutzinformation fürs Team (Abnahmen fließen als Zählung ohne Namen in die Auswertung der Agenten); Frist bestätigen.

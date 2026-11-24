@@ -203,6 +203,24 @@ select option{background:var(--card);color:var(--ink)}
 .run-kz div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .run-kz b{display:block;font-size:17px;font-family:var(--mono);font-variant-numeric:tabular-nums}.run-kz span{font-size:12px;color:var(--mut)}
 
+/* ---------- Auswertung (#/tab/auswertung): Rangliste und Tabelle je Agent ---------- */
+.rangliste{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.rang{border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:var(--card2)}
+.rang h3{display:flex;justify-content:space-between;text-transform:uppercase;letter-spacing:.05em;font-size:12px;margin:0 0 4px}
+.rang ul{list-style:none;margin:0;padding:0}.rang li{padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.rang li a{color:var(--ink);text-decoration:none;display:block}.rang li a:hover{text-decoration:underline}.rang li span{color:var(--mut);font-size:12px}
+.rang.st-liefert{border-color:var(--ok-rand)}.rang.st-liefert h3{color:var(--ok-fg)}.rang.st-beobachten h3{color:var(--warn-fg)}
+.rang.st-nicht{border-color:var(--err-rand)}.rang.st-nicht h3{color:var(--err-fg)}.rang.st-wenig h3{color:var(--mut)}
+.urteil{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;background:var(--soft);white-space:nowrap}
+.urteil.st-liefert{background:var(--ok-bg);color:var(--ok-fg)}.urteil.st-beobachten{background:var(--warn-bg);color:var(--warn-fg)}.urteil.st-nicht{background:var(--err-bg);color:var(--err-fg)}.urteil.st-wenig{color:var(--mut)}
+.tabelle-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.auswertung{width:100%;border-collapse:collapse;font-size:13.5px;min-width:980px}
+table.auswertung th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600}
+table.auswertung td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
+table.auswertung td a{color:var(--ink);text-decoration:none}table.auswertung td a:hover{text-decoration:underline}
+table.auswertung tr:last-child td{border-bottom:0}
+code{font-family:var(--mono);font-size:.92em;background:var(--card2);padding:1px 5px;border-radius:5px}
+
 /* ---------- Büro-Szene (isometrisch, #/tab/szene), Live-Panel rechts ---------- */
 .szene{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;margin-bottom:14px}
 .livepanel .feed li{padding:3px 0 8px 18px}

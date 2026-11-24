@@ -320,3 +320,63 @@ Antworten ohne Änderung (bis auf den Zeitstempel) bauen die Ansicht nicht neu a
 **Thema.** Dunkel ist Standard. Der Knopf im Kopf schaltet auf hell (Portal-Farben) und merkt die Wahl je Gerät (`localStorage` `ko-thema`); `?thema=hell` oder `?thema=dunkel` in der Adresse gilt nur für diesen Aufruf (gedacht für die Einbettung) und überschreibt die gemerkte Wahl nicht. `prefers-reduced-motion` schaltet weiter alle Animationen ab.
 
 **Unverändert und geprüft:** HTML-Ergebnisse der Agenten nur in `<iframe sandbox="">` (Büro-Szene, Monitorwand), alle Datenwerte durch `esc()`, Freigabe-Dialog und Hash-Bindung, Rechtefilter ausschließlich auf dem Server, Einbettung mit Höhenmeldung an das Portal.
+
+## 15. KI Office 2.0: Messbarkeit, Kennzahlen und Auswertung (ergänzt 24.11.2026, KI-erstellt: Claude Code)
+
+**Ziel (Timo, 08.11.2026):** Ergebnisse von Agenten messbar machen und auswerten können, um Agenten abzuschalten oder zu vervielfachen, wenn es gut läuft. Dieses Paket misst und zeigt; Guthaben und Skalierungsvorschläge folgen in Paket 3.
+
+**Was je Lauf erfasst wird** (Tabelle `office_kennzahlen`, eine Zeile je beendetem Run, `supabase/team_office_kennzahlen.sql`):
+
+| Feld | Woher | Bemerkung |
+|---|---|---|
+| `agent_id`, `raum`, `ausfuehrer`, `modell` | Registry, Run, gemeldeter Verbrauch | `modell` ist das gemeldete Modell, wenn es in der Preistabelle steht, sonst das der Registry, sonst „sonstiges“ (kein Freitext des Ausführers) |
+| `status`, `beendet`, `dauer_sek`, `versuche` | Run | `abgeschlossen`, `fehlgeschlagen`, `abgebrochen`, `unbekannt`; nie gestartete Aufträge bekommen keine Zeile |
+| `tokens_ein`, `tokens_aus`, `kosten_eur`, `kosten_art`, `kosten_basis` | Ausführer oder Schätzung | siehe „Kosten“ unten |
+| `ergebnis_typ`, `ergebnisse` | Ausführer (`run_beenden.ergebnis_typ`), sonst aus der Art des letzten Artefakts | text, dossier, bericht, code, workflow, medien, plan, pruefung, sonstiges, ohne |
+| `abnahme` | Mensch (`run_abnehmen`) | offen, abgenommen, zurueckgewiesen; wer wann entschieden hat, steht hier nicht |
+| `wirkung` | Ausführer (`run_beenden.wirkung`), Mensch bei der Abnahme oder später (`wirkung_setzen`) | nur ganze Zahlen je Wirkungsfeld des Raums |
+
+**Keine Personendaten in den Kennzahlen.** Die Zeile enthält keinen Auftraggeber, keinen Abnehmer, keinen Auftragstext, keine Zusammenfassung und keinen Projektnamen (Projektnamen können Kunden- oder Personennamen tragen). Die Wirkung nimmt nur Zahlen an (`wirkungPruefen`), Text wird mit 400 abgelehnt. Darum darf die Zeile den Run überleben: Sie hat keinen Fremdschlüssel auf `office_runs` und bleibt stehen, wenn der Run nach dem Löschkonzept gelöscht wird; `loeschen` ersetzt dabei ihre `run_id` durch eine Zufallskennung. Solange der Run existiert, ist die Zeile pseudonym, nicht anonym. Ein Test prüft die Feldliste und die Spalten der Tabelle.
+
+**Kosten: gemessen, geschätzt oder unbekannt** (`kennzahlZeile` in `office/lib/kennzahlen.js`):
+
+| Fall | `kosten_art` | `kosten_basis` |
+|---|---|---|
+| Ausführer meldet Kosten mit Quelle (`verbrauch.kosten_quelle`) | `gemessen` | `ausfuehrer` |
+| Ausführer meldet Kosten ohne Quelle (heute der Text-Ausführer in n8n) | `geschaetzt` | `ausfuehrer` |
+| Ausführer meldet nur Token | `geschaetzt` | `preistabelle` (`KZ_PREISE_USD_MIO`, `KZ_USD_IN_EUR`) |
+| Ausführer `claude-code`, `codex`, `hermes` ohne Meldung, Lauf abgeschlossen oder fehlgeschlagen | `geschaetzt` | `textlaenge`: Ausgabe = Zeichen von Zusammenfassung und Ergebnissen, Eingabe = Auftrag plus viermal die Ausgabe, geteilt durch 3,5 Zeichen je Token, mal Listenpreis des Registry-Modells |
+| alles andere (n8n ohne Meldung, Modell ohne Preis, abgebrochen ohne Ergebnis) | `unbekannt` | leer |
+
+Die Schätzung aus der Textlänge ist grob und so gekennzeichnet; ihre drei Stellschrauben stehen als Konstanten oben in der Datei. n8n-Ausführer ohne Meldung werden bewusst nicht geschätzt: Verwaltungs-Status und Orchestrierer arbeiten ohne Modell, eine Schätzung würde ihnen Kosten andichten. Der Abholer kann den Verbrauch mitmelden, wenn er ihn kennt (`office.py fertig --tokens-ein … --kosten … --kosten-quelle …`).
+
+**Wirkungsfelder je Raum** (`WIRKUNG_FELDER`): Vertrieb `dossiers`, `firmen` (qualifizierte Firmen), `termine`; Marketing `texte_freigegeben`, `veroeffentlicht`; Akademie `lektionen`, `kurspruefungen`; Kundenprojekte `workflows`, `reviews`; Verwaltung `berichte`, `pruefungen`. Neue Felder: Konstante ergänzen, Bündel bauen, einspielen.
+
+**Neue und geänderte Aktionen der Office-API:**
+
+| Aktion | Änderung |
+|---|---|
+| `run_beenden`, `rueckmeldung` | nehmen optional `ergebnis_typ` und `wirkung` an (ungültige Wirkung → 400, nichts wird geschrieben) und schreiben die Kennzahlzeile |
+| `run_abnehmen` | nimmt optional `wirkung` an und setzt `abnahme` in der Zeile |
+| `wirkung_setzen` (neu) | `{ run_id, wirkung }`: Wirkung nachtragen oder korrigieren; nur Menschen, die den Run steuern dürfen, nur technisch abgeschlossene Runs; Hinweis-Ereignis in der Zeitleiste |
+| `run_abbrechen`, `wartung` | schreiben die Zeile für abgebrochene bzw. veraltete Läufe, die schon gestartet waren |
+| `laden` | liefert zusätzlich `kennzahlen` (je Agent, mit `bewertung`), `kennzahl_zeilen` (nur zu Runs, die die Rolle sieht) und `auswertung` (`tabelle`, `tage`, `schwellen`, `wirkung_felder`, `ergebnis_typen`). Agenten bekommen nur die Kennzahlen der Registry-Einträge, die sie selbst ausführen |
+
+Eine Zeile je Run: Beim ersten Ende wird sie angelegt (`POST`), danach fortgeschrieben (`PATCH`), auch über Wiederholungen hinweg. Bei automatischer Wiederholung entsteht die Zeile erst am echten Ende.
+
+**Laden.** Die Office-API liest künftig `rpc/team_laden_office` statt `rpc/team_laden`. Die neue Funktion ruft `team_laden()` auf und hängt die Kennzahlen der letzten 120 Tage an. `team_laden()` selbst bleibt unverändert: Das Portal bekommt keine größere Antwort, und spätere Erweiterungen von `team_laden()` gehen nicht verloren. Fehlt der Schlüssel `office_kennzahlen` in den Daten (SQL noch nicht ausgeführt), schreibt der Code nichts in die Tabelle und rechnet aus den Runs; `auswertung.tabelle` ist dann `false`.
+
+**Auswertung** (`kennzahlenAusZeilen`, `bewertung`): je Agent über 28 Tage Läufe, Ergebnisse, abgenommen, zurückgewiesen, offen, fehlgeschlagen, Kosten gesamt und getrennt nach gemessen und geschätzt, Läufe ohne Kostenwert, Kosten je abgenommenem Ergebnis, Zurückweisungsquote, mittlere Dauer, Trend in vier Wochenscheiben, Summe der Wirkung. Urteil mit den Schwellen `AUSWERTUNG_SCHWELLEN` (Vorschlag: höchstens 0,50 € je abgenommenem Ergebnis, höchstens 20 % zurückgewiesen, mindestens 3 bewertete Ergebnisse):
+
+| Urteil | Wann |
+|---|---|
+| zu wenig Daten | weniger als 3 fachlich bewertete Ergebnisse |
+| liefert nicht | über 20 % zurückgewiesen, oder nichts abgenommen |
+| beobachten | Kosten unbekannt, oder über 0,50 € je abgenommenem Ergebnis |
+| liefert | sonst |
+
+Das Urteil ist ein Hinweis aus Zahlen und löst nichts aus. Dieselbe Rechnung gibt es als SQL: `office_auswertung(p_tage)` und `office_auswertung_wochen(p_wochen)`, beide nur für `service_role`. Der Test `office/test/sql.kennzahlen.test.mjs` führt die SQL-Datei gegen ein echtes Postgres im Speicher aus und vergleicht die Ergebnisse mit der Bibliothek.
+
+**Oberfläche.** Neues Register `Auswertung` (`#/tab/auswertung`, `js/auswertung.js`): Kopfzahlen, Rangliste in vier Spalten, Tabelle je Agent mit Trend und Wirkung, Erklärung der Rechnung. Run-Seite: Kennzahlenzeile mit Kosten samt Basis der Schätzung, Ergebnis-Typ und Wirkung; Knopf „Wirkung eintragen“. Abnahme-Dialog: Wirkungsfelder des Raums zum Ausfüllen. Kontrollraum-Karten nutzen dieselben Kennzahlen. Solange der Server keine Kennzahlen liefert, rechnet die Seite mit der Kopie der Bibliothek aus den Runs und zeigt den Hinweis „Vorläufige Zahlen“.
+
+**Musterdaten.** Der Testserver füllt `office_kennzahlen` im Szenario „standard“ mit 93 synthetischen Zeilen über vier Wochen (`musterKennzahlen` in `office/dev/testdaten.mjs`), damit Rangliste, Trend und Wirkung lokal sichtbar sind. In Produktion beginnt die Tabelle leer und füllt sich mit jedem beendeten Lauf.

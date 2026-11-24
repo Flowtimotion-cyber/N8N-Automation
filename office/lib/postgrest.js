@@ -15,7 +15,8 @@ export const UNIQUE = {
   office_freigaben: [['freigabe_id'], ['run_id', 'aktion', 'inhalt_hash']],
   office_idempotenz: [['schluessel']],
   office_agenten: [['agent_id']],
-  office_run_schluessel: [['run_id']]
+  office_run_schluessel: [['run_id']],
+  office_kennzahlen: [['run_id']]
 };
 
 function filterAus(pfad) {

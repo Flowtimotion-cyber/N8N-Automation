@@ -70,7 +70,8 @@ test('Kontrollraum aus den Testdaten: Karten, stiller Agent, „Für dich“ nac
   assert.equal(karte('marketing-texter').zustand, 'wartet_freigabe'); assert.ok(karte('marketing-texter').aktuell, 'aktuelle Aufgabe gesetzt');
   assert.equal(karte('marketing-texter').letztes.titel, 'LinkedIn-Beitrag KW 43 (Vorschau)'); assert.equal(karte('marketing-texter').letztes.pruefstand, 'ungeprueft');
   assert.equal(karte('akademie-redakteur').letztes.run_id !== undefined, true); assert.equal(karte('social-planer').aktuell, null);
-  assert.equal(karte('akademie-redakteur').kz.kosten_eur, null, 'Claude-Code-Läufe der Testdaten melden keinen Verbrauch'); assert.ok(karte('akademie-redakteur').kz.abgenommen >= 1);
+  assert.ok(karte('akademie-redakteur').kz.kosten_eur > 0, 'Claude-Code-Läufe melden keinen Verbrauch: der Server schätzt aus der Textlänge'); assert.ok(karte('akademie-redakteur').kz.kosten_geschaetzt >= 1); assert.ok(karte('akademie-redakteur').kz.abgenommen >= 1);
+  assert.equal(karte('kurs-waechter').kz.kosten_eur, null, 'ohne jede Kostenangabe: unbekannt, nicht 0');
   assert.ok(karte('marketing-texter').kz.kosten_eur > 0, 'n8n-Lauf der Testdaten meldet Kosten'); assert.equal(karte('marketing-texter').guthaben, null);
   const still = karten.filter(k => k.still_min !== null); assert.ok(still.length >= 1); assert.ok(still.every(k => k.still_min >= STILL_NACH_MIN && k.zustand === 'arbeitet'));
   // Für dich: Timo (Admin) entscheidet Start und externe Freigaben, sieht Rückfrage und stillen Agenten

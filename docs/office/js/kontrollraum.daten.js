@@ -2,7 +2,7 @@
 // Alles aus der schon rechtegefilterten Antwort auf „laden“ (ctx.D); keine zweite Datenquelle.
 // Kennzahlen kommen aus office/lib/kennzahlen.js (Kopie ./kennzahlen.js): nur gemeldete Werte, Kosten ohne Meldung heißen „unbekannt“.
 import { AKTIVE_RUN_STATUS, PROBLEM_RUN_STATUS, agentReg, runVon, mitglied, agentZustand, letzteAktivitaetRun, darfEntscheiden, istStartFreigabe, pruefstand } from './modell.js';
-import { agentKennzahlen, trendRichtung, runKostenGemeldet } from './kennzahlen.js';
+import { agentKennzahlen, trendRichtung, runKostenGemeldet, bewertung, kennzahlZeile, kennzahlFaehig, WIRKUNG_FELDER } from './kennzahlen.js';
 
 export const STILL_NACH_MIN = 5;          // Agent „in Arbeit“ ohne Lebenszeichen seit so vielen Minuten bekommt einen roten Rand
 export const RAUM_AKZENT = { Akademie: '#A77BFF', Marketing: '#F5A94A', Vertrieb: '#3FD0D4', Kundenprojekte: '#4CCB8F', Verwaltung: '#9FA3C8', Zentrale: '#9B7BFF' };
@@ -27,6 +27,38 @@ export function guthabenVon(agent) {
   return { monat, verbraucht, rest, anteil, stufe: anteil >= 1 ? 'leer' : anteil >= 0.75 ? 'knapp' : 'ok', geschaetzt: g.geschaetzt === true };
 }
 
+/**
+ * Kennzahlen eines Agenten: vom Server (Tabelle office_kennzahlen, mit Bewertung), sonst mit derselben Bibliothek aus den Runs gerechnet
+ * (solange der Server die Kennzahlen noch nicht liefert; dann ohne Wirkung und nur über die Runs, die diese Rolle sieht).
+ */
+export function kennzahlenVon(D, a) {
+  const vomServer = D.kennzahlen && D.kennzahlen[a.agent_id];
+  if (vomServer) return vomServer;
+  const kz = agentKennzahlen(D.runs || [], a.agent_id, standMs(D), undefined, { agent: a, artefakte: D.artefakte || [], zeilen: D.kennzahl_zeilen || [] });
+  kz.bewertung = bewertung(kz, (D.auswertung || {}).schwellen);
+  return kz;
+}
+/** Zeilen der Auswertung: ein Eintrag je aktivem Agenten mit Kennzahlen und Bewertung, sortiert nach Urteil, dann nach abgenommenen Ergebnissen. */
+export function auswertungZeilen(D) {
+  const ordnung = { liefert: 0, beobachten: 1, liefert_nicht: 2, zu_wenig: 3 };
+  return (D.agenten || []).filter(a => a.aktiv !== false).map(a => { const kz = kennzahlenVon(D, a); return { agent: a, kz, bw: kz.bewertung || bewertung(kz, (D.auswertung || {}).schwellen) }; })
+    .sort((x, y) => (ordnung[x.bw.stufe] ?? 9) - (ordnung[y.bw.stufe] ?? 9) || y.kz.abgenommen - x.kz.abgenommen || x.agent.name.localeCompare(y.agent.name));
+}
+/** Wirkungsfelder eines Agenten (nach seinem Raum), vom Server oder aus der Bibliothek. */
+export const wirkungFelder = (D, agent) => (((D.auswertung || {}).wirkung_felder || WIRKUNG_FELDER)[(agent || {}).raum] || []);
+/** Wirkung lesbar: „42 qualifizierte Firmen, 4 Termine“. Leer, wenn nichts eingetragen ist. */
+export function wirkungText(D, agent, wirkung) {
+  const felder = wirkungFelder(D, agent);
+  return Object.entries(wirkung || {}).filter(([, n]) => Number(n) > 0).map(([k, n]) => n + ' ' + ((felder.find(f => f.feld === k) || {}).text || k)).join(', ');
+}
+/** Kennzahlzeile eines Runs: vom Server, sonst für beendete Läufe aus dem Run gebildet, sonst null. */
+export function kennzahlZeileVon(D, run) {
+  const z = (D.kennzahl_zeilen || []).find(k => k.run_id === run.run_id);
+  if (z) return z;
+  if (!kennzahlFaehig(run)) return null;
+  return kennzahlZeile(run, agentReg(D, run.agent_id), D.artefakte || [], null);
+}
+
 /** Alles, was eine Agentenkarte braucht: Zustand, aktuelle Aufgabe, letztes Ergebnis, Stille, Kennzahlen, Guthaben. */
 export function agentKarteDaten(D, a) {
   const jetzt = standMs(D);
@@ -44,7 +76,7 @@ export function agentKarteDaten(D, a) {
   let still_min = null;
   const arbeitet = z.aktiv.filter(r => r.status === 'in_arbeit');
   if (arbeitet.length) { const juengstes = Math.max(...arbeitet.map(r => zeit(r.lebenszeichen) || zeit(r.gestartet) || zeit(r.erstellt) || 0)); const m = (jetzt - juengstes) / 60000; if (m >= STILL_NACH_MIN) still_min = Math.round(m); }
-  const kz = agentKennzahlen(D.runs || [], a.agent_id, jetzt);
+  const kz = kennzahlenVon(D, a);
   return { agent: a, z, zustand: a.aktiv === false ? 'inaktiv' : z.zustand, aktuell, letztes, still_min, kz, trend: trendRichtung(kz.trend), guthaben: guthabenVon(a) };
 }
 

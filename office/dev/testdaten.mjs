@@ -88,7 +88,49 @@ export function basisTabellen(jetztIso) {
     V('v_t4', 'Dunkelmodus für das Portal', 'Abends angenehmer.', 'Sonstiges', 'neu', 1)
   ];
   const office_agenten = REG.agenten.map(a => ({ ...a, beschreibung: a.rolle, workflow_version: a.ausfuehrer === 'n8n' ? 'v1' : '', konfig_version: '1', aktiv: true, ausfuehrer_url: a.ausfuehrer === 'n8n' ? 'https://n8n.example.invalid/webhook/agent-' + a.agent_id : null, geaendert: vor(7), geaendert_von: 'm_timo' }));
-  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_vorschlaege: vorschlaege, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [] };
+  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_vorschlaege: vorschlaege, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [], office_kennzahlen: [] };
+}
+
+/**
+ * Musterdaten für die Auswertung (KI Office 2.0, Paket 2): Kennzahlzeilen der letzten vier Wochen, synthetisch und deterministisch.
+ * Sie haben keine zugehörigen Runs (wie nach dem Löschlauf): Die Auswertung lebt allein von office_kennzahlen.
+ * Je Agent: Läufe je Woche (älteste zuerst), Abnahme-Muster reihum (a = abgenommen, z = zurückgewiesen, o = offen, f = fehlgeschlagen),
+ * Kosten je Lauf je Woche (null = unbekannt), Kostenart und -basis, Ergebnis-Typ, Wirkung je abgenommenem Lauf.
+ */
+export function musterKennzahlen(jetztIso) {
+  const t = new Date(jetztIso).getTime(), out = [];
+  const PROFILE = [
+    ['vertrieb-recherche', [3, 4, 4, 5], 'aaaazaaa', [0.38, 0.33, 0.30, 0.29], 'geschaetzt', 'textlaenge', 'dossier', { dossiers: 1, firmen: 3 }, 19],
+    ['marketing-texter', [4, 4, 5, 5], 'aaazaaaaaz', [0.012, 0.011, 0.010, 0.010], 'gemessen', 'ausfuehrer', 'text', { texte_freigegeben: 1 }, 2],
+    ['social-planer', [2, 2, 3, 2], 'azzaazoz', [0.004, 0.004, 0.005, 0.005], 'gemessen', 'ausfuehrer', 'plan', {}, 1],
+    ['akademie-redakteur', [2, 3, 3, 3], 'aaaaazaaao', [0.41, 0.38, 0.33, 0.35], 'geschaetzt', 'textlaenge', 'text', { lektionen: 1 }, 14],
+    ['angebots-pruefer', [1, 1, 2, 1], 'aaaaa', [0.90, 1.00, 1.00, 1.00], 'geschaetzt', 'textlaenge', 'pruefung', {}, 23],
+    ['kurs-waechter', [3, 4, 3, 4], 'aaaaaaoaaaaaao', [null, null, null, null], 'unbekannt', null, 'bericht', { kurspruefungen: 1 }, 2],
+    ['verwaltung-status', [1, 1, 1, 1], 'aaaa', [0, 0, 0, 0], 'gemessen', 'ausfuehrer', 'bericht', { berichte: 1 }, 1],
+    ['kunden-entwickler', [1, 2, 1, 2], 'azaafa', [0.60, 0.55, 0.59, 0.59], 'geschaetzt', 'textlaenge', 'workflow', { workflows: 1 }, 35],
+    ['server-waechter', [2, 2, 2, 2], 'aaoaaoaa', [0.03, 0.03, 0.04, 0.03], 'gemessen', 'ausfuehrer', 'pruefung', { pruefungen: 1 }, 1],
+    ['architektur-review', [0, 1, 0, 1], 'aa', [0.90, 0.90, 0.90, 0.90], 'geschaetzt', 'textlaenge', 'pruefung', { reviews: 1 }, 28]
+  ];
+  for (const [agent_id, jeWoche, muster, kosten, kosten_art, kosten_basis, ergebnis_typ, wirkung, dauerMin] of PROFILE) {
+    const reg = REG.agenten.find(a => a.agent_id === agent_id); if (!reg) continue;
+    let n = 0;
+    jeWoche.forEach((anzahl, w) => {
+      for (let i = 0; i < anzahl; i++) {
+        const m = muster[n % muster.length]; n++;
+        // Woche w (0 = älteste): gleichmäßig über die sieben Tage der Woche verteilt, nie jünger als ein Tag (heute gehört den echten Runs)
+        const tageHer = (3 - w) * 7 + 1 + ((i + 0.5) / anzahl) * 5.5;
+        const beendet = new Date(t - tageHer * 86400000).toISOString();
+        const fehl = m === 'f';
+        out.push({ run_id: 'muster_' + agent_id + '_' + String(n).padStart(2, '0'), agent_id, raum: reg.raum, ausfuehrer: reg.ausfuehrer, modell: reg.modell, status: fehl ? 'fehlgeschlagen' : 'abgeschlossen', beendet,
+          dauer_sek: dauerMin * 60 + (n % 3) * 30, tokens_ein: kosten[w] == null ? null : 4000 + n * 137, tokens_aus: kosten[w] == null ? null : 900 + n * 41, kosten_eur: kosten[w], kosten_art, kosten_basis,
+          ergebnis_typ: fehl ? 'ohne' : ergebnis_typ, ergebnisse: fehl ? 0 : 1, abnahme: m === 'a' ? 'abgenommen' : m === 'z' ? 'zurueckgewiesen' : 'offen',
+          wirkung: m === 'a' ? { ...wirkung } : {}, versuche: 1, geaendert: beendet });
+      }
+    });
+  }
+  // Vertrieb: aus den Dossiers sind Termine geworden (nachgetragen über wirkung_setzen)
+  const v = out.filter(z => z.agent_id === 'vertrieb-recherche' && z.abnahme === 'abgenommen'); [2, 6, 9, 12].forEach(i => { if (v[i]) v[i].wirkung.termine = 1; });
+  return out;
 }
 
 /**
@@ -101,6 +143,7 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const sp = new Speicher({ tabellen: basisTabellen(uhr.iso()), uhr, zufall: zufallsQuelle(7), quelle: 'testadapter' });
   const ad = new TestAdapter({ speicher: sp, uhr, tokenVon: tokenVonAgent });
   if (szenario === 'leer') { uhr.vor(56 * 60); return { speicher: sp, adapter: ad, uhr }; }
+  sp.T.office_kennzahlen.push(...musterKennzahlen(jetzt ? new Date(jetzt).toISOString() : new Date().toISOString()));
   const mensch = (wer, aktion, daten) => sp.aufruf({ token: TOKENS[wer], aktion, daten });
   // Teammitglieder brauchen für teure/normale Agenten Timos Startfreigabe (office/lib/kosten.js). Die Szenario-Runs sollen wie bisher laufen, darum gibt Timo hier gleich frei;
   // die Fälle „wartet auf Timo“ und „Start abgelehnt“ stehen weiter unten bewusst offen (Runs 14 und 15).

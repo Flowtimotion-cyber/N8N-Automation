@@ -110,3 +110,16 @@ Das KI Office öffnet jetzt im **Kontrollraum**: dunkel, eine Karte je Agent, na
 - **Büro-Szene:** Die frühere Ansicht mit Räumen, Figuren und Monitoren liegt jetzt im Register „Büro-Szene“.
 - **Run-Seite:** Über der Zeitleiste stehen fünf Zahlen: Kosten, Dauer, Schritte, Ergebnisse, fachliche Prüfung.
 - **Im Team-Portal:** Auf der Übersicht erscheint die kompakte Fassung (nur Agenten, bei denen etwas läuft oder wartet, plus Ticker), im Register „KI Office“ das ganze Office.
+
+## Auswertung: wer liefert, wer nicht (ab 24.11.2026, wirkt voll nach dem Einspielen von Paket 2)
+
+Neues Register **Auswertung**. Es zeigt die letzten 28 Tage je Agent.
+
+- **Rangliste** in vier Spalten: liefert, beobachten, liefert nicht, zu wenig Daten. Unter jedem Namen steht der Grund in Zahlen.
+- **Tabelle je Agent:** Läufe, Ergebnisse, abgenommen, zurückgewiesen (mit Quote), Kosten (aufgeteilt in gemessen und geschätzt), Kosten je abgenommenem Ergebnis, Trend über vier Wochen, mittlere Dauer, Wirkung, Urteil.
+- **Bewertet wird nur, was du abnimmst oder zurückweist.** Ein Agent mit zehn Ergebnissen ohne Abnahme hat „zu wenig Daten“. Abnehmen und Zurückweisen geht wie bisher auf der Run-Seite.
+- **Kosten:** „gemessen“ hat der Ausführer mit Quelle gemeldet. „Geschätzt“ ist gerechnet, auf der Run-Seite steht, woraus (vom Ausführer ohne Quelle, aus Token und Preistabelle, oder grob aus der Textlänge). „Ohne Angabe“ zählt nicht als null.
+- **Wirkung:** Was ist aus dem Ergebnis geworden? Beim Abnehmen kannst du Zahlen eintragen, zum Beispiel beim Vertrieb „qualifizierte Firmen: 12“. Später ergänzen geht auf der Run-Seite mit „Wirkung ändern“, etwa wenn aus einem Dossier ein Termin wird. Nur Zahlen, keine Namen.
+- **Die Zahlen schlagen vor, du entscheidest.** Das Urteil löst nichts aus. Vorschläge zum Skalieren oder Pausieren kommen mit Paket 3 als Karten, die du freigibst oder ablehnst.
+- **„Vorläufige Zahlen“** steht oben, solange die Kennzahlen-Tabelle im Server noch nicht eingerichtet ist. Dann rechnet die Seite aus den Läufen der letzten 90 Tage, ohne Wirkung.
+- Gespeichert sind je Lauf nur Agent, Raum, Modell, Zahlen und feste Kategorien. Kein Auftraggeber, kein Auftragstext.

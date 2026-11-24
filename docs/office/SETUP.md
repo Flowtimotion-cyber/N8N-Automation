@@ -208,3 +208,23 @@ Dazu gibt es das Register **„Diktat“** (für admin/dozent/vertrieb) für das
 
 Rechtlicher Hinweis, den das Portal auch anzeigt: Das Diktat ist für die **eigene Notiz nach dem Gespräch** gedacht. Ein **Mitschnitt** eines Telefonats oder Meetings ist nur mit Einwilligung aller Beteiligten erlaubt (§ 201 StGB); dafür gibt es das Häkchen „Gesprächsmitschnitt, alle Beteiligten haben zugestimmt“, das den Hinweis in die Aktivität schreibt. Audio geht an OpenAI (USA); siehe DATENSCHUTZ_AI_ACT.md.
 
+
+## 16. KI Office 2.0, Paket 2: Kennzahlen und Auswertung einspielen (Branch `feature/ki-office-2-kennzahlen`, 24.11.2026, KI-erstellt: Claude Code)
+
+**Noch nicht eingespielt.** Bis dahin läuft das Office weiter wie nach Paket 1; das Register „Auswertung“ zeigt dann „Vorläufige Zahlen“ aus den Läufen.
+
+**Was wer tut, in dieser Reihenfolge:**
+
+1. **Timo: SQL ausführen.** Supabase → SQL Editor → Inhalt von `supabase/team_office_kennzahlen.sql` einfügen → Run. Die Datei legt nur Neues an (Tabelle `office_kennzahlen`, Funktionen `team_laden_office`, `office_auswertung`, `office_auswertung_wochen`) und kann gefahrlos wiederholt werden. `team_laden()` und alle bestehenden Tabellen bleiben unverändert. Am Ende zeigt der Editor drei Ergebnisse: `kennzahlen_im_laden = true` und zwei leere Auswertungen ohne Fehler.
+2. **Claude Code mit Timos Ja: Workflow „TEAM: Office-API“ (`NuK6m10yIGKMRWxC`) aktualisieren.** Vorher die aktive Version exportieren und in `Projekt-Manager/22_Momentum/_sicherung/` ablegen. Zwei Änderungen, sonst nichts:
+   - Knoten **„Team-Daten laden“**: Adresse von `…/rest/v1/rpc/team_laden` auf `…/rest/v1/rpc/team_laden_office` ändern.
+   - Knoten **„Anfrage prüfen“**: Code durch den Inhalt von `office/n8n/code/anfrage-pruefen.js` ersetzen.
+   Speichern, Version benennen („Claude Code: KI Office 2.0 Kennzahlen“), veröffentlichen.
+3. **Timo: PR mergen** (Oberfläche über GitHub Pages).
+4. **Prüfen:** Office öffnen → Register „Auswertung“ ohne den Hinweis „Vorläufige Zahlen“. Einen kleinen Auftrag an „Verwaltungs-Status“ geben, abwarten, auf der Run-Seite abnehmen und eine Wirkung eintragen → die Zahl steht in der Kennzahlenzeile des Runs und in der Auswertung. Kontrolle im SQL Editor: `select * from office_kennzahlen order by beendet desc limit 5;` und `select * from office_auswertung(28);`.
+
+**Vorsicht bei der Reihenfolge:** Wird Schritt 2 vor Schritt 1 gemacht, findet der Knoten „Team-Daten laden“ die Funktion nicht und das Office zeigt „Keine Verbindung“. Rückweg: Adresse wieder auf `rpc/team_laden` stellen oder die gesicherte Version aktivieren. Umgekehrt ist unkritisch: Nach Schritt 1 ohne Schritt 2 ändert sich nichts. Der neue Code funktioniert auch mit `rpc/team_laden` (dann ohne Tabelle, `auswertung.tabelle = false`).
+
+**Werte ändern:** Schwellen der Rangliste (`AUSWERTUNG_SCHWELLEN`), Preistabelle der Schätzung (`KZ_PREISE_USD_MIO`, `KZ_USD_IN_EUR`), Schätzfaktoren und Wirkungsfelder stehen oben in `office/lib/kennzahlen.js`. Danach `node office/n8n/bauen.mjs` (schreibt das Bündel und die Kopie für die Seite), `npm run test:office:unit`, Bündel wie in Schritt 2 einspielen, Branch mergen. Ändern sich die Schwellen, auch die drei Zahlen in `office_auswertung` der SQL-Datei anpassen (0,2 / 0,5 / 3).
+
+**SQL-Datei testen (ohne Supabase):** `npm install @electric-sql/pglite` in einem Ordner außerhalb des Repos, dann `PGLITE_PFAD=<ordner>/node_modules/@electric-sql/pglite/dist/index.js node --test office/test/sql.kennzahlen.test.mjs`.

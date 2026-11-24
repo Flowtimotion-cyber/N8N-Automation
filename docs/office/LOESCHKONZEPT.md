@@ -49,3 +49,15 @@ Pflichtprüfung 7 (`office/test/verarbeitung.test.mjs`) belegt, dass Run, Ereign
 | Bilder zu Ideen (Screenshots fremder Beiträge, eigene Motive) | Supabase Storage, Bucket `social-ideen` (**öffentlich**, 20 MB) | möglich (Personen auf Screenshots) | Upload | wie die Idee; keine Rohvideos und keine Aufnahmen von Teilnehmern hier (dafür `medien-roh`) | **Offen:** Datei wird beim Löschen der Idee nicht mitgelöscht (Restpunkt) |
 
 Einwilligung: Beim Upload ist das Häkchen „Die gezeigten Personen sind mit Aufnahme und Veröffentlichung einverstanden“ Pflicht (`einwilligung_am` wird gespeichert). Das ersetzt keine schriftliche Einwilligung der Dozenten; die Vorlage dafür ist ein Restpunkt (DATENSCHUTZ_AI_ACT.md, Anwendungsfall E).
+
+## 6. Nachtrag 24.11.2026: Kennzahlen der Agentenläufe (KI Office 2.0, Paket 2)
+
+| Datenart | Wo | Personenbezug | Startzeitpunkt | Regelfrist (Vorschlag) | Umsetzung |
+|---|---|---|---|---|---|
+| Kennzahlzeile je Lauf (Agent, Raum, Modell, Status, Dauer, Token, Kosten, Ergebnis-Typ, Abnahme als Kategorie, Wirkung als Zahlen) | `office_kennzahlen` | keiner in der Zeile; über `run_id` mit dem Run verknüpfbar, solange dieser existiert | Ende des Laufs (`beendet`) | 24 Monate | bleibt beim Löschen des Runs bewusst stehen (kein Fremdschlüssel); `loeschen` ersetzt dabei die `run_id` der Zeile durch eine Zufallskennung (`geloescht_…`); Löschbefehl unten |
+
+Begründung: Die Zeile enthält keinen Auftraggeber, keinen Abnehmer, keinen Text und keinen Projektnamen. Sie dient dem Vergleich der Agenten über die Zeit (Kosten je abgenommenem Ergebnis, Quote zurückgewiesen); dafür reichen 28 Tage nicht, zwei Jahre genügen. Solange der Run existiert, ist die Zeile über die `run_id` mit ihm verknüpfbar (pseudonym, nicht anonym) und wie der Run zu behandeln. Beim Löschen des Runs ersetzt die Office-API die Kennung durch eine Zufallskennung; danach führt von der Zeile nichts mehr zu Obsidian-Notizen, n8n-Protokollen oder Sicherungen dieses Runs. Ein Rest bleibt: Agent und Zeitpunkt des Endes stehen in der Zeile; wer daneben noch die alte Notiz zum Run hat, kann beides über die Uhrzeit zusammenführen. Darum gehören gespiegelte Obsidian-Notizen bei einer Löschanfrage mit gelöscht (OBSIDIAN.md).
+
+Löschbefehl für den regelmäßigen Lauf (im Supabase SQL Editor, bis es einen Zeitplan gibt): `delete from office_kennzahlen where beendet < now() - interval '24 months';`
+
+Betroffenenanfrage (Art. 17): Die Kennzahlen enthalten keine Daten der Person. Werden ihre Runs gelöscht (Abschnitt 2 Nr. 3), verlieren die zugehörigen Zeilen die Kennung des Runs; eine eigene Löschung der Zeilen ist in der Regel nicht nötig. Wer sie trotzdem entfernen will: vor dem Löschen der Runs `delete from office_kennzahlen where run_id in (…)`.

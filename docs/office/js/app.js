@@ -4,12 +4,13 @@ import { api, tokenLesen, tokenSetzen, TOKEN, PORTAL, ls } from './api.js';
 import { vProjekte, vProjekt, vAgenten, vAgent, vRun, vFreigaben, av } from './ansichten.js';
 import { vBuero, vMonitorwand } from './buero.js';
 import { vKontrollraum } from './kontrollraum.js';
+import { vAuswertung } from './auswertung.js';
 import { wartendeStarts } from './modell.js';
 import { istLive, TAKT } from './kontrollraum.daten.js';
 
 // „buero“ ist seit KI Office 2.0 der Kontrollraum (die Adresse bleibt, damit die Einbettung im Team-Portal weiter passt);
 // die isometrische Büro-Szene mit Räumen und Monitoren liegt unter „szene“.
-const TABS = [['buero', 'Kontrollraum'], ['projekte', 'Projekte'], ['agenten', 'Agenten'], ['szene', 'Büro-Szene'], ['freigaben', 'Freigaben']];
+const TABS = [['buero', 'Kontrollraum'], ['projekte', 'Projekte'], ['agenten', 'Agenten'], ['auswertung', 'Auswertung'], ['szene', 'Büro-Szene'], ['freigaben', 'Freigaben']];
 // Eingebettet im Team-Portal (iframe, gleiche Herkunft): ?einbetten=1 blendet Kopf/Fuß aus, ?nur=buero zeigt nur den Kontrollraum.
 const PARAMS = new URLSearchParams(location.search);
 const EINGEBETTET = PARAMS.get('einbetten') === '1';
@@ -80,6 +81,7 @@ function render() {
     else if (route.tab === 'agenten') vAgenten(ctx);
     else if (route.tab === 'szene') vBuero(ctx);
     else if (route.tab === 'freigaben') vFreigaben(ctx);
+    else if (route.tab === 'auswertung') vAuswertung(ctx);
     else if (route.tab === 'projekte') vProjekte(ctx, undefined);
     else vKontrollraum(ctx);
     // Nur-Kontrollraum-Einbettung (Portal-Übersicht): Rücksprung erst NACH dem Aufbau der Ansicht einfügen, sonst überschreibt ihn die Ansicht (innerHTML)

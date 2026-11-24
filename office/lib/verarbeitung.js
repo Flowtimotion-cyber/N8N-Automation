@@ -11,6 +11,7 @@ import { istAgent, istAdmin, istDozent, istMensch, darfAktion, darfProjekt, darf
 import { pruefeSignatur } from './signatur.js';
 import { schluesselGueltig, frueherGesehen, merken } from './idempotenz.js';
 import { neu, aend, weg } from './postgrest.js';
+import { kennzahlZeile, kennzahlFaehig, agentKennzahlen, bewertung, wirkungPruefen, WIRKUNG_FELDER, ERGEBNIS_TYPEN, ERGEBNIS_TYP_TEXT, AUSWERTUNG_SCHWELLEN, KENNZAHLEN_TAGE } from './kennzahlen.js';
 
 export const RAEUME = ['Akademie', 'Marketing', 'Vertrieb', 'Kundenprojekte', 'Verwaltung'];
 export const MODELLE = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'gpt-5-mini', 'deepseek-v4-flash'];
@@ -61,6 +62,10 @@ export function verarbeiten(ctx) {
   const freigaben = (D.office_freigaben || []).filter(f => f && f.freigabe_id);
   const idem = (D.office_idempotenz || []).filter(i => i && i.schluessel);
   const schluesselListe = (D.office_run_schluessel || []).filter(s => s && s.run_id);
+  // Kennzahlen (supabase/team_office_kennzahlen.sql). Fehlt der Schlüssel, ist die Tabelle noch nicht angelegt: dann wird nichts dorthin geschrieben
+  // und die Auswertung rechnet aus den Runs. So bleibt die Reihenfolge beim Einspielen (erst SQL, dann Bündel) unkritisch.
+  const hatKennzahlen = Array.isArray(D.office_kennzahlen);
+  const kennzahlen = (D.office_kennzahlen || []).filter(k => k && k.run_id);
 
   const raus = (code, fehler, extra) => ({ weiter: 0, code, antwort: Object.assign({ ok: false, fehler }, extra || {}) });
   const aktion = String(b.aktion || '');
@@ -302,7 +307,7 @@ export function verarbeiten(ctx) {
       const ungestartet = wartetAufStart(run);   // nie angestoßen: keine Abbruchmeldung an den Ausführer, offene Startfreigabe schließen
       const w = wechsel(run, STATUS.ABGEBROCHEN, 'mensch', grund || 'ohne Angabe'); if (w.fehler) return raus(409, w.fehler);
       const startFr = freigaben.filter(f => f.run_id === run.run_id && f.aktion === FREIGABE_START.aktion && f.status === 'offen').map(f => aend('office_freigaben', 'freigabe_id', f.freigabe_id, { status: 'verfallen', begruendung: 'Auftrag zurückgezogen.' }));
-      return schreiben([...w.ops, ...startFr, aend('office_runs', 'run_id', run.run_id, { grund: grund || 'abgebrochen von ' + ich.name, abgebrochen_von: ich.mitglied_id }), ...verlaufEintrag(run, 'status', 'Run abgebrochen' + (grund ? ': ' + grund : ''))], { run_id: run.run_id, status: STATUS.ABGEBROCHEN }, ungestartet ? null : { art: 'abbruch', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer_url: (agentVon(run) || {}).ausfuehrer_url || null });
+      return schreiben([...w.ops, ...startFr, aend('office_runs', 'run_id', run.run_id, { grund: grund || 'abgebrochen von ' + ich.name, abgebrochen_von: ich.mitglied_id }), ...verlaufEintrag(run, 'status', 'Run abgebrochen' + (grund ? ': ' + grund : '')), ...kennzahlOps(run, { status: STATUS.ABGEBROCHEN, beendet: jetzt })], { run_id: run.run_id, status: STATUS.ABGEBROCHEN }, ungestartet ? null : { art: 'abbruch', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer_url: (agentVon(run) || {}).ausfuehrer_url || null });
     }
     case 'run_wiederholen': {
       const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
@@ -318,8 +323,22 @@ export function verarbeiten(ctx) {
       if (run.status !== STATUS.ABGESCHLOSSEN) return raus(409, 'Fachlich abnehmen geht nur, wenn der Run technisch abgeschlossen ist (aktuell: ' + STATUS_TEXT[run.status] + ').');
       const ok = d.abgenommen === true;
       const kommentar = txt(d.kommentar, 1000);
-      return schreiben([aend('office_runs', 'run_id', run.run_id, { abgenommen: ok, abgenommen_von: ich.mitglied_id, abgenommen_am: jetzt, abnahme_kommentar: kommentar }), ereignis(run.run_id, 'abnahme', ok ? 'Fachlich abgenommen von ' + ich.name : 'Fachlich zurückgewiesen von ' + ich.name, { kommentar }),
-        ...verlaufEintrag(run, 'kommentar', (ok ? 'Ergebnis fachlich abgenommen' : 'Ergebnis zurückgewiesen') + (kommentar ? ': ' + kommentar : ''))], { run_id: run.run_id, abgenommen: ok });
+      // Wirkung (optional, nur Zahlen je Wirkungsfeld des Raums): was aus dem Ergebnis geworden ist, eingetragen von dem Menschen, der abnimmt.
+      const wi = wirkungPruefen((agentVon(run) || {}).raum, d.wirkung); if (wi.fehler) return raus(400, wi.fehler);
+      const mitWirkung = Object.keys(wi.wirkung).length > 0;
+      return schreiben([aend('office_runs', 'run_id', run.run_id, { abgenommen: ok, abgenommen_von: ich.mitglied_id, abgenommen_am: jetzt, abnahme_kommentar: kommentar }), ereignis(run.run_id, 'abnahme', ok ? 'Fachlich abgenommen von ' + ich.name : 'Fachlich zurückgewiesen von ' + ich.name, mitWirkung ? { kommentar, wirkung: wirkungText(run, wi.wirkung) } : { kommentar }),
+        ...verlaufEintrag(run, 'kommentar', (ok ? 'Ergebnis fachlich abgenommen' : 'Ergebnis zurückgewiesen') + (kommentar ? ': ' + kommentar : '')),
+        ...kennzahlOps(run, { abgenommen: ok, abgenommen_am: jetzt }, mitWirkung ? wi.wirkung : null)], { run_id: run.run_id, abgenommen: ok, wirkung: mitWirkung ? wi.wirkung : undefined });
+    }
+    case 'wirkung_setzen': {
+      // Wirkung nachtragen oder korrigieren (z. B. Termine, die erst Tage nach dem Dossier entstehen). Nur Zahlen, nur bekannte Felder des Raums.
+      const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
+      if (!darfRunSteuern(ich, run, agenten)) return raus(403, 'Die Wirkung trägt die auftraggebende Person, Timo, Kurt oder Murat ein.');
+      if (run.status !== STATUS.ABGESCHLOSSEN) return raus(409, 'Wirkung gibt es nur für technisch abgeschlossene Runs (aktuell: ' + STATUS_TEXT[run.status] + ').');
+      if (!hatKennzahlen) return raus(409, 'Die Kennzahlen-Tabelle ist noch nicht eingerichtet (supabase/team_office_kennzahlen.sql).');
+      const wi = wirkungPruefen((agentVon(run) || {}).raum, d.wirkung); if (wi.fehler) return raus(400, wi.fehler);
+      if (!Object.keys(wi.wirkung).length) return raus(400, 'Bitte gib mindestens eine Zahl an.');
+      return schreiben([...kennzahlOps(run, {}, wi.wirkung), ereignis(run.run_id, 'hinweis', 'Wirkung eingetragen von ' + ich.name + ': ' + wirkungText(run, wi.wirkung), { wirkung: wi.wirkung })], { run_id: run.run_id, wirkung: wi.wirkung });
     }
     case 'wartung': {
       const ops = [], veraltet = [], verfallen = [];
@@ -334,7 +353,7 @@ export function verarbeiten(ctx) {
           pruefRun = Object.assign({}, run, { lebenszeichen: letztes || run.lebenszeichen });
         }
         const f = fristPruefen(pruefRun, jetztMs);
-        if (f) { const w = wechsel(run, f.nach, 'system', f.grund); if (!w.fehler) { ops.push(...w.ops, aend('office_runs', 'run_id', run.run_id, { grund: f.grund }), ereignis(run.run_id, 'hinweis', 'Automatisch als veraltet markiert: ' + f.grund)); veraltet.push(run.run_id); } }
+        if (f) { const w = wechsel(run, f.nach, 'system', f.grund); if (!w.fehler) { ops.push(...w.ops, aend('office_runs', 'run_id', run.run_id, { grund: f.grund }), ereignis(run.run_id, 'hinweis', 'Automatisch als veraltet markiert: ' + f.grund), ...kennzahlOps(run, { status: f.nach, beendet: jetzt })); veraltet.push(run.run_id); } }
       }
       for (const fr of freigaben) {
         const run = runVon(fr.run_id);
@@ -386,6 +405,8 @@ export function verarbeiten(ctx) {
         for (const a of artefakte.filter(x => x.run_id === run.run_id)) if (a.ablageort) ablageorte.push({ artefakt_id: a.artefakt_id, ablageort: a.ablageort });
         ops.push(weg('office_ereignisse', 'run_id', run.run_id), weg('office_artefakte', 'run_id', run.run_id), weg('office_freigaben', 'run_id', run.run_id), weg('office_idempotenz', 'run_id', run.run_id), weg('office_run_schluessel', 'run_id', run.run_id));
         for (const v of (D.verlauf || []).filter(v => v && v.id != null && String(v.text || '').includes(RUN_MARKER(run.run_id)))) ops.push(weg('team_aufgaben_verlauf', 'id', v.id));
+        // Die Kennzahlzeile bleibt (keine Personendaten), verliert aber die Kennung des Runs: Danach führt nichts mehr von ihr zu Notizen, Protokollen oder Sicherungen dieses Runs.
+        if (hatKennzahlen && kennzahlen.some(k => k.run_id === run.run_id)) ops.push(aend('office_kennzahlen', 'run_id', run.run_id, { run_id: 'geloescht_' + jetztMs.toString(36) + zufall(12), geaendert: jetzt }));
         ops.push(weg('office_runs', 'run_id', run.run_id));
       }
       return schreiben(ops, { geloescht: ziel.length, run_ids: ziel.map(r => r.run_id), ablageorte, hinweis: ablageorte.length ? 'Diese Ablageorte musst du außerhalb des Office selbst löschen.' : '' });
@@ -431,6 +452,29 @@ export function verarbeiten(ctx) {
     { freigabe_id: fr.freigabe_id, status: 'erteilt', run_id: run.run_id, run_status: STATUS.WARTESCHLANGE },
     { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: schluesselRow ? schluesselRow.schluessel : null, eltern_run_id: run.eltern_run_id || null, team_id: run.team_id || null });
   }
+  /** Wirkung lesbar für Ereignisse: „qualifizierte Firmen 12, Termine 4“. */
+  function wirkungText(run, wirkung) {
+    const felder = WIRKUNG_FELDER[(agentVon(run) || {}).raum] || [];
+    return Object.entries(wirkung).map(([k, n]) => ((felder.find(f => f.feld === k) || {}).text || k) + ' ' + n).join(', ');
+  }
+  /**
+   * Schreibaufträge für die Kennzahlzeile eines Runs (Tabelle office_kennzahlen): neu, wenn es noch keine gibt, sonst nur die geänderten Felder.
+   * aenderung = Felder des Runs, die diese Aktion gerade setzt (Status, Ende, Abnahme, Verbrauch …); wirkung = neue Zahlen, die zu den vorhandenen kommen.
+   * Keine Tabelle, oder der Run ist kein beendeter Lauf (z. B. automatische Wiederholung, nie gestartet): nichts.
+   */
+  function kennzahlOps(run, aenderung, wirkung, neueArtefakte) {
+    if (!hatKennzahlen) return [];
+    const r2 = Object.assign({}, run, aenderung || {});
+    if (!kennzahlFaehig(r2)) return [];
+    const alt = kennzahlen.find(k => k.run_id === run.run_id) || null;
+    const zeile = kennzahlZeile(r2, agentVon(run), artefakte.concat(neueArtefakte || []), jetzt);
+    zeile.wirkung = Object.assign({}, alt && alt.wirkung && typeof alt.wirkung === 'object' ? alt.wirkung : {}, zeile.wirkung, wirkung || {});
+    if (!alt) return [neu('office_kennzahlen', zeile)];
+    // Der Ergebnis-Typ aus der Meldung des Ausführers bleibt stehen, wenn diese Aktion keinen neuen mitbringt (er steht nicht im Run).
+    if (!(aenderung && aenderung.ergebnis_typ) && alt.ergebnis_typ && alt.ergebnis_typ !== 'ohne') zeile.ergebnis_typ = alt.ergebnis_typ;
+    const patch = Object.assign({}, zeile); delete patch.run_id;
+    return [aend('office_kennzahlen', 'run_id', run.run_id, patch)];
+  }
   function zugriffAufRun(run) {
     if (wartetAufStart(run)) return raus(409, 'Dieser Auftrag wartet auf Timos Freigabe und ist noch nicht gestartet.', { status: run.status });
     if (istAgent(ich)) { if (!fuehrtAus(ich, run.agent_id, agenten)) return raus(403, 'Dieser Run gehört einem anderen Agenten.'); return null; }
@@ -451,6 +495,9 @@ export function verarbeiten(ctx) {
     const zusammenfassung = txt(e.zusammenfassung, 4000) || null;
     const fehler = txt(e.fehler, 2000) || null;
     const verbrauch = verbrauchAus(e.verbrauch);
+    // Messbarkeit: Der Ausführer darf den Ergebnis-Typ und die Wirkung (Zahlen je Wirkungsfeld seines Raums) mitmelden.
+    const ergebnis_typ = ERGEBNIS_TYPEN.includes(e.ergebnis_typ) ? e.ergebnis_typ : null;
+    const wi = wirkungPruefen((agentVon(run) || {}).raum, e.wirkung); if (wi.fehler) return raus(400, wi.fehler);
     const ops = [];
     // Verspätete Rückmeldung: Run ist schon beendet oder veraltet. Festhalten, aber nie nachträglich als Erfolg werten.
     if (istEndzustand(run.status)) {
@@ -471,8 +518,8 @@ export function verarbeiten(ctx) {
     if (e.n8n_execution_id && !run.n8n_execution_id) row.n8n_execution_id = String(e.n8n_execution_id).slice(0, 80);
     ops.push(aend('office_runs', 'run_id', run.run_id, row));
     if (ziel === STATUS.FEHLGESCHLAGEN) ops.push(ereignis(run.run_id, 'fehler', fehler || 'Fehler ohne Beschreibung', { versuch: run.versuche, max_versuche: run.max_versuche }));
-    const artefaktIds = [];
-    for (const a of (Array.isArray(e.artefakte) ? e.artefakte.slice(0, 20) : [])) { const r = artefaktRow(run, a || {}); if (!r.fehler) { ops.push(neu('office_artefakte', r.row)); artefaktIds.push(r.row.artefakt_id); } }
+    const artefaktIds = [], neueArtefakte = [];
+    for (const a of (Array.isArray(e.artefakte) ? e.artefakte.slice(0, 20) : [])) { const r = artefaktRow(run, a || {}); if (!r.fehler) { ops.push(neu('office_artefakte', r.row)); artefaktIds.push(r.row.artefakt_id); neueArtefakte.push(r.row); } }
     const reg = agentVon(run);
     let status = ziel;
     if (ziel === STATUS.FEHLGESCHLAGEN && reg && reg.auto_wiederholen === true && (Number(run.versuche) || 1) < (Number(run.max_versuche) || FRISTEN.max_versuche)) {
@@ -485,6 +532,8 @@ export function verarbeiten(ctx) {
       const a = run.aufgabe_id ? aufgaben.find(x => x.aufgabe_id === run.aufgabe_id) : null;
       if (a && a.status === 'In Arbeit') ops.push(aend('team_aufgaben', 'aufgabe_id', a.aufgabe_id, { status: 'Wird getestet', geaendert: jetzt }), neu('team_aufgaben_verlauf', { aufgabe_id: a.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art: 'status', text: 'In Arbeit → Wird getestet (Run beendet) ' + RUN_MARKER(run.run_id), erstellt: jetzt }));
     } else ops.push(...verlaufEintrag(run, 'kommentar', 'Run fehlgeschlagen' + (fehler ? ': ' + fehler.slice(0, 300) : '') + (status === STATUS.WARTESCHLANGE ? ' – wird automatisch wiederholt.' : '')));
+    // Kennzahlzeile für diesen Lauf (nicht bei automatischer Wiederholung: dann läuft er weiter und die Zeile entsteht am echten Ende).
+    ops.push(...kennzahlOps(run, { status, beendet: jetzt, zusammenfassung, verbrauch, ergebnis_typ: ergebnis_typ || undefined, gestartet: run.gestartet || jetzt }, wi.wirkung, neueArtefakte));
     // Teilauftrag beendet: der Eltern-Run (Orchestrierer) bekommt einen Hinweis in seine Zeitleiste, solange er noch läuft.
     if (run.eltern_run_id) { const el = runVon(run.eltern_run_id); if (el && !istEndzustand(el.status)) ops.push(ereignis(el.run_id, 'hinweis', 'Teilauftrag ' + STATUS_TEXT[status] + ': ' + run.auftrag.slice(0, 100), { kind_run_id: run.run_id, agent_id: run.agent_id, status, fehler })); }
     return schreiben(ops, { run_id: run.run_id, status, angenommen: true, artefakte: artefaktIds }, status === STATUS.WARTESCHLANGE ? { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: (schluesselListe.find(s => s.run_id === run.run_id) || {}).schluessel || null } : null);
@@ -525,9 +574,24 @@ export function antwortBauen(ich, D, opts) {
   const freigaben = (D.office_freigaben || []).filter(f => f && runIds.has(f.run_id));
   const regs = agenten.map(a => { const x = { ...a, kostenstufe: kostenstufe(a), freigabe_noetig: a.freigabe_noetig == null ? null : a.freigabe_noetig, sofort_ok: agentSofortOk(a) }; if (!admin) delete x.ausfuehrer_url; delete x.geaendert_von; return x; });
   const mitglieder = (D.mitglieder || []).filter(m => m && m.mitglied_id).map(m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ || 'mensch', funktion: m.funktion || '', status: m.status }));
+  // Kennzahlen je Agent (office/lib/kennzahlen.js): Menschen sehen alle Agenten, ein Agent nur die Registry-Einträge, die er selbst ausführt.
+  // Es sind Summen je Agent ohne Projekt- und Personenbezug; die einzelnen Zeilen gibt es nur zu Runs, die die Rolle ohnehin sieht.
+  const jetztMs = new Date(o.jetzt || Date.now()).getTime();
+  const hatKennzahlen = Array.isArray(D.office_kennzahlen);
+  const kzZeilen = (D.office_kennzahlen || []).filter(k => k && k.run_id);
+  const alleArtefakte = (D.office_artefakte || []).filter(a => a && a.artefakt_id);
+  const kennzahlen = {};
+  for (const a of agenten) {
+    if (istAgent(ich) && !fuehrtAus(ich, a.agent_id, agenten)) continue;
+    const kz = agentKennzahlen(alleRuns, a.agent_id, jetztMs, KENNZAHLEN_TAGE, { zeilen: kzZeilen, agent: a, artefakte: alleArtefakte });
+    kz.bewertung = bewertung(kz);
+    kennzahlen[a.agent_id] = kz;
+  }
+  const kennzahl_zeilen = kzZeilen.filter(k => runIds.has(k.run_id));
   return {
     ich: { mitglied_id: ich.mitglied_id, name: ich.name, rolle: ich.rolle, typ: ich.typ || 'mensch', funktion: ich.funktion || '' },
     mitglieder, projekte, aufgaben, verlauf, notizen, agenten: regs, runs, ereignisse, artefakte, freigaben,
+    kennzahlen, kennzahl_zeilen, auswertung: { tabelle: hatKennzahlen, tage: KENNZAHLEN_TAGE, schwellen: AUSWERTUNG_SCHWELLEN, wirkung_felder: WIRKUNG_FELDER, ergebnis_typen: ERGEBNIS_TYP_TEXT },
     sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: Object.assign({}, EXTERNE_AKTIONEN, { [FREIGABE_START.aktion]: FREIGABE_START }),
     // Startregeln für Hinweise in der Oberfläche; entschieden wird serverseitig (kosten.js, startPruefung).
     start_regeln: Object.assign({}, START_REGELN, { kostenstufe_text: KOSTENSTUFE_TEXT, heute_verbraucht_eur: istAgent(ich) ? 0 : tagesverbrauchEur(alleRuns, ich.mitglied_id, new Date(o.jetzt || Date.now()).getTime()), startet_sofort: istAgent(ich) || istAdmin(ich) || !START_REGELN.aktiv }),
