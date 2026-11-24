@@ -14,10 +14,15 @@ const voll = alle.find(m => m.mitglied_id === ich.mitglied_id) || {};
 const meins = { mitglied_id: voll.mitglied_id, name: voll.name, rolle: voll.rolle, typ: voll.typ || 'mensch', funktion: voll.funktion, status: voll.status, email: voll.email || '', telefon: voll.telefon || '', whatsapp_ok: voll.whatsapp_ok === true, stunden_sicht: stundenSicht };
 if (voll.status !== 'aktiv') return [{ json: { antwort: { ok: true, setup: true, ich: meins } } }];
 const istAgent = ich.rolle === 'agent';
-const verlauf = (D.verlauf || []).map(v => ({ aufgabe_id: v.aufgabe_id, autor: v.autor, art: v.art, text: v.text, erstellt: v.erstellt }));
+// Private Aufgaben (Entscheidung 23.11.2026): nur für Ersteller und Bearbeiter, auch nicht für Timo oder andere Agenten. Verlauf ebenso.
+const bearbeiterListe = a => Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : (a.verantwortlich ? [a.verantwortlich] : []);
+const sichtbar = a => a.privat !== true || a.erstellt_von === ich.mitglied_id || bearbeiterListe(a).includes(ich.mitglied_id);
+const aufgabenSicht = (D.aufgaben || []).filter(a => a && a.aufgabe_id && sichtbar(a));
+const versteckt = new Set((D.aufgaben || []).filter(a => a && a.aufgabe_id && !sichtbar(a)).map(a => a.aufgabe_id));
+const verlauf = (D.verlauf || []).filter(v => !versteckt.has(v.aufgabe_id)).map(v => ({ aufgabe_id: v.aufgabe_id, autor: v.autor, art: v.art, text: v.text, erstellt: v.erstellt }));
 if (istAgent) {
   // Agenten bekommen nur, was sie für die Arbeit brauchen: keine Kontaktdaten, keine Zeiten, keine Kursdaten
-  const aufg = (D.aufgaben || []).map(ohne);
+  const aufg = aufgabenSicht.map(ohne);
   return [{ json: { antwort: { ok: true, ich: meins,
     mitglieder: alle.map(m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ, funktion: m.funktion || '' })),
     projekte: (D.projekte || []).map(ohne), aufgaben: aufg, verlauf,
@@ -25,7 +30,7 @@ if (istAgent) {
     meine_aufgaben: aufg.filter(a => (Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : [a.verantwortlich]).includes(ich.mitglied_id) && a.status !== 'Erledigt').map(a => a.aufgabe_id),
     agent_geeignet: aufg.filter(a => a.agent_geeignet === true && a.status !== 'Erledigt').map(a => a.aufgabe_id),
     notizen: (D.notizen || []).map(ohne), systeme: (D.systeme || []).map(ohne), social: (D.social || []).map(ohne),
-    regeln: 'Status „Erledigt“ setzt nur ein Mensch; du setzt „Wird getestet“ und schreibst einen Bericht (Feld kommentar). Nichts löschen. Keine Zugangsdaten in Texte schreiben.',
+    regeln: 'Status „Erledigt“ setzt nur ein Mensch; du setzt „Wird getestet“ und schreibst einen Bericht (Feld kommentar). Nichts löschen. Keine Zugangsdaten in Texte schreiben. Aufgaben mit privat: true sind nur für Ersteller und Bearbeiter: ihren Inhalt nie in Notizen, Berichte an andere oder öffentliche Texte übernehmen.',
     stand: new Date().toISOString() } } }];
 }
 
@@ -79,7 +84,7 @@ const anfragen = anfr.filter(a => istDozent || a.typ !== 'zugang').sort((a, b) =
   .map(a => ({ typ: a.typ, name: a.name, firma: a.firma, email: a.email, telefon: a.telefon, mitarbeitende: a.mitarbeitende, server: a.server,
     zeitrahmen: a.zeitrahmen, nachricht: String(a.nachricht || '').slice(0, 1500), status: a.status, eingegangen: a.eingegangen, kurs: a.kurs }));
 return [{ json: { antwort: { ok: true, ich: meins, mitglieder,
-  aufgaben: (D.aufgaben || []).map(ohne), verlauf, social: (D.social || []).map(ohne), systeme: (D.systeme || []).map(ohne),
+  aufgaben: aufgabenSicht.map(ohne), verlauf, social: (D.social || []).map(ohne), systeme: (D.systeme || []).map(ohne),
   zeiten: (D.zeiten || []).filter(z => istAdmin || z.mitglied_id === ich.mitglied_id).map(ohne),
   abrechnung: (D.abrechnung || []).filter(r => istAdmin || r.mitglied_id === ich.mitglied_id).map(ohne),
   projekte: (D.projekte || []).map(ohne).sort((x, y) => (Number(x.reihenfolge) || 50) - (Number(y.reihenfolge) || 50) || String(x.name).localeCompare(String(y.name))),
