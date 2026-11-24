@@ -220,7 +220,9 @@ dialog.voll .vliste{max-height:40vh}
 #af.zwei>.verlauf .vliste{max-height:none;flex:1 1 auto;min-height:60px;border:1px solid var(--line);border-radius:10px;padding:8px}
 #af.zwei>.verlauf .f{margin:8px 0 0}#af.zwei>.verlauf textarea{min-height:64px}
 dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
-.linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
+.linkbtn{float:right;font-size:14px;margin:-4px 0 0 4px}.dlg-zu{position:absolute;top:8px;right:8px;z-index:6;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--card,#fff);color:inherit;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08)}.dlg-zu:hover{background:#F1ECFD}.dlg-zu:focus-visible{outline:2px solid var(--acc,#6D3BD8);outline-offset:2px}#dlgInner h2{padding-right:40px}#dlg .vollbild{margin-right:34px}
+@media (max-width:700px){.dlg-zu{width:44px;height:44px;font-size:22px;top:6px;right:6px}#dlgInner h2{padding-right:50px}#dlg .vollbild{margin-right:44px}.dkf .dlg-zu{width:44px;height:44px;font-size:22px}}
+.vollbild{float:right;font-size:20px;line-height:1;padding:2px 8px;margin:-6px -8px 0 8px}
 .pdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
 .pstats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:12px;text-align:center}.pstats b{display:block;font-size:20px}.pstats span{font-size:12px;color:var(--mut)}
 .notes{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}.nlist{padding:12px;max-height:75vh;overflow:auto}
@@ -1820,6 +1822,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const gemerkt = Number(ls.get('mt-dlgbreite')) || 0;
     d.style.width = breit && gemerkt ? Math.min(gemerkt, window.innerWidth * 0.9) + 'px' : '';
     if (!d.open) d.showModal();
+    // Immer sichtbarer Schließen-Knopf oben rechts (auch am Handy, wo „Abbrechen“ oft weit unten steht); fragt bei ungespeicherten Änderungen nach
+    if (!d.querySelector(':scope > .dlg-zu')) {
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'dlg-zu'; x.textContent = '✕'; x.title = 'Fenster schließen'; x.setAttribute('aria-label', 'Fenster schließen');
+      x.onclick = () => { if (!verwerfenOk()) return; dlgGeaendert = false; d.close(); };
+      d.appendChild(x);
+    }
     d.querySelectorAll('.zieh').forEach(x => x.remove());
     if (breit && window.innerWidth > 700) {
       const h = document.createElement('div'); h.className = 'zieh'; h.title = 'Ziehen: Fenster breiter/schmaler und Textfeld höher/niedriger'; d.appendChild(h);
@@ -2419,7 +2427,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const gespeichert = !!g.diktat_id, min = Math.round((Number(g.dauer_sek) || 0) / 60);
     let ansicht = 'text';
     const inhalt = () => ansicht === 'roh' ? (g.roh || '(kein Rohtranskript)') : ansicht === 'zus' ? dkfZus(g) : (g.text || '');
-    d.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><h2 style="margin:0">📄 Ganzes Transkript</h2><div class="small muted">' + esc(g.titel || 'Diktat') + ' · ' + esc(fmtDT(g.erstellt)) + (min ? ' · ' + min + ' Min.' : '') + (g.ziel ? ' · ' + esc(g.ziel) : '') + ' · ' + String((g.text || '').length).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' Zeichen</div></div><button class="btn ghost" id="dkf_zu" aria-label="Fenster schließen">✕</button></div>' +
+    d.innerHTML = '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;position:sticky;top:-16px;z-index:3;background:var(--card,#fff);padding:4px 0 6px;margin-top:-4px"><div><h2 style="margin:0">📄 Ganzes Transkript</h2><div class="small muted">' + esc(g.titel || 'Diktat') + ' · ' + esc(fmtDT(g.erstellt)) + (min ? ' · ' + min + ' Min.' : '') + (g.ziel ? ' · ' + esc(g.ziel) : '') + ' · ' + String((g.text || '').length).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' Zeichen</div></div><button class="dlg-zu" style="position:static;flex:none" id="dkf_zu" aria-label="Fenster schließen" title="Fenster schließen">✕</button></div>' +
       '<div class="reihe tabsw" role="tablist"><button class="btn sec on" data-dkfa="text" role="tab">Bereinigter Text</button><button class="btn sec" data-dkfa="roh" role="tab">Rohtranskript</button><button class="btn sec" data-dkfa="zus" role="tab">Zusammenfassung</button></div>' +
       '<textarea id="dkf_text" readonly aria-label="Transkript"></textarea>' +
       '<div class="reihe"><button class="btn" id="dkf_kopie">Alles kopieren</button><button class="btn ghost" id="dkf_dl" title="Optional: als Textdatei speichern">⬇ Als Textdatei</button><span class="small muted" id="dkf_status" aria-live="polite"></span></div>' +
@@ -2427,6 +2435,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         '<div class="box"><b>🤖 An einen KI-Agenten geben</b> <span class="small muted">Der Agent liest den ganzen Text selbst. Dafür wird „KI darf lesen“ für diese Aufnahme eingeschaltet.</span><div class="reihe"><select id="dkf_agent" aria-label="Agent"><option value="">Agenten werden geladen …</option></select><select id="dkf_projekt" aria-label="Projekt"></select></div>' +
         '<div class="reihe">' + DKF_VORSCHLAEGE.map((v, i) => '<button class="btn ghost" data-dkfvor="' + i + '">' + esc(v[0]) + '</button>').join('') + '</div><textarea id="dkf_auftrag" rows="3" maxlength="1200" placeholder="Was soll der Agent damit tun?"></textarea><div class="reihe"><button class="btn" id="dkf_los">Auftrag geben</button></div></div>'
         : '<p class="small muted" style="margin-top:10px">Diese Aufnahme ist nicht gespeichert. Neu zusammenfassen und An KI-Agent geben gehen nur mit gespeicherten Aufnahmen (Liste „Letzte Diktate“).</p>');
+    d.insertAdjacentHTML('beforeend', '<div class="reihe" style="justify-content:flex-end;margin-top:12px"><button class="btn sec" id="dkf_zu2">Schließen</button></div>');
+    $('#dkf_zu2').onclick = () => d.close();
     const st = t => { const e = $('#dkf_status'); if (e) e.textContent = t || ''; };
     const zeigen = () => { $('#dkf_text').value = inhalt(); d.querySelectorAll('[data-dkfa]').forEach(b => { b.classList.toggle('on', b.dataset.dkfa === ansicht); b.setAttribute('aria-selected', String(b.dataset.dkfa === ansicht)); }); };
     zeigen();
@@ -2718,7 +2728,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   function diktatBox() {
     const pc = pcTonMoeglich(), desktop = !/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
     return '<div class="vdiktat" id="v_diktat"><div>🎙️ <b>Diktat nach dem Gespräch</b> <span class="small muted">Sprich ein, was besprochen wurde, oder schneide ein Meeting mit. Die KI schreibt es sauber auf und fasst zusammen. Gespeichert wird erst, wenn du auf „Als Aktivität speichern“ klickst.</span></div>' +
-      '<div class="act"><button type="button" class="btn" id="vd_rec">🎙️ Aufnehmen</button><button type="button" class="btn rec" id="vd_stop" hidden><span class="punkt"></span>Stopp · <span id="vd_zeit">0:00</span></button>' +
+      '<div class="act"><button type="button" class="btn" id="vd_rec">🎙️ Aufnehmen</button><button type="button" class="btn rec" id="vd_stop" hidden><span class="punkt"></span>Stopp · <span id="vd_zeit">0:00</span></button><button type="button" class="btn sec" id="vd_mikro" hidden aria-pressed="true" title="Eigenes Mikrofon während der Aufnahme an- oder ausschalten">🔇 Mikro aus</button>' +
       '<span class="vd-pegelbox" id="vd_pegelbox" hidden><span class="vd-pl" id="vd_pegel_l" title="Mikrofon">🎙️ Du</span><canvas class="pegel" id="vd_pegel" hidden aria-hidden="true" title="Pegel Mikrofon: schlägt aus, wenn du sprichst"></canvas><span class="vd-pl" id="vd_pegel_pc_l" hidden title="Ton vom Computer">🖥️ PC</span><canvas class="pegel" id="vd_pegel_pc" hidden aria-hidden="true" title="Pegel PC-Ton: schlägt aus, wenn im Meeting oder Video jemand spricht"></canvas></span>' +
       '<button type="button" class="btn sec" id="vd_wahl">Audiodatei wählen</button><input type="file" id="vd_datei" accept="audio/*,video/webm,video/mp4" hidden>' +
       (pc ? '<label class="check small" style="margin:0" id="vd_pc_l" title="Nimmt zusätzlich zum Mikrofon den Ton vom Computer auf: Zoom, Meeting-Portale, Workshops, YouTube"><input type="checkbox" id="vd_pc" checked><span>🖥️ PC-Ton mit aufnehmen</span></label>' : '') +
@@ -2755,8 +2765,8 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#vd_mit').addEventListener('change', anzeigen); if ($('#vd_pc')) $('#vd_pc').addEventListener('change', anzeigen); anzeigen();
     const weiterAnzeigen = () => {
       if (!VDA) return;
-      if ($('#vd_pc')) $('#vd_pc').checked = VDA.pc; if ($('#vd_ohnemikro')) $('#vd_ohnemikro').checked = VDA.pc && !VDA.mic; anzeigen();
-      if (!VDA.ende) { knoepfe(true); pegelZeigen(true); status(laeuftText()); }
+      if ($('#vd_pc')) $('#vd_pc').checked = VDA.pc; if ($('#vd_ohnemikro')) $('#vd_ohnemikro').checked = VDA.pc && !VDA.micAn; anzeigen();
+      if (!VDA.ende) { knoepfe(true); pegelZeigen(true); mikroKnopf(); status(laeuftText()); }
       else { $('#vd_rec').disabled = true; $('#vd_wahl').disabled = true; status('Aufnahme beendet, der Text wird erstellt …'); }
     };
     const fmtZeit = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
@@ -2769,8 +2779,10 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       fd.append('art', $('#v_art') ? $('#v_art').value : 'anruf'); fd.append('modus', VDA ? VDA.modus : modus()); fd.append('dauer_sek', String(Math.round(dauer || 0))); fd.append('pc_ton', VDA && VDA.pc ? '1' : '0'); fd.append('ki_lesen', $('#vd_ki') && $('#vd_ki').checked ? '1' : '0');
     };
     const tracksStoppen = () => { if (!VDA) return; [VDA.mic, VDA.anzeige].forEach(s => { if (s) s.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); }); VDA.pegel.forEach(p => p.stopp()); if (VDA.ctx) { try { VDA.ctx.close(); } catch (e) {} } };
-    const pegelZeigen = an => { const e0 = $('#vd_pegelbox'); if (e0) e0.hidden = !an; ['#vd_pegel', '#vd_pegel_l'].forEach(s => { const e = $(s); if (e) e.hidden = !(an && (!VDA || VDA.mic)); }); ['#vd_pegel_pc', '#vd_pegel_pc_l'].forEach(s => { const e = $(s); if (e) e.hidden = !(an && VDA && VDA.pc); }); };
-    const knoepfe = laeuft => { if ($('#vd_rec')) { $('#vd_rec').hidden = laeuft; $('#vd_stop').hidden = !laeuft; } ['#vd_pc', '#vd_mit', '#vd_ohnemikro'].forEach(s => { const e = $(s); if (e) e.disabled = laeuft; }); };
+    const pegelZeigen = an => { const e0 = $('#vd_pegelbox'); if (e0) e0.hidden = !an; ['#vd_pegel', '#vd_pegel_l'].forEach(s => { const e = $(s); if (e) e.hidden = !(an && (!VDA || VDA.micAn)); }); ['#vd_pegel_pc', '#vd_pegel_pc_l'].forEach(s => { const e = $(s); if (e) e.hidden = !(an && VDA && VDA.pc); }); };
+    // Knopf „Mikro an/aus“ während einer Aufnahme mit PC-Ton (zeigt die Aktion: bei laufendem Mikro „Mikro aus“)
+    const mikroKnopf = () => { const b = $('#vd_mikro'); if (!b) return; b.hidden = !(VDA && VDA.pc && !VDA.ende); const an = !!(VDA && VDA.micAn); b.textContent = an ? '🔇 Mikro aus' : '🎙️ Mikro an'; b.setAttribute('aria-pressed', String(an)); };
+    const knoepfe = laeuft => { if ($('#vd_rec')) { $('#vd_rec').hidden = laeuft; $('#vd_stop').hidden = !laeuft; } mikroKnopf(); ['#vd_pc', '#vd_mit', '#vd_ohnemikro'].forEach(s => { const e = $(s); if (e) e.disabled = laeuft; }); };
 
     async function aufnehmen() {
       if (VDA) return;
@@ -2791,11 +2803,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
         try { mic = await navigator.mediaDevices.getUserMedia({ audio: pc ? { echoCancellation: true, noiseSuppression: true } : true }); }
         catch (e) { if (anzeige) anzeige.getTracks().forEach(t => t.stop()); return status('Kein Zugriff aufs Mikrofon. Bitte im Browser erlauben, eine Audiodatei wählen oder „Mikro aus“ anhaken.'); }
       }
-      VDA = { pc, mic, anzeige, ctx: null, strom: mic, pegel: [], stuecke: [], rec: null, offen: 0, zaehler: 0, start: Date.now(), stueckStart: Date.now(), timer: null, ende: false, pumpt: false, modus: pc ? 'gespraech' : modus(), leise: { mic: !mic, pc: false } };
+      VDA = { pc, mic, anzeige, ctx: null, strom: mic, pegel: [], stuecke: [], rec: null, offen: 0, zaehler: 0, start: Date.now(), stueckStart: Date.now(), timer: null, ende: false, pumpt: false, modus: pc ? 'gespraech' : modus(), leise: { mic: !mic, pc: false }, micAn: !!mic, ziel: null };
       if (pc) {
         // Mikrofon und PC-Ton zu einer Spur mischen; nur diese Spur wird aufgenommen (das Video läuft mit 1 Bild/s mit, wird aber nicht gespeichert)
         try {
-          const AC = window.AudioContext || window.webkitAudioContext; VDA.ctx = new AC(); const ziel = VDA.ctx.createMediaStreamDestination();
+          const AC = window.AudioContext || window.webkitAudioContext; VDA.ctx = new AC(); const ziel = VDA.ctx.createMediaStreamDestination(); VDA.ziel = ziel;
           if (mic) VDA.ctx.createMediaStreamSource(mic).connect(ziel); VDA.ctx.createMediaStreamSource(new MediaStream(anzeige.getAudioTracks())).connect(ziel);
           if (VDA.ctx.state === 'suspended') VDA.ctx.resume().catch(() => {});
           VDA.strom = ziel.stream;
@@ -2810,15 +2822,33 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       pegelZeigen(true);
       const warnen = () => {
         const l = VDA.leise;
-        if (VDA.pc ? (l.mic && l.pc) : l.mic) status(VDA.pc ? (VDA.mic ? '⚠ Gerade kommt weder vom Mikrofon noch vom PC Ton an. Läuft das Meeting oder Video im geteilten Tab?' : '⚠ Gerade kommt kein PC-Ton an. Läuft das Video oder Meeting im geteilten Tab?') : '⚠ Seit ein paar Sekunden kommt kein Ton an. Ist das richtige Mikrofon gewählt und nicht stumm?');
+        if (VDA.pc ? (l.mic && l.pc) : l.mic) status(VDA.pc ? (VDA.micAn ? '⚠ Gerade kommt weder vom Mikrofon noch vom PC Ton an. Läuft das Meeting oder Video im geteilten Tab?' : '⚠ Gerade kommt kein PC-Ton an. Läuft das Video oder Meeting im geteilten Tab?') : '⚠ Seit ein paar Sekunden kommt kein Ton an. Ist das richtige Mikrofon gewählt und nicht stumm?');
         else status(laeuftText());
       };
-      if (mic) VDA.pegel.push(pegelStarten(mic, () => $('#vd_pegel'), { onLeise: l => { if (VDA) { VDA.leise.mic = l; warnen(); } } }));
+      VDA.warnen = warnen;
+      if (mic) VDA.pegel.push(pegelStarten(mic, () => $('#vd_pegel'), { onLeise: l => { if (VDA) { VDA.leise.mic = VDA.micAn ? l : true; warnen(); } } }));
       if (pc) VDA.pegel.push(pegelStarten(new MediaStream(anzeige.getAudioTracks()), () => $('#vd_pegel_pc'), { onLeise: l => { if (VDA) { VDA.leise.pc = l; warnen(); } } }));
       status(laeuftText());
     }
-    const laeuftText = () => !VDA ? '' : VDA.pc && !VDA.mic ? 'Aufnahme nur mit PC-Ton läuft (Mikro aus). Der Balken „PC“ zeigt, was ankommt. Lass dieses Fenster offen, bis der Text da ist.' : VDA.pc ? 'Aufnahme mit PC-Ton läuft. Beide Balken zeigen, was ankommt: „Du“ = Mikrofon, „PC“ = Meeting oder Video. Lass dieses Fenster offen, bis der Text da ist.'
+    const laeuftText = () => !VDA ? '' : VDA.pc && !VDA.micAn ? 'Aufnahme nur mit PC-Ton läuft (Mikro aus). Der Balken „PC“ zeigt, was ankommt. Lass dieses Fenster offen, bis der Text da ist.' : VDA.pc ? 'Aufnahme mit PC-Ton läuft. Beide Balken zeigen, was ankommt: „Du“ = Mikrofon, „PC“ = Meeting oder Video. Lass dieses Fenster offen, bis der Text da ist.'
       : VDA.modus === 'gespraech' ? 'Aufnahme läuft. Achte auf den Pegel: Er muss bei beiden Stimmen ausschlagen.' : 'Aufnahme läuft. Sprich deine Notiz ein und klick dann auf Stopp.';
+    // Mikrofon während der Aufnahme an/aus: Spur stummschalten (enabled) oder, wenn mit „Mikro aus“ gestartet, jetzt holen und zumischen
+    async function mikroUmschalten() {
+      if (!VDA || VDA.ende || !VDA.pc) return;
+      const b = $('#vd_mikro'); if (b) b.disabled = true;
+      try {
+        if (VDA.micAn) { VDA.mic.getAudioTracks().forEach(t => { t.enabled = false; }); VDA.micAn = false; VDA.leise.mic = true; }
+        else if (VDA.mic) { VDA.mic.getAudioTracks().forEach(t => { t.enabled = true; }); VDA.micAn = true; VDA.leise.mic = false; }
+        else {
+          const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+          if (!VDA || VDA.ende) { mic.getTracks().forEach(t => t.stop()); return; }
+          VDA.mic = mic; VDA.ctx.createMediaStreamSource(mic).connect(VDA.ziel); VDA.micAn = true; VDA.leise.mic = false;
+          VDA.pegel.push(pegelStarten(mic, () => $('#vd_pegel'), { onLeise: l => { if (VDA) { VDA.leise.mic = VDA.micAn ? l : true; if (VDA.warnen) VDA.warnen(); } } }));
+        }
+        pegelZeigen(true); mikroKnopf(); status(laeuftText()); toast(VDA.micAn ? 'Mikrofon an: deine Stimme wird mit aufgenommen' : 'Mikrofon aus: nur der PC-Ton wird aufgenommen');
+      } catch (e) { status('Kein Zugriff aufs Mikrofon. Bitte im Browser erlauben. (' + ((e && e.message) || e) + ')'); }
+      if (b) b.disabled = false;
+    }
     function neuerRecorder() {
       const m = mime(), teile = [], von = Date.now(), nr = ++VDA.zaehler;
       const opt = { audioBitsPerSecond: 32000 }; if (m) opt.mimeType = m;
@@ -2938,7 +2968,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       VD_BUSY = Math.max(0, VD_BUSY - 1);
       if ($('#vd_rec')) { $('#vd_rec').disabled = !unterstuetzt; $('#vd_wahl').disabled = false; }
     }
-    $('#vd_rec').onclick = aufnehmen; $('#vd_stop').onclick = stopp;
+    $('#vd_rec').onclick = aufnehmen; $('#vd_stop').onclick = stopp; $('#vd_mikro').onclick = mikroUmschalten;
     weiterAnzeigen();
     $('#vd_wahl').onclick = () => $('#vd_datei').click();
     $('#vd_datei').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; if (f.size > 25 * 1024 * 1024) { status('Die Datei ist größer als 25 MB.'); e.target.value = ''; return; } senden(f, 0, f.name, false); e.target.value = ''; };
