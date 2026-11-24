@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const LIB = join(hier, '..', 'lib');
-export const MODULE = ['hash.js', 'zustand.js', 'kosten.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'verarbeitung.js'];
+export const MODULE = ['hash.js', 'zustand.js', 'kosten.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'kennzahlen.js', 'verarbeitung.js'];
 
 export function buendel() {
   const teile = [], namen = new Map();
@@ -47,7 +47,7 @@ export function workflowJson(code) {
     n('Office-API', 'n8n-nodes-base.webhook', 2.1, { httpMethod: 'POST', path: 'office-api', responseMode: 'responseNode', options: { allowedOrigins: ORIGIN } }, [0, 300]),
     n('Wartung alle 5 Minuten', 'n8n-nodes-base.scheduleTrigger', 1.2, { rule: { interval: [{ field: 'minutes', minutesInterval: 5 }] } }, [0, 560]),
     n('Wartungsauftrag', 'n8n-nodes-base.set', 3.4, { assignments: { assignments: [{ id: 'a1', name: 'body', type: 'object', value: '={{ { "aktion": "wartung", "intern": true } }}' }] }, options: {} }, [200, 560]),
-    n('Team-Daten laden', 'n8n-nodes-base.httpRequest', 4.2, { method: 'POST', url: SUPABASE + 'rpc/team_laden', authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', sendBody: true, specifyBody: 'json', jsonBody: '{}', options: {} }, [420, 300]),
+    n('Team-Daten laden', 'n8n-nodes-base.httpRequest', 4.2, { method: 'POST', url: SUPABASE + 'rpc/team_laden_office', authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', sendBody: true, specifyBody: 'json', jsonBody: '{}', options: {} }, [420, 300]),
     n('Anfrage prüfen', 'n8n-nodes-base.code', 2, { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: code }, [640, 300]),
     n('Was ist zu tun?', 'n8n-nodes-base.switch', 3.2, { mode: 'expression', numberOutputs: 3, output: '={{ $json.weiter }}' }, [860, 300]),
     n('Fehler melden', 'n8n-nodes-base.respondToWebhook', 1.5, { respondWith: 'json', responseBody: '={{ JSON.stringify($json.antwort) }}', options: { responseCode: '={{ $json.code }}' } }, [1080, 120]),

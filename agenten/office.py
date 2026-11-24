@@ -12,7 +12,8 @@ Nur Python-Standardbibliothek. Produktiv spricht das Skript mit dem n8n-Workflow
   office.py ergebnis <run_id> "Titel" [--art text|datei|link|commit|notiz|bericht] [--ablage ORT] [--zusammenfassung TEXT] [--hash SHA256]
   office.py frage <run_id> "Frage an einen Menschen"       Run → wartet auf Rückmeldung
   office.py freigabe <run_id> <aktion> '<inhalt-json>' [--vorschau TEXT]   Freigabe für externe Aktion anfordern
-  office.py fertig <run_id> "Zusammenfassung"              Run technisch abschließen (fachlich nimmt ein Mensch ab)
+  office.py fertig <run_id> "Zusammenfassung" [--typ dossier] [--wirkung JSON] [--tokens-ein N --tokens-aus N] [--kosten EUR --kosten-quelle TEXT]
+                                                Run technisch abschließen (fachlich nimmt ein Mensch ab); Typ, Wirkung und Verbrauch sind optional
   office.py fehler <run_id> "Fehlertext"                   Run als fehlgeschlagen melden
   office.py auftrag <agent_id> "Projekt" "Auftragstext" [--aufgabe AUFGABE_ID]   neuen Auftrag für sich selbst anlegen
   office.py roh <aktion> '<json-daten>'                    beliebige erlaubte Aktion
@@ -268,6 +269,11 @@ def main():
     p.add_argument('--ablage', default=''); p.add_argument('--zusammenfassung', default=''); p.add_argument('--vorschau', default='')
     p.add_argument('--aufgabe'); p.add_argument('--n8n-execution', dest='n8n'); p.add_argument('--json', action='store_true'); p.add_argument('--ausfuehrer', default='claude-code')
     p.add_argument('--hash', help='SHA-256 (64 Hex-Zeichen) des Ergebnisinhalts, für „ergebnis“')
+    # Messbarkeit (KI Office 2.0): Ergebnis-Typ, Wirkung und Verbrauch bei „fertig“ mitmelden. Nur Zahlen und feste Kategorien, keine Namen.
+    p.add_argument('--typ', help='Ergebnis-Typ für „fertig“: text, dossier, bericht, code, workflow, medien, plan, pruefung, sonstiges')
+    p.add_argument('--wirkung', help='Wirkung für „fertig“ als JSON aus Feld und ganzer Zahl, z. B. {"dossiers": 1, "firmen": 12}; erlaubte Felder je Raum stehen in laden → auswertung.wirkung_felder')
+    p.add_argument('--tokens-ein', dest='tokens_ein', type=int); p.add_argument('--tokens-aus', dest='tokens_aus', type=int)
+    p.add_argument('--kosten', type=float, help='Kosten des Laufs in Euro, falls bekannt'); p.add_argument('--kosten-quelle', dest='kosten_quelle', help='Woher die Kosten stammen (z. B. Abrechnung des Anbieters); nur mit Quelle gelten sie als gemessen')
     p.add_argument('--vault'); p.add_argument('--ordner'); p.add_argument('--zustand'); p.add_argument('--trocken', action='store_true'); p.add_argument('--alles', action='store_true')
     o = p.parse_args(); b, A = o.befehl, o.args
 
@@ -321,6 +327,15 @@ def main():
     if b in ('fertig', 'fehler'):
         d = {'run_id': A[0], 'status': 'abgeschlossen' if b == 'fertig' else 'fehlgeschlagen'}
         d['zusammenfassung' if b == 'fertig' else 'fehler'] = A[1] if len(A) > 1 else sys.stdin.read()
+        if b == 'fertig' and o.typ: d['ergebnis_typ'] = o.typ
+        if b == 'fertig' and o.wirkung:
+            try: d['wirkung'] = json.loads(o.wirkung)
+            except ValueError: sys.exit('--wirkung ist kein gültiges JSON. Beispiel: --wirkung \'{"dossiers": 1, "firmen": 12}\'. Der Run wurde nicht beendet.')
+        if o.tokens_ein is not None or o.tokens_aus is not None or o.kosten is not None:
+            v = {'tokens_ein': o.tokens_ein or 0, 'tokens_aus': o.tokens_aus or 0}
+            if o.kosten is not None: v['kosten_eur'] = o.kosten
+            if o.kosten_quelle: v['kosten_quelle'] = o.kosten_quelle
+            d['verbrauch'] = v
         r = api('run_beenden', d); print('OK:', r.get('status'), '(angenommen)' if r.get('angenommen') else '(verspätet, Status unverändert)'); return
     if b == 'auftrag':
         d = {'agent_id': A[0], 'projekt': A[1], 'auftrag': A[2], 'idempotenzschluessel': 'cli-' + uuid.uuid4().hex[:20]}

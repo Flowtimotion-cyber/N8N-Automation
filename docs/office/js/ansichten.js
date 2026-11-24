@@ -1,7 +1,8 @@
 // KI Office: Ansichten. HTML per String, jeder Datenwert durch esc().
 import { $, $$, esc, toast, fmtD, fmtDT, relativ, ueberfaellig, farbe, chip, kpi, kurz, opt, md } from './util.js';
 import { api, neuerSchluessel, PORTAL, ls } from './api.js';
-import { runKostenGemeldet, runDauerMin } from './kennzahlen.js';
+import { runDauerMin, ERGEBNIS_TYP_TEXT } from './kennzahlen.js';
+import { kennzahlZeileVon, wirkungFelder, wirkungText } from './kontrollraum.daten.js';
 import { RAEUME, AKTIVE_RUN_STATUS, PROBLEM_RUN_STATUS, mitglied, agentReg, projektVon, projektById, runVon, ereignisseVon, artefakteVon, freigabenVon, letzteAktivitaetRun, raumVon, projektStand, agentZustand, ZUSTAND_TEXT, ZUSTAND_FARBE, verbrauchText, istOrchestrierer, kinderVon, elternVon, delegierteVon, istStartFreigabe, wartendeStarts, darfEntscheiden, startHinweis, KOSTENSTUFE_ANZEIGE } from './modell.js';
 
 export const F = Object.assign({ q: '', raum: '', zust: '', status: 'aktiv', zeitraum: 'alle', ansicht: 'liste', runStatus: '' }, JSON.parse(ls.get('ko-filter') || '{}'));
@@ -176,7 +177,7 @@ export function vRun(ctx, id) {
   $('#main').innerHTML = '<p class="small"><a href="#/agent/' + esc(r.agent_id) + '">← ' + esc(reg ? reg.name : r.agent_id) + '</a>' + (p ? ' · <a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>' : '') + brotkrume + '</p>' +
     '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:260px"><h1 style="font-size:22px">' + esc(r.auftrag) + '</h1><div class="meta">' + stChip(D, r.status) + (r.abgenommen === true ? chip('fachlich abgenommen', 'fs-erteilt') : r.abgenommen === false ? chip('fachlich zurückgewiesen', 'fs-abgelehnt') : r.status === 'abgeschlossen' ? chip('fachliche Abnahme offen', 'fs-offen') : '') + chip('Versuch ' + (r.versuche || 1) + ' von ' + (r.max_versuche || '?')) + (K.length ? chip('Team: ' + K.length + ' Teilaufträge' + (offeneKinder ? ', ' + offeneKinder + ' offen' : ''), 'team') : '') + (r.eltern_run_id ? chip('Teilauftrag', 'team') : '') + (r.team_id ? chip('Team ' + kurz(r.team_id, 24), 'team', 'team_id: ' + r.team_id) : '') + '<span class="hash">' + esc(r.run_id) + '</span></div></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap" id="runAktionen"></div></div>' +
-    runKennzahlen(r, E, Art) +
+    runKennzahlen(D, r, E, Art, darfSteuern && r.status === 'abgeschlossen' && !!(D.auswertung && D.auswertung.tabelle)) +
     (r.status === 'unbekannt' ? '<div class="note warn" style="margin:10px 0">Dieser Run gilt als <b>unbekannt / veraltet</b>: ' + esc(r.grund || 'Timeout.') + ' Eine später eintreffende Rückmeldung wird protokolliert, macht den Run aber nicht nachträglich erfolgreich.</div>' : '') +
     (wartetAufStartFreigabe ? (admin ? '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf deine Freigabe.</b> ' + name(D, r.auftraggeber) + ' hat diesen Auftrag angelegt. Er startet erst, wenn du ihn freigibst. Die Entscheidung triffst du unten bei „Freigaben“.</div>' : '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf Timo.</b> Dein Auftrag ist angelegt, der Agent startet aber erst, wenn Timo ihn freigibt. Du musst nichts tun.</div>') : '') +
     (r.status === 'fehlgeschlagen' ? '<div class="note warn" style="margin:10px 0"><b>Fehler:</b> ' + esc(r.fehler || 'ohne Beschreibung') + '</div>' : '') +
@@ -197,20 +198,46 @@ export function vRun(ctx, id) {
     if (r.status === 'abgeschlossen' && r.abgenommen == null) { btn('Fachlich abnehmen', 'ok', () => abnahmeDialog(ctx, r, true)); btn('Zurückweisen', 'danger', () => abnahmeDialog(ctx, r, false)); }
   }
   $$('[data-freigabe]').forEach(b => b.onclick = () => freigabeDialog(ctx, b.dataset.freigabe, b.dataset.entscheidung));
+  const wk = $('#wirkungKnopf'); if (wk) wk.onclick = () => wirkungDialog(ctx, r);
 }
-/** Kennzahlenzeile über der Run-Zeitleiste: Kosten (nur gemeldet, sonst „unbekannt“), Dauer, Schritte, Ergebnisse, fachliche Prüfung. */
-function runKennzahlen(r, E, Art) {
-  const k = runKostenGemeldet(r); const d = runDauerMin(r);
+/**
+ * Kennzahlenzeile über der Run-Zeitleiste: Kosten (gemessen, geschätzt mit Basis, oder unbekannt), Dauer, Schritte, Ergebnis-Typ, Wirkung, fachliche Prüfung.
+ * Quelle ist die Kennzahlzeile des Runs (Server); für laufende Runs gibt es noch keine.
+ */
+const KOSTEN_BASIS_TEXT = { ausfuehrer: 'vom Ausführer gemeldet', preistabelle: 'aus gemeldeten Token und Preistabelle', textlaenge: 'grob aus der Textlänge von Auftrag und Ergebnis' };
+function runKennzahlen(D, r, E, Art, darfWirkung) {
+  const z = kennzahlZeileVon(D, r); const reg = agentReg(D, r.agent_id);
+  const d = runDauerMin(r);
   const laeuft = r.gestartet && !r.beendet ? Math.max(0, Math.round((Date.now() - new Date(r.gestartet).getTime()) / 60000)) : null;
   const dauer = d != null ? (d < 1 ? '< 1 Min' : Math.round(d) + ' Min') : laeuft != null ? 'seit ' + laeuft + ' Min' : '–';
   const pruef = r.abgenommen === true ? 'abgenommen' : r.abgenommen === false ? 'zurückgewiesen' : r.status === 'abgeschlossen' ? 'offen' : '–';
-  const zelle = (wert, text) => '<div><b>' + esc(wert) + '</b><span>' + text + '</span></div>';
+  const limit = r.budget_eur != null ? ' · Limit ' + esc(euroKurz(r.budget_eur)) : '';
+  const hatKosten = z && z.kosten_art !== 'unbekannt' && z.kosten_eur != null;
+  const kostenText = !z ? 'Kosten: stehen fest, sobald der Lauf beendet ist' + limit
+    : hatKosten ? 'Kosten, ' + (z.kosten_art === 'gemessen' ? 'gemessen' : 'geschätzt') + ' (' + esc(KOSTEN_BASIS_TEXT[z.kosten_basis] || 'ohne Angabe der Basis') + ')' + limit
+    : 'Kosten: der Ausführer hat keinen Verbrauch gemeldet' + limit;
+  const typen = (D.auswertung || {}).ergebnis_typen || ERGEBNIS_TYP_TEXT;
+  const w = z ? wirkungText(D, reg, z.wirkung) : '';
+  const felder = wirkungFelder(D, reg);
+  const zelle = (wert, text, extra) => '<div><b>' + esc(wert) + '</b><span>' + text + '</span>' + (extra || '') + '</div>';
   return '<div class="run-kz" id="runKz">' +
-    zelle(k ? euroKurz(k.eur) : 'unbekannt', k ? 'Kosten, ' + esc(k.art) + (r.budget_eur != null ? ' · Limit ' + esc(euroKurz(r.budget_eur)) : '') : 'Kosten: der Ausführer hat keinen Verbrauch gemeldet' + (r.budget_eur != null ? ' · Limit ' + esc(euroKurz(r.budget_eur)) : '')) +
+    zelle(hatKosten ? euroKurz(z.kosten_eur) : (z ? 'unbekannt' : '–'), kostenText) +
     zelle(dauer, d != null ? 'Dauer von Start bis Ergebnis' : 'Dauer') +
     zelle(String(E.filter(e => ['schritt', 'tool', 'quelle'].includes(e.art)).length), 'Schritte und Werkzeugaufrufe') +
-    zelle(String(Art.length), Art.length === 1 ? 'Ergebnis abgelegt' : 'Ergebnisse abgelegt') +
+    zelle(z ? (typen[z.ergebnis_typ] || z.ergebnis_typ || '–') : '–', 'Ergebnis-Typ · ' + Art.length + (Art.length === 1 ? ' Ergebnis abgelegt' : ' Ergebnisse abgelegt')) +
+    zelle(w || '–', 'Wirkung' + (felder.length ? ' (' + esc(felder.map(f => f.text).join(', ')) + ')' : ''), darfWirkung && felder.length ? '<button class="btn ghost klein" id="wirkungKnopf" type="button" style="padding:2px 0">' + (w ? 'Wirkung ändern' : 'Wirkung eintragen') + '</button>' : '') +
     zelle(pruef, 'fachliche Prüfung durch einen Menschen') + '</div>';
+}
+/** Eingabefelder für die Wirkung eines Runs (ganze Zahlen je Wirkungsfeld des Raums), vorbelegt mit dem Stand der Kennzahlzeile. */
+function wirkungFelderHtml(D, r) {
+  const reg = agentReg(D, r.agent_id); const felder = wirkungFelder(D, reg); const z = kennzahlZeileVon(D, r) || {};
+  if (!felder.length) return '';
+  return '<div class="f2">' + felder.map(f => '<div class="f"><label for="w_' + esc(f.feld) + '">' + esc(f.text) + '</label><input id="w_' + esc(f.feld) + '" data-wirkung="' + esc(f.feld) + '" type="number" min="0" max="100000" step="1" inputmode="numeric" value="' + esc((z.wirkung || {})[f.feld] ?? '') + '"></div>').join('') + '</div>';
+}
+function wirkungLesen() { const w = {}; $$('[data-wirkung]').forEach(el => { if (el.value !== '') w[el.dataset.wirkung] = Number(el.value); }); return w; }
+function wirkungDialog(ctx, r) {
+  dialog(ctx, 'Wirkung eintragen', '<p class="small">Was ist aus diesem Ergebnis geworden? Nur Zahlen, keine Namen. Du kannst die Werte später ändern, zum Beispiel wenn aus einem Dossier ein Termin wird.</p>' + wirkungFelderHtml(ctx.D, r),
+    () => aktion(ctx, 'wirkung_setzen', { run_id: r.run_id, wirkung: wirkungLesen() }, 'Wirkung gespeichert'));
 }
 const euroKurz = x => Number(x).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: Number(x) < 0.1 ? 3 : 2 });
 /** Kurzblock zu einer Startfreigabe: Agent, Kostenstufe, Auftraggeber (und der Auftragstext, wenn gewünscht). */
@@ -302,7 +329,8 @@ function abbruchDialog(ctx, r) {
   $('#dlgOk').textContent = 'Abbrechen bestätigen';
 }
 function abnahmeDialog(ctx, r, ok) {
-  dialog(ctx, ok ? 'Fachlich abnehmen' : 'Ergebnis zurückweisen', '<p class="small">' + (ok ? 'Du bestätigst, dass das Ergebnis fachlich passt. Das ist unabhängig vom technischen Status.' : 'Das Ergebnis passt fachlich nicht. Der Agent erfährt das über den Aufgabenverlauf.') + '</p><div class="f"><label for="f_k">Kommentar' + (ok ? ' (optional)' : '') + '</label><textarea id="f_k" ' + (ok ? '' : 'required ') + 'maxlength="1000"></textarea></div>', () => aktion(ctx, 'run_abnehmen', { run_id: r.run_id, abgenommen: ok, kommentar: $('#f_k').value }, ok ? 'Abgenommen' : 'Zurückgewiesen'));
+  const mitWirkung = ok && !!(ctx.D.auswertung && ctx.D.auswertung.tabelle);
+  dialog(ctx, ok ? 'Fachlich abnehmen' : 'Ergebnis zurückweisen', '<p class="small">' + (ok ? 'Du bestätigst, dass das Ergebnis fachlich passt. Das ist unabhängig vom technischen Status.' : 'Das Ergebnis passt fachlich nicht. Der Agent erfährt das über den Aufgabenverlauf.') + '</p><div class="f"><label for="f_k">Kommentar' + (ok ? ' (optional)' : '') + '</label><textarea id="f_k" ' + (ok ? '' : 'required ') + 'maxlength="1000"></textarea></div>' + (mitWirkung ? '<p class="small" style="margin:4px 0 6px"><b>Wirkung (optional):</b> Was ist daraus geworden? Nur Zahlen.</p>' + wirkungFelderHtml(ctx.D, r) : ''), () => aktion(ctx, 'run_abnehmen', Object.assign({ run_id: r.run_id, abgenommen: ok, kommentar: $('#f_k').value }, mitWirkung && Object.keys(wirkungLesen()).length ? { wirkung: wirkungLesen() } : {}), ok ? 'Abgenommen' : 'Zurückgewiesen'));
   $('#dlgOk').textContent = ok ? 'Abnehmen' : 'Zurückweisen';
 }
 export function freigabeDialog(ctx, freigabe_id, entscheidung) {

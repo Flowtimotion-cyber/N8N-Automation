@@ -121,3 +121,21 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | n8n-Ausführer (Text, Orchestrierer, Verwaltungs-Status): Titel ihrer Schritte in Ich-Form schreiben, wie es der Abholer jetzt tut. Heute zeigt der Ticker ihre Schritte wörtlich („Aufgaben gelesen“). Workflow-Änderung, nur mit Timos Ja | `office/n8n/ausfuehrer-*.workflow.js`, `ichForm` |
 | C | Büro-Szene (`#/tab/szene`) im hellen Thema: die Szene selbst bleibt dunkel (eigene Grafik); bei Bedarf helle Variante | `docs/office/js/buero.js` |
 | C | Portal-Übersicht: die eingebettete kompakte Fassung ist dunkel im hellen Portal. Wer das nicht mag: im Portal `?thema=hell` an die iframe-Adresse hängen | `docs/team/index.html`, ARCHITEKTUR.md Abschnitt 14 |
+
+## Ergänzung 24.11.2026: KI Office 2.0, Paket 2 Messbarkeit (KI-erstellt: Claude Code)
+
+| Prio | Punkt | Bezug |
+|---|---|---|
+| A | Einspielen: Timo führt `supabase/team_office_kennzahlen.sql` aus, danach Workflow „TEAM: Office-API“ aktualisieren (Adresse `rpc/team_laden_office`, Code-Knoten „Anfrage prüfen“), nur mit Timos Ja | SETUP.md Abschnitt 16 |
+| B | n8n-Ausführer melden lassen: Text-Ausführer `ergebnis_typ: "text"` und `kosten_quelle` (dann gelten seine Kosten als gemessen statt geschätzt); Verwaltungs-Status und Orchestrierer `verbrauch` mit 0 Token und 0 € samt Quelle „ohne Modell“ (heute „unbekannt“, Urteil dadurch „beobachten“). Workflow-Änderungen, nur mit Timos Ja | `office/n8n/ausfuehrer-*.workflow.js`, ARCHITEKTUR.md Abschnitt 15 |
+| B | Schwellen der Rangliste bestätigen oder ändern (0,50 € je abgenommenem Ergebnis, 20 % zurückgewiesen, mindestens 3 bewertete Ergebnisse); je Raum eigene Schwellen wären sinnvoll (ein Prüfbericht mit Opus kostet mehr als ein Social-Plan) | `AUSWERTUNG_SCHWELLEN` |
+| B | Preistabelle der Schätzung pflegen (Listenpreise Stand 03.11.2026, Kurs 0,92 €/US-$); `deepseek-v4-flash` hat keinen Eintrag und wird nicht geschätzt | `KZ_PREISE_USD_MIO` |
+| B | Abholer: echten Verbrauch der Subagenten melden, sobald Claude Code ihn je Aufgabe ausgibt; bis dahin grobe Schätzung aus der Textlänge | `agenten/OFFICE_ABARBEITER.md`, `office.py fertig --tokens-ein …` |
+| B | Aufbewahrung der Kennzahlen festlegen (Vorschlag 24 Monate) und den Löschbefehl in den regelmäßigen Löschlauf aufnehmen | LOESCHKONZEPT.md |
+| B | Datenschutzprüfung Paket 2 (datenschutz-waechter, 24.11.2026, Urteil GELB, technische Befunde behoben): offen bleiben Entscheidungen von Timo (Frist 24 Monate, Wortlaut der Information ans Team, Regel „nie zur Beurteilung von Personen“ schriftlich in die KI-Richtlinie) und Fragen an den Anwalt (Einordnung als Beschäftigtendaten nach § 26 BDSG, Eintrag ins Verzeichnis der Verarbeitungstätigkeiten) | DATENSCHUTZ_AI_ACT.md Ergänzung 24.11.2026 (3) |
+| C | Kennzahlen je Agent rechnen über alle Projekte. Bei Kundenzugängen oder Projektlisten je Person (F6) entscheiden, ob Summen von Agenten aus fremden Projekten sichtbar bleiben | `antwortBauen` in `office/lib/verarbeitung.js` |
+| C | Wirkungsfelder mit dem Team abstimmen (Vertrieb: Dossiers, qualifizierte Firmen, Termine; Marketing: Texte freigegeben, veröffentlicht; Akademie: Lektionen, Kursprüfungen; Kundenprojekte: Workflows, Reviews; Verwaltung: Berichte, Prüfungen) | `WIRKUNG_FELDER` |
+| C | Auswertung im Wochen-Lagebericht nutzen: `select * from office_auswertung(7)` liefert die Woche je Agent (nur mit Timos Ja, der Wochenstand-Workflow wird sonst nicht angefasst) | `supabase/team_office_kennzahlen.sql` |
+| B | Sammellöschung greift ins Leere (Befund aus dem Code-Review, bestand schon vorher): `loeschen { aelter_als_tage: 180 }` findet nichts, weil `team_laden()` beendete Runs nur 90 Tage lang liefert und die API nur diese kennt. Der regelmäßige Löschlauf braucht einen eigenen Weg (SQL im Editor oder eigene Abfrage für alte Runs) | `loeschen` in `office/lib/verarbeitung.js`, LOESCHKONZEPT.md |
+| C | Wird ein fehlgeschlagener Run wiederholt, zählt seine Kennzahlzeile bis zum neuen Ende weiter als Fehlschlag (danach wird sie fortgeschrieben) | `run_wiederholen` |
+| C | Automatische Wiederholung: Kosten eines gescheiterten Versuchs gehen verloren, weil der Run nur den Verbrauch des letzten Versuchs trägt | `beenden` in `office/lib/verarbeitung.js` |

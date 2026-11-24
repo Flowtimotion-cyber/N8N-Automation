@@ -581,3 +581,18 @@ Zusätzlich im eingebauten Browser gesichtet: Kontrollraum, Projekte, Run-Seite,
 Screenshots: `desktop-`/`mobil-kontrollraum.png`, `-kontrollraum-hell.png`, `-kontrollraum-eingebettet.png` neu; die übrigen Office-Ansichten und `portal-register-ki-office` im neuen Design neu erzeugt. Portal-Screenshots ohne Office-Bezug sind unverändert geblieben.
 
 **Nicht getestet:** die Live-Seite auf GitHub Pages (erst nach dem Merge), das Verhalten des 30-Sekunden-Takts über längere Zeit gegen das echte Supabase (Datenverkehr, BETRIEB.md), echte Agentenläufe mit Schritten in Ich-Form.
+
+## 33. Nachtrag 24.11.2026: KI Office 2.0, Paket 2 Messbarkeit (Branch `feature/ki-office-2-kennzahlen`, KI-erstellt: Claude Code)
+
+`npm run test:office` mit Playwright (`NODE_PATH`) und PGlite (`PGLITE_PFAD`): **134 von 134 bestanden**, nichts übersprungen.
+
+| Test | Was geprüft wird | Ergebnis |
+|---|---|---|
+| `unit.messbarkeit.test.mjs` (8 Tests, neu) | Schätzung (Preistabelle, Textlänge, Modell ohne Preis); Wirkung nur als ganze Zahl zu bekannten Feldern des Raums (kein Text, kein Wahrheitswert, keine Liste); Kennzahlzeile in allen Kostenfällen und ihre Feldliste ohne Namen, Text und Projekt; Modellname nur aus fester Liste; Bewertung an den Schwellen; Weg durch die API: Zeile bei `run_beenden`, Fortschreiben bei Abnahme und `wirkung_setzen`, Rechte (Agent und fremdes Teammitglied 403), `laden` mit Kennzahlen je Agent und nur eigenen für Agenten, Löschen des Runs lässt die Zeile mit Zufallskennung stehen; Fehlschlag, Wiederholung, automatische Wiederholung, Abbruch, veraltet; ungültige Wirkung des Ausführers verhindert den Abschluss nicht; ohne Tabelle wird nichts geschrieben und aus den Runs gerechnet; Musterdaten ergeben die erwartete Rangliste, Oberfläche und Server rechnen gleich | bestanden |
+| `sql.kennzahlen.test.mjs` (neu, braucht PGlite) | SQL-Datei zweimal ausführbar; `team_laden_office()` behält alle Schlüssel aus `team_laden()`; `office_auswertung` liefert für drei Agenten dieselben Zahlen und dasselbe Urteil wie die Bibliothek; Wochenauswertung; Checks für Kostenart, Abnahme, Modell, Ergebnis-Typ, Status, Wirkung; keine Rechte für `anon` und `authenticated`, RLS an; keine Spalte für Personen, Text oder Projekt | bestanden |
+| `browser.test.mjs` „Auswertung“ (Desktop und Mobil, neu) | Rangliste in vier Spalten mit den Musterdaten, Tabelle je aktivem Agenten, Wirkung und Trend, kein seitliches Scrollen der Seite; Wirkung beim Abnehmen eintragen und danach ergänzen (Stand in der Tabelle geprüft); Rückfall ohne Kennzahlen vom Server zeigt „Vorläufige Zahlen“ und keinen Wirkungs-Knopf | bestanden |
+| übrige Tests | unverändert grün, darunter Bündel gleich eingecheckter Datei, Sandbox der HTML-Ergebnisse, Freigaben, „keine JavaScript-Fehler in allen Ansichten“ | bestanden |
+
+**Prüfungen außerhalb der Tests:** Datenschutzprüfung durch den Subagenten `datenschutz-waechter` (Urteil GELB; technische Befunde behoben: Modell als Freitext, Kennung nach Löschung, Zeitpunkt der Abnahme, Härtung der SQL-Datei; offen bleiben Entscheidungen von Timo und Fragen an den Anwalt, RESTPUNKTE.md). Code-Review über den Diff: 5 Befunde, 3 behoben, 2 als Restpunkte dokumentiert.
+
+**Nicht getestet:** die SQL-Datei im echten Supabase-Projekt, der aktualisierte Workflow in n8n (beides noch nicht eingespielt), echte Läufe mit gemeldeter Wirkung.
