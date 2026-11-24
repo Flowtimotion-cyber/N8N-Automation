@@ -170,3 +170,16 @@ Bis diese Punkte geklärt sind, bekommt der PA-Assistent keinen Ausführer mit P
 | Mitschnitte nur mit Einwilligung | § 201 StGB; Art. 6, 13 DSGVO | ja | ✅ Standard ist Diktat ohne Mitschnitt; Mitschnitt nur über Häkchen mit Hinweis; Kennzeichnung in der Aktivität | Portal-Dialog, `aktivitaetBauen` | Kurze Teamregel schriftlich | Timo |
 | Zugriff nur Vertriebsrollen | Art. 25, 32 | ja | ✅ serverseitig (`diktatAnfrage`), Tests | `vertrieb/test/diktat.test.mjs` | – | – |
 
+
+## Ergänzung 24.11.2026: Diktat mit PC-Ton (Meetings, Workshops, Videos)
+
+Timos Entscheidung (24.11.2026): Im Diktat ist „PC-Ton mit aufnehmen“ **standardmäßig an** (Chrome/Edge am Computer); ein Haken schaltet es ab. Die Einwilligung holt das Team selbst ein, das Portal fragt nicht per Klick nach, sondern zeigt einen festen Hinweis. Damit gilt die Zeile „Standard ist Diktat ohne Mitschnitt“ oben für diesen Weg nicht mehr.
+
+| Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | Offener Punkt | Verantwortlich |
+|---|---|---|---|---|---|---|
+| Mitschnitt von Meetings nur mit Einwilligung aller | § 201 StGB; Art. 6, 13 DSGVO | ja | 🔶 Team fragt selbst; Hinweis im Portal („Mitschnitte nur mit Einverständnis aller; YouTube und Workshops nur intern“); Aktivität gekennzeichnet „Mitschnitt mit Computerton“; Balken „PC“ zeigt sichtbar, dass Ton aufgenommen wird | `docs/team/index.html` (`diktatBox`), `aktivitaetBauen` | Teamregel schriftlich: vor jedem Meeting ansagen und Zustimmung einholen, sonst Haken aus | Timo |
+| Inhalte Dritter (YouTube, Workshops) | UrhG §§ 44a, 53 | ja | 🔶 nur Hinweis: interner Gebrauch, nicht weitergeben | Portal-Hinweis | – | Team |
+| Drittlandtransfer (OpenAI) | Art. 44 ff. | ja | wie oben (⬜): Meeting-Mitschnitte enthalten mehr Stimmen Dritter als ein Diktat | – | OpenAI-DPA/EU-Projekt vor breitem Einsatz klären | Timo |
+| Keine Speicherung von Audio | Art. 5 | ja | ✅ unverändert: Stücke (je ca. 4 Min.) werden nur durchgereicht, das Bild der Bildschirmfreigabe wird nie aufgenommen | `vertrieb/lib/diktat.js` | wie oben (`EXECUTIONS_DATA_MAX_AGE`) | Timo |
+
+Keine Rechtsberatung; Einordnung als Arbeitshilfe.

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES } from '../lib/diktat.js';
+import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES, zusammenfassungsPrompt, teilAntwort, gesamtAntwort, jsonAusLlm, MAX_GESAMT_ZEICHEN } from '../lib/diktat.js';
 
 const murat = { mitglied_id: 'm_murat', name: 'Murat', rolle: 'vertrieb', typ: 'mensch', status: 'aktiv' };
 const datei = { mimeType: 'audio/webm', fileSize: 120000 };
@@ -49,4 +49,33 @@ test('Aktivitätstext und Antwort', () => {
   const roh = diktatAntwort('nur roh', 'kein json', { modus: 'gespraech' }, '2026-10-29T10:00:00Z');
   assert.match(roh.antwort.aktivitaet, /Gesprächsmitschnitt/); assert.match(roh.antwort.aktivitaet, /Rohtranskript/); assert.equal(roh.antwort.bereinigt, false);
   assert.match(aktivitaetBauen({ text: 'x' }, {}, 'kein datum'), /🎙️ Diktat, KI-bereinigt/);
+});
+
+test('Lange Aufnahme: Stück (teil=1) nur bereinigen, ohne Zusammenfassung', () => {
+  const r = diktatAnfrage(murat, { teil: '1', pc_ton: '1', modus: 'gespraech', dauer_sek: '300' }, datei);
+  assert.equal(r.aktion, 'transkribieren');
+  assert.equal(r.kontext.teil, true); assert.equal(r.kontext.pc_ton, true);
+  assert.equal(diktatAnfrage(murat, {}, datei).kontext.teil, false);
+  const p = bereinigungsPrompt(r.kontext, 'roh');
+  assert.match(p.system, /Abschnitt/); assert.match(p.system, /\{"text"/); assert.doesNotMatch(p.system, /zusammenfassung/);
+  const a = teilAntwort('roh text', '```json\n{"text":"Sauberer Text."}\n```', r.kontext);
+  assert.equal(a.code, 200); assert.equal(a.antwort.teil, true); assert.equal(a.antwort.text, 'Sauberer Text.'); assert.equal(a.antwort.roh, 'roh text'); assert.equal(a.antwort.bereinigt, true);
+  const b = teilAntwort('roh text', 'kaputt', r.kontext);
+  assert.equal(b.antwort.text, 'roh text'); assert.equal(b.antwort.bereinigt, false);
+});
+test('Lange Aufnahme: aktion=zusammenfassen braucht keine Datei, nur Text', () => {
+  assert.equal(diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: '' }, null).code, 400);
+  assert.equal(diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: 'x'.repeat(MAX_GESAMT_ZEICHEN + 1) }, null).code, 413);
+  assert.equal(diktatAnfrage(null, { aktion: 'zusammenfassen', transkript: 'Hallo' }, null).code, 401);
+  const r = diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: 'Teil eins. Teil zwei.', dauer_sek: '5400', pc_ton: '1', modus: 'gespraech' }, null);
+  assert.equal(r.aktion, 'zusammenfassen'); assert.equal(r.kontext.dauer_sek, 5400); assert.equal(r.transkript, 'Teil eins. Teil zwei.');
+  const p = zusammenfassungsPrompt(r.kontext, r.transkript);
+  assert.match(p.system, /NICHT zurück/); assert.match(p.user, /Computerton/); assert.match(p.user, /90 Min/);
+  const g = gesamtAntwort(r.transkript, JSON.stringify({ zusammenfassung: 'Kurz.', punkte: ['A'], naechste_schritte: ['B'], termine: [] }), r.kontext, '2026-11-24T10:00:00Z');
+  assert.equal(g.code, 200); assert.equal(g.antwort.gesamt, true); assert.equal(g.antwort.text, 'Teil eins. Teil zwei.'); assert.equal(g.antwort.zusammengefasst, true);
+  assert.match(g.antwort.aktivitaet, /Mitschnitt mit Computerton/); assert.match(g.antwort.aktivitaet, /Kurz\./); assert.match(g.antwort.aktivitaet, /Teil zwei/);
+  assert.equal(g.antwort.kosten.usd, 0.27);
+  const ohne = gesamtAntwort('Text', '', r.kontext, '2026-11-24T10:00:00Z');
+  assert.equal(ohne.antwort.zusammengefasst, false); assert.equal(ohne.antwort.text, 'Text');
+  assert.equal(jsonAusLlm('kein json'), null);
 });
