@@ -378,6 +378,21 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .wa-chat .wc-ein{border-top:1px solid var(--line);padding:10px;display:flex;gap:8px;align-items:flex-end}
 .wa-chat .wc-ein textarea{flex:1;resize:none;min-height:42px;max-height:160px;border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit}
 .wa-chat .wc-hinweis{padding:8px 12px;font-size:13px;background:#FFF4E5;color:#9A5B00;border-top:1px solid var(--line)}
+/* WhatsApp-Vorlagen (24-Stunden-Fenster zu): große Knöpfe, mindestens 44 px hoch */
+.wa-chat .wc-vl{border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:10px;max-height:62%;overflow-y:auto;background:#fff}
+.wa-chat .wc-vl .wc-hinweis{border:0;border-radius:10px;margin:0}
+.wa-chat .vl-kopf{display:flex;align-items:center;gap:8px}.wa-chat .vl-kopf b{flex:1}
+.wa-chat .vl-gross{min-height:48px;padding:12px 20px;font-size:15px;justify-content:center}
+.wa-chat .vl-wahl{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.wa-chat .vl-wahl button{min-height:52px;border:1.5px solid var(--line);border-radius:12px;background:#fff;padding:10px 14px;font-weight:650;font-size:15px;cursor:pointer;text-align:left}
+.wa-chat .vl-wahl button:hover{border-color:#1FA855}.wa-chat .vl-wahl button.on{border-color:#1FA855;background:#E8F7EE;box-shadow:inset 0 0 0 1px #1FA855}
+.wa-chat .vl-felder{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.wa-chat .vl-felder label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--mut)}
+.wa-chat .vl-felder input{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;color:var(--ink);font-weight:400}
+.wa-chat .vl-vorschau{background:#DCF8C6;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.wa-chat .vl-vorschau small{display:block;color:var(--mut);font-size:12px;margin-bottom:4px}
+.wa-chat .vl-fuss{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.wa-chat .vl-fehler{color:#B42318;font-size:13px;flex:1}
 .wa-chat .ch-werk{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px 0;border-top:1px solid var(--line);font-size:13px}.wa-chat .ch-werk .check{margin:0}
 .wa-chat .ch-werk + .wc-ein{border-top:0}.wa-chat .ch-mic{min-width:44px;padding-left:10px;padding-right:10px}.wa-chat .ch-mic.rec{background:#FDECEA;border-color:#E5534B;color:#B42318}
 .wa-chat .ch-mstat{color:var(--mut)}.wa-chat .ch-mstat.ok{color:#1E7B3A}.wa-chat .ch-mstat button{border:0;background:none;color:var(--acc);cursor:pointer;font:inherit;text-decoration:underline;padding:0 2px}
@@ -2281,6 +2296,25 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Inbox ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.');
     return j;
   }
+  // Freigegebene WhatsApp-Vorlagen für Gespräche, deren 24-Stunden-Fenster zu ist.
+  // Exakt wie in der Handy-App (momentum-team-app/src/lib/vorlagen.ts) und im n8n-Workflow „TEAM: WhatsApp-Vorlage senden (App)“.
+  const WA_VORLAGE_API = API.replace('team-api-v2', 'team-inbox-vorlage');
+  const WA_VORLAGEN = [
+    { name: 'rueckfrage_offen', titel: 'Rückfrage zur Anfrage', felder: [['Vorname', 'Anna'], ['Thema', 'Mitarbeiterschulung']],
+      text: w => `Hallo ${w[0]}, zu deiner Anfrage bei der Momentum KI Akademie zum Thema ${w[1]} haben wir noch eine Rückfrage. Antworte kurz auf diese Nachricht, dann machen wir direkt weiter.` },
+    { name: 'nachfassen_interesse', titel: 'Nachfassen: noch Interesse?', felder: [['Vorname', 'Anna'], ['Datum der Anfrage', '18.11.'], ['Thema', 'Mitarbeiterschulung']],
+      text: w => `Hallo ${w[0]}, du hast uns am ${w[1]} wegen ${w[2]} geschrieben. Wir haben dazu noch keine Antwort von dir gehört. Möchtest du, dass wir dir dazu weiterhelfen? Antworte mit Ja oder Nein.` },
+    { name: 'termin_angebot', titel: 'Telefonat anbieten', felder: [['Vorname', 'Anna'], ['Thema', 'Mitarbeiterschulung']],
+      text: w => `Hallo ${w[0]}, zu deiner Anfrage zum Thema ${w[1]} würden wir gern kurz mit dir telefonieren. Antworte mit einem Wunschtermin, zum Beispiel Dienstag, 10 Uhr. Dann bestätigen wir dir den Termin.` },
+  ];
+  // Vorbelegung: Vorname aus dem Kontaktnamen, Datum (TT.MM.) aus der letzten Kundennachricht, Rest leer
+  const waVorbelegen = (v, g) => v.felder.map(([titel]) => {
+    if (titel === 'Vorname') return String(g.name || '').trim().split(/\s+/)[0] || '';
+    if (titel.startsWith('Datum') && g.letzte_kunde_am) { const d = new Date(g.letzte_kunde_am); if (!isNaN(d)) return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.'; }
+    return '';
+  });
+  // Zustand des Vorlagen-Felds, gilt immer nur für ein Gespräch (WA.vl.id)
+  const waVl = id => { if (!WA.vl || WA.vl.id !== id) WA.vl = { id, offen: false, wahl: null, werte: [], fehler: '' }; return WA.vl; };
   const waZeit = z => { if (!z) return ''; const d = new Date(z), h = new Date(); return d.toDateString() === h.toDateString() ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }); };
   const waTag = z => new Date(z).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
   const waName = g => g.name || g.telefon || g.id;
@@ -2356,22 +2390,29 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       blasen += '<div class="wb ' + m.richtung + (ki ? ' ki' : '') + (m.status === 'fehlgeschlagen' ? ' fehl' : '') + '">' + esc(m.text || '') + '<span class="wz">' + (m.richtung === 'aus' && wer ? '<span class="wer">' + esc(wer) + '</span>' : '') + esc(new Date(m.zeit).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })) + '<span' + (m.status === 'gelesen' ? ' style="color:#34B7F1"' : '') + '>' + st + '</span></span></div>';
     }
     const darf = g.kanal === 'whatsapp' && g.fenster;
+    const vlZeigen = g.kanal === 'whatsapp' && !g.fenster;
+    const vlFokus = vlZeigen && document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.vlf : undefined;
+    const vlPos = vlFokus != null ? document.activeElement.selectionStart : null;
     el.innerHTML = '<div class="wc-kopf"><button class="btn sec wa-zurueck" id="wc_zur">←</button><div style="flex:1;min-width:150px"><b>' + esc(waName(g)) + '</b><div class="muted">' + esc([g.telefon, waKanal(g.kanal)].filter(Boolean).join(' · ')) + '</div></div>' +
       '<span class="chip ' + (g.modus === 'mensch' ? 'mensch">Bot pausiert' : 'ki">Bot aktiv') + '</span>' +
       '<button class="btn sec" id="wc_modus">' + (g.modus === 'mensch' ? '🤖 Bot einschalten' : '✋ Bot pausieren') + '</button>' +
       '<button class="btn sec" id="wc_status">' + (g.status === 'erledigt' ? 'Wieder öffnen' : '✓ Erledigt') + '</button></div>' +
       (g.zusammenfassung ? '<div class="wc-sum"><b>Zusammenfassung (KI):</b> ' + esc(g.zusammenfassung) + '</div>' : '') +
       '<div class="wc-msgs" id="wc_msgs">' + (blasen || '<div class="wtag">Noch keine Nachrichten</div>') + '</div>' +
+      (vlZeigen ? waVorlagenHtml(g) :
       (darf ? '' : '<div class="wc-hinweis">' + (g.kanal !== 'whatsapp' ? 'Instagram-Gespräche bitte in der Instagram-App beantworten.' : 'Die letzte Nachricht des Kontakts ist älter als 24 Stunden. WhatsApp erlaubt dann nur genehmigte Vorlagen – freie Antworten sind gesperrt, bis der Kontakt wieder schreibt.') + '</div>') +
       '<div class="wc-ein"><textarea id="wc_text" rows="1" placeholder="' + (darf ? 'Nachricht als ' + esc((D.ich.name || '').split(' ')[0]) + ' …' : 'Antworten gerade nicht möglich') + '"' + (darf ? '' : ' disabled') + '>' + esc(txtAlt) + '</textarea>' +
-      '<button class="btn" id="wc_senden" title="Enter = senden, Umschalt+Enter = neue Zeile"' + (darf && !WA.sendet ? '' : ' disabled') + '>' + (WA.sendet ? '…' : 'Senden') + '</button></div>';
+      '<button class="btn" id="wc_senden" title="Enter = senden, Umschalt+Enter = neue Zeile"' + (darf && !WA.sendet ? '' : ' disabled') + '>' + (WA.sendet ? '…' : 'Senden') + '</button></div>');
     const box = $('#wc_msgs'); box.scrollTop = still && !warUnten ? altScroll : box.scrollHeight;
     const ta = $('#wc_text');
-    const hoehe = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; }; hoehe();
-    ta.oninput = () => { WA.entwurf[g.id] = ta.value; hoehe(); };
-    ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); waSenden(); } };
-    if (hatFokus || !still) { if (darf && window.matchMedia('(min-width: 821px)').matches) ta.focus(); }
-    $('#wc_senden').onclick = waSenden;
+    if (ta) {
+      const hoehe = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; }; hoehe();
+      ta.oninput = () => { WA.entwurf[g.id] = ta.value; hoehe(); };
+      ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); waSenden(); } };
+      if (hatFokus || !still) { if (darf && window.matchMedia('(min-width: 821px)').matches) ta.focus(); }
+      $('#wc_senden').onclick = waSenden;
+    }
+    if (vlZeigen) waVorlagenBinden(g, vlFokus, vlPos);
     $('#wc_zur').onclick = () => { WA.offen = null; WA.verlauf = null; $('#wa').classList.remove('offen'); waListeZeigen(); waChatZeigen(); };
     $('#wc_modus').onclick = async () => {
       const neu = g.modus === 'mensch' ? 'ki' : 'mensch';
@@ -2396,6 +2437,69 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     } catch (e) { toast(e.message); }
     WA.sendet = false; waChatZeigen(true); waListeZeigen();
     const t2 = $('#wc_text'); if (t2 && !t2.disabled) t2.focus();
+  }
+  // ---------- WhatsApp-Vorlage senden (wenn das 24-Stunden-Fenster zu ist) ----------
+  // Eigener Webhook team-inbox-vorlage (n8n „TEAM: WhatsApp-Vorlage senden (App)“), dasselbe Muster wie in der Handy-App.
+  const waVlWerte = (v, werte) => v.felder.map((f, i) => String(werte[i] || '').trim());
+  const waVlVoll = (v, werte) => !!v && waVlWerte(v, werte).every(w => w.length > 0);
+  const waVlText = (v, werte) => v.text(waVlWerte(v, werte).map((w, i) => w || '[' + v.felder[i][0] + ']'));
+  function waVorlagenHtml(g) {
+    const s = waVl(g.id);
+    const hinweis = '<div class="wc-hinweis">Die letzte Kundennachricht ist älter als 24 Stunden. WhatsApp erlaubt jetzt nur noch eine freigegebene Vorlage.</div>';
+    if (!s.offen) return '<div class="wc-vl">' + hinweis + '<div><button type="button" class="btn wa vl-gross" id="vl_auf">📋 Vorlage senden</button></div></div>';
+    const v = WA_VORLAGEN.find(x => x.name === s.wahl);
+    return '<div class="wc-vl" id="wc_vl"><div class="vl-kopf"><b>Vorlage wählen</b><button type="button" class="btn ghost" id="vl_zu">Schließen</button></div>' +
+      '<div class="vl-wahl" role="group" aria-label="Vorlage wählen">' + WA_VORLAGEN.map(x => '<button type="button" data-vl="' + esc(x.name) + '" aria-pressed="' + (x === v) + '"' + (x === v ? ' class="on"' : '') + '>' + esc(x.titel) + '</button>').join('') + '</div>' +
+      (v ? '<div class="vl-felder">' + v.felder.map(([titel, bsp], i) => '<label>' + esc(titel) + '<input data-vlf="' + i + '" maxlength="60" autocomplete="off" value="' + esc(s.werte[i] || '') + '" placeholder="z. B. ' + esc(bsp) + '"></label>').join('') + '</div>' +
+        '<div class="vl-vorschau"><small>Vorschau – so kommt die Nachricht an</small><span id="vl_text">' + esc(waVlText(v, s.werte)) + '</span></div>' +
+        '<div class="vl-fuss"><span class="vl-fehler" id="vl_fehler" role="alert">' + esc(s.fehler) + '</span><button type="button" class="btn wa vl-gross" id="vl_senden"' + (WA.sendet || !waVlVoll(v, s.werte) ? ' disabled' : '') + '>' + (WA.sendet ? '…' : 'Vorlage senden') + '</button></div>' : '') +
+      '</div>';
+  }
+  function waVorlagenBinden(g, fokus, pos) {
+    const s = waVl(g.id), v = WA_VORLAGEN.find(x => x.name === s.wahl);
+    const auf = $('#vl_auf'); if (auf) auf.onclick = () => { s.offen = true; s.fehler = ''; waChatZeigen(true); const b = $('#wc_vl [data-vl]'); if (b) b.focus(); };
+    const zu = $('#vl_zu'); if (zu) zu.onclick = () => { s.offen = false; s.wahl = null; s.werte = []; s.fehler = ''; waChatZeigen(true); };
+    document.querySelectorAll('#wc_vl [data-vl]').forEach(b => b.onclick = () => {
+      const neu = WA_VORLAGEN.find(x => x.name === b.dataset.vl); if (!neu) return;
+      s.wahl = neu.name; s.werte = waVorbelegen(neu, g); s.fehler = ''; waChatZeigen(true);
+      const leer = [...document.querySelectorAll('#wc_vl [data-vlf]')].find(i => !i.value.trim()); if (leer) leer.focus();
+    });
+    document.querySelectorAll('#wc_vl [data-vlf]').forEach(inp => {
+      inp.oninput = () => {
+        s.werte[+inp.dataset.vlf] = inp.value.slice(0, 60);
+        const t = $('#vl_text'); if (t && v) t.textContent = waVlText(v, s.werte);
+        const k = $('#vl_senden'); if (k) k.disabled = WA.sendet || !waVlVoll(v, s.werte);
+      };
+      inp.onkeydown = e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); waVorlageSenden(g); } };
+    });
+    const k = $('#vl_senden'); if (k) k.onclick = () => waVorlageSenden(g);
+    if (fokus != null) { const i = $('#wc_vl [data-vlf="' + fokus + '"]'); if (i) { i.focus(); try { i.setSelectionRange(pos, pos); } catch (x) {} } }
+  }
+  async function waVorlageSenden(g) {
+    const s = waVl(g.id), v = WA_VORLAGEN.find(x => x.name === s.wahl), id = g.id;
+    if (WA.sendet || !v || !waVlVoll(v, s.werte)) return;
+    WA.sendet = true; s.fehler = ''; waChatZeigen(true);
+    const ctrl = new AbortController(), uhr = setTimeout(() => ctrl.abort(), 25000);
+    let gesendet = false;
+    try {
+      const r = await fetch(WA_VORLAGE_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, signal: ctrl.signal,
+        body: JSON.stringify({ token: TOKEN, aktion: 'vorlage', daten: { konversation_id: id, vorlage: v.name, werte: waVlWerte(v, s.werte) } }) });
+      let j = null; try { j = await r.json(); } catch (e) {}
+      // Nur ok:true zählt als gesendet
+      if (!r.ok || !j || j.ok !== true) throw new Error((j && j.fehler) || (r.status === 404 ? 'nicht eingerichtet' : 'Die Vorlage wurde nicht gesendet (Fehler ' + r.status + '). Bitte gleich noch einmal versuchen.'));
+      const n = j.nachricht;
+      if (n && WA.verlauf && WA.verlauf.gespraech && WA.verlauf.gespraech.id === id) { WA.verlauf.nachrichten.push(n); WA.verlauf.gespraech.modus = 'mensch'; }
+      const l = (WA.liste || []).find(x => x.id === id);
+      if (l) { l.modus = 'mensch'; l.wartet = 0; if (n) { l.letzte = { text: n.text, richtung: 'aus', absender: n.absender, zeit: n.zeit }; l.zeit = n.zeit; } }
+      WA.vl = null; gesendet = true;
+      toast(j.hinweis || 'Vorlage gesendet.');
+    } catch (e) {
+      const t = e && e.name === 'AbortError' ? 'Der Server hat nicht rechtzeitig geantwortet. Bitte im Verlauf prüfen, ob die Vorlage angekommen ist, bevor du es noch einmal versuchst.'
+        : e instanceof TypeError ? 'Der Server ist gerade nicht erreichbar. Bitte gleich noch einmal versuchen.' : String(e && e.message || e);
+      s.fehler = t.includes('nicht eingerichtet') ? 'Vorlagen sind auf dem Server noch nicht freigeschaltet. Timo muss sie bei Meta freigeben und den Workflow aktivieren.' : t;
+    }
+    clearTimeout(uhr);
+    WA.sendet = false; waChatZeigen(!gesendet); waListeZeigen();
   }
 
   // ---------- Vertrieb (Pipeline aus Twenty CRM) ----------
