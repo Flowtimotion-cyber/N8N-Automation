@@ -27,6 +27,7 @@ async function seite(vp, name) {
 const text = async (p, sel) => (await p.locator(sel).first().textContent()) || '';
 const shot = (p, name, vp) => p.screenshot({ path: join(SHOTS, (vp.width > 600 ? 'desktop' : 'mobil') + '-' + name + '.png'), fullPage: true });
 async function aufnehmen(p) {
+  if (await p.locator('#vd_pc').count()) await p.locator('#vd_pc').uncheck();   // nur Mikrofon (PC-Ton testet diktat.browser.test.mjs)
   await p.locator('#vd_rec').click(); await p.waitForTimeout(1500); await p.locator('#vd_stop').click();
   await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
 }
