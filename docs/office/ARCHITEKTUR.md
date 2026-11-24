@@ -283,3 +283,40 @@ Alle Werte stehen als Konstanten mit Kommentar oben in `office/lib/kosten.js` (`
 **Datenmodell (additiv, `supabase/team_office.sql` Abschnitt 2b):** `office_runs.budget_eur numeric`, `office_agenten.freigabe_noetig boolean`. Die Freigabe nutzt `office_freigaben` unverändert. **Reihenfolge beim Einspielen: erst das SQL, dann der Code-Knoten**, sonst scheitert jedes Anlegen eines Runs an der fehlenden Spalte.
 
 **Grenzen:** `budget_eur` ist heute Angabe und Grundlage der Regel; kein Ausführer bricht bei Überschreitung ab (RESTPUNKTE.md). Das Tagesbudget beruht auf gemeldetem Verbrauch; wo ein Ausführer keinen Verbrauch meldet, zählt das Run-Limit als Obergrenze. Delegierte Teilaufträge von Menschen ohne Admin-Rolle unterliegen derselben Regel, Teilaufträge eines Orchestrierer-Agenten nicht (der Eltern-Run wurde bereits freigegeben oder war ein Sofortstart).
+
+## 14. KI Office 2.0: Kontrollraum, Thema, Aktualisierung (ergänzt 24.11.2026, KI-erstellt: Claude Code)
+
+**Entscheidung (Timo, 24.11.2026):** Design-Richtung „A Kontrollraum“ aus `docs/office/design-vorschau/`. Designsystem: `docs/office/design/DESIGN.md`. Dieses Paket ändert nur die Oberfläche (`docs/office/`, zwei Beschriftungen in `docs/team/index.html`) und eine reine Rechenbibliothek; die Office-API in n8n und die Datenbank bleiben unverändert.
+
+**Register.** `Kontrollraum` (`#/tab/buero`, Standard), `Projekte`, `Agenten`, `Büro-Szene` (`#/tab/szene`, die isometrische Szene mit Monitoren aus Abschnitt 9), `Freigaben`. Die Adresse `buero` bleibt beim Kontrollraum, damit die beiden Einbettungen im Team-Portal (`?einbetten=1#/tab/buero` und `?einbetten=1&nur=buero#/tab/buero`) ohne Änderung am Portal das neue Bild zeigen. Mit `nur=buero` erscheint die kompakte Fassung: Karten nur für Agenten, bei denen etwas läuft oder wartet, alle freien als Zeile, dazu der Ticker; kein „Für dich“ (das hat die Portal-Übersicht selbst).
+
+| Datei | Inhalt |
+|---|---|
+| `css/office.css` | Alle Farben als Variablen in zwei Themen: `dunkel` (Standard) und `hell` (Portal-Farben). Status-Chips, Hinweise und Dialoge nutzen Rollen-Variablen (`--ok-bg`, `--warn-fg` …), keine festen Farben mehr |
+| `js/kontrollraum.js` | Ansicht: Kopfzahlen, Karten je Agent nach Raum (Orchestrierer in „Zentrale“), „Für dich“, Live-Ticker |
+| `js/kontrollraum.daten.js` | Daten ohne Browser: `agentKarteDaten`, `fuerDichListe`, `kontrollraumZahlen`, `ichForm`, `tickerEintraege`, `guthabenVon`, `istLive` |
+| `js/kennzahlen.js` | **Erzeugte Kopie** von `office/lib/kennzahlen.js` (GitHub Pages liefert nur `docs/` aus). `node office/n8n/bauen.mjs` schreibt sie, `unit.kennzahlen.test.mjs` prüft die Gleichheit |
+| `index.html` | nur noch Gerüst; setzt das Thema vor dem ersten Zeichnen |
+
+**Agentenkarte.** Zustand (Farbe und Text), aktuelle Aufgabe (der aktive Run, in Arbeit vor wartend), letztes Ergebnis (neuestes Artefakt, sonst zuletzt abgeschlossener Run) mit Prüfmarke, Kosten der letzten 4 Wochen, Kosten je abgenommenem Ergebnis mit Trendpfeil und Mini-Verlauf. Ein Agent „in Arbeit“ ohne Lebenszeichen seit 5 Minuten (`STILL_NACH_MIN`) bekommt einen roten Rand und einen Eintrag in „Für dich“; das löst die Ist-Schwäche „ein Agent ohne Meldungen ist unsichtbar“, bevor die Wartung ihn nach `timeout_sek` als veraltet markiert. Der Platz für den Guthaben-Balken ist da (`guthabenVon`); gefüllt wird er, sobald die Office-API je Agent `guthaben = { monat_eur, verbraucht_eur }` liefert (Paket 3).
+
+**Kennzahlen (`office/lib/kennzahlen.js`).** Je Agent über 28 Tage: technisch abgeschlossene Runs, abgenommen, zurückgewiesen, offen, fehlgeschlagen, Summe der gemeldeten Kosten, Kosten je abgenommenem Ergebnis, Zurückweisungsquote, mittlere Dauer, Trend in vier Wochenscheiben. Regel: Es zählt nur, was ein Ausführer gemeldet hat (`verbrauch.messbar` und `kosten_eur`). Läufe ohne Meldung erscheinen als „ohne Angabe“ bzw. „unbekannt“, nie als 0 €; geschätzte Werte bleiben als „geschätzt“ gekennzeichnet. Gerechnet wird je Agent (Registry-Eintrag), nie je Mensch.
+
+**Live-Ticker in Ich-Form (`ichForm`).** Deterministisch, ohne Modell: Die festen Texte der Office-API (Statuswechsel, Freigaben, Abnahmen, Delegation) werden zu kurzen Sätzen („Ich habe den Auftrag übernommen und lege los.“, „Kurt hat mein Ergebnis abgenommen: …“). Freie Texte der Ausführer (Schritte, Werkzeugaufrufe) bleiben wörtlich; die Anleitung des Abholers (`agenten/OFFICE_ABARBEITER.md`) verlangt sie jetzt in Ich-Form. Doppelte Zeilen („→ wartet auf Rückmeldung“ neben der Rückfrage) fallen weg. Jede Zeile führt zum Run.
+
+**Aktualisierung.**
+
+| Zustand | Takt | Warum |
+|---|---|---|
+| Ein Run ist in der Warteschlange oder in Arbeit (`istLive`) | 30 Sekunden | Timo will sehen, was gerade passiert |
+| Nichts läuft | 5 Minuten (wie bisher) | Jeder Abruf holt den ganzen `team_laden()`-Stand aus Supabase; BETRIEB.md rechnet den Datenverkehr vor |
+| Tab unsichtbar, Dialog offen, jemand tippt | kein Abruf | wie bisher |
+| Tab wird wieder sichtbar und der Stand ist älter als 30 Sekunden | sofort | – |
+
+Antworten ohne Änderung (bis auf den Zeitstempel) bauen die Ansicht nicht neu auf; im Kontrollraum bleibt der Fokus über einen Neuaufbau erhalten. Läuft beim Abschluss einer Aktion gerade ein Hintergrund-Abruf, wartet das Office darauf und lädt danach noch einmal, damit die Ansicht nach einer Freigabe sicher frisch ist.
+
+**Supabase Realtime: geprüft, nicht gebaut.** Realtime braucht einen Supabase-Schlüssel im Browser und Leserechte per Row Level Security. Das Office kennt bewusst keinen Supabase-Schlüssel im Browser: Alle Zugriffe laufen mit dem Portal-Token über die Office-API, die Tabellen `office_*` sind für `anon` gesperrt, und die Rechte (Projektgrenze, Rolle) stecken im Workflow-Code, nicht in der Datenbank. Für Realtime müsste man entweder die Rechte in RLS-Regeln nachbauen (zweite Rechtequelle, Supabase Auth statt Portal-Token) oder einen Kanal ohne Inhalt als reines „es gibt Neues“-Signal einrichten (Anon-Schlüssel im Browser, `supabase-js` als erste externe Abhängigkeit der Seite, Trigger in der Datenbank). Beides ist für den Nutzen zu viel Umbau und eine neue Angriffsfläche. Stattdessen: der 30-Sekunden-Takt oben. Nächster Hebel, falls der Datenverkehr stört: eine schlanke Abfrage `puls` (SQL-Funktion mit Fingerabdruck der Office-Tabellen, eigener Zweig im Workflow vor „Team-Daten laden“), die das Office im Takt fragt und nur bei geändertem Fingerabdruck voll nachlädt (RESTPUNKTE.md).
+
+**Thema.** Dunkel ist Standard. Der Knopf im Kopf schaltet auf hell (Portal-Farben) und merkt die Wahl je Gerät (`localStorage` `ko-thema`); `?thema=hell` oder `?thema=dunkel` setzt sie von außen, auch für die Einbettung. `prefers-reduced-motion` schaltet weiter alle Animationen ab.
+
+**Unverändert und geprüft:** HTML-Ergebnisse der Agenten nur in `<iframe sandbox="">` (Büro-Szene, Monitorwand), alle Datenwerte durch `esc()`, Freigabe-Dialog und Hash-Bindung, Rechtefilter ausschließlich auf dem Server, Einbettung mit Höhenmeldung an das Portal.

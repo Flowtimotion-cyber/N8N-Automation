@@ -82,4 +82,4 @@ Raumakzente (wie bisher in `buero.js`): Akademie `#A77BFF`, Marketing `#F5A94A`,
 
 ## 8. Entscheidung
 
-Timo wählt zwischen A Kontrollraum, B Werkbank, C Stadt (Übersicht: `docs/office/design-vorschau/index.html`). Die gewählte Richtung wird in `docs/office/` umgesetzt; die beiden anderen bleiben als Vorschau liegen. Mischformen sind möglich (z. B. A als Arbeitsansicht, C als Schauansicht).
+**Timo, 24.11.2026: A Kontrollraum.** Umgesetzt in `docs/office/` (`css/office.css`, `js/kontrollraum.js`, ARCHITEKTUR.md Abschnitt 14) mit dunklem Thema als Standard und hellem Thema zum Umschalten. Die Vorschauen B Werkbank und C Stadt bleiben unter `docs/office/design-vorschau/` liegen; die Stadt ist als spätere Schauansicht möglich.
