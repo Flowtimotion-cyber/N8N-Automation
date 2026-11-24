@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { Speicher, Uhr, zufallsQuelle } from './speicher.mjs';
 import { TestAdapter } from '../adapter/test.js';
 import { sha256 } from '../lib/hash.js';
+import { guthabenStand, guthabenStartwert } from '../lib/guthaben.js';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const REG = JSON.parse(readFileSync(join(hier, '..', 'agenten.json'), 'utf8'));
@@ -88,7 +89,7 @@ export function basisTabellen(jetztIso) {
     V('v_t4', 'Dunkelmodus für das Portal', 'Abends angenehmer.', 'Sonstiges', 'neu', 1)
   ];
   const office_agenten = REG.agenten.map(a => ({ ...a, beschreibung: a.rolle, workflow_version: a.ausfuehrer === 'n8n' ? 'v1' : '', konfig_version: '1', aktiv: true, ausfuehrer_url: a.ausfuehrer === 'n8n' ? 'https://n8n.example.invalid/webhook/agent-' + a.agent_id : null, geaendert: vor(7), geaendert_von: 'm_timo' }));
-  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_vorschlaege: vorschlaege, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [], office_kennzahlen: [] };
+  return { team_mitglieder: mitglieder, team_projekte: projekte, team_aufgaben: aufgaben, team_aufgaben_verlauf: verlauf, team_notizen: notizen, team_vorschlaege: vorschlaege, team_social: [], team_systeme: [], office_agenten, office_runs: [], office_ereignisse: [], office_artefakte: [], office_freigaben: [], office_idempotenz: [], office_run_schluessel: [], office_kennzahlen: [], office_vorschlaege: [] };
 }
 
 /**
@@ -137,6 +138,26 @@ export function musterKennzahlen(jetztIso) {
  * Baut einen Speicher mit Testdaten. szenario: 'standard' (Runs in allen Zuständen) oder 'leer' (keine Runs, keine Freigaben).
  * Die virtuelle Uhr startet 3 Stunden vor „jetzt“ und wird beim Aufbau vorgestellt, damit alle Zustände inkl. Timeouts entstehen.
  */
+/**
+ * TESTADAPTER: Monatsguthaben für die Musterwelt, abgeleitet vom Verbrauch der Musterdaten im laufenden Monat (so stimmt das Bild an jedem Kalendertag):
+ * Kunden-Entwickler ist leer (neue Aufträge warten), Server-Wächter fast leer, zwei Agenten haben noch kein Guthaben (Karte „einrichten“),
+ * alle anderen haben reichlich, damit die übrigen Szenarien ungestört laufen. Dazu eine ältere Entscheidung im Protokoll.
+ */
+export function musterGuthaben(sp, jetztIso) {
+  const t = new Date(jetztIso).getTime(), T = sp.T;
+  const cent = x => Math.round(x * 100) / 100;
+  for (const a of T.office_agenten) {
+    if (['pa-assistent', 'medien-cutter'].includes(a.agent_id)) continue;
+    const g = guthabenStand({ ...a, budget_eur_monat: 100000 }, T.office_kennzahlen, T.office_runs, T.office_artefakte, t);
+    const belegt = g.verbraucht_eur + g.reserviert_eur;
+    if (a.agent_id === 'kunden-entwickler') a.budget_eur_monat = Math.floor(belegt * 100) / 100;
+    else if (a.agent_id === 'server-waechter') a.budget_eur_monat = belegt > 0 ? cent(belegt / 0.94) : 1;
+    else a.budget_eur_monat = Math.max(guthabenStartwert(a), Math.ceil(belegt * 3) + 2);
+  }
+  T.office_vorschlaege.push({ vorschlag_id: 'vor_muster_1', art: 'guthaben', agent_id: 'vertrieb-recherche', entscheidung: 'gesetzt', option: 'monat', wert: T.office_agenten.find(a => a.agent_id === 'vertrieb-recherche').budget_eur_monat,
+    segment: null, neuer_agent: null, begruendung: 'Testdaten: Startguthaben gesetzt.', zahlen: null, entschieden_von: 'm_timo', entschieden_am: new Date(t - 20 * 86400000).toISOString() });
+}
+
 export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   const start = new Date((jetzt ? new Date(jetzt).getTime() : Date.now()) - 56 * 60 * 1000).toISOString();
   const uhr = new Uhr(start);
@@ -210,5 +231,6 @@ export function testSpeicher({ szenario = 'standard', jetzt } = {}) {
   // Uhr auf „jetzt“ bringen (restliche Zeit), ohne weitere Wartung, damit r7/r12 je nach Dauer sichtbar bleiben
   const rest = Math.max(0, (jetzt ? new Date(jetzt).getTime() : Date.now()) - uhr.ms);
   uhr.vor(rest / 1000);
+  musterGuthaben(sp, uhr.iso());
   return { speicher: sp, adapter: ad, uhr, runs: { r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, r13, r14, r15, kinder13 } };
 }

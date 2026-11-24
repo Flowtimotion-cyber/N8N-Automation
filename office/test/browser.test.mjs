@@ -660,7 +660,7 @@ for (const vp of [DESKTOP, MOBIL]) {
     const texter = '.akarte[data-agent="marketing-texter"]';
     assert.ok((await p.locator(texter + '.z-wartet_freigabe').count()) === 1, 'Texter wartet auf Freigabe');
     assert.ok((await text(p, texter)).includes('LinkedIn-Beitrag KW 43 (Vorschau)'), 'letztes Ergebnis auf der Karte');
-    assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('Kosten (4 Wochen)')); assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('geschätzt'), 'Claude-Code-Läufe: Kosten geschätzt und so gekennzeichnet'); assert.ok((await text(p, '.akarte[data-agent="kurs-waechter"]')).includes('unbekannt'), 'ohne Kostenangabe: unbekannt');
+    assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('Guthaben diesen Monat')); assert.ok((await text(p, '.akarte[data-agent="medien-cutter"]')).includes('Kosten (4 Wochen)'), 'ohne Monatsguthaben: Kosten statt Balken'); assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('geschätzt'), 'Claude-Code-Läufe: Kosten geschätzt und so gekennzeichnet'); assert.ok((await text(p, '.akarte[data-agent="kurs-waechter"]')).includes('unbekannt'), 'ohne Kostenangabe: unbekannt');
     assert.ok((await p.locator('.akarte.still').count()) >= 1, 'stiller Agent bekommt einen roten Rand'); assert.ok((await text(p, '.akarte.still')).includes('kein Lebenszeichen'));
     const main = await text(p, '#main'); assert.ok(!main.includes('undefined') && !main.includes('NaN'));
     // Für dich: Freigaben mit Knöpfen (gleicher Dialog wie im Register Freigaben), Rückfrage, stiller Agent, Abnahmen
@@ -741,6 +741,76 @@ test('Auswertung: Rangliste und Tabelle aus den Musterdaten, Wirkung eintragen, 
   await q.route(/\/api\/office$/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); const j = await res.json(); delete j.kennzahlen; delete j.kennzahl_zeilen; delete j.auswertung; r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) }); });
   await oeffne(q, '#/tab/auswertung'); assert.equal(await q.locator('#auswHinweis').count(), 1); assert.ok((await q.locator('table.auswertung tbody tr').count()) >= 10); assert.ok(!(await text(q, '#main')).includes('undefined'));
   await oeffne(q, '#/run/' + r2.run_id); assert.equal(await q.locator('#wirkungKnopf').count(), 0, 'ohne Tabelle kein Wirkungs-Knopf'); assert.equal(await q.locator('#runKz > div').count(), 6);
+  await q.close();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+});
+
+// KI Office 2.0, Paket 3: Register „Guthaben“ mit Vorschlagskarten; leeres Guthaben auf der Karte im Kontrollraum; Timo füllt auf, pausiert, legt eine Instanz an
+test('Guthaben: Stand je Agent, Vorschlagskarten nur für den Admin, auffüllen, pausieren, zweite Instanz', async t => {
+  if (!B) return t.skip();
+  await post(S.base, '/api/test/reset', { szenario: 'standard' });
+  const tabellen = async () => (await fetch(S.base + '/api/test/zustand').then(r => r.json())).tabellen;
+  const api = async (aktion, daten) => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: JSON.stringify({ token: TOKENS.m_timo, aktion, daten }) }); return { status: res.status, j: await res.json() }; };
+  for (const vp of [DESKTOP, MOBIL]) {
+    const p = await neueSeite(vp, { name: 'guthaben ' + vp.width });
+    await oeffne(p, '#/tab/guthaben'); assert.match(await text(p, 'h1'), /Guthaben/); assert.equal(await p.locator('#ghHinweis').count(), 0);
+    assert.equal(await p.locator('table.guthaben-tabelle tbody tr').count(), (await tabellen()).office_agenten.length);
+    assert.ok((await text(p, 'tr[data-agent="kunden-entwickler"]')).includes('leer: kein Start')); assert.ok((await text(p, 'tr[data-agent="pa-assistent"]')).includes('nicht eingerichtet'));
+    assert.ok((await text(p, '.vkarte[data-vorschlag="auffuellen"][data-agent="kunden-entwickler"]')).includes('Neue Aufträge starten nicht'));
+    assert.ok((await text(p, '.vkarte[data-vorschlag="pausieren"][data-agent="social-planer"]')).includes('zurückgewiesen'));
+    assert.ok((await text(p, '.vkarte[data-vorschlag="skalieren"][data-agent="vertrieb-recherche"]')).includes('je abgenommenem Ergebnis')); assert.equal(await p.locator('.vkarte[data-vorschlag="skalieren"][data-agent="vertrieb-recherche"] button').count(), 3, 'Guthaben erhöhen, zweite Instanz, nicht jetzt');
+    assert.equal(await p.locator('.vkarte[data-vorschlag="einrichten"]').count(), 1);
+    assert.match(await text(p, 'nav.tabs a[href="#/tab/guthaben"]'), /\d/, 'Zahl der Vorschläge am Register');
+    const main = await text(p, '#main'); assert.ok(!main.includes('undefined') && !main.includes('NaN')); assert.ok(main.includes('So wird gerechnet'));
+    assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), 'kein seitliches Scrollen der Seite, nur der Tabelle');
+    await shot(p, 'guthaben', vp);
+    // Kontrollraum: Karte mit leerem Guthaben und Weg zum Auffüllen
+    await oeffne(p, '#/tab/buero'); assert.ok((await text(p, '.akarte[data-agent="kunden-entwickler"] .guthaben')).includes('Guthaben leer')); assert.equal(await p.locator('.akarte[data-agent="kunden-entwickler"] .gb-leer a[href="#/tab/guthaben"]').count(), 1);
+    await p.close();
+  }
+  // Teammitglied: sieht den Stand, aber keine Vorschläge und keine Knöpfe
+  const l = await neueSeite(DESKTOP, { name: 'guthaben-team' });
+  await oeffne(l, '#/tab/guthaben', TOKENS.m_lillien); assert.equal(await l.locator('.vkarte').count(), 0); assert.equal(await l.locator('#ghVorschlaege').count(), 0); assert.equal(await l.locator('[data-g-setzen], [data-g-aktiv]').count(), 0);
+  assert.ok((await text(l, '#main')).includes('entscheidet Timo')); assert.ok((await l.locator('table.guthaben-tabelle tbody tr').count()) >= 10);
+  await oeffne(l, '#/tab/buero', TOKENS.m_lillien); assert.ok((await text(l, '.akarte[data-agent="kunden-entwickler"] .guthaben')).includes('Timo füllt auf'));
+  await l.close();
+  // Timo entscheidet (nur Desktop, der Zustand ändert sich)
+  const p = await neueSeite(DESKTOP, { name: 'guthaben-entscheiden' });
+  // a) Auftrag an den leeren Agenten: wird angelegt, wartet
+  const arch = (await tabellen()).office_agenten.find(a => a.agent_id === 'kunden-entwickler');
+  const start = (await api('auftrag_starten', { agent_id: 'kunden-entwickler', projekt: arch.projekte[0], auftrag: 'Review der Schnittstelle (Browsertest)', idempotenzschluessel: 'bt-guthaben-1' })).j;
+  assert.ok(start.gruende.some(g => g.code === 'guthaben')); assert.ok(start.freigabe_id);
+  assert.equal((await api('freigabe_entscheiden', { freigabe_id: start.freigabe_id, entscheidung: 'erteilt' })).status, 409, 'ohne Auffüllen kein Start');
+  // b) auffüllen über die Karte
+  await oeffne(p, '#/tab/guthaben'); assert.ok((await text(p, '.vkarte[data-vorschlag="auffuellen"][data-agent="kunden-entwickler"]')).includes('1 Auftrag wartet'));
+  await p.locator('.vkarte[data-vorschlag="auffuellen"][data-agent="kunden-entwickler"] [data-v-option="auffuellen"]').click(); await p.waitForTimeout(150);
+  await p.locator('#g_w').fill('3'); await p.locator('#g_b').fill('Review ist nötig.'); await shot(p, 'guthaben-auffuellen', DESKTOP); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.ok((await text(p, '#toast')).includes('aufgefüllt')); assert.equal(await p.locator('.vkarte[data-vorschlag="auffuellen"][data-agent="kunden-entwickler"]').count(), 0); assert.ok((await text(p, 'tr[data-agent="kunden-entwickler"]')).includes('aufgefüllt'));
+  assert.equal((await api('freigabe_entscheiden', { freigabe_id: start.freigabe_id, entscheidung: 'erteilt' })).status, 200, 'nach dem Auffüllen lässt sich der Start freigeben');
+  // c) pausieren über die Karte, wieder einschalten über die Tabelle
+  await oeffne(p, '#/tab/guthaben');
+  await p.locator('.vkarte[data-vorschlag="pausieren"][data-agent="social-planer"] [data-v-option="pausieren"]').click(); await p.waitForTimeout(150); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.ok((await text(p, 'tr[data-agent="social-planer"]')).includes('pausiert')); assert.equal((await tabellen()).office_agenten.find(a => a.agent_id === 'social-planer').aktiv, false);
+  await oeffne(p, '#/tab/buero'); assert.equal(await p.locator('.akarte[data-agent="social-planer"]').count(), 0, 'pausierte Agenten stehen nicht im Kontrollraum');
+  await oeffne(p, '#/tab/guthaben'); await p.locator('[data-g-aktiv="social-planer"]').click(); await p.waitForTimeout(150); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.equal((await tabellen()).office_agenten.find(a => a.agent_id === 'social-planer').aktiv, true);
+  // d) zweite Instanz für ein Segment
+  await p.locator('.vkarte[data-vorschlag="skalieren"][data-agent="vertrieb-recherche"] [data-v-option="instanz"]').click(); await p.waitForTimeout(150);
+  await p.locator('#g_s').fill('Handwerk Nord'); await p.locator('#g_w').fill('4'); await shot(p, 'guthaben-instanz', DESKTOP); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.ok((await text(p, 'tr[data-agent="vertrieb-recherche-handwerk-nord"]')).includes('Instanz')); assert.equal(await p.locator('.vkarte[data-vorschlag="skalieren"][data-agent="vertrieb-recherche"]').count(), 0);
+  // e) Monatsguthaben direkt setzen, Vorschlag ablehnen
+  await p.locator('[data-g-setzen="kurs-waechter"]').click(); await p.waitForTimeout(150); await p.locator('#g_w').fill('7.5'); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.equal((await tabellen()).office_agenten.find(a => a.agent_id === 'kurs-waechter').budget_eur_monat, 7.5);
+  await p.locator('.vkarte[data-vorschlag="skalieren"][data-agent="marketing-texter"] [data-v-option=""]').click(); await p.waitForTimeout(150); await p.locator('#g_b').fill('Erst abwarten.'); await p.locator('#dlgOk').click(); await p.waitForTimeout(600);
+  assert.equal(await p.locator('.vkarte[data-vorschlag="skalieren"][data-agent="marketing-texter"]').count(), 0);
+  const prot = await text(p, '#ghProtokoll'); for (const w of ['Guthaben aufgefüllt', 'Agent pausiert', 'Agent eingeschaltet', 'Zweite Instanz angelegt', 'Handwerk Nord', 'Monatsguthaben gesetzt', 'Vorschlag abgelehnt', 'Erst abwarten.']) assert.ok(prot.includes(w), 'Protokoll: ' + w);
+  await shot(p, 'guthaben-protokoll', DESKTOP);
+  await p.close();
+  // Rückfall: Server ohne Guthaben (SQL und Bündel noch nicht eingespielt) → Hinweis, keine Vorschläge, Karten zeigen die Kosten
+  const q = await neueSeite(DESKTOP, { name: 'guthaben-rueckfall' });
+  await q.route(/\/api\/office$/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', body: r.request().postData() }); const j = await res.json(); delete j.vorschlaege; delete j.entscheidungen; delete j.guthaben_regeln; for (const a of j.agenten || []) delete a.guthaben; r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(j) }); });
+  await oeffne(q, '#/tab/guthaben'); assert.equal(await q.locator('#ghHinweis').count(), 1); assert.equal(await q.locator('.vkarte').count(), 0); assert.equal(await q.locator('[data-g-setzen]').count(), 0); assert.ok(!(await text(q, '#main')).includes('undefined'));
+  await oeffne(q, '#/tab/buero'); assert.ok((await text(q, '.akarte[data-agent="vertrieb-recherche"] .guthaben')).includes('Kosten (4 Wochen)'));
   await q.close();
   await post(S.base, '/api/test/reset', { szenario: 'standard' });
 });

@@ -123,3 +123,26 @@ Neues Register **Auswertung**. Es zeigt die letzten 28 Tage je Agent.
 - **Die Zahlen schlagen vor, du entscheidest.** Das Urteil löst nichts aus. Vorschläge zum Skalieren oder Pausieren kommen mit Paket 3 als Karten, die du freigibst oder ablehnst.
 - **„Vorläufige Zahlen“** steht oben, solange die Kennzahlen-Tabelle im Server noch nicht eingerichtet ist. Dann rechnet die Seite aus den Läufen der letzten 90 Tage, ohne Wirkung.
 - Gespeichert sind je Lauf nur Agent, Raum, Modell, Zahlen und feste Kategorien. Kein Auftraggeber, kein Auftragstext.
+
+## Guthaben und Vorschläge (ab 24.11.2026, wirkt nach dem Einspielen von Paket 3)
+
+Im Register **Guthaben** steht je Agent, wie viel Euro er in diesem Monat hat, was verbraucht und was für laufende Aufträge reserviert ist.
+
+- **Leer heißt: kein Start.** Ein neuer Auftrag wird angelegt, startet aber nicht. Er wartet unter „Freigaben“ mit dem Grund „Guthaben aufgebraucht“. Auf der Karte im Kontrollraum steht „Guthaben leer“. Laufende Aufträge laufen zu Ende.
+- **Wieder starten:** Timo füllt auf (gilt für den laufenden Monat) und gibt den wartenden Auftrag frei. Am Monatsersten ist das Monatsguthaben wieder voll.
+- **Kein Guthaben eingetragen** heißt: nicht begrenzt. 0 € heißt: Der Agent startet nichts.
+
+**Vorschlagskarten (nur Timo sieht sie):**
+
+| Karte | Bedeutung | Was du tun kannst |
+|---|---|---|
+| Guthaben leer / fast leer | Der Agent steht oder steht bald | Betrag für diesen Monat auffüllen |
+| Agent pausieren | Zu viele Zurückweisungen in 14 Tagen | Pausieren, bis du ihn wieder einschaltest |
+| Agent skalieren | Günstig je abgenommenem Ergebnis und selten zurückgewiesen | Monatsguthaben erhöhen oder eine zweite Instanz für ein Segment anlegen |
+| Guthaben einrichten | Agenten ohne Monatsguthaben | Startwerte übernehmen |
+
+Jede Karte hat „Nicht jetzt“. Nach einer Entscheidung kommt derselbe Vorschlag 14 Tage nicht wieder; ein leeres Guthaben wird immer gemeldet. **Es passiert nichts von selbst:** Kein Agent bekommt mehr Geld, eine Kopie oder eine Pause, ohne dass du es entscheidest. Jede Entscheidung steht unten im Protokoll.
+
+**Zweite Instanz:** ein zweiter Eintrag desselben Agenten mit eigenem Namen („Vertriebs-Recherche (Handwerk Nord)“), eigenem Guthaben und eigenen Zahlen in der Auswertung. So siehst du, ob das Segment trägt. Aufträge für das Segment gibst du der Instanz selbst.
+
+**In der Tabelle** kannst du je Agent das Monatsguthaben setzen, auffüllen, pausieren und wieder einschalten. Pausierte Agenten stehen nicht im Kontrollraum, aber weiter in dieser Tabelle.

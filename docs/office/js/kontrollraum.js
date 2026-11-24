@@ -23,10 +23,10 @@ export function sparkline(trend, w = 64, h = 20) {
 }
 const zustandChip = (zustand) => '<span class="zustand"><i style="background:' + esc(ZUSTAND_FARBE_KR[zustand] || '#9A98B5') + '"></i>' + esc(ZUSTAND_TEXT_KR[zustand] || zustand) + '</span>';
 
-/** Guthaben-Balken (ab Paket 3 mit Monatsguthaben vom Server); bis dahin die gemeldeten Kosten der letzten vier Wochen. */
-export function guthabenHtml(k) {
+/** Guthaben-Balken mit dem Monatsguthaben vom Server; ohne eingerichtetes Guthaben die gemeldeten Kosten der letzten vier Wochen. */
+export function guthabenHtml(k, admin) {
   const g = k.guthaben, kz = k.kz;
-  if (g) return '<div class="guthaben ' + g.stufe + '" role="img" aria-label="Guthaben: ' + esc(euro(g.rest)) + ' von ' + esc(euro(g.monat)) + ' übrig"><div class="gb-zeile"><span>Guthaben diesen Monat</span><b>' + esc(euro(g.rest)) + ' <span class="gb-von">von ' + esc(euro(g.monat)) + '</span></b></div><div class="gb-balken"><i style="width:' + Math.round(g.anteil * 100) + '%"></i></div></div>';
+  if (g) return '<div class="guthaben ' + g.stufe + '" role="img" aria-label="Guthaben: ' + esc(euro(g.rest)) + ' von ' + esc(euro(g.monat)) + ' übrig"><div class="gb-zeile"><span>Guthaben diesen Monat</span><b>' + esc(euro(g.rest)) + ' <span class="gb-von">von ' + esc(euro(g.monat)) + '</span></b></div><div class="gb-balken"><i style="width:' + Math.round(g.anteil * 100) + '%"></i></div>' + (g.geschaetzt ? '<div class="gb-von">Verbrauch teils geschätzt</div>' : '') + (g.ohne ? '<div class="gb-von">' + g.ohne + (g.ohne === 1 ? ' Lauf' : ' Läufe') + ' mit unbekannten Kosten, nicht mitgezählt</div>' : '') + (g.stufe === 'leer' ? '<div class="gb-leer">Guthaben leer: Neue Aufträge starten nicht. ' + (admin ? '<a href="#/tab/guthaben">Auffüllen</a>' : 'Timo füllt auf.') + '</div>' : '') + '</div>';
   const text = kz.kosten_eur == null ? (kz.gelaufen ? 'unbekannt' : 'noch keine Läufe') : euro(kz.kosten_eur) + (!kz.kosten_geschaetzt ? ' gemessen' : kz.kosten_geschaetzt >= kz.kosten_gemeldet ? ' geschätzt' : ' teils geschätzt');
   const hinweis = kz.kosten_eur == null ? (kz.gelaufen ? 'Der Ausführer hat für ' + kz.gelaufen + (kz.gelaufen === 1 ? ' Lauf' : ' Läufe') + ' keinen Verbrauch gemeldet.' : '') : (kz.kosten_unbekannt ? kz.kosten_unbekannt + (kz.kosten_unbekannt === 1 ? ' Lauf' : ' Läufe') + ' ohne Angabe' : '');
   return '<div class="guthaben ohne"' + (hinweis ? ' title="' + esc(hinweis) + '"' : '') + '><div class="gb-zeile"><span>Kosten (4 Wochen)</span><b>' + esc(text) + '</b></div>' + (kz.kosten_eur != null && kz.kosten_unbekannt ? '<div class="gb-von">' + esc(hinweis) + '</div>' : '') + '</div>';
@@ -45,7 +45,7 @@ function agentenKarte(D, k) {
     (k.still_min !== null ? '<div class="ak-warn"><span>Seit ' + k.still_min + ' Min. kein Lebenszeichen.</span><a class="btn klein sec" href="#/run/' + esc(r.run_id) + '">Ansehen</a></div>' : '') +
     '<div class="ak-aufgabe"><span class="label">' + esc(r ? (label[r.status] || 'Auftrag') : 'Nichts in Arbeit') + '</span>' + (r ? '<a href="#/run/' + esc(r.run_id) + '">' + esc(kurz(r.auftrag, 120)) + '</a>' : '<span class="muted">Wartet auf den nächsten Auftrag.</span>') + '</div>' +
     '<div class="ak-letztes"><span>Zuletzt:</span>' + (k.letztes ? '<a href="#/run/' + esc(k.letztes.run_id) + '">' + esc(kurz(k.letztes.titel, 60)) + '</a>' + (LAUF_PROBLEM[k.letztes.run_status] ? chip(LAUF_PROBLEM[k.letztes.run_status], 'rs-fehlgeschlagen', 'Dieses Ergebnis stammt aus einem Lauf, der nicht sauber zu Ende ging.') : chip(PRUEF_KURZ[k.letztes.pruefstand], PRUEF_CHIP[k.letztes.pruefstand], PRUEFSTAND_TEXT[k.letztes.pruefstand])) + '<span>' + esc(relativ(k.letztes.zeit)) + '</span>' : '<span>noch kein Ergebnis</span>') + '</div>' +
-    guthabenHtml(k) + '<div class="ak-fuss">' + kostenJeErgebnis(k) + sparkline(k.kz.trend) + '</div></article>';
+    guthabenHtml(k, (D.ich || {}).rolle === 'admin') + '<div class="ak-fuss">' + kostenJeErgebnis(k) + sparkline(k.kz.trend) + '</div></article>';
 }
 
 function fuerDichHtml(L) {

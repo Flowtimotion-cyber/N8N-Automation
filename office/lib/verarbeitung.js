@@ -7,11 +7,12 @@ import { inhaltsHash } from './hash.js';
 import { STATUS, STATUS_TEXT, ALLE_STATUS, UEBERGAENGE, FRISTEN, darfWechseln, istEndzustand, fristPruefen } from './zustand.js';
 import { START_REGELN, FREIGABE_START, kostenstufe, KOSTENSTUFE_TEXT, agentSofortOk, tagesverbrauchEur, startPruefung } from './kosten.js';
 import { EXTERNE_AKTIONEN, brauchtFreigabe, freigabeAnfordern, freigabeGueltig, freigabeEntscheiden } from './freigabe.js';
-import { istAgent, istAdmin, istDozent, istMensch, darfAktion, darfProjekt, darfRunSehen, darfRunSteuern, darfFreigeben, darfTool, sichtbareProjekte, fuehrtAus, OHNE_TOKEN } from './rechte.js';
+import { istAgent, istAdmin, istDozent, istMensch, darfAktion, darfProjekt, darfRunSehen, darfRunSteuern, darfFreigeben, darfTool, sichtbareProjekte, fuehrtAus, OHNE_TOKEN, AUSFUEHRER_HOSTS, ausfuehrerUrlErlaubt } from './rechte.js';
 import { pruefeSignatur } from './signatur.js';
 import { schluesselGueltig, frueherGesehen, merken } from './idempotenz.js';
 import { neu, aend, weg } from './postgrest.js';
 import { kennzahlZeile, kennzahlFaehig, agentKennzahlen, bewertung, wirkungPruefen, WIRKUNG_FELDER, ERGEBNIS_TYPEN, ERGEBNIS_TYP_TEXT, AUSWERTUNG_SCHWELLEN, KENNZAHLEN_TAGE } from './kennzahlen.js';
+import { GUTHABEN_REGELN, VORSCHLAG_REGELN, VORSCHLAG_ARTEN, guthabenStand, guthabenLeerText, guthabenStartwert, monatBerlin, vorschlaege } from './guthaben.js';
 
 export const RAEUME = ['Akademie', 'Marketing', 'Vertrieb', 'Kundenprojekte', 'Verwaltung'];
 export const MODELLE = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'gpt-5-mini', 'deepseek-v4-flash'];
@@ -66,6 +67,13 @@ export function verarbeiten(ctx) {
   // und die Auswertung rechnet aus den Runs. So bleibt die Reihenfolge beim Einspielen (erst SQL, dann Bündel) unkritisch.
   const hatKennzahlen = Array.isArray(D.office_kennzahlen);
   const kennzahlen = (D.office_kennzahlen || []).filter(k => k && k.run_id);
+  // Guthaben und Vorschläge (supabase/team_office_guthaben.sql). Fehlt der Schlüssel office_vorschlaege, sind die Spalten noch nicht angelegt:
+  // dann wird nichts begrenzt und nichts dorthin geschrieben (Reihenfolge beim Einspielen: erst SQL, dann Bündel).
+  const hatGuthaben = Array.isArray(D.office_vorschlaege);
+  const entscheidungen = (D.office_vorschlaege || []).filter(v => v && v.vorschlag_id);
+  /** Stand des Guthabens eines Agenten; ohneRun = dieser Run reserviert nicht mit (er ist es, der gerade starten will). */
+  const guthabenVon = (reg, ohneRun) => (hatGuthaben && reg) ? guthabenStand(reg, kennzahlen, ohneRun ? runs.filter(r => r.run_id !== ohneRun) : runs, artefakte, jetztMs) : null;
+  const hosts = Array.isArray(ctx.ausfuehrer_hosts) ? ctx.ausfuehrer_hosts : AUSFUEHRER_HOSTS;
 
   const raus = (code, fehler, extra) => ({ weiter: 0, code, antwort: Object.assign({ ok: false, fehler }, extra || {}) });
   const aktion = String(b.aktion || '');
@@ -96,7 +104,15 @@ export function verarbeiten(ctx) {
     if (istEndzustand(nach)) row.beendet = jetzt;
     return { ops: [aend('office_runs', 'run_id', run.run_id, row), ereignis(run.run_id, 'status', STATUS_TEXT[run.status] + ' → ' + STATUS_TEXT[nach] + (grund ? ': ' + grund : ''))], row };
   };
-  const schreiben = (ops, antwort, extern, code) => ({ weiter: 2, code: code || 200, ich: ichKurz, ops, antwort: Object.assign({ ok: true }, antwort || {}), extern: extern || null });
+  const schreiben = (ops, antwort, extern, code) => {
+    // SSRF-Schutz: Der Workflow ruft extern.ausfuehrer_url per HTTP auf. Steht dort eine Adresse außerhalb der Allowlist (z. B. alter Registry-Eintrag,
+    // Eingriff in die Datenbank), wird sie nicht aufgerufen; der Run bleibt in der Warteschlange und bekommt einen Hinweis in die Zeitleiste.
+    if (extern && extern.ausfuehrer_url && !ausfuehrerUrlErlaubt(extern.ausfuehrer_url, hosts)) {
+      if (extern.run_id) ops = ops.concat([ereignis(extern.run_id, 'hinweis', 'Ausführer nicht angestoßen: Die Adresse in der Registry steht nicht auf der Liste der erlaubten Hosts (' + hosts.join(', ') + ').')]);
+      extern = Object.assign({}, extern, { ausfuehrer_url: null, adresse_abgelehnt: true });
+    }
+    return { weiter: 2, code: code || 200, ich: ichKurz, ops, antwort: Object.assign({ ok: true }, antwort || {}), extern: extern || null };
+  };
   const nurAntwort = antwort => ({ weiter: 1, code: 200, ich: ichKurz, antwort: Object.assign({ ok: true }, antwort || {}) });
 
   // ---- Lesen ----
@@ -160,6 +176,9 @@ export function verarbeiten(ctx) {
       // Startregel (ARCHITEKTUR.md Abschnitt 13): Menschen ohne Admin-Rolle starten nur günstige Agenten mit kleinen Aufträgen und freiem Tagesbudget sofort, alles andere erst nach Timos Freigabe.
       // Agenten (sie legen Aufträge nur für sich selbst an) und Admin starten immer sofort.
       const pruefung = startPruefung({ mensch_ohne_admin: istMensch(ich) && !istAdmin(ich), agent: reg, auftrag, budget_eur, runs, mitglied_id: ich.mitglied_id, jetztMs });
+      // Guthaben (Paket 3): Ist das Monatsguthaben des Agenten aufgebraucht, startet nichts, egal wer beauftragt. Der Auftrag wartet, bis Timo auffüllt und den Start freigibt.
+      const guthaben = guthabenVon(reg);
+      if (guthaben && guthaben.leer) { pruefung.sofort = false; pruefung.gruende.push({ code: 'guthaben', text: guthabenLeerText(reg, guthaben) }); }
       const run_id = neueId('run');
       const schluessel = zufall(48);
       const timeout_sek = Math.min(86400, Math.max(60, Number(d.timeout_sek) || Number(reg.timeout_sek) || FRISTEN.timeout_sek));
@@ -199,6 +218,11 @@ export function verarbeiten(ctx) {
       const ops = [];
       if (d.n8n_execution_id) { const e = String(d.n8n_execution_id).slice(0, 80); if (run.n8n_execution_id && run.n8n_execution_id !== e) return raus(409, 'Dieser Run gehört zu einer anderen n8n-Ausführung.'); if (!run.n8n_execution_id) { if (runs.some(r => r.n8n_execution_id === e)) return raus(409, 'Diese n8n-Ausführung ist schon einem anderen Run zugeordnet.'); row.n8n_execution_id = e; } }
       let status = run.status;
+      if (run.status === STATUS.WARTESCHLANGE) {
+        // Der Ausführer fragt mit dem ersten Lebenszeichen, ob er loslegen darf. Guthaben leer (z. B. inzwischen von anderen Läufen verbraucht): kein Start, der Auftrag wird angehalten.
+        const gh = guthabenVon(agentVon(run), run.run_id);
+        if (gh && gh.leer) return startAnhalten(run, agentVon(run), gh);
+      }
       if (run.status === STATUS.WARTESCHLANGE) { const w = wechsel(run, STATUS.IN_ARBEIT, 'agent', 'Executor hat übernommen'); if (w.fehler) return raus(409, w.fehler); ops.push(...w.ops); status = STATUS.IN_ARBEIT; }
       ops.push(aend('office_runs', 'run_id', run.run_id, row));
       return schreiben(ops, { run_id: run.run_id, status });
@@ -330,6 +354,75 @@ export function verarbeiten(ctx) {
         ...verlaufEintrag(run, 'kommentar', (ok ? 'Ergebnis fachlich abgenommen' : 'Ergebnis zurückgewiesen') + (kommentar ? ': ' + kommentar : '')),
         ...kennzahlOps(run, { abgenommen: ok, abgenommen_am: jetzt }, mitWirkung ? wi.wirkung : null)], { run_id: run.run_id, abgenommen: ok, wirkung: mitWirkung ? wi.wirkung : undefined });
     }
+    case 'guthaben_setzen': {
+      // Monatsguthaben eines Agenten setzen oder für den laufenden Monat auffüllen. Nur Admin (rechte.js). Agenten können ihr Guthaben nie selbst ändern.
+      if (!hatGuthaben) return raus(409, 'Guthaben ist im Server noch nicht eingerichtet (supabase/team_office_guthaben.sql).');
+      const reg = agenten.find(a => a.agent_id === String(d.agent_id || '')); if (!reg) return raus(404, 'Diesen Agenten gibt es nicht in der Registry.');
+      const row = { geaendert: jetzt, geaendert_von: ich.mitglied_id }; const teile = [];
+      if (d.monat_eur !== undefined) {
+        if (d.monat_eur === null || d.monat_eur === '') { row.budget_eur_monat = null; teile.push('Monatsguthaben aufgehoben (nicht begrenzt)'); }
+        else { const n = Number(d.monat_eur); if (!Number.isFinite(n) || n < 0 || n > GUTHABEN_REGELN.max_monat_eur) return raus(400, 'monat_eur muss eine Zahl zwischen 0 und ' + GUTHABEN_REGELN.max_monat_eur + ' sein (Euro).'); row.budget_eur_monat = Math.round(n * 100) / 100; teile.push('Monatsguthaben ' + geld(row.budget_eur_monat)); }
+      }
+      if (d.zusatz_eur !== undefined && d.zusatz_eur !== null && d.zusatz_eur !== '') {
+        const n = Number(d.zusatz_eur); if (!Number.isFinite(n) || n <= 0 || n > GUTHABEN_REGELN.max_monat_eur) return raus(400, 'zusatz_eur muss eine Zahl über 0 und höchstens ' + GUTHABEN_REGELN.max_monat_eur + ' sein (Euro).');
+        const monat = monatBerlin(jetztMs); const bisher = reg.budget_zusatz_monat === monat ? Number(reg.budget_zusatz_eur) || 0 : 0;
+        row.budget_zusatz_eur = Math.round((bisher + n) * 100) / 100; row.budget_zusatz_monat = monat; teile.push('für ' + monat + ' um ' + geld(n) + ' aufgefüllt');
+      }
+      if (!teile.length) return raus(400, 'Gib monat_eur (Monatsguthaben) oder zusatz_eur (Auffüllen für diesen Monat) an.');
+      return schreiben([aend('office_agenten', 'agent_id', reg.agent_id, row), neu('office_vorschlaege', protokoll('guthaben', reg.agent_id, 'gesetzt', { option: row.budget_zusatz_monat ? 'auffuellen' : 'monat', wert: row.budget_zusatz_monat ? Number(d.zusatz_eur) : row.budget_eur_monat, begruendung: txt(d.begruendung, 600) }))], { agent_id: reg.agent_id, gesetzt: teile.join(', ') });
+    }
+    case 'agent_aktiv': {
+      // Agent pausieren oder wieder einschalten. Nur Admin. Ein pausierter Agent nimmt keine neuen Aufträge an (auftrag_starten → 409).
+      const reg = agenten.find(a => a.agent_id === String(d.agent_id || '')); if (!reg) return raus(404, 'Diesen Agenten gibt es nicht in der Registry.');
+      if (typeof d.aktiv !== 'boolean') return raus(400, 'aktiv muss true oder false sein.');
+      const grund = txt(d.grund, 300);
+      const row = { aktiv: d.aktiv, geaendert: jetzt, geaendert_von: ich.mitglied_id }; if (hatGuthaben) row.pausiert_grund = d.aktiv ? null : (grund || 'Pausiert von ' + ich.name);
+      const ops = [aend('office_agenten', 'agent_id', reg.agent_id, row)];
+      if (hatGuthaben) ops.push(neu('office_vorschlaege', protokoll('aktiv', reg.agent_id, 'gesetzt', { option: d.aktiv ? 'einschalten' : 'pausieren', begruendung: grund })));
+      return schreiben(ops, { agent_id: reg.agent_id, aktiv: d.aktiv });
+    }
+    case 'vorschlag_entscheiden': {
+      // Timo (Admin) nimmt einen Vorschlag an oder lehnt ihn ab. Der Server rechnet die Vorschläge neu: Entschieden werden kann nur, was die Zahlen gerade hergeben.
+      if (!hatGuthaben) return raus(409, 'Guthaben und Vorschläge sind im Server noch nicht eingerichtet (supabase/team_office_guthaben.sql).');
+      const art = String(d.art || ''); if (!Object.prototype.hasOwnProperty.call(VORSCHLAG_ARTEN, art)) return raus(400, 'Unbekannte Art. Möglich: ' + Object.keys(VORSCHLAG_ARTEN).join(', ') + '.');
+      const entscheidung = String(d.entscheidung || ''); if (!['angenommen', 'abgelehnt'].includes(entscheidung)) return raus(400, 'entscheidung muss „angenommen“ oder „abgelehnt“ sein.');
+      const zielId = d.agent_id ? String(d.agent_id) : null;
+      const v = vorschlaege(agenten, kennzahlen, runs, artefakte, entscheidungen, jetztMs).find(x => x.art === art && (x.agent_id || null) === zielId);
+      if (!v) return raus(409, 'Diesen Vorschlag gibt es nicht mehr. Die Zahlen haben sich geändert oder er wurde schon entschieden.');
+      const begruendung = txt(d.begruendung, 600);
+      const zahlen = klein(Object.assign({}, v.zahlen, { guthaben: undefined, werte: undefined, grund: v.grund }), 1500);
+      if (entscheidung === 'abgelehnt') return schreiben([neu('office_vorschlaege', protokoll(art, zielId, 'abgelehnt', { begruendung, zahlen }))], { art, agent_id: zielId, entscheidung });
+      const opt = v.optionen.find(o => o.option === String(d.option || v.optionen[0].option)); if (!opt) return raus(400, 'Diese Möglichkeit gibt es für den Vorschlag nicht. Möglich: ' + v.optionen.map(o => o.option).join(', ') + '.');
+      const reg = zielId ? agenten.find(a => a.agent_id === zielId) : null;
+      const betrag = () => { const n = Number(d.wert === undefined || d.wert === null || d.wert === '' ? opt.wert : d.wert); return Number.isFinite(n) && n > 0 && n <= GUTHABEN_REGELN.max_monat_eur ? Math.round(n * 100) / 100 : null; };
+      const kopf = { geaendert: jetzt, geaendert_von: ich.mitglied_id };
+      const ops = []; let wert = null, segment = null, neuerAgent = null;
+      if (opt.option === 'auffuellen') {
+        wert = betrag(); if (wert === null) return raus(400, 'Bitte gib einen Betrag über 0 an (Euro).');
+        const monat = monatBerlin(jetztMs); const bisher = reg.budget_zusatz_monat === monat ? Number(reg.budget_zusatz_eur) || 0 : 0;
+        ops.push(aend('office_agenten', 'agent_id', reg.agent_id, Object.assign({ budget_zusatz_eur: Math.round((bisher + wert) * 100) / 100, budget_zusatz_monat: monat }, kopf)));
+      } else if (opt.option === 'pausieren') {
+        ops.push(aend('office_agenten', 'agent_id', reg.agent_id, Object.assign({ aktiv: false, pausiert_grund: txt('Pausiert von ' + ich.name + ' nach Vorschlag: ' + v.grund, 300) }, kopf)));
+      } else if (opt.option === 'guthaben') {
+        wert = betrag(); if (wert === null) return raus(400, 'Bitte gib das neue Monatsguthaben an (Euro, über 0).');
+        ops.push(aend('office_agenten', 'agent_id', reg.agent_id, Object.assign({ budget_eur_monat: wert }, kopf)));
+      } else if (opt.option === 'instanz') {
+        // Zweite Instanz: eine Kopie des Registry-Eintrags mit eigenem Namen, eigenem Guthaben und eigenen Kennzahlen. Legt nur Timo an, nie ein Agent.
+        segment = txt(d.segment, 40).replace(/[<>"']/g, ''); if (segment.length < 2) return raus(400, 'Bitte nenne das Segment für die zweite Instanz (2 bis 40 Zeichen), zum Beispiel „Handwerk Nord“.');
+        wert = betrag(); if (wert === null) return raus(400, 'Bitte gib das Monatsguthaben der neuen Instanz an (Euro, über 0).');
+        const kurzform = segment.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 16) || 'zwei';
+        neuerAgent = (reg.agent_id.slice(0, 41 - kurzform.length - 1) + '-' + kurzform).replace(/-+/g, '-');
+        if (agenten.some(a => a.agent_id === neuerAgent)) return raus(409, 'Eine Instanz „' + neuerAgent + '“ gibt es schon. Wähle einen anderen Segmentnamen.');
+        const kopie = {}; for (const f of ['rolle', 'raum', 'beschreibung', 'faehigkeiten', 'erlaubte_tools', 'modell', 'modell_grund', 'ausfuehrer', 'ausfuehrer_url', 'mitglied_id', 'projekte', 'timeout_sek', 'max_versuche', 'auto_wiederholen', 'freigabe_noetig', 'workflow_version']) if (reg[f] !== undefined) kopie[f] = reg[f];
+        ops.push(neu('office_agenten', Object.assign(kopie, { agent_id: neuerAgent, name: txt(reg.name + ' (' + segment + ')', 60), aktiv: true, konfig_version: '1', instanz_von: reg.agent_id, budget_eur_monat: wert, budget_zusatz_eur: null, budget_zusatz_monat: null, pausiert_grund: null }, kopf)));
+      } else if (opt.option === 'einrichten') {
+        wert = 0;
+        for (const a of agenten) { if (a.aktiv === false || (a.budget_eur_monat !== null && a.budget_eur_monat !== undefined && a.budget_eur_monat !== '')) continue; const w = guthabenStartwert(a); wert += w; ops.push(aend('office_agenten', 'agent_id', a.agent_id, Object.assign({ budget_eur_monat: w }, kopf))); }
+        if (!ops.length) return raus(409, 'Alle aktiven Agenten haben schon ein Monatsguthaben.');
+      } else return raus(400, 'Unbekannte Möglichkeit.');
+      ops.push(neu('office_vorschlaege', protokoll(art, zielId, 'angenommen', { option: opt.option, wert, segment, begruendung, zahlen, neuer_agent: neuerAgent })));
+      return schreiben(ops, { art, agent_id: zielId, entscheidung, option: opt.option, wert, neuer_agent: neuerAgent });
+    }
     case 'wirkung_setzen': {
       // Wirkung nachtragen oder korrigieren (z. B. Termine, die erst Tage nach dem Dossier entstehen). Nur Zahlen, nur bekannte Felder des Raums.
       const run = runVon(d.run_id); if (!run) return raus(404, 'Diesen Run gibt es nicht.');
@@ -382,6 +475,7 @@ export function verarbeiten(ctx) {
       if (mitglied_id && !mitglieder.some(m => m.mitglied_id === mitglied_id && (m.typ === 'agent' || m.rolle === 'agent'))) return raus(400, 'mitglied_id muss ein Teammitglied vom Typ „agent“ sein.');
       const url = d.ausfuehrer_url ? String(d.ausfuehrer_url).trim() : (alt ? alt.ausfuehrer_url : null);
       if (url && !/^https:\/\/[^\s]+$/i.test(url)) return raus(400, 'ausfuehrer_url muss mit https:// beginnen.');
+      if (url && !ausfuehrerUrlErlaubt(url, hosts)) return raus(400, 'ausfuehrer_url ist nicht erlaubt. Zulässig sind nur Webhook-Adressen (https://<host>/webhook/…) auf: ' + hosts.join(', ') + '.');
       const row = { agent_id: id, name, rolle: txt(d.rolle || (alt && alt.rolle), 120), raum, beschreibung: txt(d.beschreibung || (alt && alt.beschreibung), 1000), faehigkeiten: liste(d.faehigkeiten || (alt && alt.faehigkeiten), 80, 30), erlaubte_tools: liste(d.erlaubte_tools || (alt && alt.erlaubte_tools), 60, 40),
         modell, modell_grund: txt(d.modell_grund || (alt && alt.modell_grund), 300), ausfuehrer: ausf, ausfuehrer_url: url || null, mitglied_id, projekte: proj, aktiv: d.aktiv !== false,
         timeout_sek: Math.min(86400, Math.max(60, Number(d.timeout_sek) || (alt && alt.timeout_sek) || FRISTEN.timeout_sek)), max_versuche: Math.min(5, Math.max(1, Number(d.max_versuche) || (alt && alt.max_versuche) || FRISTEN.max_versuche)),
@@ -444,6 +538,8 @@ export function verarbeiten(ctx) {
         ops: [aend('office_freigaben', 'freigabe_id', fr.freigabe_id, { status: 'ungueltig', begruendung: 'Auftragstext nach der Anfrage geändert.' }), neu('office_freigaben', neuFr),
           ereignis(run.run_id, 'freigabe', 'Startfreigabe ungültig: Auftragstext wurde nach der Anfrage geändert. Neue Anfrage angelegt.', { freigabe_id: fr.freigabe_id, neue_freigabe_id: neuFr.freigabe_id })] };
     }
+    const gh = guthabenVon(reg, run.run_id);
+    if (gh && gh.leer) return raus(409, guthabenLeerText(reg, gh) + ' Fülle zuerst auf, dann gib den Start frei.', { guthaben_leer: true, agent_id: run.agent_id });
     const w = wechsel(run, STATUS.WARTESCHLANGE, 'mensch', 'Start von ' + ich.name + ' freigegeben'); if (w.fehler) return raus(409, w.fehler);
     const schluesselRow = schluesselListe.find(x => x.run_id === run.run_id);
     return schreiben([aend('office_freigaben', 'freigabe_id', fr.freigabe_id, { status: 'verwendet', entschieden_von: ich.mitglied_id, entschieden_am: jetzt, begruendung, gueltig_bis: null, verwendet_am: jetzt }),
@@ -451,6 +547,29 @@ export function verarbeiten(ctx) {
       ...w.ops, ...verlaufEintrag(run, 'kommentar', 'Start freigegeben von ' + ich.name + ' – der Agent legt los.')],
     { freigabe_id: fr.freigabe_id, status: 'erteilt', run_id: run.run_id, run_status: STATUS.WARTESCHLANGE },
     { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: schluesselRow ? schluesselRow.schluessel : null, eltern_run_id: run.eltern_run_id || null, team_id: run.team_id || null });
+  }
+  function geld(x) { return (Math.round(Number(x) * 100) / 100).toFixed(2).replace('.', ',') + ' €'; }
+  /** Protokollzeile für office_vorschlaege: jede Entscheidung über Guthaben, Pause und Skalierung mit Zeit und Person. */
+  function protokoll(art, agent_id, entscheidung, extra) {
+    const e = extra || {};
+    return { vorschlag_id: neueId('vor'), art, agent_id: agent_id || null, entscheidung, option: e.option || null, wert: e.wert === undefined || e.wert === null ? null : Number(e.wert), segment: e.segment || null,
+      neuer_agent: e.neuer_agent || null, begruendung: e.begruendung || null, zahlen: e.zahlen || null, entschieden_von: ich.mitglied_id, entschieden_am: jetzt };
+  }
+  /**
+   * Guthaben leer beim Start: Der Run geht aus der Warteschlange zurück auf „wartet auf Freigabe“, mit einer offenen Startfreigabe für Timo.
+   * Der Ausführer bekommt 409 und arbeitet nicht. Gab es für diesen Auftrag schon eine (verbrauchte) Startfreigabe, wird sie wieder geöffnet
+   * (je Run und Inhalt gibt es in der Datenbank nur eine).
+   */
+  function startAnhalten(run, reg, gh) {
+    const text = guthabenLeerText(reg, gh);
+    const w = wechsel(run, STATUS.WARTET_FREIGABE, 'system', 'Guthaben leer'); if (w.fehler) return raus(409, w.fehler);
+    const hash = inhaltsHash(FREIGABE_START.aktion, startInhalt(run));
+    const alt = freigaben.find(f => f.run_id === run.run_id && f.aktion === FREIGABE_START.aktion && f.inhalt_hash === hash);
+    const ops = [...w.ops, aend('office_runs', 'run_id', run.run_id, { gestartet: null })];
+    if (alt) ops.push(aend('office_freigaben', 'freigabe_id', alt.freigabe_id, { status: 'offen', angefordert_am: jetzt, entschieden_von: null, entschieden_am: null, begruendung: null, gueltig_bis: null, verwendet_am: null }));
+    else ops.push(neu('office_freigaben', freigabeAnfordern({ freigabe_id: neueId('frg'), run_id: run.run_id, aktion: FREIGABE_START.aktion, inhalt: startInhalt(run), vorschau: run.auftrag, jetzt, angefordert_von: run.auftraggeber })));
+    ops.push(ereignis(run.run_id, 'freigabe', 'Start angehalten: ' + text, { gruende: ['guthaben'], guthaben: { monat: gh.monat, verfuegbar_eur: gh.verfuegbar_eur, verbraucht_eur: gh.verbraucht_eur, reserviert_eur: gh.reserviert_eur } }));
+    return { weiter: 2, code: 409, ich: ichKurz, ops, antwort: { ok: false, fehler: text, guthaben_leer: true, status: STATUS.WARTET_FREIGABE, run_id: run.run_id }, extern: null };
   }
   /** Wirkung lesbar für Ereignisse: „qualifizierte Firmen 12, Termine 4“. */
   function wirkungText(run, wirkung) {
@@ -519,6 +638,7 @@ export function verarbeiten(ctx) {
     if (e.n8n_execution_id && !run.n8n_execution_id) row.n8n_execution_id = String(e.n8n_execution_id).slice(0, 80);
     ops.push(aend('office_runs', 'run_id', run.run_id, row));
     if (ziel === STATUS.FEHLGESCHLAGEN) ops.push(ereignis(run.run_id, 'fehler', fehler || 'Fehler ohne Beschreibung', { versuch: run.versuche, max_versuche: run.max_versuche }));
+    if (verbrauch.messbar && Number(verbrauch.kosten_eur) > 0 && Number(run.budget_eur) > 0 && Number(verbrauch.kosten_eur) > Number(run.budget_eur)) ops.push(ereignis(run.run_id, 'hinweis', 'Kostenlimit des Auftrags überschritten: ' + String(verbrauch.kosten_eur).replace('.', ',') + ' € bei einem Limit von ' + String(run.budget_eur).replace('.', ',') + ' €.', { kosten_eur: verbrauch.kosten_eur, budget_eur: run.budget_eur }));
     const artefaktIds = [], neueArtefakte = [];
     for (const a of (Array.isArray(e.artefakte) ? e.artefakte.slice(0, 20) : [])) { const r = artefaktRow(run, a || {}); if (!r.fehler) { ops.push(neu('office_artefakte', r.row)); artefaktIds.push(r.row.artefakt_id); neueArtefakte.push(r.row); } }
     const reg = agentVon(run);
@@ -574,7 +694,9 @@ export function antwortBauen(ich, D, opts) {
   const ereignisse = (D.office_ereignisse || []).filter(e => e && runIds.has(e.run_id)).sort((a, b) => String(a.zeit).localeCompare(String(b.zeit)) || (Number(a.sequenz) || 0) - (Number(b.sequenz) || 0));
   const artefakte = (D.office_artefakte || []).filter(a => a && runIds.has(a.run_id));
   const freigaben = (D.office_freigaben || []).filter(f => f && runIds.has(f.run_id));
-  const regs = agenten.map(a => { const x = { ...a, kostenstufe: kostenstufe(a), freigabe_noetig: a.freigabe_noetig == null ? null : a.freigabe_noetig, sofort_ok: agentSofortOk(a) }; if (!admin) delete x.ausfuehrer_url; delete x.geaendert_von; return x; });
+  const hatGuthaben = Array.isArray(D.office_vorschlaege);
+  const ghZeilen = (D.office_kennzahlen || []).filter(k => k && k.run_id), ghArtefakte = (D.office_artefakte || []).filter(a => a && a.artefakt_id), ghJetzt = new Date(o.jetzt || Date.now()).getTime();
+  const regs = agenten.map(a => { const x = { ...a, kostenstufe: kostenstufe(a), freigabe_noetig: a.freigabe_noetig == null ? null : a.freigabe_noetig, sofort_ok: agentSofortOk(a), guthaben: hatGuthaben ? guthabenStand(a, ghZeilen, alleRuns, ghArtefakte, ghJetzt) : null }; if (!admin) delete x.ausfuehrer_url; delete x.geaendert_von; return x; });
   const mitglieder = (D.mitglieder || []).filter(m => m && m.mitglied_id).map(m => ({ mitglied_id: m.mitglied_id, name: m.name, rolle: m.rolle, typ: m.typ || 'mensch', funktion: m.funktion || '', status: m.status }));
   // Kennzahlen je Agent (office/lib/kennzahlen.js): Menschen sehen alle Agenten, ein Agent nur die Registry-Einträge, die er selbst ausführt.
   // Es sind Summen je Agent ohne Projekt- und Personenbezug; die einzelnen Zeilen gibt es nur zu Runs, die die Rolle ohnehin sieht.
@@ -593,6 +715,10 @@ export function antwortBauen(ich, D, opts) {
   return {
     ich: { mitglied_id: ich.mitglied_id, name: ich.name, rolle: ich.rolle, typ: ich.typ || 'mensch', funktion: ich.funktion || '' },
     mitglieder, projekte, aufgaben, verlauf, notizen, agenten: regs, runs, ereignisse, artefakte, freigaben,
+    // Vorschläge (skalieren, pausieren, auffüllen, einrichten) und das Protokoll der Entscheidungen sieht nur Timo (Admin); entscheiden kann nur er.
+    vorschlaege: admin && hatGuthaben ? vorschlaege(agenten, ghZeilen, alleRuns, ghArtefakte, D.office_vorschlaege, ghJetzt) : [],
+    entscheidungen: admin && hatGuthaben ? (D.office_vorschlaege || []).filter(v => v && v.vorschlag_id).sort((a, b) => String(b.entschieden_am).localeCompare(String(a.entschieden_am))).slice(0, 30) : [],
+    guthaben_regeln: { tabelle: hatGuthaben, regeln: GUTHABEN_REGELN, vorschlag: VORSCHLAG_REGELN, arten: VORSCHLAG_ARTEN },
     kennzahlen, kennzahl_zeilen, auswertung: { tabelle: hatKennzahlen, tage: KENNZAHLEN_TAGE, schwellen: AUSWERTUNG_SCHWELLEN, wirkung_felder: WIRKUNG_FELDER, ergebnis_typen: ERGEBNIS_TYP_TEXT },
     sichtbare_projekte: sicht, raeume: RAEUME, status_text: STATUS_TEXT, uebergaenge: UEBERGAENGE, fristen: FRISTEN, externe_aktionen: Object.assign({}, EXTERNE_AKTIONEN, { [FREIGABE_START.aktion]: FREIGABE_START }),
     // Startregeln für Hinweise in der Oberfläche; entschieden wird serverseitig (kosten.js, startPruefung).

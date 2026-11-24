@@ -5,12 +5,13 @@ import { vProjekte, vProjekt, vAgenten, vAgent, vRun, vFreigaben, av } from './a
 import { vBuero, vMonitorwand } from './buero.js';
 import { vKontrollraum } from './kontrollraum.js';
 import { vAuswertung } from './auswertung.js';
+import { vGuthaben } from './guthaben.js';
 import { wartendeStarts } from './modell.js';
 import { istLive, TAKT } from './kontrollraum.daten.js';
 
 // „buero“ ist seit KI Office 2.0 der Kontrollraum (die Adresse bleibt, damit die Einbettung im Team-Portal weiter passt);
 // die isometrische Büro-Szene mit Räumen und Monitoren liegt unter „szene“.
-const TABS = [['buero', 'Kontrollraum'], ['projekte', 'Projekte'], ['agenten', 'Agenten'], ['auswertung', 'Auswertung'], ['szene', 'Büro-Szene'], ['freigaben', 'Freigaben']];
+const TABS = [['buero', 'Kontrollraum'], ['projekte', 'Projekte'], ['agenten', 'Agenten'], ['auswertung', 'Auswertung'], ['guthaben', 'Guthaben'], ['szene', 'Büro-Szene'], ['freigaben', 'Freigaben']];
 // Eingebettet im Team-Portal (iframe, gleiche Herkunft): ?einbetten=1 blendet Kopf/Fuß aus, ?nur=buero zeigt nur den Kontrollraum.
 const PARAMS = new URLSearchParams(location.search);
 const EINGEBETTET = PARAMS.get('einbetten') === '1';
@@ -64,7 +65,7 @@ function render() {
   const hell = document.documentElement.dataset.thema === 'hell';
   $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><a href="' + PORTAL + '" title="Zum Team-Portal"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"></a><span class="htitle">KI Office</span>' +
     '<div class="who">' + av(D, i.mitglied_id) + '<span><b>' + esc(i.name) + '</b> <span class="r">· ' + esc({ admin: 'Admin', dozent: 'Dozent / Technik', vertrieb: 'Vertrieb', team: 'Team', agent: 'KI-Agent' }[i.rolle] || i.rolle) + '</span></span><button class="btn sec" id="themaKnopf" type="button" style="padding:6px 10px" aria-pressed="' + hell + '" title="Zwischen dunklem Kontrollraum und hellem Portal-Design wechseln">' + (hell ? '🌙 Dunkel' : '☀️ Hell') + '</button><a href="' + PORTAL + '" class="btn sec" style="padding:6px 10px">Team-Portal ↗</a></div></div>' +
-    '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<a role="tab" href="#/tab/' + k + '" aria-selected="' + (k === route.tab) + '" class="' + (k === route.tab ? 'on' : '') + '">' + l + ((k === 'freigaben' && (D.freigaben || []).some(f => f.status === 'offen')) ? ' <span class="chip fs-offen" style="padding:0 6px">' + (D.freigaben || []).filter(f => f.status === 'offen').length + '</span>' : '') + '</a>').join('') + '</nav></div><div class="bar"></div></header>' +
+    '<nav class="tabs" role="tablist">' + TABS.map(([k, l]) => '<a role="tab" href="#/tab/' + k + '" aria-selected="' + (k === route.tab) + '" class="' + (k === route.tab ? 'on' : '') + '">' + l + ((k === 'freigaben' && (D.freigaben || []).some(f => f.status === 'offen')) ? ' <span class="chip fs-offen" style="padding:0 6px">' + (D.freigaben || []).filter(f => f.status === 'offen').length + '</span>' : '') + ((k === 'guthaben' && (D.vorschlaege || []).length) ? ' <span class="chip fs-offen" style="padding:0 6px" title="Vorschläge warten auf deine Entscheidung">' + D.vorschlaege.length + '</span>' : '') + '</a>').join('') + '</nav></div><div class="bar"></div></header>' +
     (D.quelle === 'testadapter' ? '<div class="wrap" style="margin-top:12px"><div class="note test"><b>TESTADAPTER:</b> Diese Daten sind synthetisch (lokaler Testserver). Nichts hiervon ist echt oder produktiv getestet.</div></div>' : '') +
     startZaehler() +
     '<main class="wrap" id="main"></main>' +
@@ -82,6 +83,7 @@ function render() {
     else if (route.tab === 'szene') vBuero(ctx);
     else if (route.tab === 'freigaben') vFreigaben(ctx);
     else if (route.tab === 'auswertung') vAuswertung(ctx);
+    else if (route.tab === 'guthaben') vGuthaben(ctx);
     else if (route.tab === 'projekte') vProjekte(ctx, undefined);
     else vKontrollraum(ctx);
     // Nur-Kontrollraum-Einbettung (Portal-Übersicht): Rücksprung erst NACH dem Aufbau der Ansicht einfügen, sonst überschreibt ihn die Ansicht (innerHTML)

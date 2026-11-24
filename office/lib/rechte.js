@@ -10,7 +10,17 @@ export const istMensch = ich => !!ich && !istAgent(ich);
 // Was Agenten über die Office-API dürfen. Alles andere (Freigaben erteilen, Abnehmen, Abbrechen fremder Runs, Löschen, Registry) ist Menschen vorbehalten.
 export const AGENT_DARF = ['laden', 'auftrag_starten', 'auftrag_delegieren', 'lebenszeichen', 'ereignis', 'artefakt', 'rueckfrage', 'freigabe_anfordern', 'aktion_ausfuehren', 'run_beenden'];
 // Was nur Admin darf.
-export const NUR_ADMIN = ['agent_speichern', 'loeschen', 'wartung'];
+export const NUR_ADMIN = ['agent_speichern', 'loeschen', 'wartung', 'guthaben_setzen', 'vorschlag_entscheiden', 'agent_aktiv'];
+// Wohin die Office-API einen Ausführer anstoßen darf (SSRF-Schutz, SICHERHEIT.md S6): nur eigene n8n-Adressen, nur https, nur der Webhook-Pfad.
+// Weitere eigene Hosts hier ergänzen; danach `node office/n8n/bauen.mjs` und das Bündel einspielen.
+export const AUSFUEHRER_HOSTS = ['n8n.hm-storage.de'];
+/** Ist diese Ausführer-Adresse erlaubt? https, Host aus der Liste (exakt), kein Benutzerteil, kein abweichender Port, Pfad beginnt mit /webhook/. */
+export function ausfuehrerUrlErlaubt(url, hosts) {
+  const m = /^https:\/\/([^\/?#@:\s]+)(?::443)?(\/[^\s]*)?$/i.exec(String(url || '').trim());
+  if (!m) return false;
+  const host = m[1].toLowerCase(), pfad = m[2] || '/';
+  return (hosts || AUSFUEHRER_HOSTS).includes(host) && pfad.startsWith('/webhook/') && !pfad.includes('..') && !pfad.includes('\\');
+}
 // Aktionen ohne Token (Signatur statt Token): nur die Rückmeldung des Executors.
 export const OHNE_TOKEN = ['rueckmeldung'];
 

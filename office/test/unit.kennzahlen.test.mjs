@@ -55,8 +55,9 @@ test('trendRichtung: letzte zwei Wochen mit Wert', () => {
 });
 
 test('guthabenVon: ohne Monatsguthaben vom Server null; mit Guthaben Rest, Anteil und Stufe', () => {
-  assert.equal(guthabenVon({ agent_id: 'a' }), null); assert.equal(guthabenVon({ guthaben: { monat_eur: 0 } }), null);
-  assert.deepEqual(guthabenVon({ guthaben: { monat_eur: 8, verbraucht_eur: 2 } }), { monat: 8, verbraucht: 2, rest: 6, anteil: 0.25, stufe: 'ok', geschaetzt: false });
+  assert.equal(guthabenVon({ agent_id: 'a' }), null); assert.equal(guthabenVon({ guthaben: null }), null); assert.equal(guthabenVon({ guthaben: { monat_eur: 0 } }).stufe, 'leer', '0 € heißt: kein Start');
+  assert.deepEqual(guthabenVon({ guthaben: { monat_eur: 8, verbraucht_eur: 2 } }), { monat: 8, verbraucht: 2, reserviert: 0, zusatz: 0, rest: 6, anteil: 0.25, stufe: 'ok', geschaetzt: false, ohne: 0 });
+  assert.deepEqual(guthabenVon({ guthaben: { monat_eur: 8, zusatz_eur: 2, verfuegbar_eur: 10, verbraucht_eur: 7, reserviert_eur: 1, geschaetzt: true } }), { monat: 10, verbraucht: 7, reserviert: 1, zusatz: 2, rest: 2, anteil: 0.8, stufe: 'knapp', geschaetzt: true, ohne: 0 }, 'Auffüllung und Reservierung zählen mit');
   assert.equal(guthabenVon({ guthaben: { monat_eur: 8, verbraucht_eur: 6.5 } }).stufe, 'knapp'); assert.equal(guthabenVon({ guthaben: { monat_eur: 5, verbraucht_eur: 5.2 } }).stufe, 'leer'); assert.equal(guthabenVon({ guthaben: { monat_eur: 5, verbraucht_eur: 5.2 } }).rest, 0);
   assert.equal(leer(euro(0.004)), '0,004 €'); assert.equal(leer(euro(1.5)), '1,50 €'); assert.equal(euro(null), '–');
 });
@@ -72,7 +73,7 @@ test('Kontrollraum aus den Testdaten: Karten, stiller Agent, „Für dich“ nac
   assert.equal(karte('akademie-redakteur').letztes.run_id !== undefined, true); assert.equal(karte('social-planer').aktuell, null);
   assert.ok(karte('akademie-redakteur').kz.kosten_eur > 0, 'Claude-Code-Läufe melden keinen Verbrauch: der Server schätzt aus der Textlänge'); assert.ok(karte('akademie-redakteur').kz.kosten_geschaetzt >= 1); assert.ok(karte('akademie-redakteur').kz.abgenommen >= 1);
   assert.equal(karte('kurs-waechter').kz.kosten_eur, null, 'ohne jede Kostenangabe: unbekannt, nicht 0');
-  assert.ok(karte('marketing-texter').kz.kosten_eur > 0, 'n8n-Lauf der Testdaten meldet Kosten'); assert.equal(karte('marketing-texter').guthaben, null);
+  assert.ok(karte('marketing-texter').kz.kosten_eur > 0, 'n8n-Lauf der Testdaten meldet Kosten'); assert.equal(karte('marketing-texter').guthaben.stufe, 'ok'); assert.equal(karte('kunden-entwickler').guthaben.stufe, 'leer'); assert.equal(karte('pa-assistent').guthaben, null, 'ohne Monatsguthaben: nicht begrenzt');
   const still = karten.filter(k => k.still_min !== null); assert.ok(still.length >= 1); assert.ok(still.every(k => k.still_min >= STILL_NACH_MIN && k.zustand === 'arbeitet'));
   // Für dich: Timo (Admin) entscheidet Start und externe Freigaben, sieht Rückfrage und stillen Agenten
   const fd = fuerDichListe(D, karten);

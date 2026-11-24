@@ -213,3 +213,7 @@ Keine Rechtsberatung; Einordnung als Arbeitshilfe.
 - **Aufbewahrung:** Vorschlag 24 Monate, Löschbefehl im Löschkonzept; Timo bestätigt oder ändert.
 
 **Offen:** Verzeichnis der Verarbeitungstätigkeiten um „Kennzahlen der KI-Agenten“ ergänzen; Satz in die Datenschutzinformation fürs Team (Abnahmen fließen als Zählung ohne Namen in die Auswertung der Agenten); Frist bestätigen.
+
+## Ergänzung 24.11.2026 (4): Guthaben und Protokoll der Entscheidungen (KI Office 2.0, Paket 3; KI-erstellt: Claude Code)
+
+Neu gespeichert: je Agent ein Monatsguthaben (Zahlen an `office_agenten`) und die Tabelle `office_vorschlaege` als Protokoll. Eine Protokollzeile enthält Art, Agent, Entscheidung, Betrag, Segmentname, optionale Begründung, die Kennzahlen des Vorschlags und `entschieden_von` (die Kennung des Admins) mit Zeitpunkt. Personenbezug besteht damit nur zum Admin, der entscheidet; das ist für die Nachvollziehbarkeit gewollt. Begründung und Segment sind Freitext: dort keine Namen von Kunden oder Teammitgliedern eintragen. Vorschläge betreffen Agenten, nie Menschen; es gibt keine automatische Entscheidung (Check in der Tabelle: nur „angenommen“, „abgelehnt“, „gesetzt“, jeweils mit Person). Zugriff nur über den Server, RLS an, keine Rechte für `anon` und `authenticated`. Aufbewahrung: wie die Kennzahlen, Vorschlag 24 Monate (Entscheidung von Timo offen). Diese Ergänzung wurde nicht vom `datenschutz-waechter` geprüft.

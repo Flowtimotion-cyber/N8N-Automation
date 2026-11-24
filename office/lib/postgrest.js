@@ -16,7 +16,8 @@ export const UNIQUE = {
   office_idempotenz: [['schluessel']],
   office_agenten: [['agent_id']],
   office_run_schluessel: [['run_id']],
-  office_kennzahlen: [['run_id']]
+  office_kennzahlen: [['run_id']],
+  office_vorschlaege: [['vorschlag_id']]
 };
 
 function filterAus(pfad) {
