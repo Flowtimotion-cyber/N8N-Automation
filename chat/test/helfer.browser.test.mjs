@@ -107,12 +107,16 @@ test('Sprachnachricht: 🎙️ aufnehmen, ⏹ stoppen, Text steht im Feld und wi
 	await p.waitForTimeout(1800);
 	assert.match(await p.locator('#ch_mic').innerText(), /⏹ 0:0[12]/);
 	assert.match(await p.locator('#ch_mstat').innerText(), /Aufnahme läuft/);
+	// Pegel: sichtbar und schlägt aus (simuliertes Mikrofon piept regelmäßig)
+	assert.equal(await p.locator('#ch_pegel').isVisible(), true, 'Pegel sichtbar');
+	await p.waitForFunction(() => Number((document.querySelector('#ch_pegel') || {}).dataset?.pegel || 0) > 5, null, { timeout: 5000 });
 	await shot(p, 'chat-sprachnachricht-aufnahme', DESKTOP);
 	await p.click('#ch_mic');
 	await p.waitForTimeout(1200);
 	assert.equal(await p.inputValue('#ch_text'), 'Kurz vorweg: ' + MOCK_TRANSKRIPT, 'Text angehängt');
 	assert.match(await p.locator('#ch_mstat').innerText(), /Eingefügt/);
 	assert.equal(await p.locator('#ch_mic').innerText(), '🎙️');
+	assert.equal(await p.locator('#ch_pegel').isHidden(), true, 'Pegel nach Stopp weg');
 	assert.deepEqual(await vonTimo(g), [], 'nichts automatisch gesendet');
 	await shot(p, 'chat-sprachnachricht-text', DESKTOP);
 	await p.press('#ch_text', 'Enter'); await p.waitForTimeout(500);

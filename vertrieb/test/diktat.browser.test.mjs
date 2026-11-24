@@ -49,11 +49,20 @@ for (const vp of [DESKTOP, MOBIL]) {
     const p = await seite(vp, n);
     await dialogOeffnen(p, TOKENS.m_murat);
     await shot(p, 'vertrieb-diktat-dialog', vp);
+    // Hinweis für Zoom/Telefon erscheint nur beim Gesprächsmitschnitt
+    assert.equal(await p.locator('#vd_zoom').isHidden(), true);
+    await p.locator('#vd_mit').check(); assert.match(await text(p, '#vd_zoom'), /Kopfhörern hört es die andere Person nicht/);
+    await shot(p, 'vertrieb-diktat-zoom-hinweis', vp);
+    await p.locator('#vd_mit').uncheck(); assert.equal(await p.locator('#vd_zoom').isHidden(), true);
     await p.locator('#vd_rec').click(); await p.waitForTimeout(300);
     assert.ok(!(await p.locator('#vd_stop').isHidden()), 'Stopp-Knopf sichtbar'); assert.match(await text(p, '#vd_status'), /Aufnahme läuft/);
-    await p.waitForTimeout(2500); await shot(p, 'vertrieb-diktat-aufnahme', vp);
+    // Pegel: sichtbar und schlägt aus (das simulierte Mikrofon von Chrome piept regelmäßig)
+    assert.equal(await p.locator('#vd_pegel').isVisible(), true, 'Pegel sichtbar');
+    await p.waitForFunction(() => Number((document.querySelector('#vd_pegel') || {}).dataset?.pegel || 0) > 5, null, { timeout: 5000 });
+    await p.waitForTimeout(1500); await shot(p, 'vertrieb-diktat-aufnahme', vp);
     await p.locator('#vd_stop').click();
     await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
+    assert.equal(await p.locator('#vd_pegel').isHidden(), true, 'Pegel nach Stopp weg');
     const erg = await p.locator('#vd_text').inputValue();
     assert.match(erg, /Diktat von Murat/); assert.match(erg, /Nächste Schritte/); assert.match(await text(p, '#vd_meta'), /geschätzt/);
     assert.match(await text(p, '#vd_roh'), /herrn müller/);
