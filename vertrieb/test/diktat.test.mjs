@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES, zusammenfassungsPrompt, teilAntwort, gesamtAntwort, jsonAusLlm, MAX_GESAMT_ZEICHEN } from '../lib/diktat.js';
+import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES, zusammenfassungsPrompt, teilAntwort, gesamtAntwort, jsonAusLlm, MAX_GESAMT_ZEICHEN, speichernAuftrag, gespeichertAntwort, diktatDbAntwort, diktatTitel } from '../lib/diktat.js';
 
 const murat = { mitglied_id: 'm_murat', name: 'Murat', rolle: 'vertrieb', typ: 'mensch', status: 'aktiv' };
 const datei = { mimeType: 'audio/webm', fileSize: 120000 };
@@ -78,4 +78,45 @@ test('Lange Aufnahme: aktion=zusammenfassen braucht keine Datei, nur Text', () =
   const ohne = gesamtAntwort('Text', '', r.kontext, '2026-11-24T10:00:00Z');
   assert.equal(ohne.antwort.zusammengefasst, false); assert.equal(ohne.antwort.text, 'Text');
   assert.equal(jsonAusLlm('kein json'), null);
+});
+
+test('Ablage: Verwaltung nur eigener Aufnahmen, keine Datei nötig', () => {
+  const id = 'dk_' + 'a'.repeat(32);
+  const liste = diktatAnfrage(murat, { aktion: 'liste' }, null);
+  assert.equal(liste.aktion, 'db'); assert.equal(liste.db.methode, 'GET');
+  assert.match(liste.db.pfad, /^team_diktate\?select=.*vorschau.*&mitglied_id=eq\.m_murat&geloescht_am=is\.null&order=erstellt\.desc/);
+  assert.doesNotMatch(liste.db.pfad, /[&?]select=\*/, 'Liste lädt nicht den ganzen Text');
+  assert.equal(diktatAnfrage(murat, { aktion: 'lesen', diktat_id: 'dk_x; drop' }, null).code, 400);
+  const lesen = diktatAnfrage(murat, { aktion: 'lesen', diktat_id: id }, null);
+  assert.match(lesen.db.pfad, new RegExp('diktat_id=eq\\.' + id + '&mitglied_id=eq\\.m_murat'));
+  const ki = diktatAnfrage(murat, { aktion: 'ki', diktat_id: id, ki_lesen: '1' }, null);
+  assert.equal(ki.db.methode, 'PATCH'); assert.equal(ki.db.body.ki_lesen, true);
+  assert.equal(diktatAnfrage(murat, { aktion: 'ki', diktat_id: id, ki_lesen: '0' }, null).db.body.ki_lesen, false);
+  const zu = diktatAnfrage(murat, { aktion: 'zuordnen', diktat_id: id, ziel: 'Müller GmbH', chance_id: 'c-1', text: 'Gegengelesen.' }, null);
+  assert.deepEqual([zu.db.body.ziel, zu.db.body.chance_id, zu.db.body.text], ['Müller GmbH', 'c-1', 'Gegengelesen.']);
+  assert.equal(diktatAnfrage(murat, { aktion: 'zuordnen', diktat_id: id, ziel: 'nur kopiert' }, null).db.body.text, undefined, 'ohne Text bleibt der gespeicherte');
+  const weg = diktatAnfrage(murat, { aktion: 'loeschen', diktat_id: id }, null);
+  assert.equal(weg.db.body.text, ''); assert.equal(weg.db.body.roh, ''); assert.equal(weg.db.body.ki_lesen, false); assert.ok(weg.db.body.geloescht_am);
+  assert.equal(diktatAnfrage(null, { aktion: 'liste' }, null).code, 401);
+  assert.equal(diktatAnfrage({ ...murat, rolle: 'team' }, { aktion: 'liste' }, null).code, 403);
+});
+test('Ablage: Speichern nach fertiger Aufnahme, KI-Haken, Antworten', () => {
+  const k = diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: 'Text eins.', roh: 'text eins', dauer_sek: '3720', pc_ton: '1', modus: 'gespraech', ki_lesen: '1', chance_name: 'Müller GmbH', chance_id: 'c-1' }, null).kontext;
+  assert.equal(diktatTitel(k), '🖥️ Mitschnitt mit Computerton · Müller GmbH (62 Min.)');
+  const g = gesamtAntwort('Text eins.', '{"zusammenfassung":"Kurz."}', k, '2026-11-24T10:00:00Z');
+  const sp = speichernAuftrag(g.antwort, k);
+  assert.equal(sp.methode, 'POST'); assert.equal(sp.pfad, 'team_diktate');
+  assert.deepEqual([sp.body.mitglied_id, sp.body.text, sp.body.roh, sp.body.ki_lesen, sp.body.pc_ton, sp.body.dauer_sek, sp.body.zusammenfassung], ['m_murat', 'Text eins.', 'text eins', true, true, 3720, 'Kurz.']);
+  assert.equal(speichernAuftrag(g.antwort, { ...k, ki_lesen: false }).body.ki_lesen, false);
+  const ok = gespeichertAntwort({ ...g, db: sp }, { statusCode: 201, body: [{ diktat_id: 'dk_' + '1'.repeat(32) }] });
+  assert.equal(ok.db, undefined); assert.equal(ok.antwort.diktat_id, 'dk_' + '1'.repeat(32)); assert.equal(ok.antwort.gespeichert, true);
+  const fehlt = gespeichertAntwort({ ...g, db: sp }, { statusCode: 404, body: { message: 'relation "team_diktate" does not exist' } });
+  assert.equal(fehlt.antwort.gespeichert, false); assert.match(fehlt.antwort.hinweis, /Tabelle team_diktate fehlt/); assert.equal(fehlt.antwort.text, 'Text eins.', 'Text kommt trotzdem an');
+  const L = diktatDbAntwort({ art: 'liste' }, { statusCode: 200, body: [{ diktat_id: 'dk_1', titel: 'T', vorschau: 'V', ki_lesen: true }] });
+  assert.equal(L.antwort.diktate.length, 1); assert.equal(L.antwort.diktate[0].ki_lesen, true);
+  assert.equal(diktatDbAntwort({ art: 'lesen' }, { statusCode: 200, body: [] }).code, 404);
+  assert.equal(diktatDbAntwort({ art: 'lesen' }, { statusCode: 200, body: [{ diktat_id: 'dk_1', text: 'Ganz', roh: 'roh' }] }).antwort.diktat.text, 'Ganz');
+  assert.match(diktatDbAntwort({ art: 'liste' }, { statusCode: 404, body: { code: 'PGRST205' } }).antwort.fehler, /team_diktate\.sql/);
+  // Stücke werden nicht gespeichert (das macht der Workflow-Knoten „Antwort bauen“ nur für fertige Aufnahmen)
+  assert.equal(teilAntwort('roh', '', { teil: true }).antwort.teil, true);
 });

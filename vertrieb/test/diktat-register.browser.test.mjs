@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 import { execSync } from 'node:child_process';
 import { serverStarten, post, REPO } from '../../office/test/hilfe.mjs';
 import { TOKENS } from '../../office/dev/testdaten.mjs';
@@ -59,6 +60,57 @@ for (const vp of [DESKTOP, MOBIL]) {
     await p.close();
   });
 }
+
+test('Letzte Diktate: gespeichert in der Ablage, ganzer Text, KI-Haken, Download, Löschen, nur eigene', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Ablage');
+  await p.goto(S.base + '/team/?z=' + TOKENS.m_murat + '#/tab/diktat', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+  await p.locator('#vd_ki').check();
+  await aufnehmen(p);
+  assert.match(await text(p, '#vd_meta'), /gespeichert unter „Letzte Diktate“, KI darf lesen/);
+  await p.waitForFunction(() => document.querySelectorAll('#dk_liste .dk-eintrag').length > 0, null, { timeout: 5000 });
+  const erster = p.locator('#dk_liste .dk-eintrag').first();
+  assert.match(await erster.textContent(), /Diktat/); assert.match(await erster.textContent(), /🤖/, 'KI-Haken aus der Aufnahme übernommen');
+  assert.equal(await erster.locator('[data-dkki]').isChecked(), true);
+  // Ganzer Text mit Rohtranskript
+  await erster.locator('[data-dkganz]').click(); await p.waitForSelector('#dk_liste .dk-ganz');
+  assert.match(await text(p, '#dk_liste .dk-ganz'), /Herrn Müller telefoniert/); assert.match(await text(p, '#dk_liste details'), /herrn müller/);
+  await shot(p, 'vertrieb-diktat-letzte-ganz', DESKTOP);
+  // Download als Textdatei
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.locator('#dk_liste .dk-eintrag').first().locator('[data-dkdl]').click()]);
+  assert.match(dl.suggestedFilename(), /^Transkript .*\.txt$/);
+  const inhalt = require('node:fs').readFileSync(await dl.path(), 'utf8');
+  assert.match(inhalt, /--- Text ---/); assert.match(inhalt, /--- Rohtranskript ---/);
+  // Knopf „Ganzes Transkript“ direkt am Ergebnis
+  const [dl2] = await Promise.all([p.waitForEvent('download'), p.locator('#vd_dl').click()]);
+  assert.match(require('node:fs').readFileSync(await dl2.path(), 'utf8'), /Rohtranskript/);
+  // KI-Haken aus
+  await p.locator('#dk_liste .dk-eintrag').first().locator('[data-dkki]').uncheck();
+  await p.waitForFunction(() => /nicht mehr lesen/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
+  assert.doesNotMatch(await p.locator('#dk_liste .dk-eintrag').first().locator('.kopf').textContent(), /🤖/);
+  // Auch Timo (Admin) sieht Murats Aufnahmen nicht
+  const q = await seite(DESKTOP, 'Ablage Admin');
+  await q.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/diktat', { waitUntil: 'networkidle' }); await q.waitForTimeout(800);
+  const fremd = await q.locator('#dk_liste').textContent();
+  assert.doesNotMatch(fremd, /Herrn Müller telefoniert/, 'fremde Aufnahmen unsichtbar');
+  await q.close();
+  // Löschen
+  const vorher = await p.locator('#dk_liste .dk-eintrag').count();
+  await p.locator('#dk_liste .dk-eintrag').first().locator('[data-dkweg]').click();
+  await p.waitForFunction(n => document.querySelectorAll('#dk_liste .dk-eintrag').length === n - 1, vorher, { timeout: 5000 });
+  await shot(p, 'vertrieb-diktat-letzte', DESKTOP);
+  await p.close();
+});
+
+test('Letzte Diktate: alter Workflow ohne Ablage zeigt die Liste aus diesem Browser', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Ablage fehlt');
+  await p.route(/team-diktat/, r => /name="aktion"\r\n\r\n(liste|lesen|ki|zuordnen|loeschen)/.test(String(r.request().postData() || '')) ? r.fulfill({ status: 400, contentType: 'application/json', body: '{"ok":false,"fehler":"Es ist keine Aufnahme angekommen."}' }) : r.fallback());
+  await p.addInitScript(() => localStorage.setItem('mt-diktate', JSON.stringify([{ zeit: '2026-11-20T10:00:00Z', ziel: 'Alt GmbH', text: 'Alter Eintrag', dauer_sek: 60 }])));
+  await p.goto(S.base + '/team/?z=' + TOKENS.m_murat + '#/tab/diktat', { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+  assert.match(await text(p, '#dk_liste'), /Alter Eintrag/); assert.match(await text(p, '#dk_liste'), /aus diesem Browser/);
+  await p.close();
+});
 
 test('E-Mail: vorhandener Kontakt mit Chance, Kontakt ohne Chance, neuer Kontakt wird angelegt', async t => {
   if (!B) return t.skip();
