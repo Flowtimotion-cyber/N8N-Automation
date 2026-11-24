@@ -35,11 +35,11 @@ const E = $('Eingang').first().json;
 const ich = E.token === 'ungueltig' ? null : ($('Mitglied prüfen').all().map(i => i.json).find(m => m && m.mitglied_id) || null);
 const r = diktatAnfrage(ich, E.felder, E.datei);
 // Lange Aufnahme, letzter Schritt: Text ist schon da, nur noch zusammenfassen (direkt zum OpenAI-Knoten „Bereinigen und zusammenfassen“)
-if (r.aktion === 'zusammenfassen') { const p = zusammenfassungsPrompt(r.kontext, r.transkript); return [{ json: { aktion: 'bereinigen', kontext: r.kontext, transkript: r.transkript, system: p.system, user: p.user, modell: BEREINIGUNG_MODELL } }]; }
+if (r.aktion === 'zusammenfassen') { const p = zusammenfassungsPrompt(r.kontext, r.transkript); return [{ json: { aktion: 'bereinigen', kontext: r.kontext, transkript: r.transkript, system: p.system, user: p.user, modell: BEREINIGUNG_MODELL, aufwand: 'medium' } }]; }
 if (r.aktion !== 'transkribieren') return [{ json: r }];
 // Binärdatei unter festem Namen weiterreichen (der HTTP-Knoten liest das Feld „datei“)
 const bin = $('Diktat-API').first().binary || {};
-return [{ json: { aktion: 'transkribieren', kontext: r.kontext, prompt: transkriptionsPrompt() }, binary: { datei: bin[E.binaerfeld] } }];`;
+return [{ json: { aktion: 'transkribieren', kontext: r.kontext, prompt: transkriptionsPrompt(r.kontext) }, binary: { datei: bin[E.binaerfeld] } }];`;
 
 const transkriptJs = LIB + `
 const r = $input.first().json || {};
@@ -50,8 +50,9 @@ if (status >= 300 || !body || typeof body.text !== 'string') {
   const grund = (body && body.error && body.error.message) ? String(body.error.message).slice(0, 200) : ('HTTP ' + (status || 'ohne Antwort'));
   return [{ json: { aktion: 'fehler', code: 502, antwort: { ok: false, fehler: 'Die Transkription hat nicht geklappt: ' + grund + '. Bitte gleich noch einmal versuchen.' } } }];
 }
-const t = String(body.text || '').trim();
-if (!t) return [{ json: { aktion: 'fehler', code: 422, antwort: { ok: false, fehler: 'In der Aufnahme wurde keine Sprache erkannt. Bitte näher ans Mikrofon oder lauter sprechen.' } } }];
+// Bei Stille oder Musik gibt die Spracherkennung oft nur den Prompt zurück: entfernen
+const t = transkriptSaeubern(body.text);
+if (!t) return [{ json: { aktion: 'fehler', code: 422, antwort: { ok: false, fehler: 'In der Aufnahme wurde keine Sprache erkannt (nur Stille oder Musik?). Kommt beim Balken Ton an?' } } }];
 const p = bereinigungsPrompt(a.kontext, t);
 return [{ json: { aktion: 'bereinigen', transkript: t, system: p.system, user: p.user, modell: BEREINIGUNG_MODELL } }];`;
 
@@ -101,7 +102,7 @@ const wasTun = switchCase({ version: 3.2, config: { name: 'Was tun?', parameters
 const transkribieren = node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: 'Transkribieren (OpenAI)', executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput', parameters: { method: 'POST', url: 'https://api.openai.com/v1/audio/transcriptions', authentication: 'predefinedCredentialType', nodeCredentialType: 'openAiApi', sendBody: true, contentType: 'multipart-form-data', bodyParameters: { parameters: [{ parameterType: 'formBinaryData', name: 'file', inputDataFieldName: 'datei' }, { parameterType: 'formData', name: 'model', value: '${TRANSKRIPTION_MODELL}' }, { parameterType: 'formData', name: 'language', value: 'de' }, { parameterType: 'formData', name: 'response_format', value: 'json' }, { parameterType: 'formData', name: 'prompt', value: expr('{{ $json.prompt }}') }] }, options: { timeout: 180000, response: { response: { fullResponse: true, neverError: true } } } }, credentials: ${CRED_OPENAI} } });
 const transkriptPruefen = ${code('Transkript prüfen', transkriptJs)};
 const transkriptDa = switchCase({ version: 3.2, config: { name: 'Transkript da?', parameters: { rules: { values: [${regel('bereinigen', 'bereinigen')}, ${regel('fehler', 'fehler')}] }, options: {} } } });
-const bereinigen = node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: 'Bereinigen und zusammenfassen (OpenAI)', executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput', parameters: { method: 'POST', url: 'https://api.openai.com/v1/chat/completions', authentication: 'predefinedCredentialType', nodeCredentialType: 'openAiApi', sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: expr('{{ JSON.stringify({ model: $json.modell, messages: [{ role: "system", content: $json.system }, { role: "user", content: $json.user }], response_format: { type: "json_object" }, reasoning_effort: "low" }) }}'), options: { timeout: 120000, response: { response: { fullResponse: true, neverError: true } } } }, credentials: ${CRED_OPENAI} } });
+const bereinigen = node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: 'Bereinigen und zusammenfassen (OpenAI)', executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput', parameters: { method: 'POST', url: 'https://api.openai.com/v1/chat/completions', authentication: 'predefinedCredentialType', nodeCredentialType: 'openAiApi', sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: expr('{{ JSON.stringify({ model: $json.modell, messages: [{ role: "system", content: $json.system }, { role: "user", content: $json.user }], response_format: { type: "json_object" }, reasoning_effort: $json.aufwand || "low" }) }}'), options: { timeout: 120000, response: { response: { fullResponse: true, neverError: true } } } }, credentials: ${CRED_OPENAI} } });
 const antwortBauen = ${code('Antwort bauen', antwortJs)};
 const antwort = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Antwort senden', parameters: { respondWith: 'json', responseBody: expr('{{ JSON.stringify($json.antwort) }}'), options: { responseCode: expr('{{ $json.code }}') } } } });
 

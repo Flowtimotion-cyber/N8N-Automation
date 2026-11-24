@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES, zusammenfassungsPrompt, teilAntwort, gesamtAntwort, jsonAusLlm, MAX_GESAMT_ZEICHEN, speichernAuftrag, gespeichertAntwort, diktatDbAntwort, diktatTitel } from '../lib/diktat.js';
+import { diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort, transkriptionsPrompt, MAX_AUDIO_BYTES, zusammenfassungsPrompt, teilAntwort, gesamtAntwort, jsonAusLlm, MAX_GESAMT_ZEICHEN, speichernAuftrag, gespeichertAntwort, diktatDbAntwort, diktatTitel, transkriptSaeubern, ZUSAMMENFASSUNG_VORLAGEN } from '../lib/diktat.js';
 
 const murat = { mitglied_id: 'm_murat', name: 'Murat', rolle: 'vertrieb', typ: 'mensch', status: 'aktiv' };
 const datei = { mimeType: 'audio/webm', fileSize: 120000 };
@@ -119,4 +119,47 @@ test('Ablage: Speichern nach fertiger Aufnahme, KI-Haken, Antworten', () => {
   assert.match(diktatDbAntwort({ art: 'liste' }, { statusCode: 404, body: { code: 'PGRST205' } }).antwort.fehler, /team_diktate\.sql/);
   // Stücke werden nicht gespeichert (das macht der Workflow-Knoten „Antwort bauen“ nur für fertige Aufnahmen)
   assert.equal(teilAntwort('roh', '', { teil: true }).antwort.teil, true);
+});
+
+test('Stille: Echo des Prompts wird entfernt, Prompt bei PC-Ton neutral', () => {
+  assert.equal(transkriptSaeubern(transkriptionsPrompt()), '', 'nur Echo → leer (= keine Sprache)');
+  assert.equal(transkriptSaeubern(transkriptionsPrompt({ pc_ton: true })), '');
+  assert.equal(transkriptSaeubern('Hallo zusammen. ' + transkriptionsPrompt({ pc_ton: true }) + ' Und weiter geht es.'), 'Hallo zusammen. Und weiter geht es.');
+  assert.equal(transkriptSaeubern('Wir reden über den Bildungsgutschein und QCG.'), 'Wir reden über den Bildungsgutschein und QCG.', 'echte Begriffe bleiben');
+  assert.match(transkriptionsPrompt({ pc_ton: true }), /^Deutsche Aufnahme/); assert.match(transkriptionsPrompt(), /^Deutsches Vertriebsgespräch/);
+});
+test('Zusammenfassung: Vorlagen, lange Texte gegliedert, Entscheidungen und offene Fragen', () => {
+  assert.deepEqual(Object.keys(ZUSAMMENFASSUNG_VORLAGEN), ['meeting', 'vertrieb', 'lernen', 'aufgaben']);
+  assert.match(zusammenfassungsPrompt({ pc_ton: true }, 'kurz').system, /Meeting-Protokoll/);
+  assert.match(zusammenfassungsPrompt({}, 'kurz').system, /Vertriebsgespräch/);
+  assert.match(zusammenfassungsPrompt({ vorlage: 'lernen' }, 'kurz').system, /Lerninhalt/);
+  assert.match(zusammenfassungsPrompt({}, 'x'.repeat(20000)).system, /6 bis 12 Sätze/);
+  assert.match(zusammenfassungsPrompt({}, 'kurz').system, /3 bis 6 Sätze/);
+  const k = diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: 'Text.', diktat_id: 'dk_' + 'b'.repeat(32), vorlage: 'lernen' }, null).kontext;
+  assert.equal(k.diktat_id, 'dk_' + 'b'.repeat(32)); assert.equal(k.vorlage, 'lernen');
+  assert.equal(diktatAnfrage(murat, { aktion: 'zusammenfassen', transkript: 'Text.', vorlage: 'quatsch' }, null).kontext.vorlage, '');
+  const g = gesamtAntwort('Text.', JSON.stringify({ zusammenfassung: 'Kurz.', entscheidungen: ['A wird gemacht'], offene_fragen: ['Wann?'], naechste_schritte: ['B'] }), k, '2026-11-24T10:00:00Z');
+  assert.deepEqual(g.antwort.entscheidungen, ['A wird gemacht']); assert.deepEqual(g.antwort.offene_fragen, ['Wann?']); assert.equal(g.antwort.vorlage, 'lernen');
+  assert.match(g.antwort.aktivitaet, /\*\*Entscheidungen:\*\*\n- A wird gemacht/); assert.match(g.antwort.aktivitaet, /\*\*Offene Fragen:\*\*/);
+  // Neu zusammengefasst: vorhandene Aufnahme ergänzen (PATCH, nur eigene), keine neue anlegen
+  const sp = speichernAuftrag(g.antwort, k);
+  assert.equal(sp.methode, 'PATCH'); assert.match(sp.pfad, /diktat_id=eq\.dk_b{32}&mitglied_id=eq\.m_murat/);
+  assert.match(sp.body.zusammenfassung, /Kurz\.\n\nEntscheidungen: A wird gemacht\n\nOffene Fragen: Wann\?/); assert.equal(sp.body.text, undefined, 'Text bleibt unverändert');
+  assert.equal(speichernAuftrag(g.antwort, { ...k, diktat_id: '' }).methode, 'POST');
+});
+test('KI-Agenten lesen nur freigegebene Aufnahmen (team_diktate_ki)', () => {
+  const agent = { mitglied_id: 'agent-claude', name: 'Claude', rolle: 'agent', typ: 'agent', status: 'aktiv' };
+  assert.equal(diktatAnfrage(agent, {}, datei).code, 403, 'Agenten nehmen nichts auf');
+  assert.equal(diktatAnfrage(agent, { aktion: 'liste' }, null).code, 403, 'keine eigene Ablage');
+  const L = diktatAnfrage(agent, { aktion: 'ki_liste' }, null);
+  assert.equal(L.aktion, 'db'); assert.match(L.db.pfad, /^team_diktate_ki\?/);
+  assert.equal(diktatAnfrage(agent, { aktion: 'ki_lesen' }, null).code, 400);
+  const R = diktatAnfrage(agent, { aktion: 'ki_lesen', diktat_id: 'dk_' + 'c'.repeat(32) }, null);
+  assert.match(R.db.pfad, /^team_diktate_ki\?diktat_id=eq\.dk_c{32}&select=\*$/);
+  assert.equal(diktatAnfrage({ ...agent, status: 'gesperrt' }, { aktion: 'ki_liste' }, null).code, 401);
+  assert.equal(diktatAnfrage(murat, { aktion: 'ki_liste' }, datei).aktion, 'transkribieren', 'Menschen nutzen ihre eigene Liste');
+  assert.equal(diktatDbAntwort(R.db, { statusCode: 200, body: [] }).code, 404);
+  const ok = diktatDbAntwort(R.db, { statusCode: 200, body: [{ diktat_id: 'dk_1', von: 'Timo', text: 'Ganz', roh: 'roh', zusammenfassung: 'Z' }] });
+  assert.equal(ok.antwort.diktat.text, 'Ganz'); assert.equal(ok.antwort.diktat.von, 'Timo');
+  assert.equal(diktatDbAntwort(L.db, { statusCode: 200, body: [{ diktat_id: 'dk_1', von: 'Timo', titel: 'T' }] }).antwort.diktate[0].von, 'Timo');
 });
