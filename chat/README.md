@@ -72,6 +72,19 @@ Timos Entscheidungen vom 23.11.2026: Sprachnachricht dürfen **alle im Team** (k
 - **Einrichten:** Workflow aus `chat/n8n/helfer.workflow.gen.js` per n8n-MCP anlegen, Zugangsdaten „Supabase account“ (Mitglied prüfen) und „OpenAI account“ (beide OpenAI-Knoten) setzen, Fehler-Workflow `pka7MaqDJwuhjHpY`, erfolgreiche Läufe nicht speichern (Datenschutz: Texte), veröffentlichen. Ohne Workflow zeigt das Portal „noch nicht eingerichtet“, der Chat läuft normal.
 - **Tests:** `node --test chat/test/helfer.test.mjs` (8, Logik und Sicherheitsnetz), `chat/test/helfer.browser.test.mjs` (4, mit simuliertem Mikrofon). Bildschirmfotos `chat/screenshots/*ki-korrigiert*`, `*sprachnachricht*`.
 
+## Antworten und Smiley-Reaktionen
+
+Timos Entscheidungen vom 24.11.2026: sechs feste Smileys, keine Benachrichtigung bei Antwort oder Reaktion (Posteingang-Hinweis nur bei @ wie bisher).
+
+- **Unter jeder Nachricht** stehen neben der Uhrzeit **↩** (antworten) und **☺** (Smiley).
+- **☺** öffnet 👍 ❤️ 😂 😮 🙏 ✅. Ein Klick setzt den Smiley, ein Klick auf deinen eigenen (lila umrandet) nimmt ihn wieder weg. Fährst du darüber, siehst du, wer reagiert hat. Mehrere Smileys pro Person sind erlaubt.
+- **↩** zeigt über dem Eingabefeld „Antwort an …“ mit ✕ zum Abbrechen. Die gesendete Nachricht trägt oben ein kleines Zitat, ein Klick darauf springt zur Ursprungsnachricht und hebt sie kurz hervor.
+- Alle sehen neue Reaktionen beim nächsten Nachladen (alle 5 Sekunden). Beim Neuzeichnen bleibt die Stelle im Verlauf stehen, nach dem eigenen Senden springt der Chat ans Ende.
+- **Technik:** `supabase/team_chat_reaktionen.sql` (Spalten `antwort_auf`, `reaktionen`, `reaktion_am`, Funktion `team_chat_reagieren`, `team_chat_senden` mit freiwilligem `p_antwort_auf`, Verlauf mit Zitat). Aktion `reagieren` und `antwort_auf` beim Senden in `chat/lib/chat.js`.
+- **Achtung:** `supabase/team_chat.sql` danach nicht noch einmal allein ausführen. Es legt die alte Fassung von `team_chat_senden` wieder an. Falls doch, `team_chat_reaktionen.sql` direkt danach erneut ausführen.
+- **Einspielen:** (1) Timo führt `supabase/team_chat_reaktionen.sql` aus. (2) n8n nach Timos Ja: `chat/n8n/deploy/reaktionen-deploy.json` (`node chat/n8n/bauen-deploy-reaktionen.mjs`), nur die zwei Code-Knoten. (3) PR mergen. Reihenfolge egal: Ohne SQL melden ↩ und ☺ „noch nicht eingerichtet“, normales Senden läuft weiter.
+- **Tests:** `chat/test/chat.test.mjs`, `chat/test/sql-reaktionen.test.mjs` (PGlite), `chat/test/reaktionen.browser.test.mjs`. Bildschirmfotos `chat/screenshots/*smiley*`, `*antwort*`.
+
 ## Stufe 2 (noch nicht gebaut)
 
 @Claude / @Hermes im Chat: Die KI liest diesen einen Chat (oder den ganzen Verlauf, wenn eingeschaltet), antwortet im Chat und schlägt Aufgaben oder Notizen mit einem Knopf „Anlegen“ vor. Größere Arbeiten gehen als Auftrag ins KI Office. Danach: Chat in der Team-App.

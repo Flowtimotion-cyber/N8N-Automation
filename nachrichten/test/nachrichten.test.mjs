@@ -188,10 +188,15 @@ test('Bearbeiten ohne supabase/team_bearbeiten.sql: Posteingang läuft, Bearbeit
 	assert.match(lies('supabase', 'team_bearbeiten.sql'), /create or replace function team_msgs_bearbeiten\(/);
 });
 
-test('Deploy-Datei „bearbeiten“ ist aktuell und enthält nur die zwei Code-Knoten je Workflow', async () => {
-	const { deployBauen } = await import('../n8n/bauen-deploy-bearbeiten.mjs');
+test('Deploy-Datei „bearbeiten“ (am 23.11.2026 eingespielt) ist in sich stimmig und enthält nur die zwei Code-Knoten je Workflow', async () => {
+	// Die Datei hält fest, was eingespielt wurde. Spätere Änderungen an der Logik bekommen eigene Deploy-Dateien
+	// (z. B. chat/n8n/deploy/reaktionen-deploy.json), darum hier kein Vergleich mit dem aktuellen Code, sondern mit den eigenen Prüfsummen.
+	const { createHash } = await import('node:crypto');
 	const datei = JSON.parse(lies('nachrichten', 'n8n', 'deploy', 'bearbeiten-deploy.json'));
-	assert.deepEqual(datei, JSON.parse(JSON.stringify(deployBauen())), 'neu bauen: node nachrichten/n8n/bauen-deploy-bearbeiten.mjs');
+	for (const w of datei.workflows) for (const o of w.operations) {
+		const k = w.abgleich_23_11_2026.knoten.find(x => x.name === o.nodeName);
+		assert.equal(createHash('sha256').update(o.value, 'utf8').digest('hex'), k.sha256_neu, w.workflow + ' · ' + o.nodeName);
+	}
 	assert.deepEqual(datei.workflows.map(w => w.workflowId), ['0tUWBdqqBPtnlfAj', 'EjzNbDUU28ngwKQi']);
 	for (const w of datei.workflows) {
 		assert.match(w.versionName, /^Claude Code: /);

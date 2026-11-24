@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { chatAnfrage, chatAntwort, CHAT_NICHT_EINGERICHTET, CHAT_BEARBEITEN_FEHLT } from '../lib/chat.js';
+import { chatAnfrage, chatAntwort, CHAT_NICHT_EINGERICHTET, CHAT_BEARBEITEN_FEHLT, CHAT_REAKTIONEN_FEHLT, CHAT_REAKTIONEN } from '../lib/chat.js';
 import { C_ChatDbNachbildung, chatAntwortMock } from '../dev/mock.mjs';
 
 const timo = { mitglied_id: 'm_timo', rolle: 'admin', status: 'aktiv', typ: 'mensch' };
@@ -116,6 +116,54 @@ test('Bearbeiten: Form prüfen, nur der Autor, 24 Stunden, nur neu Markierte bek
 	assert.equal(auf('a', 'bearbeiten', { chat_id: id, nachricht_id: hinweis.nachricht_id, text: 'x' })[0], 400);
 	jetzt = '2026-11-24T10:00:01.000Z';
 	assert.match(auf('a', 'bearbeiten', { chat_id: id, nachricht_id: n.nachricht_id, text: 'zu spät' })[1].fehler, /24 Stunden/);
+});
+
+test('Antworten und Reaktionen: Form prüfen, Verweis nur wenn gesetzt, Smiley umschalten', () => {
+	// Senden ohne Antwort: Aufruf genau wie vor team_chat_reaktionen.sql (kein p_antwort_auf)
+	assert.equal('p_antwort_auf' in chatAnfrage(timo, 'senden', { chat_id: C, text: 'Hi' }).body, false);
+	assert.equal('p_antwort_auf' in chatAnfrage(timo, 'senden', { chat_id: C, text: 'Hi', antwort_auf: 'x' }).body, false);
+	assert.equal(chatAnfrage(timo, 'senden', { chat_id: C, text: 'Hi', antwort_auf: '7' }).body.p_antwort_auf, 7);
+	// Reagieren: nur die sechs Smileys
+	assert.deepEqual(CHAT_REAKTIONEN, ['👍', '❤️', '😂', '😮', '🙏', '✅']);
+	assert.equal(chatAnfrage(timo, 'reagieren', { chat_id: C, nachricht_id: 3, emoji: '💩' }).code, 400);
+	assert.equal(chatAnfrage(timo, 'reagieren', { chat_id: C, nachricht_id: 0, emoji: '👍' }).code, 400);
+	assert.deepEqual(chatAnfrage(timo, 'reagieren', { chat_id: C, nachricht_id: '3', emoji: '❤️', p_mitglied: 'm_kurt' }).body, { p_mitglied: 'm_timo', p_chat: C, p_nachricht_id: 3, p_emoji: '❤️' });
+	// Ohne SQL: verständliche Meldung, normales Senden meldet weiter „nicht eingerichtet“ wie bisher
+	const fehlt = { statusCode: 404, body: { code: 'PGRST202' } };
+	assert.equal(chatAntwort(chatAnfrage(timo, 'reagieren', { chat_id: C, nachricht_id: 3, emoji: '👍' }), fehlt).antwort.fehler, CHAT_REAKTIONEN_FEHLT);
+	assert.equal(chatAntwort(chatAnfrage(timo, 'senden', { chat_id: C, text: 'Hi', antwort_auf: 3 }), fehlt).antwort.fehler, CHAT_REAKTIONEN_FEHLT);
+	assert.equal(chatAntwort(chatAnfrage(timo, 'senden', { chat_id: C, text: 'Hi' }), fehlt).antwort.fehler, CHAT_NICHT_EINGERICHTET);
+
+	const M = [{ ...timo, name: 'Timo T', token: 'a'.repeat(32) }, { mitglied_id: 'm_kurt', name: 'Kurt K', status: 'aktiv', typ: 'mensch', token: 'b'.repeat(32) }, { mitglied_id: 'm_lillien', name: 'Lillien L', status: 'aktiv', typ: 'mensch', token: 'c'.repeat(32) }];
+	const db = new C_ChatDbNachbildung({ mitglieder: () => M });
+	const auf = (wer, aktion, daten) => chatAntwortMock({ token: wer.repeat(32), aktion, daten }, M, db);
+	const id = auf('a', 'anlegen', { art: 'gruppe', titel: 'Kursteam', mitglieder: ['m_kurt'] })[1].chat.chat_id;
+	const frage = auf('b', 'senden', { chat_id: id, text: 'Treffen wir uns um 10?' })[1].nachricht;
+	// Antwort mit Zitat
+	const antw = auf('a', 'senden', { chat_id: id, text: 'Ja, passt.', antwort_auf: frage.nachricht_id })[1].nachricht;
+	assert.equal(antw.antwort_auf, frage.nachricht_id); assert.equal(antw.zitat.text, 'Treffen wir uns um 10?'); assert.equal(antw.zitat.autor, 'm_kurt');
+	// Verweis auf eine Nachricht aus einem anderen Chat wird verworfen
+	const id2 = auf('a', 'anlegen', { art: 'gruppe', titel: 'Anderer', mitglieder: ['m_lillien'] })[1].chat.chat_id;
+	assert.equal(auf('a', 'senden', { chat_id: id2, text: 'x', antwort_auf: frage.nachricht_id })[1].nachricht.antwort_auf, null);
+	// Reaktionen: setzen, zweite Person, wieder weg; Hinweise nicht
+	const kurtBis = auf('b', 'verlauf', { chat_id: id })[1].nachrichten.slice(-1)[0].nachricht_id;
+	assert.deepEqual(auf('a', 'reagieren', { chat_id: id, nachricht_id: frage.nachricht_id, emoji: '👍' })[1].nachricht.reaktionen, { '👍': ['m_timo'] });
+	assert.deepEqual(auf('b', 'reagieren', { chat_id: id, nachricht_id: frage.nachricht_id, emoji: '👍' })[1].nachricht.reaktionen, { '👍': ['m_timo', 'm_kurt'] });
+	assert.deepEqual(auf('a', 'reagieren', { chat_id: id, nachricht_id: frage.nachricht_id, emoji: '👍' })[1].nachricht.reaktionen, { '👍': ['m_kurt'] });
+	assert.equal(auf('c', 'reagieren', { chat_id: id, nachricht_id: frage.nachricht_id, emoji: '👍' })[0], 400, 'Lillien ist nicht im Chat');
+	assert.equal(auf('a', 'reagieren', { chat_id: id, nachricht_id: db.nachrichten.find(n => !n.autor && n.chat_id === id).nachricht_id, emoji: '👍' })[0], 400);
+	// Wer nur Neues holt, bekommt die geänderte Nachricht über „bearbeitete“ mit
+	assert.deepEqual(auf('b', 'verlauf', { chat_id: id, nach: kurtBis })[1].bearbeitete.map(n => n.nachricht_id), [frage.nachricht_id]);
+});
+
+test('Deploy-Datei „Antworten und Reaktionen“ ist aktuell und ändert nur die zwei Code-Knoten', async () => {
+	const { deployBauen } = await import('../n8n/bauen-deploy-reaktionen.mjs');
+	const datei = JSON.parse(readFileSync(new URL('../n8n/deploy/reaktionen-deploy.json', import.meta.url), 'utf8'));
+	assert.deepEqual(datei, JSON.parse(JSON.stringify(deployBauen())), 'neu bauen: node chat/n8n/bauen-deploy-reaktionen.mjs');
+	assert.equal(datei.workflowId, 'EjzNbDUU28ngwKQi'); assert.match(datei.versionName, /^Claude Code: /);
+	assert.deepEqual(datei.operations.map(o => [o.type, o.nodeName, o.path]), [['setNodeParameter', 'Anfrage prüfen', '/jsCode'], ['setNodeParameter', 'Antwort bauen', '/jsCode']]);
+	assert.ok(datei.operations[0].value.includes("fn: 'team_chat_reagieren'"));
+	assert.doesNotMatch(JSON.stringify(datei), /service_role|eyJ[\w-]{20,}/);
 });
 
 test('Eingebetteter Code läuft ohne URL und ohne require (wie im n8n-Code-Knoten)', () => {
