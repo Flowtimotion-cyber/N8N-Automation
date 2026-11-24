@@ -38,8 +38,8 @@ export function agentKarteDaten(D, a) {
   const art = (D.artefakte || []).filter(x => x && eigene.has(x.run_id)).sort((x, y) => String(y.erstellt || '').localeCompare(String(x.erstellt || '')))[0] || null;
   const fertig = z.runs.filter(r => r.status === 'abgeschlossen').sort((x, y) => String(y.beendet || '').localeCompare(String(x.beendet || '')))[0] || null;
   let letztes = null;
-  if (art) { const r = eigene.get(art.run_id); letztes = { titel: art.titel, zeit: art.erstellt, run_id: art.run_id, pruefstand: pruefstand(r) }; }
-  else if (fertig) letztes = { titel: kurz(fertig.zusammenfassung || fertig.auftrag, 80), zeit: fertig.beendet, run_id: fertig.run_id, pruefstand: pruefstand(fertig) };
+  if (art) { const r = eigene.get(art.run_id); letztes = { titel: art.titel, zeit: art.erstellt, run_id: art.run_id, pruefstand: pruefstand(r), run_status: r.status }; }
+  else if (fertig) letztes = { titel: kurz(fertig.zusammenfassung || fertig.auftrag, 80), zeit: fertig.beendet, run_id: fertig.run_id, pruefstand: pruefstand(fertig), run_status: fertig.status };
   // Stille: Run „in Arbeit“, aber seit STILL_NACH_MIN Minuten kein Lebenszeichen (noch vor dem Timeout, der ihn „veraltet“ macht).
   let still_min = null;
   const arbeitet = z.aktiv.filter(r => r.status === 'in_arbeit');

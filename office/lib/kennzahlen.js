@@ -49,7 +49,7 @@ export function agentKennzahlen(runs, agent_id, jetztMs, tage) {
   const scheibe = fenster / KENNZAHLEN_WOCHEN;
   const trend = [];
   for (let i = 0; i < KENNZAHLEN_WOCHEN; i++) {
-    const a = von + i * scheibe, b = a + scheibe;
+    const a = von + i * scheibe, b = i === KENNZAHLEN_WOCHEN - 1 ? jetztMs + 60000 : a + scheibe;   // letzte Scheibe mit derselben Uhren-Toleranz wie das Fenster
     const S = gelaufen.filter(r => { const t = runStichzeit(r); return t > a && t <= b; });
     const ok = S.filter(r => r.status === 'abgeschlossen' && r.abgenommen === true).length;
     let k = 0, n = 0; for (const r of S) { const x = runKostenGemeldet(r); if (x) { k += x.eur; n++; } }

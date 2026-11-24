@@ -19,10 +19,13 @@ if (NUR === 'buero') document.body.classList.add('nur-buero');
 // Thema: dunkel (Kontrollraum, Standard) oder hell (wie das Team-Portal). ?thema=hell|dunkel setzt es, der Knopf im Kopf merkt es sich je Gerät.
 const THEMEN = ['dunkel', 'hell'];
 function themaSetzen(t, merken) { const th = THEMEN.includes(t) ? t : 'dunkel'; document.documentElement.dataset.thema = th; if (merken) ls.set('ko-thema', th); return th; }
-themaSetzen(PARAMS.get('thema') || ls.get('ko-thema') || 'dunkel', THEMEN.includes(PARAMS.get('thema')));
+// Ein Thema aus der Adresse gilt nur für diesen Aufruf (z. B. die Einbettung im Portal) und überschreibt die gemerkte Wahl nicht.
+themaSetzen(PARAMS.get('thema') || ls.get('ko-thema') || 'dunkel', false);
 let D = null;
 let signatur = '';          // Fingerabdruck der zuletzt gezeigten Daten: unveränderte Antworten bauen die Ansicht nicht neu auf
 let letzterAbruf = 0;       // Zeitpunkt des letzten erfolgreichen Abrufs (ms)
+let letzterVersuch = 0;     // Zeitpunkt des letzten Abrufversuchs, auch des gescheiterten: der Takt richtet sich danach, sonst feuert er bei einer Störung alle 5 Sekunden
+let letzterAufbau = 0;      // Zeitpunkt des letzten Neuaufbaus der Ansicht
 let laedt = null;           // laufender Abruf (Promise) oder null
 let route = { tab: NUR === 'buero' ? 'buero' : (TABS.some(t => t[0] === ls.get('ko-tab')) ? ls.get('ko-tab') : 'buero') };
 let letzterHash = null;
@@ -55,6 +58,7 @@ const taktText = () => istLive(D) ? 'Aktualisierung alle 30 Sekunden, solange ei
 
 function render() {
   if (!D) return;
+  letzterAufbau = Date.now();
   const i = D.ich;
   const hell = document.documentElement.dataset.thema === 'hell';
   $('#app').innerHTML = '<header><div class="wrap"><div class="hrow"><a href="' + PORTAL + '" title="Zum Team-Portal"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie"></a><span class="htitle">KI Office</span>' +
@@ -97,6 +101,7 @@ function laden(still) {
   return laedt;
 }
 async function abrufen(still) {
+  letzterVersuch = Date.now();
   try {
     const y = window.scrollY;
     const neu = await api('laden');
@@ -105,7 +110,8 @@ async function abrufen(still) {
     const sig = JSON.stringify(Object.assign({}, neu, { stand: '' }));
     const gleich = !!D && sig === signatur;
     D = neu; signatur = sig;
-    if (still && gleich && !(route.tab === 'buero' && !route.art && istLive(D))) { standZeigen(); return; }
+    // Spätestens nach zwei Minuten wird trotzdem neu aufgebaut, damit „vor 3 Min.“ nicht stehen bleibt.
+    if (still && gleich && Date.now() - letzterAufbau < 120000 && !(route.tab === 'buero' && !route.art && istLive(D))) { standZeigen(); return; }
     const fokus = still ? fokusMerken() : null;
     render();
     if (still) { window.scrollTo(0, y); if (fokus) { const el = document.querySelector(fokus); if (el) el.focus({ preventScroll: true }); } }
@@ -142,8 +148,8 @@ window.addEventListener('hashchange', () => { if (location.hash === letzterHash)
 // Aktualisierung (ARCHITEKTUR.md Abschnitt 14): alle 30 Sekunden, solange ein Run in der Warteschlange oder in Arbeit ist, sonst alle 5 Minuten.
 // Nur bei sichtbarem Tab, nie während ein Dialog offen ist oder jemand tippt. Jeder Abruf holt den ganzen Stand aus Supabase (Datenverkehr, BETRIEB.md).
 const darfNachladen = () => { const a = document.activeElement, tippt = a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); return !!D && !$('#dlg').open && !tippt && document.visibilityState === 'visible'; };
-setInterval(() => { if (!D) return; if (darfNachladen() && Date.now() - letzterAbruf >= (istLive(D) ? TAKT.live_ms : TAKT.ruhig_ms)) laden(true); else if (document.visibilityState === 'visible') { const a = $('#krStand'); if (a) a.textContent = 'Stand ' + relativ(D.stand); } }, 5000);
-document.addEventListener('visibilitychange', () => { if (darfNachladen() && Date.now() - letzterAbruf >= TAKT.live_ms) laden(true); });
+setInterval(() => { if (!D) return; if (darfNachladen() && Date.now() - letzterVersuch >= (istLive(D) ? TAKT.live_ms : TAKT.ruhig_ms)) laden(true); else if (document.visibilityState === 'visible') { const a = $('#krStand'); if (a) a.textContent = 'Stand ' + relativ(D.stand); } }, 5000);
+document.addEventListener('visibilitychange', () => { if (darfNachladen() && Date.now() - letzterVersuch >= TAKT.live_ms) laden(true); });
 tokenLesen();
 leseHash();
 if (!location.hash) history.replaceState(null, '', location.pathname + '#/tab/' + route.tab);

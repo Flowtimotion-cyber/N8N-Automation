@@ -9,6 +9,7 @@ import { freigabeDialog, auftragDialog } from './ansichten.js';
 const ZUSTAND_TEXT_KR = Object.assign({}, ZUSTAND_TEXT, { inaktiv: 'deaktiviert' });
 const ZUSTAND_FARBE_KR = Object.assign({}, ZUSTAND_FARBE, { inaktiv: '#D9452F' });
 const PRUEF_CHIP = { abgenommen: 'fs-erteilt', zurueckgewiesen: 'fs-abgelehnt', ungeprueft: 'fs-offen' };
+const LAUF_PROBLEM = { fehlgeschlagen: 'Lauf fehlgeschlagen', unbekannt: 'Lauf veraltet', abgebrochen: 'Lauf abgebrochen' };
 const PRUEF_KURZ = { abgenommen: 'geprüft', zurueckgewiesen: 'zurückgewiesen', ungeprueft: 'ungeprüft' };
 const EREIGNIS_ICON = { schritt: '•', tool: '🔧', quelle: '📎', fehler: '⚠️', wiederholung: '↻', hinweis: 'ℹ️', status: '→', rueckfrage: '❓', antwort: '💬', freigabe: '✅', artefakt: '📄', abnahme: '🏁', entscheidung: '⚖️' };
 const uhr = s => { const d = new Date(s); return isNaN(d) ? '–' : d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); };
@@ -43,7 +44,7 @@ function agentenKarte(D, k) {
     '<div class="ak-kopf"><div><h3><a href="#/agent/' + esc(a.agent_id) + '" aria-label="' + esc(a.name + ', ' + (ZUSTAND_TEXT_KR[k.zustand] || k.zustand) + '. Öffnet die Arbeitsübersicht.') + '">' + esc(a.name) + '</a></h3><div class="small">' + esc(a.modell) + ' · ' + esc(a.ausfuehrer) + '</div></div>' + zustandChip(k.zustand) + '</div>' +
     (k.still_min !== null ? '<div class="ak-warn"><span>Seit ' + k.still_min + ' Min. kein Lebenszeichen.</span><a class="btn klein sec" href="#/run/' + esc(r.run_id) + '">Ansehen</a></div>' : '') +
     '<div class="ak-aufgabe"><span class="label">' + esc(r ? (label[r.status] || 'Auftrag') : 'Nichts in Arbeit') + '</span>' + (r ? '<a href="#/run/' + esc(r.run_id) + '">' + esc(kurz(r.auftrag, 120)) + '</a>' : '<span class="muted">Wartet auf den nächsten Auftrag.</span>') + '</div>' +
-    '<div class="ak-letztes"><span>Zuletzt:</span>' + (k.letztes ? '<a href="#/run/' + esc(k.letztes.run_id) + '">' + esc(kurz(k.letztes.titel, 60)) + '</a>' + chip(PRUEF_KURZ[k.letztes.pruefstand], PRUEF_CHIP[k.letztes.pruefstand], PRUEFSTAND_TEXT[k.letztes.pruefstand]) + '<span>' + esc(relativ(k.letztes.zeit)) + '</span>' : '<span>noch kein Ergebnis</span>') + '</div>' +
+    '<div class="ak-letztes"><span>Zuletzt:</span>' + (k.letztes ? '<a href="#/run/' + esc(k.letztes.run_id) + '">' + esc(kurz(k.letztes.titel, 60)) + '</a>' + (LAUF_PROBLEM[k.letztes.run_status] ? chip(LAUF_PROBLEM[k.letztes.run_status], 'rs-fehlgeschlagen', 'Dieses Ergebnis stammt aus einem Lauf, der nicht sauber zu Ende ging.') : chip(PRUEF_KURZ[k.letztes.pruefstand], PRUEF_CHIP[k.letztes.pruefstand], PRUEFSTAND_TEXT[k.letztes.pruefstand])) + '<span>' + esc(relativ(k.letztes.zeit)) + '</span>' : '<span>noch kein Ergebnis</span>') + '</div>' +
     guthabenHtml(k) + '<div class="ak-fuss">' + kostenJeErgebnis(k) + sparkline(k.kz.trend) + '</div></article>';
 }
 
