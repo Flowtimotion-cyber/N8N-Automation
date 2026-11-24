@@ -28,7 +28,7 @@ if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
 const bin = $('Diktat-API').first().binary || {};
 const key = Object.keys(bin)[0] || null;
 const t = String(b.token || '');
-return [{ json: { token: /^[a-f0-9]{20,64}$/.test(t) ? t : 'ungueltig', felder: { chance_id: b.chance_id, chance_name: b.chance_name, kontakt_name: b.kontakt_name, art: b.art, modus: b.modus, dauer_sek: b.dauer_sek, teil: b.teil, pc_ton: b.pc_ton, aktion: b.aktion, transkript: b.transkript, roh: b.roh, ki_lesen: b.ki_lesen, diktat_id: b.diktat_id, ziel: b.ziel, text: b.text }, binaerfeld: key, datei: key ? { mimeType: bin[key].mimeType, fileSize: Number(bin[key].fileSize) || (bin[key].fileSize && String(bin[key].fileSize).match(/[\\d.]+/) ? Math.round(parseFloat(bin[key].fileSize) * (/MB/i.test(bin[key].fileSize) ? 1048576 : /kB/i.test(bin[key].fileSize) ? 1024 : 1)) : 0), fileName: bin[key].fileName } : null } }];`;
+return [{ json: { token: /^[a-f0-9]{20,64}$/.test(t) ? t : 'ungueltig', felder: { chance_id: b.chance_id, chance_name: b.chance_name, kontakt_name: b.kontakt_name, art: b.art, modus: b.modus, dauer_sek: b.dauer_sek, teil: b.teil, pc_ton: b.pc_ton, aktion: b.aktion, transkript: b.transkript, roh: b.roh, ki_lesen: b.ki_lesen, diktat_id: b.diktat_id, ziel: b.ziel, text: b.text, vorlage: b.vorlage }, binaerfeld: key, datei: key ? { mimeType: bin[key].mimeType, fileSize: Number(bin[key].fileSize) || (bin[key].fileSize && String(bin[key].fileSize).match(/[\\d.]+/) ? Math.round(parseFloat(bin[key].fileSize) * (/MB/i.test(bin[key].fileSize) ? 1048576 : /kB/i.test(bin[key].fileSize) ? 1024 : 1)) : 0), fileName: bin[key].fileName } : null } }];`;
 
 const anfrageJs = LIB + `
 const E = $('Eingang').first().json;
