@@ -95,3 +95,18 @@ Auf der Übersicht des Team-Portals steht direkt unter den Kennzahlen die Karte 
 - **Links auf Laufwerke und Ordner in Notizen:** `[Projektordner](\Server\Freigabe\Projekt)` oder `[Datei](C:\Daten\Datei.docx)`; auch `file:///C:/…` und einfache Pfade werden erkannt. Ein Klick kopiert den Pfad, im Explorer mit Strg+L einfügen (Browser dürfen lokale Dateien nicht selbst öffnen). Pfade mit Leerzeichen in die eckigen Klammern setzen.
 - **Zeit eintragen:** das Formular lässt sich wie bei Aufgaben und Notizen über den Griff am Rand verbreitern.
 
+
+## Kontrollraum (ab 24.11.2026)
+
+Das KI Office öffnet jetzt im **Kontrollraum**: dunkel, eine Karte je Agent, nach Räumen sortiert, der Orchestrierer oben in der Zentrale.
+
+- **Karte:** Name und Modell, Zustand als Farbpunkt mit Text, die aktuelle Aufgabe, das letzte Ergebnis mit Prüfmarke (geprüft, ungeprüft, zurückgewiesen), die Kosten der letzten 4 Wochen und die Kosten je abgenommenem Ergebnis mit Trendpfeil (↓ wird günstiger, ↑ wird teurer). Klick auf die Karte öffnet die Arbeitsübersicht des Agenten, Klick auf Aufgabe oder Ergebnis den Run.
+- **Kosten:** Es steht nur da, was der Ausführer gemeldet hat, mit „gemessen“ oder „geschätzt“. Meldet er nichts, steht „unbekannt“. Das ist Absicht: lieber eine Lücke als eine erfundene Null.
+- **Roter Rand:** Der Agent ist „in Arbeit“, hat sich aber seit 5 Minuten nicht gemeldet. Vielleicht arbeitet er noch, vielleicht hängt er. Der Eintrag steht auch in „Für dich“.
+- **Für dich** (rechts): Freigaben mit Knöpfen, Rückfragen der Agenten, stille Agenten, Ergebnisse ohne Abnahme. Freigeben und Ablehnen öffnen denselben Dialog wie im Register „Freigaben“; die Freigabe gilt weiter nur für genau diesen Inhalt.
+- **Live-Ticker:** die letzten Ereignisse, Agenten sprechen in Ich-Form („Ich habe ein Ergebnis abgelegt: …“). Jede Zeile führt zum Run.
+- **Aktualisierung:** alle 30 Sekunden, solange ein Agent arbeitet oder ein Auftrag wartet, sonst alle 5 Minuten; immer nur bei sichtbarem Tab. „↻ Jetzt aktualisieren“ lädt sofort.
+- **Hell oder dunkel:** Knopf oben rechts („☀️ Hell“ / „🌙 Dunkel“). Die Wahl gilt für dieses Gerät.
+- **Büro-Szene:** Die frühere Ansicht mit Räumen, Figuren und Monitoren liegt jetzt im Register „Büro-Szene“.
+- **Run-Seite:** Über der Zeitleiste stehen fünf Zahlen: Kosten, Dauer, Schritte, Ergebnisse, fachliche Prüfung.
+- **Im Team-Portal:** Auf der Übersicht erscheint die kompakte Fassung (nur Agenten, bei denen etwas läuft oder wartet, plus Ticker), im Register „KI Office“ das ganze Office.
