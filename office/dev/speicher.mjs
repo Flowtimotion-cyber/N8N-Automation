@@ -21,6 +21,8 @@ export function zufallsQuelle(seed) {
 export class Speicher {
   constructor({ tabellen, uhr, zufall, quelle }) {
     this.T = tabellen; this.uhr = uhr || new Uhr(); this.zufall = zufall || zufallsQuelle(42); this.quelle = quelle || 'testadapter';
+    // Der Testadapter ruft nie wirklich eine Adresse auf; die synthetischen Ausführer liegen auf n8n.example.invalid.
+    this.ausfuehrer_hosts = ['n8n.hm-storage.de', 'n8n.example.invalid'];
     this.externe = [];           // alle „externen“ Wirkungen (Start, Abbruch, ausgeführte Aktionen), für Tests zählbar
     this.protokoll = [];         // Aufruf-Protokoll ohne Tokens
     this.hoerer = [];            // Adapter, die auf extern reagieren
@@ -38,7 +40,7 @@ export class Speicher {
   /** Ein Aufruf wie POST /webhook/office-api. Liefert { code, antwort, extern }. */
   aufruf(body) {
     const D = this.schnappschuss();
-    const r = verarbeiten({ body, D, jetzt: this.uhr.iso(), zufall: this.zufall, quelle: this.quelle });
+    const r = verarbeiten({ body, D, jetzt: this.uhr.iso(), zufall: this.zufall, quelle: this.quelle, ausfuehrer_hosts: this.ausfuehrer_hosts });
     this.protokoll.push({ zeit: this.uhr.iso(), aktion: body && body.aktion, code: r.code, ok: r.antwort && r.antwort.ok !== false });
     if (r.weiter === 2) {
       for (const op of r.ops || []) {

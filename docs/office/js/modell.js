@@ -175,8 +175,12 @@ const euroText = x => (Number(x) || 0).toLocaleString('de-DE', { style: 'currenc
 /** Wird dieser Auftrag sofort starten oder auf Timo warten? Gleiche Regeln wie der Server, nur für den Hinweis im Auftragsdialog. */
 export function startHinweis(D, reg, auftragsText) {
   const R = D.start_regeln || {};
-  if (R.startet_sofort) return { sofort: true, gruende: [] };
+  // Leeres Guthaben hält jeden Start an, auch den des Admins (der Server setzt das durch, hier nur der Hinweis vorab)
+  const leer = !!(reg && reg.guthaben && reg.guthaben.leer === true);
+  if (R.startet_sofort && !leer) return { sofort: true, gruende: [] };
   const g = [];
+  if (leer) g.push('Das Guthaben von „' + reg.name + '“ ist für diesen Monat aufgebraucht. Der Auftrag wartet, bis aufgefüllt und der Start freigegeben ist.');
+  if (R.startet_sofort) return { sofort: false, gruende: g };
   if (reg && !reg.sofort_ok) g.push(reg.freigabe_noetig === true ? 'Für diesen Agenten ist immer eine Freigabe eingestellt.' : 'Der Agent „' + reg.name + '“ gehört zur Kostenstufe „' + (KOSTENSTUFE_ANZEIGE[reg.kostenstufe] || reg.kostenstufe) + '“.');
   const n = String(auftragsText || '').trim().length;
   if (n > R.klein_max_zeichen) g.push('Der Auftrag ist mit ' + n + ' Zeichen länger als ' + R.klein_max_zeichen + '.');

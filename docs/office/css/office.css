@@ -284,3 +284,14 @@ body.nur-buero nav.tabs{display:none}
   .board{grid-template-columns:repeat(4,minmax(220px,1fr))}
   .kr-agenten{grid-template-columns:1fr}
 }
+
+/* ---- Guthaben und Vorschläge (KI Office 2.0, Paket 3) ---- */
+.gb-leer{margin-top:5px;color:var(--err-fg);font-weight:600}.gb-leer a{color:inherit}
+.vkarten{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.vkarte{background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.vkarte h3{margin:0;font-size:15px}.vkarte p{margin:0;font-size:13px;color:var(--mut);flex:1}
+.vkarte.v-auffuellen{border-left-color:var(--red)}.vkarte.v-pausieren{border-left-color:var(--orange)}.vkarte.v-skalieren{border-left-color:var(--green)}.vkarte.v-einrichten{border-left-color:var(--acc2)}
+.vk-knoepfe,.g-knoepfe{display:flex;gap:6px;flex-wrap:wrap}
+td.g-knoepfe{display:table-cell;white-space:nowrap}td.g-knoepfe .btn{margin:0 4px 4px 0}
+.guthaben-tabelle .g-stand{min-width:170px}.guthaben-tabelle tr.pausiert td{opacity:.7}
+.protokoll{list-style:none;margin:0;padding:0}.protokoll li{padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}.protokoll li:first-child{border-top:0}

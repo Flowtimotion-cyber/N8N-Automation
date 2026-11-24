@@ -39,7 +39,7 @@ const fertig = node({ type: 'n8n-nodes-base.noOp', version: 1, config: { name: '
 const speicherfehler = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Speicherfehler melden', parameters: { respondWith: 'json', responseBody: '={{ JSON.stringify({ ok: false, fehler: $json.fehler }) }}', options: { responseCode: '={{ $json.code || 500 }}' } }, position: [1960, 640] } });
 
 export default workflow('team-office-api', 'TEAM: Office-API')
-  .settings({ executionOrder: 'v1', saveDataErrorExecution: 'all', saveDataSuccessExecution: 'none', timezone: 'Europe/Berlin' })
+  .settings({ executionOrder: 'v1', saveDataErrorExecution: 'none', saveDataSuccessExecution: 'none', timezone: 'Europe/Berlin' })
   .add(eingang).to(laden)
   .add(zeitplan).to(wartungsauftrag).to(laden)
   .add(laden).to(pruefen).to(verzweigung)

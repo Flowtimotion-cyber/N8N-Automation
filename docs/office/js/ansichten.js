@@ -277,11 +277,11 @@ export function vFreigaben(ctx) {
 }
 
 // ---------- Dialoge ----------
-async function aktion(ctx, name, daten, ok) {
+export async function aktion(ctx, name, daten, ok) {
   try { await api(name, daten); toast(ok || 'Gespeichert'); await ctx.laden(true); }
   catch (e) { toast(e.message); throw e; }
 }
-function dialog(ctx, titel, html, onSubmit) {
+export function dialog(ctx, titel, html, onSubmit) {
   const box = $('#dlgInner'); box.innerHTML = '<h2 id="dlgTitel">' + esc(titel) + '</h2><form id="dlgForm">' + html + '<div class="dlgbtns"><button type="button" class="btn sec" id="dlgAbbr">Abbrechen</button><button class="btn" type="submit" id="dlgOk">Speichern</button></div></form>';
   const dlg = $('#dlg'); if (!dlg.open) dlg.showModal();
   $('#dlgAbbr').onclick = () => dlg.close();

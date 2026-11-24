@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const LIB = join(hier, '..', 'lib');
-export const MODULE = ['hash.js', 'zustand.js', 'kosten.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'kennzahlen.js', 'verarbeitung.js'];
+export const MODULE = ['hash.js', 'zustand.js', 'kosten.js', 'freigabe.js', 'rechte.js', 'signatur.js', 'idempotenz.js', 'postgrest.js', 'kennzahlen.js', 'guthaben.js', 'verarbeitung.js'];
 
 export function buendel() {
   const teile = [], namen = new Map();
@@ -76,7 +76,7 @@ export function workflowJson(code) {
   c('Externe Wirkung?', 'Antwort nötig?', 0); c('Externe Wirkung?', 'Ausführer anstoßen', 1); c('Externe Wirkung?', 'Externe Aktion ausführen (Platzhalter)', 2);
   c('Ausführer anstoßen', 'Antwort nötig?'); c('Externe Aktion ausführen (Platzhalter)', 'Antwort nötig?');
   c('Antwort nötig?', 'Gespeichert', 0); c('Antwort nötig?', 'Wartung fertig', 1);
-  return { name: 'TEAM: Office-API', nodes, connections, settings: { executionOrder: 'v1', saveDataErrorExecution: 'all', saveDataSuccessExecution: 'none', timezone: 'Europe/Berlin' }, meta: { generiert: 'office/n8n/bauen.mjs', hinweis: 'Importieren über n8n → Workflows → Import from File. Credentials setzt Timo selbst.' } };
+  return { name: 'TEAM: Office-API', nodes, connections, settings: { executionOrder: 'v1', saveDataErrorExecution: 'none', saveDataSuccessExecution: 'none', timezone: 'Europe/Berlin' }, meta: { generiert: 'office/n8n/bauen.mjs', hinweis: 'Importieren über n8n → Workflows → Import from File. Credentials setzt Timo selbst.' } };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

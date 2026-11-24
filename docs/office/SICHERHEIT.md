@@ -50,3 +50,21 @@ Nach allen Behebungen: `npm run test:office` → 55/55 bestanden (TESTBERICHT.md
 2. n8n-Executions-Aufbewahrung begrenzen, Fehlerausführungen minimieren (S7).
 3. Rate-Limit am Reverse-Proxy für `/webhook/*` (S8).
 4. Unabhängige Sicherheitsprüfung vor Kundenzugang.
+
+## 5. Nachtrag 24.11.2026: Sicherheitsbasis aus KI Office 2.0 (KI-erstellt: Claude Code)
+
+| Nr. | Befund | Stand | Beleg |
+|---|---|---|---|
+| S6 | SSRF über `ausfuehrer_url` | **im Code behoben**, wirkt nach dem Einspielen des Bündels: Allowlist `AUSFUEHRER_HOSTS` (`n8n.hm-storage.de`), nur `https`, kein Benutzerteil, kein fremder Port, Pfad `/webhook/…`. Geprüft beim Speichern und noch einmal unmittelbar vor jedem Anstoß | `office/lib/rechte.js`, `unit.guthaben.test.mjs` (Allowlist, fremde Adresse) |
+| S7 | Token im n8n-Fehlerprotokoll | **im Repo behoben** (`saveDataErrorExecution: none` in `office/n8n/office-api.workflow.js` und `.json`). **Live nicht geprüft:** Die n8n-Werkzeuge waren in dieser Sitzung nicht verbunden. Der Workflow „TEAM: Office-API“ steht live vermutlich noch auf „all“, bis er mit Timos Ja aktualisiert ist (SETUP.md Abschnitt 17). Dieselbe Einstellung sollte bei „TEAM: Portal-API“ und den Ausführer-Workflows geprüft werden | `unit.guthaben.test.mjs` (Workflow-Einstellung) |
+| S8 | Kein Rate-Limit am Webhook | **Vorschlag, nicht umgesetzt** (Einstellung am Server, nicht im Repo) | siehe unten |
+| neu | Agent ändert sein Guthaben, kopiert oder reaktiviert sich | ausgeschlossen: `guthaben_setzen`, `vorschlag_entscheiden`, `agent_aktiv` sind `NUR_ADMIN`; Agenten bekommen 403 | `unit.guthaben.test.mjs` |
+| neu | Guthaben umgehen (Start ohne Deckung) | ausgeschlossen an drei Stellen: beim Anlegen, bei der Startfreigabe, beim Übernehmen durch den Ausführer. Rest-Risiko: Ein laufender Auftrag kann mehr kosten als sein Kostenlimit; das Guthaben kann dadurch einmal überzogen werden (danach startet nichts mehr) | `unit.guthaben.test.mjs` |
+
+**Vorschlag Rate-Limit (S8).** Ziel: Token-Raten und Überlast am Webhook bremsen, ohne den normalen Betrieb zu stören. Das Office fragt je offenem Tab höchstens alle 30 Sekunden ab, Ausführer melden sich alle paar Sekunden.
+
+- Wo: am Reverse-Proxy vor n8n auf dem Hetzner-Server, für die Pfade `/webhook/office-api` und `/webhook/team-api`.
+- Grenze (Vorschlag): 120 Anfragen je Minute und IP-Adresse, darüber Antwort 429. Für die Ausführer, die vom Server selbst kommen (lokale Adresse), keine Grenze.
+- Umsetzung hängt vom Proxy ab: Bei nginx `limit_req_zone` mit `rate=2r/s` und `burst=60`; bei Caddy das Modul `rate_limit` (muss mitgebaut werden) oder ein vorgeschaltetes Cloudflare-Regelwerk; bei Traefik die Middleware `rateLimit`.
+- Wer: Kurt (Betrieb). Vorher prüfen, ob Portal und Office hinter einer gemeinsamen Büro-IP sitzen; dann die Grenze höher ansetzen.
+- Ergänzend, ohne Proxy: In der Office-API fehlgeschlagene Token-Prüfungen je Minute zählen und ab einer Schwelle für fünf Minuten nur noch 429 antworten. Das braucht einen Zähler in Supabase und ist darum nicht Teil dieses Pakets.

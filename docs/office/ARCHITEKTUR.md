@@ -380,3 +380,45 @@ Das Urteil ist ein Hinweis aus Zahlen und löst nichts aus. Dieselbe Rechnung gi
 **Oberfläche.** Neues Register `Auswertung` (`#/tab/auswertung`, `js/auswertung.js`): Kopfzahlen, Rangliste in vier Spalten, Tabelle je Agent mit Trend und Wirkung, Erklärung der Rechnung. Run-Seite: Kennzahlenzeile mit Kosten samt Basis der Schätzung, Ergebnis-Typ und Wirkung; Knopf „Wirkung eintragen“. Abnahme-Dialog: Wirkungsfelder des Raums zum Ausfüllen. Kontrollraum-Karten nutzen dieselben Kennzahlen. Solange der Server keine Kennzahlen liefert, rechnet die Seite mit der Kopie der Bibliothek aus den Runs und zeigt den Hinweis „Vorläufige Zahlen“.
 
 **Musterdaten.** Der Testserver füllt `office_kennzahlen` im Szenario „standard“ mit 93 synthetischen Zeilen über vier Wochen (`musterKennzahlen` in `office/dev/testdaten.mjs`), damit Rangliste, Trend und Wirkung lokal sichtbar sind. In Produktion beginnt die Tabelle leer und füllt sich mit jedem beendeten Lauf.
+
+## 16. KI Office 2.0: Guthaben, Vorschläge und Sicherheitsbasis (ergänzt 24.11.2026, KI-erstellt: Claude Code)
+
+**Grundsatz.** Jeder Agent hat ein Euro-Guthaben je Kalendermonat (Zeitzone Berlin). Ist es leer, startet er nichts. Skalieren, Pausieren und Auffüllen erscheinen nur als Vorschlagskarte; jede Änderung ist eine Entscheidung des Admins und steht im Protokoll. Kein Agent kann sein Guthaben ändern, sich kopieren oder sich wieder einschalten. Keine Krypto, kein eigenes Geld der Agenten: Das Guthaben ist eine Rechengrenze, kein Konto.
+
+**Wo es liegt.**
+
+| Teil | Datei | Aufgabe |
+|---|---|---|
+| Regeln und Rechnung | `office/lib/guthaben.js` | `guthabenStand` (verfügbar, verbraucht, reserviert, Rest, leer, knapp), `vorschlaege` (vier Arten), Stellschrauben `GUTHABEN_REGELN`, `VORSCHLAG_REGELN`, `GUTHABEN_START_EUR` |
+| Durchsetzen | `office/lib/verarbeitung.js` | Start-Sperre, Nachprüfung beim Übernehmen, Aktionen `guthaben_setzen`, `vorschlag_entscheiden`, `agent_aktiv` |
+| Datenbank | `supabase/team_office_guthaben.sql` | Spalten an `office_agenten`, Tabelle `office_vorschlaege` (Protokoll), `team_laden_office()` erweitert, `office_guthaben()` zum Nachsehen |
+| Oberfläche | `docs/office/js/guthaben.js` | Register „Guthaben“: Karten, Tabelle je Agent, Protokoll; zeigt nur an |
+
+**Rechnung.** verfügbar = `budget_eur_monat` + Auffüllung des laufenden Monats (`budget_zusatz_eur`, nur wenn `budget_zusatz_monat` der laufende Monat ist). verbraucht = gemessene und geschätzte Kosten aller Kennzahlzeilen des Agenten, deren Lauf in diesem Monat endete (Läufe ohne Kostenwert zählen nicht und werden als `ohne_angabe` ausgewiesen; beendete Runs ohne Kennzahlzeile zählen über den Run). reserviert = Kostenlimit (`budget_eur`) jedes Auftrags in Warteschlange, Arbeit oder Rückfrage, mindestens 0,05 €. leer = verfügbar minus verbraucht minus reserviert ist höchstens 0. Leeres Feld `budget_eur_monat` = nicht eingerichtet = nicht begrenzt; 0 = kein Start.
+
+**Durchsetzen an drei Stellen** (alle auf dem Server, die Seite zeigt nur an):
+
+1. `auftrag_starten`: Ist das Guthaben leer, wird der Auftrag angelegt, aber nicht gestartet. Er bekommt den Status „wartet auf Freigabe“ mit einer Startfreigabe für Timo und dem Grund `guthaben`. Das gilt für jeden Auftraggeber, auch für den Admin und für delegierende Agenten. Der Ausführer wird nicht angestoßen.
+2. `freigabe_entscheiden` (Startfreigabe erteilen): bei leerem Guthaben 409 mit `guthaben_leer`. Erst auffüllen, dann freigeben.
+3. `lebenszeichen` des Ausführers auf einen Auftrag in der Warteschlange (das ist die Übernahme): Ist das Guthaben inzwischen leer, antwortet die API mit 409 `guthaben_leer`, der Auftrag geht zurück auf „wartet auf Freigabe“ (neuer Übergang in `zustand.js`), `gestartet` wird geleert, die Startfreigabe wird neu geöffnet (je Auftrag und Inhalt gibt es nur eine). Der Ausführer arbeitet nicht.
+
+Ein laufender Auftrag wird nie wegen des Guthabens abgebrochen. Überschreitet ein Lauf sein eigenes Kostenlimit, steht das als Hinweis in der Zeitleiste.
+
+**Vorschläge** (`vorschlaege()`, nur für den Admin in `laden`, Zeitraum 14 Tage):
+
+| Art | Wann | Möglichkeiten |
+|---|---|---|
+| `auffuellen` | Guthaben leer (immer gemeldet) oder ab 90 % belegt | Betrag für den laufenden Monat |
+| `pausieren` | mindestens 3 bewertete Ergebnisse und über 20 % zurückgewiesen oder nichts abgenommen | `aktiv = false` mit Grund |
+| `skalieren` | mindestens 3 bewertete Ergebnisse, höchstens 0,50 € je abgenommenem Ergebnis, höchstens 20 % zurückgewiesen | Monatsguthaben erhöhen (Vorschlag: mal 1,5) oder zweite Instanz für ein Segment |
+| `einrichten` | aktive Agenten ohne Monatsguthaben | Startwerte nach Modell (Haiku 2 €, Sonnet 3 €, Opus 4 €) |
+
+`vorschlag_entscheiden { art, agent_id, entscheidung: angenommen|abgelehnt, option, wert, segment, begruendung }` rechnet die Vorschläge neu und nimmt nur an, was die Zahlen gerade hergeben. Nach einer Entscheidung ruht derselbe Vorschlag 14 Tage. Eine **zweite Instanz** ist ein neuer Registry-Eintrag (`agent_id` = Vorbild plus Segment, `instanz_von`, eigenes Guthaben, eigene Kennzahlen) mit denselben Einstellungen und demselben Ausführer; sie entsteht nur durch diese Admin-Aktion.
+
+**Antwort von `laden`:** je Agent `guthaben` (oder `null`), für den Admin `vorschlaege` und `entscheidungen` (letzte 30), für alle `guthaben_regeln { tabelle, regeln, vorschlag, arten }`. `tabelle = false` heißt: Die SQL-Datei ist noch nicht eingespielt; dann wird nichts begrenzt und nichts geschrieben (Schalter ist der Schlüssel `office_vorschlaege` in `team_laden_office()`).
+
+**Sicherheitsbasis.**
+
+- **Allowlist für Ausführer-Adressen** (`AUSFUEHRER_HOSTS` in `office/lib/rechte.js`, derzeit `n8n.hm-storage.de`): `agent_speichern` lehnt andere Adressen ab (nur `https`, nur der Host aus der Liste, kein Benutzerteil, kein fremder Port, Pfad beginnt mit `/webhook/`). Zusätzlich prüft die API jede Adresse unmittelbar vor dem Anstoß; steht in der Datenbank trotzdem eine fremde Adresse, wird sie nicht aufgerufen und der Run bekommt einen Hinweis.
+- **Keine Token im n8n-Fehlerprotokoll:** Der Workflow speichert weder erfolgreiche noch fehlgeschlagene Ausführungen (`saveDataErrorExecution: none`). Fehler stehen weiter in der Antwort an die Seite und in der Zeitleiste des Runs.
+- **Rate-Limit am Webhook:** Vorschlag in SICHERHEIT.md (Nachtrag), nicht umgesetzt, weil es eine Einstellung am Server ist.

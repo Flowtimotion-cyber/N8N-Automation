@@ -34,6 +34,7 @@ export const UEBERGAENGE = [
   { von: 'warteschlange', nach: 'fehlgeschlagen', wer: ['agent', 'system'], anlass: 'Start nicht möglich (Dispatch-Fehler)' },
   { von: 'warteschlange', nach: 'abgebrochen', wer: ['mensch'], anlass: 'Auftrag zurückgezogen' },
   { von: 'warteschlange', nach: 'unbekannt', wer: ['system'], anlass: 'Wartezeit überschritten, kein Executor hat übernommen' },
+  { von: 'warteschlange', nach: 'wartet_freigabe', wer: ['system'], anlass: 'Guthaben des Agenten ist leer: der Start wird angehalten, bis Timo auffüllt und neu freigibt' },
   { von: 'in_arbeit', nach: 'wartet_rueckmeldung', wer: ['agent'], anlass: 'Agent stellt eine Rückfrage' },
   { von: 'in_arbeit', nach: 'wartet_freigabe', wer: ['agent'], anlass: 'Agent fordert Freigabe für eine externe Aktion an' },
   { von: 'in_arbeit', nach: 'abgeschlossen', wer: ['agent'], anlass: 'Ergebnis gemeldet (technisch erfolgreich, noch nicht abgenommen)' },

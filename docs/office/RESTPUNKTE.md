@@ -139,3 +139,26 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | Sammellöschung greift ins Leere (Befund aus dem Code-Review, bestand schon vorher): `loeschen { aelter_als_tage: 180 }` findet nichts, weil `team_laden()` beendete Runs nur 90 Tage lang liefert und die API nur diese kennt. Der regelmäßige Löschlauf braucht einen eigenen Weg (SQL im Editor oder eigene Abfrage für alte Runs) | `loeschen` in `office/lib/verarbeitung.js`, LOESCHKONZEPT.md |
 | C | Wird ein fehlgeschlagener Run wiederholt, zählt seine Kennzahlzeile bis zum neuen Ende weiter als Fehlschlag (danach wird sie fortgeschrieben) | `run_wiederholen` |
 | C | Automatische Wiederholung: Kosten eines gescheiterten Versuchs gehen verloren, weil der Run nur den Verbrauch des letzten Versuchs trägt | `beenden` in `office/lib/verarbeitung.js` |
+
+## Ergänzung 24.11.2026: KI Office 2.0, Paket 3 Guthaben und Skalierung (KI-erstellt: Claude Code)
+
+**Fragen an Timo:**
+
+| Frage | Vorschlag |
+|---|---|
+| Startwerte für das Monatsguthaben | Haiku 2 €, Sonnet 3 €, Opus 4 € je Agent (zusammen rund 40 €), über die Karte „Guthaben einrichten“ |
+| Schwellen der Skalierungsregel | 14 Tage, mindestens 3 bewertete Ergebnisse, höchstens 0,50 € je abgenommenem Ergebnis, höchstens 20 % zurückgewiesen |
+| Rate-Limit am Webhook | Kurt richtet es am Reverse-Proxy ein (SICHERHEIT.md Abschnitt 5) |
+
+**Offene Punkte:**
+
+| Prio | Punkt | Wo |
+|---|---|---|
+| A | SQL `team_office_guthaben.sql` ausführen, Workflow „TEAM: Office-API“ mit Timos Ja aktualisieren (dabei Fehlerläufe nicht mehr speichern), mergen | SETUP.md Abschnitt 17 |
+| A | Live prüfen, ob „TEAM: Office-API“, „TEAM: Portal-API“ und die Ausführer-Workflows Fehlerläufe speichern (n8n-Werkzeuge waren nicht verbunden) | SICHERHEIT.md S7 |
+| B | Agenten ohne Kostenangabe (Hermes-Agenten wie Kurs-Wächter) verbrauchen rechnerisch nichts: Ihr Guthaben wird nie leer. Abhilfe: Ausführer melden Verbrauch, oder eine Schätzung je Lauf für diese Agenten | `office/lib/kennzahlen.js` (Schätzung), `guthabenStand` |
+| B | Zweite Instanz teilt sich Ausführer und Zugang (`mitglied_id`) mit dem Vorbild. Sie ist eine eigene Kostenstelle mit eigenen Kennzahlen, kein eigener Prozess. Für Agenten mit Claude-Code-Abarbeiter muss die Instanz in die Liste des Abarbeiters aufgenommen werden | `agenten/OFFICE_ABARBEITER.md` |
+| B | Ein laufender Auftrag kann sein Kostenlimit überschreiten (Hinweis in der Zeitleiste, kein Abbruch). Harte Grenze nur im Ausführer möglich | Ausführer-Workflows |
+| C | Pausierte Agenten erscheinen nicht im Kontrollraum, nur im Register „Guthaben“ | `docs/office/js/kontrollraum.js` |
+| C | „Für dich“ im Kontrollraum zeigt Vorschläge nicht; sie stehen als Zahl am Register „Guthaben“ | `docs/office/js/kontrollraum.daten.js` |
+| C | `office_guthaben()` im SQL Editor rechnet ohne Reservierung laufender Aufträge | `supabase/team_office_guthaben.sql` |

@@ -15,16 +15,19 @@ export const euro = x => { if (x == null || !Number.isFinite(Number(x))) return 
 export const standMs = D => zeit(D && D.stand) || Date.now();
 
 /**
- * Guthaben eines Agenten. Bis Paket 3 (Guthaben je Agent) liefert die Office-API kein Monatsguthaben; dann null → die Karte zeigt nur die Kosten.
- * Mit Paket 3: agent.guthaben = { monat_eur, verbraucht_eur } vom Server (durchgesetzt wird dort, nie im Browser).
+ * Guthaben eines Agenten im laufenden Monat, aus agent.guthaben vom Server (office/lib/guthaben.js). Durchgesetzt wird dort, nie im Browser.
+ * null = kein Monatsguthaben eingerichtet (nicht begrenzt) → die Karte zeigt nur die Kosten.
+ * monat = was diesen Monat zur Verfügung steht (Monatsguthaben plus Auffüllung); belegt = verbraucht plus reserviert (laufende Aufträge).
  */
 export function guthabenVon(agent) {
   const g = agent && agent.guthaben;
-  if (!g || !(Number(g.monat_eur) > 0)) return null;
-  const monat = Number(g.monat_eur), verbraucht = Math.max(0, Number(g.verbraucht_eur) || 0);
-  const rest = Math.max(0, Math.round((monat - verbraucht) * 10000) / 10000);
-  const anteil = Math.min(1, verbraucht / monat);
-  return { monat, verbraucht, rest, anteil, stufe: anteil >= 1 ? 'leer' : anteil >= 0.75 ? 'knapp' : 'ok', geschaetzt: g.geschaetzt === true };
+  if (!g || g.monat_eur == null || !Number.isFinite(Number(g.monat_eur))) return null;
+  const zusatz = Math.max(0, Number(g.zusatz_eur) || 0);
+  const monat = g.verfuegbar_eur != null ? Number(g.verfuegbar_eur) : Number(g.monat_eur) + zusatz;
+  const verbraucht = Math.max(0, Number(g.verbraucht_eur) || 0), reserviert = Math.max(0, Number(g.reserviert_eur) || 0);
+  const rest = Math.max(0, Math.round((monat - verbraucht - reserviert) * 10000) / 10000);
+  const anteil = monat > 0 ? Math.min(1, (verbraucht + reserviert) / monat) : 1;
+  return { monat, verbraucht, reserviert, zusatz, rest, anteil, stufe: rest <= 0 ? 'leer' : anteil >= 0.75 ? 'knapp' : 'ok', geschaetzt: g.geschaetzt === true, ohne: Number(g.ohne_angabe) || 0 };
 }
 
 /**

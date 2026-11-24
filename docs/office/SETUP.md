@@ -228,3 +228,26 @@ Rechtlicher Hinweis, den das Portal auch anzeigt: Das Diktat ist für die **eige
 **Werte ändern:** Schwellen der Rangliste (`AUSWERTUNG_SCHWELLEN`), Preistabelle der Schätzung (`KZ_PREISE_USD_MIO`, `KZ_USD_IN_EUR`), Schätzfaktoren und Wirkungsfelder stehen oben in `office/lib/kennzahlen.js`. Danach `node office/n8n/bauen.mjs` (schreibt das Bündel und die Kopie für die Seite), `npm run test:office:unit`, Bündel wie in Schritt 2 einspielen, Branch mergen. Ändern sich die Schwellen, auch die drei Zahlen in `office_auswertung` der SQL-Datei anpassen (0,2 / 0,5 / 3).
 
 **SQL-Datei testen (ohne Supabase):** `npm install @electric-sql/pglite` in einem Ordner außerhalb des Repos, dann `PGLITE_PFAD=<ordner>/node_modules/@electric-sql/pglite/dist/index.js node --test office/test/sql.kennzahlen.test.mjs`.
+
+## 17. KI Office 2.0, Paket 3: Guthaben und Vorschläge einspielen (Branch `feature/ki-office-2-guthaben`, 24.11.2026, KI-erstellt: Claude Code)
+
+**Noch nicht eingespielt.** Voraussetzung: Abschnitt 16 (Paket 2) ist erledigt. Bis dahin zeigt das Register „Guthaben“ den Hinweis „Noch nicht eingerichtet“, und kein Agent ist begrenzt.
+
+**Was wer tut, in dieser Reihenfolge:**
+
+1. **Timo: SQL ausführen.** Supabase → SQL Editor → Inhalt von `supabase/team_office_guthaben.sql` einfügen → Run. Die Datei ergänzt fünf leere Spalten an `office_agenten`, legt die Tabelle `office_vorschlaege` und die Funktion `office_guthaben()` an und erweitert `team_laden_office()`. Wiederholbar. Am Ende: `vorschlaege_im_laden = true` und je Agent eine Zeile mit leerem `monat_eur`.
+2. **Claude Code mit Timos Ja: Workflow „TEAM: Office-API“ (`NuK6m10yIGKMRWxC`) aktualisieren.** Vorher die aktive Version exportieren und in `Projekt-Manager/22_Momentum/_sicherung/` ablegen. Zwei Änderungen:
+   - Knoten **„Anfrage prüfen“**: Code durch den Inhalt von `office/n8n/code/anfrage-pruefen.js` ersetzen.
+   - Workflow-Einstellungen: **„Save failed production executions“ auf „Do not save“** (im Export `saveDataErrorExecution: none`), damit kein Token aus einer Anfrage im Fehlerprotokoll landet.
+   Speichern, Version benennen („Claude Code: KI Office 2.0 Guthaben“), veröffentlichen. Wer Paket 2 und 3 zusammen einspielt, macht Schritt 2 aus Abschnitt 16 und diesen in einem Zug.
+3. **Timo: PR mergen.**
+4. **Timo im Office:** Register „Guthaben“ → Karte „Guthaben einrichten“ → „Vorschlag ansehen“ → übernehmen. Einzelne Werte danach in der Tabelle über „Guthaben …“ ändern. Solange ein Agent kein Monatsguthaben hat, ist er nicht begrenzt.
+5. **Prüfen:** Einem Agenten 0 € geben, einen kleinen Auftrag anlegen → er erscheint unter „Freigaben“ mit dem Grund „Guthaben aufgebraucht“ und startet nicht. Auffüllen, freigeben → er läuft. Kontrolle im SQL Editor: `select * from office_guthaben();` und `select * from office_vorschlaege order by entschieden_am desc limit 10;`.
+
+**Vorsicht bei der Reihenfolge:** unkritisch in beide Richtungen. Das neue Bündel ohne das SQL begrenzt nichts (`guthaben_regeln.tabelle = false`); das SQL ohne das neue Bündel ändert nichts am Verhalten.
+
+**Allowlist prüfen, bevor das Bündel eingespielt wird:** Erlaubt sind nur Ausführer-Adressen auf `n8n.hm-storage.de` mit Pfad `/webhook/…`. Kontrolle: `select agent_id, ausfuehrer_url from office_agenten where ausfuehrer_url is not null;` Jede Adresse muss so aussehen, sonst wird dieser Agent nach dem Einspielen nicht mehr angestoßen (der Run bekommt den Hinweis „Ausführer nicht angestoßen“). Weitere eigene Hosts: `AUSFUEHRER_HOSTS` in `office/lib/rechte.js`.
+
+**Werte ändern:** `GUTHABEN_REGELN` (knapp ab 75 %, Karte „auffüllen“ ab 90 %, Reserve je Lauf, Obergrenze 500 €), `VORSCHLAG_REGELN` (14 Tage, 3 bewertete Ergebnisse, 0,50 €, 20 %, Ruhezeit 14 Tage, Faktor 1,5) und `GUTHABEN_START_EUR` stehen oben in `office/lib/guthaben.js`. Danach `node office/n8n/bauen.mjs`, `npm run test:office:unit`, Bündel einspielen. Die Obergrenze 500 € steht zusätzlich als Check in der SQL-Datei.
+
+**SQL-Datei testen (ohne Supabase):** wie in Abschnitt 16, mit `office/test/sql.guthaben.test.mjs`.

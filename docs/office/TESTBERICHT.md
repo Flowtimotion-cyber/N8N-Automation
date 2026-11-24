@@ -596,3 +596,21 @@ Screenshots: `desktop-`/`mobil-kontrollraum.png`, `-kontrollraum-hell.png`, `-ko
 **Prüfungen außerhalb der Tests:** Datenschutzprüfung durch den Subagenten `datenschutz-waechter` (Urteil GELB; technische Befunde behoben: Modell als Freitext, Kennung nach Löschung, Zeitpunkt der Abnahme, Härtung der SQL-Datei; offen bleiben Entscheidungen von Timo und Fragen an den Anwalt, RESTPUNKTE.md). Code-Review über den Diff: 5 Befunde, 3 behoben, 2 als Restpunkte dokumentiert.
 
 **Nicht getestet:** die SQL-Datei im echten Supabase-Projekt, der aktualisierte Workflow in n8n (beides noch nicht eingespielt), echte Läufe mit gemeldeter Wirkung.
+
+## 34. Nachtrag 24.11.2026: KI Office 2.0, Paket 3 Guthaben und Skalierung (Branch `feature/ki-office-2-guthaben`, KI-erstellt: Claude Code)
+
+`npm run test:office` mit Playwright (`NODE_PATH`) und PGlite (`PGLITE_PFAD`): **145 von 145 bestanden**, nichts übersprungen.
+
+| Test | Was geprüft wird | Ergebnis |
+|---|---|---|
+| `unit.guthaben.test.mjs` (9 Tests, neu) | Stand des Guthabens (nicht eingerichtet, Verbrauch nur im laufenden Monat Berlin, unbekannte Kosten nicht als 0, Auffüllung nur im selben Monat, Reservierung laufender Aufträge, 0 € = kein Start); Allowlist der Ausführer-Adressen (fremder Host, http, Benutzerteil, fremder Port, falscher Pfad, Metadaten-Adresse); fremde Adresse wird weder gespeichert noch angestoßen; Guthaben setzen nur Admin (Team 403, Agent 403); leer → Auftrag wartet, kein Anstoß, Freigabe ohne Auffüllen 409, nach Auffüllen startet er; Monatswechsel; Nachprüfung beim Übernehmen durch den Ausführer mit neu geöffneter Startfreigabe; Vorschläge aus den Musterdaten in fester Reihenfolge, Laden ändert nichts an der Registry, entscheiden nur Admin, Agent kann sich nicht kopieren oder einschalten, auffüllen, pausieren, Guthaben erhöhen, zweite Instanz, ablehnen, einrichten, Protokoll; Schwellen der Regel; ohne Tabelle wird nichts begrenzt und nichts geschrieben; Workflow speichert keine Fehlerläufe | bestanden |
+| `sql.guthaben.test.mjs` (neu, braucht PGlite) | SQL-Datei nach der aus Paket 2 zweimal ausführbar; vor der Migration fehlt der Schalter; neue Spalten kommen über `team_laden()` mit; `office_guthaben()` liefert denselben Stand wie die Bibliothek; Checks (negativ, über 500 €, Monatsformat, unbekannte Art, keine automatische Entscheidung, keine Entscheidung ohne Person); keine Rechte für `anon` und `authenticated`, RLS an | bestanden |
+| `browser.test.mjs` „Guthaben“ (Desktop und Mobil, neu) | Register mit Tabelle je Agent, vier Arten von Karten aus den Musterdaten, Zahl am Register, kein seitliches Scrollen; Karte im Kontrollraum mit „Guthaben leer“; Teammitglied sieht Stand, aber keine Karten und Knöpfe; Timo füllt über die Karte auf (wartender Auftrag lässt sich erst danach freigeben), pausiert und schaltet wieder ein, legt eine zweite Instanz an, setzt ein Monatsguthaben, lehnt einen Vorschlag ab; Protokoll zeigt alle Entscheidungen; Rückfall ohne Guthaben vom Server | bestanden |
+| angepasst | `unit.kennzahlen.test.mjs` (Form von `guthabenVon`, Karten mit Guthaben), Browsertest „Kontrollraum“ (Karte zeigt Guthaben statt Kosten, wenn eingerichtet) | bestanden |
+| übrige Tests | unverändert grün, darunter Orchestrierung mit Teilaufträgen, Startfreigabe, Sandbox der HTML-Ergebnisse, Bündel gleich eingecheckter Datei, „keine JavaScript-Fehler in allen Ansichten“ | bestanden |
+
+**Unterwegs gefunden:** Die erste Fassung der Musterdaten ließ das Guthaben eines Agenten leer, an den der Orchestrierungs-Test einen Teilauftrag delegiert. Der Teilauftrag blieb richtigerweise stehen (die Sperre gilt auch für delegierte Aufträge). Die Musterdaten nutzen jetzt einen anderen Agenten.
+
+**Prüfungen außerhalb der Tests:** Code-Review über den Diff (Befunde und Umgang damit im PR-Text).
+
+**Nicht getestet:** die SQL-Datei im echten Supabase-Projekt, der aktualisierte Workflow in n8n (beides nicht eingespielt), die Live-Einstellung „Fehlerläufe speichern“ in n8n (Werkzeuge nicht verbunden), ein echter Lauf mit leerem Guthaben, das Zusammenspiel der Sperre mit dem stündlichen Claude-Code-Abarbeiter.
