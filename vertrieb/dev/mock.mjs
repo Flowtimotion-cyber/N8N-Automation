@@ -76,6 +76,10 @@ let dkNr = 0;
 /** Führt einen Supabase-Auftrag ({ methode, pfad, body }) auf DIKTATE aus, wie PostgREST es täte (nur die Filter, die das Portal nutzt). */
 function supaMock(db, jetztMs) {
   const [tab, qs] = db.pfad.split('?');
+  if (tab === 'team_diktate_ki') {
+    const q0 = new URLSearchParams(qs || ''), id = (q0.get('diktat_id') || '').replace(/^eq\./, '');
+    return { statusCode: 200, body: DIKTATE.filter(z => z.ki_lesen && !z.geloescht_am && (!id || z.diktat_id === id)).map(z => Object.assign({ von: 'Testperson' }, z)) };
+  }
   if (tab !== 'team_diktate') return { statusCode: 404, body: { message: 'relation team_diktate does not exist' } };
   const q = new URLSearchParams(qs || '');
   const passt = z => (!q.get('mitglied_id') || z.mitglied_id === decodeURIComponent(q.get('mitglied_id').replace(/^eq\./, ''))) && (!q.get('diktat_id') || z.diktat_id === q.get('diktat_id').replace(/^eq\./, '')) && (q.get('geloescht_am') !== 'is.null' || !z.geloescht_am);

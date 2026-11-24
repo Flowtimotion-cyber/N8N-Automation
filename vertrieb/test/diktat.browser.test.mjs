@@ -171,6 +171,47 @@ for (const vp of [DESKTOP, MOBIL]) {
   });
 }
 
+test('PC-Ton mit „Mikro aus“: nur Ton vom Computer, kein Mikrofonzugriff', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Mikro aus'); await p.addInitScript(PC_STUB);
+  await p.addInitScript(() => { window.__gum = 0; const o = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getUserMedia = c => { window.__gum++; return o(c); }; window.__vdStueckSek = 60; });
+  await dialogOeffnen(p, TOKENS.m_murat);
+  assert.equal(await p.locator('#vd_ohnemikro_l').isVisible(), true, 'Haken „Mikro aus“ bei PC-Ton sichtbar');
+  await p.locator('#vd_pc').uncheck(); assert.equal(await p.locator('#vd_ohnemikro_l').isHidden(), true); await p.locator('#vd_pc').check();
+  await p.locator('#vd_ohnemikro').check();
+  await p.locator('#vd_rec').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_pegel_pc').hidden, null, { timeout: 5000 });
+  assert.equal(await p.locator('#vd_pegel').isHidden(), true, 'kein Mikrofon-Balken'); assert.match(await text(p, '#vd_status'), /Mikro aus/);
+  assert.ok(await p.locator('#vd_ohnemikro').isDisabled());
+  await p.waitForTimeout(2500); await shot(p, 'vertrieb-diktat-mikro-aus', DESKTOP);
+  await p.locator('#vd_stop').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
+  assert.equal(await p.evaluate(() => window.__gum), 0, 'getUserMedia nicht aufgerufen');
+  assert.match(await p.locator('#vd_text').inputValue(), /Mitschnitt mit Computerton/);
+  await p.close();
+});
+
+test('Auffrischen alle 2 Minuten pausiert während der Aufnahme (Aufnahme läuft weiter)', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Auffrischen'); await p.clock.install(); await p.addInitScript(PC_STUB);
+  await p.addInitScript(() => { window.__vdStueckSek = 3600; });
+  let laden = 0; p.on('request', r => { if (/team-api-v2/.test(r.url()) && /"aktion":"laden"/.test(String(r.postData() || ''))) laden++; });
+  await p.goto(S.base + '/team/?z=' + TOKENS.m_murat + '#/tab/diktat', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+  await p.evaluate(() => { document.querySelector('#v_diktat').dataset.marke = 'vorher'; });
+  await p.locator('#vd_rec').click(); await p.waitForFunction(() => !document.querySelector('#vd_stop').hidden, null, { timeout: 5000 });
+  const vorher = laden;
+  await p.clock.fastForward(130000); await p.waitForTimeout(800);
+  assert.equal(laden, vorher, 'kein Auffrischen während der Aufnahme');
+  assert.equal(await p.evaluate(() => document.querySelector('#v_diktat').dataset.marke), 'vorher', 'Ansicht nicht neu aufgebaut');
+  assert.equal(await p.locator('#vd_stop').isVisible(), true, 'Aufnahme läuft weiter');
+  await p.locator('#vd_stop').click();
+  await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
+  await p.locator('#vd_weg').click(); await p.locator('body').click({ position: { x: 5, y: 5 } });
+  await p.clock.fastForward(130000); await p.waitForTimeout(800);
+  assert.ok(laden > vorher, 'nach der Aufnahme frischt das Portal wieder auf');
+  await p.close();
+});
+
 test('PC-Ton: kein Ton geteilt, Teilen abgebrochen, Freigabe beendet, Workflow ohne Zusammenfassen', async t => {
   if (!B) return t.skip();
   const p = await seite(DESKTOP, 'PC-Ton Fehler'); await p.addInitScript(PC_STUB);
