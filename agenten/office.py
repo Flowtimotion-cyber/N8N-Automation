@@ -328,7 +328,9 @@ def main():
         d = {'run_id': A[0], 'status': 'abgeschlossen' if b == 'fertig' else 'fehlgeschlagen'}
         d['zusammenfassung' if b == 'fertig' else 'fehler'] = A[1] if len(A) > 1 else sys.stdin.read()
         if b == 'fertig' and o.typ: d['ergebnis_typ'] = o.typ
-        if b == 'fertig' and o.wirkung: d['wirkung'] = json.loads(o.wirkung)
+        if b == 'fertig' and o.wirkung:
+            try: d['wirkung'] = json.loads(o.wirkung)
+            except ValueError: sys.exit('--wirkung ist kein gültiges JSON. Beispiel: --wirkung \'{"dossiers": 1, "firmen": 12}\'. Der Run wurde nicht beendet.')
         if o.tokens_ein is not None or o.tokens_aus is not None or o.kosten is not None:
             v = {'tokens_ein': o.tokens_ein or 0, 'tokens_aus': o.tokens_aus or 0}
             if o.kosten is not None: v['kosten_eur'] = o.kosten

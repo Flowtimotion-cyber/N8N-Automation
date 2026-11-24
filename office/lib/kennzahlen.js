@@ -57,7 +57,7 @@ export function wirkungPruefen(raum, eingabe) {
   for (const [k, v] of Object.entries(eingabe)) {
     if (!felder.some(f => f.feld === k)) return { fehler: 'Unbekanntes Wirkungsfeld „' + String(k).slice(0, 40) + '“ für den Raum ' + (raum || '?') + '. Erlaubt: ' + (felder.map(f => f.feld).join(', ') || 'keins') + '.' };
     if (v === null || v === '' || v === undefined) continue;
-    const n = Number(v);
+    const n = typeof v === 'number' ? v : (typeof v === 'string' && /^[0-9]{1,6}$/.test(v.trim()) ? Number(v.trim()) : NaN);   // keine Wahrheitswerte, keine Listen
     if (!Number.isInteger(n) || n < 0 || n > WIRKUNG_MAX) return { fehler: 'Wirkung „' + k + '“ muss eine ganze Zahl zwischen 0 und ' + WIRKUNG_MAX + ' sein.' };
     wirkung[k] = n;
   }

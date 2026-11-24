@@ -575,7 +575,7 @@ function wirkungPruefen(raum, eingabe) {
   for (const [k, v] of Object.entries(eingabe)) {
     if (!felder.some(f => f.feld === k)) return { fehler: 'Unbekanntes Wirkungsfeld „' + String(k).slice(0, 40) + '“ für den Raum ' + (raum || '?') + '. Erlaubt: ' + (felder.map(f => f.feld).join(', ') || 'keins') + '.' };
     if (v === null || v === '' || v === undefined) continue;
-    const n = Number(v);
+    const n = typeof v === 'number' ? v : (typeof v === 'string' && /^[0-9]{1,6}$/.test(v.trim()) ? Number(v.trim()) : NaN);   // keine Wahrheitswerte, keine Listen
     if (!Number.isInteger(n) || n < 0 || n > WIRKUNG_MAX) return { fehler: 'Wirkung „' + k + '“ muss eine ganze Zahl zwischen 0 und ' + WIRKUNG_MAX + ' sein.' };
     wirkung[k] = n;
   }
@@ -1235,7 +1235,8 @@ function verarbeiten(ctx) {
     const verbrauch = verbrauchAus(e.verbrauch);
     // Messbarkeit: Der Ausführer darf den Ergebnis-Typ und die Wirkung (Zahlen je Wirkungsfeld seines Raums) mitmelden.
     const ergebnis_typ = ERGEBNIS_TYPEN.includes(e.ergebnis_typ) ? e.ergebnis_typ : null;
-    const wi = wirkungPruefen((agentVon(run) || {}).raum, e.wirkung); if (wi.fehler) return raus(400, wi.fehler);
+    // Eine ungültige Wirkung darf den Abschluss nicht verhindern (der Run liefe sonst in den Timeout): Sie wird verworfen und als Hinweis festgehalten.
+    let wi = wirkungPruefen((agentVon(run) || {}).raum, e.wirkung); const wirkungFehler = wi.fehler || null; if (wi.fehler) wi = { wirkung: {} };
     const ops = [];
     // Verspätete Rückmeldung: Run ist schon beendet oder veraltet. Festhalten, aber nie nachträglich als Erfolg werten.
     if (istEndzustand(run.status)) {
@@ -1270,11 +1271,12 @@ function verarbeiten(ctx) {
       const a = run.aufgabe_id ? aufgaben.find(x => x.aufgabe_id === run.aufgabe_id) : null;
       if (a && a.status === 'In Arbeit') ops.push(aend('team_aufgaben', 'aufgabe_id', a.aufgabe_id, { status: 'Wird getestet', geaendert: jetzt }), neu('team_aufgaben_verlauf', { aufgabe_id: a.aufgabe_id, autor: ich ? ich.mitglied_id : run.agent_id, art: 'status', text: 'In Arbeit → Wird getestet (Run beendet) ' + RUN_MARKER(run.run_id), erstellt: jetzt }));
     } else ops.push(...verlaufEintrag(run, 'kommentar', 'Run fehlgeschlagen' + (fehler ? ': ' + fehler.slice(0, 300) : '') + (status === STATUS.WARTESCHLANGE ? ' – wird automatisch wiederholt.' : '')));
+    if (wirkungFehler) ops.push(ereignis(run.run_id, 'hinweis', 'Gemeldete Wirkung nicht übernommen: ' + wirkungFehler));
     // Kennzahlzeile für diesen Lauf (nicht bei automatischer Wiederholung: dann läuft er weiter und die Zeile entsteht am echten Ende).
     ops.push(...kennzahlOps(run, { status, beendet: jetzt, zusammenfassung, verbrauch, ergebnis_typ: ergebnis_typ || undefined, gestartet: run.gestartet || jetzt }, wi.wirkung, neueArtefakte));
     // Teilauftrag beendet: der Eltern-Run (Orchestrierer) bekommt einen Hinweis in seine Zeitleiste, solange er noch läuft.
     if (run.eltern_run_id) { const el = runVon(run.eltern_run_id); if (el && !istEndzustand(el.status)) ops.push(ereignis(el.run_id, 'hinweis', 'Teilauftrag ' + STATUS_TEXT[status] + ': ' + run.auftrag.slice(0, 100), { kind_run_id: run.run_id, agent_id: run.agent_id, status, fehler })); }
-    return schreiben(ops, { run_id: run.run_id, status, angenommen: true, artefakte: artefaktIds }, status === STATUS.WARTESCHLANGE ? { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: (schluesselListe.find(s => s.run_id === run.run_id) || {}).schluessel || null } : null);
+    return schreiben(ops, Object.assign({ run_id: run.run_id, status, angenommen: true, artefakte: artefaktIds }, wirkungFehler ? { wirkung_verworfen: wirkungFehler } : {}), status === STATUS.WARTESCHLANGE ? { art: 'start', run_id: run.run_id, agent_id: run.agent_id, ausfuehrer: run.ausfuehrer, ausfuehrer_url: (reg || {}).ausfuehrer_url || null, schluessel: (schluesselListe.find(s => s.run_id === run.run_id) || {}).schluessel || null } : null);
   }
 }
 

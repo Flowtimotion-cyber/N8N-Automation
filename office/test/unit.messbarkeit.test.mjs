@@ -32,7 +32,7 @@ test('wirkungPruefen: nur bekannte Felder des Raums, nur ganze Zahlen', () => {
   assert.deepEqual(wirkungPruefen('Vertrieb', { firmen: 12, termine: '4' }), { wirkung: { firmen: 12, termine: 4 } });
   assert.deepEqual(wirkungPruefen('Vertrieb', null), { wirkung: {} }); assert.deepEqual(wirkungPruefen('Vertrieb', { firmen: '' }), { wirkung: {} });
   assert.ok(wirkungPruefen('Vertrieb', { lektionen: 1 }).fehler, 'Feld eines anderen Raums'); assert.ok(wirkungPruefen('Vertrieb', { firmen: 'Müller GmbH' }).fehler, 'kein Text'); assert.ok(wirkungPruefen('Vertrieb', { firmen: -1 }).fehler); assert.ok(wirkungPruefen('Vertrieb', { firmen: 1.5 }).fehler);
-  assert.ok(wirkungPruefen('Vertrieb', ['firmen']).fehler); assert.ok(wirkungPruefen('Gibtsnicht', { firmen: 1 }).fehler);
+  assert.ok(wirkungPruefen('Vertrieb', ['firmen']).fehler); assert.ok(wirkungPruefen('Vertrieb', { firmen: true }).fehler, 'kein Wahrheitswert'); assert.ok(wirkungPruefen('Vertrieb', { firmen: [12] }).fehler, 'keine Liste'); assert.ok(wirkungPruefen('Gibtsnicht', { firmen: 1 }).fehler);
   for (const raum of ['Akademie', 'Marketing', 'Vertrieb', 'Kundenprojekte', 'Verwaltung']) assert.ok(WIRKUNG_FELDER[raum].length >= 1, raum);
 });
 
@@ -79,10 +79,6 @@ test('Office-API: run_beenden schreibt die Kennzahlzeile, Abnahme und Wirkung ak
   const id = w.lauf('vertrieb-recherche', 'Vertrieb Herbst', 'Dossier Metallbau Region Süd mit zwölf Betrieben');
   w.agent('vertrieb-recherche', 'artefakt', { run_id: id, art: 'notiz', titel: 'Dossier Metallbau', ablageort: 'notiz:Dossier', groesse: 7000 });
   w.uhr.vor(600);
-  // Ungültige Wirkung wird abgelehnt, bevor irgendetwas geschrieben wird
-  assert.equal(w.agent('vertrieb-recherche', 'run_beenden', { run_id: id, status: 'abgeschlossen', zusammenfassung: 'Fertig.', wirkung: { firmen: 'viele' } }).code, 400);
-  assert.equal(w.agent('vertrieb-recherche', 'run_beenden', { run_id: id, status: 'abgeschlossen', zusammenfassung: 'Fertig.', wirkung: { lektionen: 2 } }).code, 400, 'Feld eines anderen Raums');
-  assert.equal(w.zeile(id), undefined);
   const r = w.agent('vertrieb-recherche', 'run_beenden', { run_id: id, status: 'abgeschlossen', zusammenfassung: 'Zwölf Betriebe geprüft, Dossier liegt als Notiz vor.', ergebnis_typ: 'dossier', wirkung: { dossiers: 1, firmen: 12 } });
   assert.equal(r.code, 200, JSON.stringify(r.antwort));
   let z = w.zeile(id);
@@ -117,6 +113,11 @@ test('Office-API: run_beenden schreibt die Kennzahlzeile, Abnahme und Wirkung ak
 
 test('Office-API: Fehlschlag, automatische Wiederholung, Abbruch und veraltete Runs', () => {
   const w = welt();
+  // Ungültige Wirkung vom Ausführer: der Abschluss gilt trotzdem, die Wirkung wird verworfen und als Hinweis festgehalten
+  const u = w.lauf('vertrieb-recherche', 'Vertrieb Herbst', 'Dossier mit falsch gemeldeter Wirkung');
+  const ru = w.agent('vertrieb-recherche', 'run_beenden', { run_id: u, status: 'abgeschlossen', zusammenfassung: 'Fertig.', wirkung: { firmen_qualifiziert: 12 } });
+  assert.equal(ru.code, 200); assert.ok(ru.antwort.wirkung_verworfen.includes('Unbekanntes Wirkungsfeld')); assert.deepEqual(w.zeile(u).wirkung, {}); assert.equal(w.zeile(u).status, 'abgeschlossen');
+  assert.ok(w.sp.T.office_ereignisse.some(e => e.run_id === u && e.art === 'hinweis' && e.titel.startsWith('Gemeldete Wirkung nicht übernommen')));
   // Fehlschlag ohne Wiederholung (Redakteur: auto_wiederholen false): Zeile mit Status fehlgeschlagen, Kosten geschätzt
   const f = w.lauf('akademie-redakteur', 'Akademie-Kurs', 'Merkblatt schreiben, geht schief');
   assert.equal(w.agent('akademie-redakteur', 'run_beenden', { run_id: f, status: 'fehlgeschlagen', fehler: 'Quelle nicht erreichbar' }).code, 200);

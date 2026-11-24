@@ -356,7 +356,7 @@ Die Schätzung aus der Textlänge ist grob und so gekennzeichnet; ihre drei Stel
 
 | Aktion | Änderung |
 |---|---|
-| `run_beenden`, `rueckmeldung` | nehmen optional `ergebnis_typ` und `wirkung` an (ungültige Wirkung → 400, nichts wird geschrieben) und schreiben die Kennzahlzeile |
+| `run_beenden`, `rueckmeldung` | nehmen optional `ergebnis_typ` und `wirkung` an und schreiben die Kennzahlzeile. Eine ungültige Wirkung verhindert den Abschluss nicht: Sie wird verworfen, als Hinweis in die Zeitleiste geschrieben und in der Antwort als `wirkung_verworfen` gemeldet |
 | `run_abnehmen` | nimmt optional `wirkung` an und setzt `abnahme` in der Zeile |
 | `wirkung_setzen` (neu) | `{ run_id, wirkung }`: Wirkung nachtragen oder korrigieren; nur Menschen, die den Run steuern dürfen, nur technisch abgeschlossene Runs; Hinweis-Ereignis in der Zeitleiste |
 | `run_abbrechen`, `wartung` | schreiben die Zeile für abgebrochene bzw. veraltete Läufe, die schon gestartet waren |
