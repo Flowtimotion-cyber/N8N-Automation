@@ -18,9 +18,15 @@ if (!/^https:\/\//.test(n8n) || !/^https:\/\//.test(portal)) { console.error('n8
 const vorlage = JSON.parse(readFileSync(join(paket, 'config', 'mandant.example.json'), 'utf8'));
 const konfig = { ...vorlage, firma: arg('firma', vorlage.firma), kurzname: arg('kurzname', vorlage.kurzname), n8n_basis_url: n8n.replace(/\/$/, ''), portal_url: portal.endsWith('/') ? portal : portal + '/' };
 
+// --messenger setzt den Namen des Messengers für „Anstupsen“ (Konfig-Feld messenger), ohne Angabe steht neutral „Messenger“ da
+if (arg('messenger', '')) konfig.messenger = String(arg('messenger', '')).slice(0, 30);
+// --an schaltet zusätzliche Register ein (Komma-Liste, z. B. --an tresor,termine,dokumente,videos,wiki)
+for (const r of String(arg('an', '')).split(',').map(x => x.trim()).filter(Boolean)) { if (r in konfig.register) konfig.register[r] = true; else { console.error('Unbekanntes Register: ' + r); process.exit(1); } }
 if (existsSync(ziel)) rmSync(ziel, { recursive: true, force: true });
 mkdirSync(join(ziel, 'config'), { recursive: true });
 cpSync(join(paket, 'frontend'), join(ziel, 'frontend'), { recursive: true });
+// Zwischenspeicher: Die Kopie hängt eine Versionsnummer an die Konfigurationsdatei, damit der Browser nach einem Update nicht die alte Fassung nimmt.
+{ const ip = join(ziel, 'frontend', 'index.html'); const marke = '<script src="../config/mandant.js"></script>'; const h = readFileSync(ip, 'utf8'); if (!h.includes(marke)) { console.error('Einbindung der Konfiguration in index.html nicht gefunden.'); process.exit(1); } writeFileSync(ip, h.replace(marke, '<script src="../config/mandant.js?v=' + Date.now().toString(36) + '"></script>')); }
 writeFileSync(join(ziel, 'config', 'mandant.js'), '// Erzeugt von portal-pilot/dev/pages-kopie.mjs. Nicht von Hand ändern, sondern das Skript erneut ausführen.\nwindow.MANDANT = ' + JSON.stringify(konfig, null, 2) + ';\n');
 writeFileSync(join(ziel, 'README.md'), '# Pilot-Oberfläche (Kopie für GitHub Pages)\n\nErzeugt von `portal-pilot/dev/pages-kopie.mjs`. Quelle ist `portal-pilot/frontend/`; Änderungen dort machen und das Skript erneut ausführen.\n\n- Oberfläche: `frontend/index.html`\n- Konfiguration: `config/mandant.js` (Firma, Adressen, Register)\n- Backend: n8n-Webhook `' + konfig.n8n_basis_url + '/portal-api`\n');
 console.log('Kopie geschrieben nach', ziel);

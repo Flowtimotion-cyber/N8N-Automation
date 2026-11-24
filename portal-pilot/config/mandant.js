@@ -25,7 +25,13 @@ window.MANDANT = {
     "skills": false,
     "tresor": false,
     "webseite": false,
-    "office": false
+    "office": false,
+    "termine": false,
+    "dokumente": false,
+    "videos": false,
+    "wiki": false,
+    "transkription": false,
+    "ki": false
   },
   "social_kanaele": [],
   "anleitung_video": "",

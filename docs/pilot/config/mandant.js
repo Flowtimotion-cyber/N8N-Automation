@@ -23,12 +23,19 @@ window.MANDANT = {
     "kurs": false,
     "systeme": false,
     "skills": false,
-    "tresor": false,
+    "tresor": true,
     "webseite": false,
-    "office": false
+    "office": false,
+    "termine": true,
+    "dokumente": true,
+    "videos": true,
+    "wiki": true,
+    "transkription": true,
+    "ki": true
   },
   "social_kanaele": [],
   "anleitung_video": "",
   "standard_projekt": "",
-  "sprache": "de"
+  "sprache": "de",
+  "messenger": "Telegram"
 };

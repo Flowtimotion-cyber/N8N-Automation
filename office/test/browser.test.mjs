@@ -18,6 +18,9 @@ const neueSeite = async (vp, opts = {}) => {
   p.on('console', m => { if (m.type() === 'error' && !(opts.netzfehlerErwartet && /Failed to load resource/.test(m.text())) && !/Blocked script execution in '[^']*\/testbilder\/[^']*' because the document's frame is sandboxed/.test(m.text())) fehler.push(vp.width + ' ' + opts.name + ' console: ' + m.text()); });
   // Das Anleitungs-Video (Loom) in der Portal-Übersicht nie wirklich laden: Stub statt Netz
   await p.route(/loom\.com\//, r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Loom (Teststub)</title>' }));
+  // Nachrichten und Team-Chat lädt das Portal beim Start: an die Nachbildung im Testserver, nie an das echte n8n
+  for (const [muster, ziel] of [[/n8n\.hm-storage\.de\/webhook\/team-msgs/, '/api/nachrichten'], [/n8n\.hm-storage\.de\/webhook\/team-chat/, '/api/chat']])
+    await p.route(muster, async r => { const res = await fetch(S.base + ziel, { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
   return p;
 };
 const oeffne = async (p, hash, tok = TOKENS.m_timo) => { await p.goto(S.base + '/office/?z=' + tok + hash, { waitUntil: 'networkidle' }); await p.waitForTimeout(250); };

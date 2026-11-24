@@ -248,3 +248,23 @@ oder den lokalen Socket; `psql -d postgres` muss funktionieren. Testdatenbanken:
   lokal ablegen.
 - **Register Kurs & Teilnehmer, Skills, Webseite** sind nur Platzhalter.
 - **Logo:** `assets/logo.svg` ist ein Platzhalter und wird je Kunde ersetzt.
+
+## Präsentationsfassung vom 18.11.2026 (schnell gebaut, wird später sauber nachgezogen)
+
+Neue Register, alle über `register` in `mandant.js` schaltbar (Standard aus): `termine` (Meine Termine), `dokumente` (Links auf Dokumente und Präsentationen), `videos` (Video-Links, YouTube und Vimeo spielen direkt ab), `wiki` (eingebettetes DokuWiki, Adresse trägt ein Admin ein). Dazu in der Übersicht die Karte „Informationen“: mit `@Vorname` oder `@alle` jemandem eine Information schicken. Das Register „Vorschläge“ heißt jetzt „Verbesserungsvorschläge“, der Tresor ist ein vorhandenes Register (`tresor`).
+
+Wichtig zu wissen:
+- **Keine eigenen Tabellen.** Die Einträge liegen als JSON in versteckten Notizen mit dem Titel „Portal-Daten: …“ (videos, dokumente, termine, hinweise, einstellungen). Die Oberfläche blendet diese Notizen aus. Technisch kann jedes Teammitglied sie lesen, auch Termine und Informationen anderer. Für vertrauliche Inhalte ist das nichts.
+- **Dokumente sind Links**, kein Datei-Upload.
+- **Keine Tests** für diese Teile, nur ein Durchlauf von Hand gegen den Testserver (echter API-Code, Speicher-Betriebsart).
+- Sauberer Nachbau: eigene Tabellen mit Rechten je Person, Aktionen in der Portal-API, Datei-Upload über Supabase Storage, Tests.
+
+Pages-Kopie mit den neuen Registern: `node portal-pilot/dev/pages-kopie.mjs --ziel docs/pilot --n8n … --portal … --an tresor,termine,dokumente,videos,wiki`
+
+### Nachtrag 18.11.2026, abends: nur Oberfläche (Vorschau), noch ohne KI-Dienst
+
+- **Nachrichten-Symbol** oben rechts neben dem Namen: zeigt die Zahl ungelesener Informationen, Klick führt zur Karte „Informationen“.
+- **Transkription** (`transkription`): mitschreiben per Mikrofon (Spracherkennung des Browsers, Chrome und Edge), Text speichern und durchsuchen. „Auswerten“ ruft den KI-Dienst `n8n_basis_url + '/portal-ki'` (Aktion `zusammenfassen`); solange der fehlt, öffnet sich derselbe Bestätigungsdialog zum Eintragen von Hand: Aufgaben zuordnen, bestätigen, anlegen.
+- **KI-Agent** (`ki`): „Finden“ (Beschreibung eingeben) und „Bauen“ (Präsentation, Wiki-Seite, Notiz). Ohne KI-Dienst: Stichwortsuche über die Portal-Inhalte und Vorlagen zum Ausfüllen, beides als „Vorschau ohne KI“ gekennzeichnet.
+- **Anstupsen** im Register Team und **Info beim Termin**: legt die Information im Portal ab (Karte „Informationen“). Der Versand über einen Messenger ist noch nicht angebunden; der Name des Messengers kommt aus `mandant.js` (Feld `messenger`, in der Pages-Kopie über `--messenger`).
+- Der KI-Dienst (Workflow mit den Aktionen `zusammenfassen`, `finden`, `bauen`) ist noch nicht gebaut. Vor dem Anschluss klären: Anbieter und Datenstandort, weil Mitschriften und Portal-Inhalte an den KI-Dienst gehen.

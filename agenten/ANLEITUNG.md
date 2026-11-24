@@ -43,7 +43,7 @@ Gespeichert wird in Supabase, der Zugang läuft aber **nur** über die Team-API.
 | Aktion | daten |
 |---|---|
 | `laden` | – (liefert aufgaben, verlauf, projekte, notizen, meine_aufgaben, agent_geeignet) |
-| `aufgabe_speichern` | `aufgabe_id` (leer = neu), `titel`, optional `status`, `beschreibung`, `projekt`, `prio`, `verantwortlich`, `deadline`, `agent_geeignet`, `kommentar` |
+| `aufgabe_speichern` | `aufgabe_id` (leer = neu), `titel`, optional `status`, `beschreibung`, `projekt`, `prio` (1–10, 1 = am wichtigsten, mit `skala: 10`; ohne `skala` gilt die alte Skala 1–3 und wird umgerechnet: 1→1, 2→5, 3→8), `bearbeiter` (Liste von `mitglied_id`, alle gleichberechtigt; `verantwortlich` ist nur noch die erste Person der Liste und wird für ältere Programme mitgeführt), `deadline`, `agent_geeignet`, `kommentar` |
 | `kommentar` | `aufgabe_id`, `text` |
 | `notiz_speichern` | `notiz_id` (leer = neu), `titel`, `inhalt`, `projekt` |
 | `projekt_speichern` | `name`, `beschreibung`, `status` |
