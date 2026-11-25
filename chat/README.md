@@ -85,6 +85,43 @@ Timos Entscheidungen vom 24.11.2026: sechs feste Smileys, keine Benachrichtigung
 - **Einspielen:** (1) Timo führt `supabase/team_chat_reaktionen.sql` aus. (2) n8n nach Timos Ja: `chat/n8n/deploy/reaktionen-deploy.json` (`node chat/n8n/bauen-deploy-reaktionen.mjs`), nur die zwei Code-Knoten. (3) PR mergen. Reihenfolge egal: Ohne SQL melden ↩ und ☺ „noch nicht eingerichtet“, normales Senden läuft weiter.
 - **Tests:** `chat/test/chat.test.mjs`, `chat/test/sql-reaktionen.test.mjs` (PGlite), `chat/test/reaktionen.browser.test.mjs`. Bildschirmfotos `chat/screenshots/*smiley*`, `*antwort*`.
 
+## Dateien im Chat
+
+Timos Entscheidungen vom 24./25.11.2026: Bilder, PDFs und andere Dateien in allen Team-Chats (Gruppe, Direkt, Projekt). Bis 25 MB je Datei, höchstens 10 je Nachricht. WhatsApp-Inbox (Kunden), Posteingang, Aufgaben-Kommentare und die Handy-App kommen später als eigene Schritte.
+
+- **Erlaubt:** Bilder (jpg, png, webp, gif, heic), PDF, Word, Excel, PowerPoint (auch OpenDocument), txt, csv, Audio (mp3, m4a, wav, ogg …). Keine Videos, kein HTML/SVG, keine Programme. Der Typ kommt aus der Endung, Supabase prüft ihn beim Hochladen noch einmal (Bucket-Regel).
+- **Anhängen:** 📎 neben dem Eingabefeld, Datei ins Chatfenster ziehen oder ein Bild mit Strg+V einfügen. Am Handy zusätzlich 📷 (Kamera). Vorgemerkte Dateien stehen über dem Eingabefeld (✕ nimmt sie wieder weg), Text ist freiwillig. Große Fotos verkleinert der Browser vor dem Hochladen auf höchstens 2560 px (JPEG).
+- **Anzeige:** Bilder als Vorschau (Klick = groß, mit Download), sonst eine Karte mit Name, Größe, ⬇ Herunterladen, bei PDF und txt auch „Öffnen“, bei Audio ein Abspieler. HEIC zeigen die meisten Browser nicht, es kommt als Karte. Ohne Text steht in der Chat-Liste, im Posteingang und in der Team-App „📎 Dateiname“.
+- **Entfernen:** 🗑 an der eigenen Datei, zweimal klicken. Sie ist dann für alle weg („Datei entfernt“), wer sie geschickt hat, kann sie 30 Tage lang wiederherstellen. Danach löscht der tägliche Aufräumlauf (03:40) die Datei endgültig aus dem Speicher, ebenso abgebrochene Uploads nach einem Tag. Fremde Dateien kann niemand entfernen, auch Admins nicht.
+- **Datenschutz:** privater Bucket `team-anhaenge` ohne öffentliche Links. Der Browser bekommt eine signierte Upload-Adresse (2 Stunden, nur für diese eine Datei) und signierte Lese-Links (60 Minuten), beides nur für Mitglieder des Chats. Kein Supabase-Schlüssel im Browser, der Speicherpfad geht nicht ans Portal. Agenten bekommen keine Dateien (403), die KI auch nicht. Kein KI-Knoten, also keine KI-Kosten.
+
+```
+Portal ──{ token, aktion: vorbereiten }──▶ n8n „TEAM: Anhänge (Portal)“ (Webhook team-anhang)
+          ◀── signierte Upload-Adresse ───  1. Mitglied prüfen (Agenten: 403)  2. chat/lib/anhaenge.js prüft Name, Typ, Größe
+Portal ──PUT Datei──▶ Supabase Storage      3. team_anhang_vorbereiten (Chat-Mitglied?)  4. Storage: object/upload/sign
+Portal ──{ aktion: senden }──▶ n8n  ──▶ team_anhang_senden (liegt die Datei wirklich im Speicher?) → team_chat_senden (wie gewohnt)
+Portal ──{ aktion: links }───▶ n8n  ──▶ team_anhang_links (nur Mitglieder) → Storage: object/sign (60 Min.)
+täglich 03:40: team_anhang_aufraeumen_liste → Storage DELETE → team_anhang_aufraeumen_fertig
+```
+
+| Datei | Zweck |
+|---|---|
+| `supabase/team_chat_anhaenge.sql` | Bucket `team-anhaenge` (privat, 25 MB, Typenliste), Tabelle `team_anhaenge`, Spalte `anhaenge` an `team_chat_nachrichten`, Funktionen `team_anhang_*`. Ändert keine bestehende Funktion. |
+| `chat/lib/anhaenge.js` | Logik des Servers (Prüfen, Signieren vorbereiten, Antworten bauen). Läuft in n8n und im Test. |
+| `chat/n8n/bauen-anhaenge.mjs` | baut `chat/n8n/anhaenge.workflow.gen.js` (neuer Workflow, Webhook + täglicher Aufräumlauf) |
+| `chat/dev/anhaenge-mock.mjs` | Nachbildung von SQL und Storage für den Testserver (`/api/chat-anhang`, `/api/test/speicher/…`) |
+| `docs/team/index.html` | 📎/📷, Vormerkliste, Hochladen mit Fortschritt, Anzeige im Verlauf (`chDateienDazu`, `chMitDateienSenden`, `chLinksHolen`, `chAnhaengeHtml`) |
+
+**Einrichten (Reihenfolge egal, ohne Schritt 1 und 2 meldet das Portal „noch nicht eingerichtet“, der Chat läuft normal weiter):**
+
+1. **Supabase:** `supabase/team_chat_anhaenge.sql` im SQL Editor ausführen (Timo). Die Kontrolle am Ende zeigt `team-anhaenge | false | 26214400`.
+2. **n8n „TEAM: Anhänge (Portal)“** aus `chat/n8n/anhaenge.workflow.gen.js` (`node chat/n8n/bauen-anhaenge.mjs`) neu anlegen: Zugangsdaten „Supabase account“ in allen HTTP-Knoten, Fehler-Workflow `pka7MaqDJwuhjHpY`, erfolgreiche Läufe nicht speichern (die Antworten enthalten signierte Links), dann veröffentlichen.
+3. **PR mergen**, GitHub Pages liefert das Portal aus.
+
+**Kosten:** keine KI. Speicher zählt zum Supabase-Paket (Free 1 GB, Pro 100 GB inklusive), Bilder werden vorher verkleinert.
+
+**Tests:** `node --test chat/test/anhaenge.test.mjs` (9, Logik und gleiche Typenliste in SQL/Portal), `chat/test/sql-anhaenge.test.mjs` (PGlite, mit nachgebildetem `storage`-Schema), `chat/test/anhaenge.browser.test.mjs` (4: Büroklammer, Hineinziehen mit Verkleinern, Einfügen, Download, Entfernen/Wiederherstellen, Handy mit Kamera, ohne Datenbank). Bildschirmfotos `chat/screenshots/*dateien*`.
+
 ## Stufe 2 (noch nicht gebaut)
 
 @Claude / @Hermes im Chat: Die KI liest diesen einen Chat (oder den ganzen Verlauf, wenn eingeschaltet), antwortet im Chat und schlägt Aufgaben oder Notizen mit einem Knopf „Anlegen“ vor. Größere Arbeiten gehen als Auftrag ins KI Office. Danach: Chat in der Team-App.

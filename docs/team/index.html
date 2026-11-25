@@ -409,6 +409,31 @@ dialog.voll{width:96vw!important;max-width:96vw;height:94vh;max-height:94vh}
 .ch-aufg{display:block;width:100%;text-align:left;border:0;background:none;padding:4px 0;cursor:pointer;font:inherit;color:var(--ink)}.ch-aufg:hover{color:var(--acc)}
 .ch-walabel{padding:6px 12px;border-top:1px solid var(--line);background:#F4FBF6;margin:0}
 .ch-kibox{background:#F7F4FE;border-radius:10px;padding:10px 12px}
+.ch-anh{display:flex;flex-direction:column;gap:6px;margin:4px 0 2px}
+.ch-bildbox{position:relative;max-width:min(320px,100%)}
+.ch-bild{display:block;border:0;padding:0;background:none;cursor:zoom-in;border-radius:9px;overflow:hidden;max-width:100%}
+.ch-bild img{display:block;max-width:100%;max-height:320px;width:auto;height:auto;border-radius:9px;background:#EEEDF6}
+.ch-bild.leer{display:flex;align-items:center;justify-content:center;width:240px;max-width:100%;min-height:120px;max-height:320px;background:#EEEDF6;color:var(--mut);font-size:12.5px;cursor:default;padding:8px;text-align:center;overflow-wrap:anywhere}
+.ch-datei{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;background:rgba(255,255,255,.75);border:1px solid var(--line);border-radius:10px;padding:6px 8px;min-width:0}
+.wb.aus .ch-datei{background:rgba(255,255,255,.55)}
+.ch-datei.weg{opacity:.7;border-style:dashed}
+.ch-dsym{font-size:20px;line-height:1}.ch-dname{flex:1;min-width:120px;display:flex;flex-direction:column;overflow-wrap:anywhere}.ch-dname small{color:var(--mut)}
+.ch-datei .btn.ghost{padding:4px 8px;text-decoration:none}
+.ch-datei audio{flex:1 1 100%;width:100%;height:36px}
+.ch-anweg{border:0;background:none;cursor:pointer;color:var(--mut);font:inherit;font-size:13px;padding:2px 4px;border-radius:6px}
+.ch-anweg:hover,.ch-anweg:focus-visible{color:var(--red)}.ch-anweg.sicher{color:var(--red);font-weight:650;background:#FDECEA}
+.ch-bildbox .ch-anweg{position:absolute;top:6px;right:6px;background:rgba(255,255,255,.92);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.ch-dateien{display:flex;flex-wrap:wrap;gap:8px;padding:8px 10px 0;border-top:1px solid var(--line)}
+.ch-dz{position:relative;display:flex;align-items:center;gap:8px;background:#F4F3FA;border:1px solid var(--line);border-radius:10px;padding:5px 6px 5px 5px;max-width:260px;min-width:0}
+.ch-dz.fehl{border-color:#F1C7C0;background:#FDF1EF}
+.ch-dz img{width:40px;height:40px;object-fit:cover;border-radius:7px;flex:none}.ch-dzs{width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.ch-dzn{position:relative;display:flex;flex-direction:column;min-width:0;font-size:12.5px;padding-bottom:3px}.ch-dzn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}.ch-dzn small{color:var(--mut)}.ch-dz.fehl small{color:var(--red)}
+.ch-dzb{position:absolute;left:0;bottom:0;height:3px;border-radius:2px;background:var(--acc)}
+.ch-dz button{border:0;background:none;cursor:pointer;color:var(--mut);font-size:15px;padding:2px 4px}.ch-dz button:hover{color:var(--red)}
+.ch-dateien + .wc-ein{border-top:0}
+#ch_chat.ch-drop{outline:3px dashed var(--acc);outline-offset:-6px;background:#F7F4FE}
+.ch-gross{display:block;max-width:100%;max-height:72vh;margin:0 auto;border-radius:10px}
+@media (max-width:600px){#ch_form{flex-wrap:wrap}#ch_form textarea{order:-1;flex:1 1 100%}#ch_form #ch_senden{margin-left:auto}.ch-dz{max-width:100%}}
 body[data-tab="chat"] #kiBtn{display:none}
 body[data-tab="whatsapp"] #kiBtn{display:none}
 @media (max-width:820px){.wa{grid-template-columns:1fr}.wa.offen .wa-liste{display:none}.wa:not(.offen) .wa-chat{display:none}.wa-zurueck{display:inline-flex}.wa-chat{height:calc(100vh - 170px)}}
@@ -2020,7 +2045,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     (liste || []).forEach(b => {
       const i = v.nachrichten.findIndex(x => x.nachricht_id === b.nachricht_id);
       const alt = i >= 0 ? v.nachrichten[i] : null;
-      if (alt && (alt.bearbeitet !== b.bearbeitet || alt.text !== b.text || JSON.stringify(alt.reaktionen || {}) !== JSON.stringify(b.reaktionen || {}))) {
+      if (alt && (alt.bearbeitet !== b.bearbeitet || alt.text !== b.text || JSON.stringify(alt.reaktionen || {}) !== JSON.stringify(b.reaktionen || {}) || JSON.stringify(alt.anhaenge || []) !== JSON.stringify(b.anhaenge || []))) {
         v.nachrichten[i] = Object.assign({ zitat: alt.zitat }, b); geaendert = true;
       }
     });
@@ -2097,6 +2122,170 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     // @Kennungen hervorheben (nach md(), Kennungen enthalten nur Buchstaben, Ziffern, _ . -)
     return md(t).replace(/(^|[\s>(])@([\p{L}\p{N}_.-]{2,40})/gu, '$1<span class="ch-at">@$2</span>');
   }
+  // ---------- Dateien im Team-Chat (n8n „TEAM: Anhänge (Portal)“, Webhook team-anhang, chat/lib/anhaenge.js) ----------
+  // Timo 24./25.11.2026: Bilder, PDF, Office, txt/csv und Audio bis 25 MB, höchstens 10 je Nachricht. Speicher ist privat
+  // (Bucket team-anhaenge). Der Browser lädt mit einer signierten Adresse direkt hoch und liest mit signierten Links (60 Minuten).
+  // Kein Supabase-Schlüssel im Browser. Entfernen kann nur, wer die Datei geschickt hat; 30 Tage wiederherstellbar.
+  const ANHANG_API = 'https://n8n.hm-storage.de/webhook/team-anhang';
+  const ANHANG_MAX = 25 * 1024 * 1024, ANHANG_JE_NACHRICHT = 10, ANHANG_BILD_MAX_PX = 2560;
+  // Gleicher Text wie in chat/lib/anhaenge.js (Antwort, wenn Datenbank oder Workflow fehlen); ein Test hält beide gleich
+  const ANHANG_NICHT_EINGERICHTET = 'Dateien im Chat sind noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei chat/README.md, Abschnitt „Dateien im Chat“. Bitte gib Timo Bescheid.';
+  // Erlaubte Endungen (gleiche Liste wie chat/lib/anhaenge.js und supabase/team_chat_anhaenge.sql)
+  const ANHANG_TYPEN = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+    pdf: 'application/pdf',
+    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    odt: 'application/vnd.oasis.opendocument.text', ods: 'application/vnd.oasis.opendocument.spreadsheet', odp: 'application/vnd.oasis.opendocument.presentation',
+    txt: 'text/plain', csv: 'text/csv',
+    mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', weba: 'audio/webm', flac: 'audio/flac'
+  };
+  const ANHANG_ACCEPT = Object.keys(ANHANG_TYPEN).map(e => '.' + e).join(',') + ',image/*';
+  const anhTyp = name => { const m = /\.([A-Za-z0-9]{1,5})$/.exec(String(name || '').trim()); return m ? (ANHANG_TYPEN[m[1].toLowerCase()] || null) : null; };
+  const anhBytes = b => !b ? '' : b >= 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+  const anhSymbol = m => /^image\//.test(m) ? '🖼️' : m === 'application/pdf' ? '📄' : /^audio\//.test(m) ? '🎵' : /sheet|excel|csv/.test(m) ? '📊' : /presentation|powerpoint/.test(m) ? '📽️' : /word|opendocument\.text/.test(m) ? '📝' : '📃';
+  const anhZeigbar = m => /^image\/(jpeg|png|webp|gif)$/.test(m);   // HEIC zeigen die meisten Browser nicht: kommt als Datei-Karte
+  const anhTouch = () => { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
+  const anhLinkAlt = l => !l || l.bis < Date.now() + (l.url ? 60000 : 0);
+  const anhAutoText = n => (n.anhaenge || []).length > 0 && n.text === '📎 ' + n.anhaenge.map(a => a.name).join(', ');
+  CH.dateien = {}; CH.links = {}; CH.linksLaeuft = {}; CH.linksPause = {};
+  async function anhangApi(aktion, daten) {
+    let r = null, j = null;
+    try { r = await fetch(ANHANG_API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ token: TOKEN, aktion, daten: daten || {} }) }); j = await r.json(); } catch (e) {}
+    if (!r || !r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || (r && r.status === 404 ? ANHANG_NICHT_EINGERICHTET : 'Dateien sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.'));
+    return j;
+  }
+  // Große Fotos vor dem Hochladen verkleinern (längste Seite 2560 px, JPEG). Nur wenn es wirklich kleiner wird.
+  async function anhBildVerkleinern(f, name, mime) {
+    const bmp = await createImageBitmap(f);
+    const ow = bmp.width, oh = bmp.height, s = Math.min(1, ANHANG_BILD_MAX_PX / Math.max(ow, oh));
+    if (s === 1 && f.size <= 1.5e6) { if (bmp.close) bmp.close(); return { breite: ow, hoehe: oh }; }
+    const w = Math.max(1, Math.round(ow * s)), h = Math.max(1, Math.round(oh * s));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(bmp, 0, 0, w, h); if (bmp.close) bmp.close();
+    const blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.86));
+    if (!blob || blob.size >= f.size) return { breite: ow, hoehe: oh };
+    return { datei: blob, name: name.replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', groesse: blob.size, breite: w, hoehe: h };
+  }
+  // Dateien zum Senden vormerken (Büroklammer, Kamera, Hineinziehen, Einfügen)
+  async function chDateienDazu(id, liste) {
+    const L = CH.dateien[id] = CH.dateien[id] || [];
+    const nein = [];
+    for (const f of Array.from(liste || [])) {
+      if (L.length >= ANHANG_JE_NACHRICHT) { nein.push('Höchstens ' + ANHANG_JE_NACHRICHT + ' Dateien je Nachricht.'); break; }
+      let name = String(f.name || '').trim();
+      // Aus der Zwischenablage kommen Bilder ohne sprechenden Namen
+      if ((!name || /^image\.(png|jpe?g|gif|webp)$/i.test(name)) && /^image\/(png|jpeg|gif|webp)$/.test(f.type)) name = 'Bild ' + new Date().toLocaleString('de-DE').replace(/[.:,]+/g, '-').replace(/\s+/g, ' ') + '.' + f.type.split('/')[1].replace('jpeg', 'jpg');
+      const mime = anhTyp(name);
+      if (!mime) { nein.push('„' + (name || 'Datei') + '“: Diese Dateiart geht hier nicht.'); continue; }
+      const e = { k: Math.random().toString(36).slice(2), datei: f, name, mime, groesse: f.size, status: 'neu', fortschritt: 0, fehler: '' };
+      if (/^image\/(jpeg|png|webp)$/.test(mime)) { try { Object.assign(e, await anhBildVerkleinern(f, name, mime)); } catch (x) {} }
+      if (!e.groesse) { nein.push('„' + name + '“ ist leer.'); continue; }
+      if (e.groesse > ANHANG_MAX) { nein.push('„' + name + '“ ist zu groß (' + anhBytes(e.groesse) + ', höchstens 25 MB).'); continue; }
+      if (anhZeigbar(e.mime)) { try { e.vorschau = URL.createObjectURL(e.datei); } catch (x) {} }
+      L.push(e);
+    }
+    if (nein.length) toast(nein.join(' ') + ' Erlaubt: Bilder, PDF, Office, txt, csv und Audio bis 25 MB.');
+    if (CH.offen === id) { chDateienZeigen(id); const t = $('#ch_text'); if (t) t.focus(); }
+  }
+  function chDateienZeigen(id) {
+    const el = $('#ch_dateien'); if (!el) return;
+    const L = CH.dateien[id] || [];
+    el.hidden = !L.length;
+    el.innerHTML = L.map(e => '<div class="ch-dz' + (e.fehler ? ' fehl' : '') + '">' + (e.vorschau ? '<img src="' + esc(e.vorschau) + '" alt="">' : '<span class="ch-dzs">' + anhSymbol(e.mime) + '</span>') +
+      '<span class="ch-dzn"><b>' + esc(e.name) + '</b><small>' + esc(e.fehler ? e.fehler : e.status === 'laedt' ? 'lädt hoch … ' + Math.round(e.fortschritt * 100) + ' %' : e.status === 'oben' ? 'hochgeladen' : anhBytes(e.groesse)) + '</small>' +
+      (e.status === 'laedt' ? '<i class="ch-dzb" style="width:' + Math.round(e.fortschritt * 100) + '%"></i>' : '') + '</span>' +
+      (CH.sendet ? '' : '<button type="button" data-chdweg="' + esc(e.k) + '" title="Nicht senden" aria-label="' + esc(e.name) + ' nicht senden">✕</button>') + '</div>').join('');
+    el.querySelectorAll('[data-chdweg]').forEach(b => b.onclick = () => {
+      const i = L.findIndex(x => x.k === b.dataset.chdweg); if (i >= 0) { if (L[i].vorschau) URL.revokeObjectURL(L[i].vorschau); L.splice(i, 1); }
+      chDateienZeigen(id);
+    });
+  }
+  // Mit der signierten Adresse direkt in den privaten Bucket laden (PUT, mit Fortschritt)
+  function anhPut(url, e, mime, neu) {
+    return new Promise((ok, nein) => {
+      const x = new XMLHttpRequest();
+      x.open('PUT', url, true);
+      x.setRequestHeader('Content-Type', mime || e.mime);
+      x.setRequestHeader('x-upsert', 'false');
+      x.upload.onprogress = ev => { if (ev.lengthComputable) { e.fortschritt = ev.loaded / ev.total; neu(); } };
+      x.onload = () => x.status >= 200 && x.status < 300 ? ok() : nein(new Error('Hochladen abgelehnt (' + x.status + '). Bitte noch einmal senden.'));
+      x.onerror = () => nein(new Error('Hochladen abgebrochen (Netz). Bitte noch einmal senden.'));
+      x.send(e.datei);
+    });
+  }
+  // Alle vorgemerkten Dateien hochladen, dann die Nachricht senden. Schon hochgeladene werden beim zweiten Versuch nicht wiederholt.
+  async function chMitDateienSenden(id, daten) {
+    const L = CH.dateien[id] || [], ids = [];
+    for (const e of L) {
+      if (e.anhang_id && e.status === 'oben') { ids.push(e.anhang_id); continue; }
+      e.status = 'laedt'; e.fehler = ''; e.fortschritt = 0; chDateienZeigen(id);
+      try {
+        const v = await anhangApi('vorbereiten', { chat_id: id, name: e.name, groesse: e.groesse, breite: e.breite || null, hoehe: e.hoehe || null });
+        await anhPut(v.url, e, v.mime, () => { if (CH.offen === id) chDateienZeigen(id); });
+        e.anhang_id = v.anhang_id; e.status = 'oben'; ids.push(v.anhang_id); chDateienZeigen(id);
+      } catch (x) { e.status = 'neu'; e.fehler = x.message; chDateienZeigen(id); throw new Error('„' + e.name + '“: ' + x.message); }
+    }
+    const r = await anhangApi('senden', Object.assign({ chat_id: id, anhaenge: ids }, daten));
+    L.forEach(e => { if (e.vorschau) URL.revokeObjectURL(e.vorschau); });
+    delete CH.dateien[id];
+    return r;
+  }
+  // Signierte Links (60 Minuten) für die Dateien im Verlauf holen: gesammelt, höchstens eine Anfrage je Chat gleichzeitig
+  function chLinksHolen(id, nachrichten) {
+    const fehlt = [];
+    (nachrichten || []).forEach(n => (n.anhaenge || []).forEach(a => { if (!a.entfernt && anhLinkAlt(CH.links[a.anhang_id]) && !fehlt.includes(a.anhang_id)) fehlt.push(a.anhang_id); }));
+    if (!fehlt.length || CH.linksLaeuft[id] || (CH.linksPause[id] || 0) > Date.now()) return;
+    const ids = fehlt.slice(-60);
+    CH.linksLaeuft[id] = true;
+    anhangApi('links', { chat_id: id, anhaenge: ids }).then(r => {
+      const bis = Date.now() + Math.max(120, (Number(r.gueltig_sek) || 3600) - 120) * 1000;
+      const da = new Set();
+      (r.links || []).forEach(l => { CH.links[l.anhang_id] = { url: l.url, download: l.download, bis }; da.add(l.anhang_id); });
+      // Ohne Link (z. B. gerade entfernt): eine Minute lang nicht nochmal fragen
+      ids.filter(x => !da.has(x)).forEach(x => { CH.links[x] = { url: '', download: '', bis: Date.now() + 60000 }; });
+    }).catch(e => { CH.linksPause[id] = Date.now() + 60000; toast(e.message); })
+      .finally(() => { CH.linksLaeuft[id] = false; if (CH.offen === id) chChatZeigen(); });
+  }
+  function chAnhaengeHtml(n) {
+    const A = n.anhaenge || []; if (!A.length) return '';
+    return '<div class="ch-anh">' + A.map(a => {
+      const meins = a.von === D.ich.mitglied_id;
+      if (a.entfernt) {
+        const zurueck = meins && !a.endgueltig && a.entfernt_am && Date.now() - Date.parse(a.entfernt_am) < 30 * 86400000;
+        return '<div class="ch-datei weg"><span class="ch-dsym">🗑</span><span class="ch-dname"><small>Datei entfernt</small></span>' + (zurueck ? '<button type="button" class="btn ghost" data-chanzur="' + esc(a.anhang_id) + '">Wiederherstellen</button>' : '') + '</div>';
+      }
+      const l = CH.links[a.anhang_id] || {};
+      const weg = meins ? '<button type="button" class="ch-anweg" data-chanweg="' + esc(a.anhang_id) + '" title="Datei für alle entfernen (30 Tage wiederherstellbar)" aria-label="' + esc(a.name) + ' entfernen">🗑</button>' : '';
+      if (anhZeigbar(a.mime)) {
+        const ar = a.breite && a.hoehe ? ' style="aspect-ratio:' + Number(a.breite) + '/' + Number(a.hoehe) + '"' : '';
+        return '<div class="ch-bildbox">' + (l.url ? '<button type="button" class="ch-bild" data-chbild="' + esc(a.anhang_id) + '" title="' + esc(a.name) + ' groß ansehen"><img src="' + esc(l.url) + '" alt="' + esc(a.name) + '"' + ar + '></button>'
+          : '<div class="ch-bild leer"' + ar + '><span>🖼️ ' + esc(a.name) + '</span></div>') + weg + '</div>';
+      }
+      const oeffnen = l.url && (a.mime === 'application/pdf' || a.mime === 'text/plain') ? '<a class="btn ghost" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer" title="Im Browser öffnen">Öffnen</a>' : '';
+      return '<div class="ch-datei"><span class="ch-dsym">' + anhSymbol(a.mime) + '</span><span class="ch-dname"><b>' + esc(a.name) + '</b><small>' + esc(anhBytes(a.groesse)) + '</small></span>' + oeffnen +
+        (l.download ? '<a class="btn ghost" href="' + esc(l.download) + '" download="' + esc(a.name) + '" title="Herunterladen" aria-label="' + esc(a.name) + ' herunterladen">⬇</a>' : '<span class="small muted" title="Link wird geholt">…</span>') + weg +
+        (/^audio\//.test(a.mime) && l.url ? '<audio controls preload="none" src="' + esc(l.url) + '"></audio>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  function chBildGross(id, aid) {
+    const v = CH.verlauf[id], l = CH.links[aid]; if (!v || !l || !l.url) return;
+    const a = v.nachrichten.reduce((x, n) => x || (n.anhaenge || []).find(y => y.anhang_id === aid), null); if (!a) return;
+    $('#dlgInner').innerHTML = '<h2 style="margin:0 36px 8px 0;overflow-wrap:anywhere">🖼️ ' + esc(a.name) + '</h2>' +
+      '<img class="ch-gross" src="' + esc(l.url) + '" alt="' + esc(a.name) + '">' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-top:10px"><span class="small muted">' + esc(anhBytes(a.groesse)) + (a.breite ? ' · ' + Number(a.breite) + ' × ' + Number(a.hoehe) + ' px' : '') + '</span><a class="btn" href="' + esc(l.download) + '" download="' + esc(a.name) + '">⬇ Herunterladen</a></div>';
+    openDlg(true);
+  }
+  async function chAnhangEntfernen(id, aid, zurueck) {
+    try {
+      const r = await anhangApi(zurueck ? 'wiederherstellen' : 'entfernen', { chat_id: id, anhang_id: aid });
+      const v = CH.verlauf[id]; if (v && r.nachricht) chBearbeiteteUebernehmen(v, [r.nachricht]);
+      if (zurueck) delete CH.links[aid];
+      toast(zurueck ? 'Datei wiederhergestellt.' : 'Datei entfernt. 30 Tage lang kannst du sie wiederherstellen.');
+    } catch (e) { toast(e.message); }
+    if (CH.offen === id) chChatZeigen();
+  }
   function chChatZeigen() {
     const el = $('#ch_chat'); if (!el) return;
     const id = CH.offen;
@@ -2116,7 +2305,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const reak = Object.entries(n.reaktionen || {}).filter(([e, l]) => CHAT_REAKTIONEN.includes(e) && (l || []).length);
       return trenner + '<div class="wb ' + (ich ? 'aus' : 'ein') + (mich ? ' ch-mich' : '') + '" id="chn_' + esc(n.nachricht_id) + '">' + (ich ? '' : '<span class="ch-wer">' + esc(mitglied(n.autor).name) + '</span>') +
         (z ? '<button type="button" class="ch-zitat" data-chspring="' + esc(z.nachricht_id) + '" title="Zur Nachricht springen"><b>↩ ' + esc(z.autor ? (z.autor === D.ich.mitglied_id ? 'Du' : mitglied(z.autor).name) : 'Hinweis') + '</b>' + esc(chKurz(z.text)) + '</button>' : '') +
-        '<div class="md">' + chTextHtml(n.text) + '</div>' +
+        (anhAutoText(n) ? '' : '<div class="md">' + chTextHtml(n.text) + '</div>') + chAnhaengeHtml(n) +
         (reak.length ? '<div class="ch-reak">' + reak.map(([e, l]) => '<button type="button" data-chreak="' + esc(n.nachricht_id) + '" data-emoji="' + esc(e) + '" class="' + (l.includes(D.ich.mitglied_id) ? 'mein' : '') + '" title="' + esc(l.map(x => x === D.ich.mitglied_id ? 'Du' : mitglied(x).name).join(', ')) + '" aria-label="' + esc(e + ' ' + l.length) + '">' + e + ' ' + l.length + '</button>').join('') + '</div>' : '') +
         (CH.wahl === n.nachricht_id ? '<div class="ch-wahl" role="group" aria-label="Smiley wählen">' + CHAT_REAKTIONEN.map(e => '<button type="button" data-chreak="' + esc(n.nachricht_id) + '" data-emoji="' + esc(e) + '" aria-label="' + esc(e) + '">' + e + '</button>').join('') + '</div>' : '') +
         '<span class="wz">' +
@@ -2138,7 +2327,11 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div id="ch_hinw"></div>' +
       (CH.antwort[id] ? (() => { const a = v.nachrichten.find(x => x.nachricht_id === CH.antwort[id]); return a ? '<div class="ch-antw" id="ch_antw"><span>↩ Antwort an <b>' + esc(a.autor === D.ich.mitglied_id ? 'dich' : mitglied(a.autor).name) + '</b>: ' + esc(chKurz(a.text)) + '</span><button type="button" id="ch_antw_weg" title="Nicht mehr antworten" aria-label="Antwort abbrechen">✕</button></div>' : ''; })() : '') +
       '<div class="ch-werk"><label class="check" title="Die KI korrigiert Rechtschreibung und Zeichensetzung, der Inhalt bleibt. Du siehst die Fassung, bevor sie rausgeht."><input type="checkbox" id="ch_kik"' + (chKiHaken() ? ' checked' : '') + '><span>✨ KI korrigieren</span></label><canvas class="pegel" id="ch_pegel" hidden aria-hidden="true" title="Pegel: schlägt aus, wenn das Mikrofon etwas hört"></canvas><span id="ch_mstat" class="ch-mstat" aria-live="polite"></span></div>' +
-      '<form class="wc-ein" id="ch_form"><button type="button" class="btn sec ch-mic" id="ch_mic" aria-label="Sprachnachricht aufnehmen">🎙️</button><textarea id="ch_text" rows="1" maxlength="' + CHAT_TEXT_MAX + '" placeholder="Nachricht … (Enter sendet, Umschalt+Enter = neue Zeile, @Vorname markiert)">' + esc(CH.entwurf[id] || '') + '</textarea><button class="btn" type="submit" id="ch_senden">Senden</button></form>';
+      '<div class="ch-dateien" id="ch_dateien" hidden aria-live="polite"></div>' +
+      '<form class="wc-ein" id="ch_form"><button type="button" class="btn sec ch-mic" id="ch_mic" aria-label="Sprachnachricht aufnehmen">🎙️</button>' +
+      '<button type="button" class="btn sec ch-mic" id="ch_anh" title="Bild, PDF oder andere Datei anhängen (bis 25 MB). Geht auch: hineinziehen oder mit Strg+V einfügen." aria-label="Datei anhängen">📎</button>' +
+      (anhTouch() ? '<button type="button" class="btn sec ch-mic" id="ch_kam" title="Foto aufnehmen" aria-label="Foto aufnehmen">📷</button>' : '') +
+      '<input type="file" id="ch_datei" multiple hidden accept="' + esc(ANHANG_ACCEPT) + '"><input type="file" id="ch_kamera" hidden accept="image/*" capture="environment"><textarea id="ch_text" rows="1" maxlength="' + CHAT_TEXT_MAX + '" placeholder="Nachricht … (Enter sendet, Umschalt+Enter = neue Zeile, @Vorname markiert)">' + esc(CH.entwurf[id] || '') + '</textarea><button class="btn" type="submit" id="ch_senden">Senden</button></form>';
     // Unten bleiben, wenn man unten war; sonst die Stelle halten (Neuzeichnen setzt die Scrollposition sonst auf den Anfang)
     const box = $('#ch_msgs'); if (box) box.scrollTop = (warUnten || !scroll) ? box.scrollHeight : altTop;
     $('#ch_zur').onclick = () => { CH.offen = null; setzeHash('#/tab/chat'); $('#ch').classList.remove('offen'); chListeZeigen(); chChatZeigen(); };
@@ -2165,13 +2358,30 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('#ch_form').requestSubmit(); } });
     chStatusZeigen(id); chMikroZeigen();
     $('#ch_mic').onclick = () => chMikro(id);
+    // Dateien: Büroklammer, Kamera (Handy), Einfügen aus der Zwischenablage, Hineinziehen ins Chatfenster
+    chDateienZeigen(id);
+    $('#ch_anh').onclick = () => $('#ch_datei').click();
+    if ($('#ch_kam')) $('#ch_kam').onclick = () => $('#ch_kamera').click();
+    $('#ch_datei').onchange = $('#ch_kamera').onchange = ev => { const f = Array.from(ev.target.files || []); ev.target.value = ''; chDateienDazu(id, f); };
+    ta.addEventListener('paste', ev => { const f = Array.from((ev.clipboardData && ev.clipboardData.files) || []); if (f.length) { ev.preventDefault(); chDateienDazu(id, f); } });
+    el.ondragover = ev => { if (ev.dataTransfer && Array.from(ev.dataTransfer.types || []).includes('Files')) { ev.preventDefault(); el.classList.add('ch-drop'); } };
+    el.ondragleave = ev => { if (!el.contains(ev.relatedTarget)) el.classList.remove('ch-drop'); };
+    el.ondrop = ev => { el.classList.remove('ch-drop'); const f = Array.from((ev.dataTransfer && ev.dataTransfer.files) || []); if (f.length && CH.offen) { ev.preventDefault(); chDateienDazu(CH.offen, f); } };
+    el.querySelectorAll('[data-chbild]').forEach(b => b.onclick = () => chBildGross(id, b.dataset.chbild));
+    el.querySelectorAll('[data-chanweg]').forEach(b => b.onclick = () => {
+      if (!b.dataset.sicher) { b.dataset.sicher = '1'; b.textContent = 'Für alle entfernen?'; b.classList.add('sicher'); return; }
+      b.disabled = true; chAnhangEntfernen(id, b.dataset.chanweg, false);
+    });
+    el.querySelectorAll('[data-chanzur]').forEach(b => b.onclick = () => { b.disabled = true; chAnhangEntfernen(id, b.dataset.chanzur, true); });
+    chLinksHolen(id, v.nachrichten);
     $('#ch_kik').onchange = e => { try { ls.set('mt-chat-ki', e.target.checked ? '1' : ''); } catch (x) {} if (!e.target.checked) { delete CH.korrRunde[id]; chStatus(id, ''); } };
     ta.addEventListener('input', () => { if (!ta.value.trim()) { delete CH.korrRunde[id]; delete CH.korrVorher[id]; if (CH.mstat[id] && CH.mstat[id].html) chStatus(id, ''); } });
     $('#ch_form').onsubmit = async ev => {
       ev.preventDefault();
-      let text = ta.value; if (!text.trim() || CH.sendet) return;
+      let text = ta.value; const mitDateien = (CH.dateien[id] || []).length > 0;
+      if ((!text.trim() && !mitDateien) || CH.sendet) return;
       // Haken „KI korrigieren“: erste Runde korrigiert und zeigt; ist nichts zu ändern, geht die Nachricht gleich raus
-      if ($('#ch_kik').checked && !CH.korrRunde[id]) {
+      if ($('#ch_kik').checked && !CH.korrRunde[id] && text.trim()) {
         CH.sendet = true; $('#ch_senden').disabled = true; chStatus(id, '✨ KI korrigiert …');
         let r = null;
         try { r = await helferApi({ aktion: 'korrigieren', text }); }
@@ -2191,14 +2401,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const m = chMarkiert(text, c), wa = $('#ch_wa') && $('#ch_wa').checked ? m.ids.filter(waAuto) : [];
       CH.sendet = true; $('#ch_senden').disabled = true;
       try {
-        await chatApi('senden', Object.assign({ chat_id: id, text, erwaehnt: m.ids, whatsapp: wa }, CH.antwort[id] ? { antwort_auf: CH.antwort[id] } : {}));
+        const sd = Object.assign({ chat_id: id, text, erwaehnt: m.ids, whatsapp: wa }, CH.antwort[id] ? { antwort_auf: CH.antwort[id] } : {});
+        if (mitDateien) await chMitDateienSenden(id, sd); else await chatApi('senden', sd);
         delete CH.antwort[id]; CH.nachUnten = true;   // nach dem eigenen Senden ans Ende
         CH.entwurf[id] = ''; ta.value = ''; hinweise(); delete CH.korrRunde[id]; delete CH.korrVorher[id]; if (!(CH.mstat[id] && /Nichts zu korrigieren/.test(CH.mstat[id].text))) chStatus(id, '');
         if (wa.length) toast(wa.map(x => mitglied(x).name).join(', ') + (wa.length > 1 ? ' bekommen' : ' bekommt') + ' in etwa einer Minute eine WhatsApp.');
         await chVerlaufLaden(id, true);
         const t2 = $('#ch_text'); if (t2) t2.focus();
       } catch (e) { toast(e.message); }
-      finally { CH.sendet = false; const b = $('#ch_senden'); if (b) b.disabled = false; }
+      finally { CH.sendet = false; const b = $('#ch_senden'); if (b) b.disabled = false; if (mitDateien) chDateienZeigen(id); }
     };
     if (!$('#dlg').open && window.innerWidth > 820) ta.focus();
   }
