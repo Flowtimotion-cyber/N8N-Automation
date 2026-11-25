@@ -115,7 +115,7 @@ täglich 03:40: team_anhang_aufraeumen_liste → Storage DELETE → team_anhang_
 **Einrichten (Reihenfolge egal, ohne Schritt 1 und 2 meldet das Portal „noch nicht eingerichtet“, der Chat läuft normal weiter):**
 
 1. **Supabase:** `supabase/team_chat_anhaenge.sql` im SQL Editor ausführen (Timo). Die Kontrolle am Ende zeigt `team-anhaenge | false | 26214400`.
-2. **n8n „TEAM: Anhänge (Portal)“** aus `chat/n8n/anhaenge.workflow.gen.js` (`node chat/n8n/bauen-anhaenge.mjs`) neu anlegen: Zugangsdaten „Supabase account“ in allen HTTP-Knoten, Fehler-Workflow `pka7MaqDJwuhjHpY`, erfolgreiche Läufe nicht speichern (die Antworten enthalten signierte Links), dann veröffentlichen.
+2. **n8n „TEAM: Anhänge (Portal)“** (`26mU82EnBPDha4Fg`, am 25.11.2026 inaktiv angelegt aus `chat/n8n/anhaenge.workflow.gen.js`): Zugangsdaten „Supabase account“ in allen HTTP-Knoten, Fehler-Workflow `pka7MaqDJwuhjHpY`, erfolgreiche Läufe werden nicht gespeichert (die Antworten enthalten signierte Links). Nach Schritt 1 und Timos Ja veröffentlichen.
 3. **PR mergen**, GitHub Pages liefert das Portal aus.
 
 **Kosten:** keine KI. Speicher zählt zum Supabase-Paket (Free 1 GB, Pro 100 GB inklusive), Bilder werden vorher verkleinert.
