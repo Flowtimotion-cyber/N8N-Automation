@@ -116,7 +116,9 @@ async function abrufen(still) {
     render();
     if (still) { window.scrollTo(0, y); if (fokus) { const el = document.querySelector(fokus); if (el) el.focus({ preventScroll: true }); } }
   } catch (e) {
-    if (e.status === 401) { tokenSetzen(null); return ohneZugang(e.message); }
+    // Zugang abgelehnt: Code NICHT löschen (Portal und Office teilen ihn; ein Aussetzer am Server meldete sonst überall ab, Timo 25.11.2026).
+    // Hintergrund-Abrufe zeigen nur einen Hinweis, nur das erste Laden zeigt die Anmeldeseite. Abmelden löscht weiterhin.
+    if (e.status === 401) { if (still && D) { toast(e.message); return; } return ohneZugang(e.message); }
     if (e.status === 403) return ohneZugang(e.message);
     if (!D && EINGEBETTET) { $('#app').innerHTML = '<div class="note warn" style="margin:4px 0"><b>KI Office ist noch nicht angebunden.</b> Der n8n-Workflow „TEAM: Office-API“ muss importiert und aktiviert sein (docs/office/SETUP.md). Bis dahin läuft das Team-Portal wie gewohnt weiter. <span class="muted">(' + esc(e.message) + ')</span></div>'; requestAnimationFrame(hoeheMelden); return; }
     if (!D) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung zur Office-API</h2><p class="muted">' + esc(e.message) + '</p><p class="small muted">Produktiv antwortet der n8n-Workflow „TEAM: Office-API“. Ist er noch nicht importiert, siehe docs/office/SETUP.md.</p><button class="btn" id="retry">Erneut versuchen</button></div>';

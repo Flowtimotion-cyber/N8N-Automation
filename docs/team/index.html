@@ -559,21 +559,31 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     if (!TOKEN) return ohneZugang();
     try {
       D = await api('laden');
+      laden.nachgefragt = false;
       if (D.setup) return einrichten();
       render();
 		MsgsList_User.laden();
       if (!laden.chatGestartet) { laden.chatGestartet = true; chatLaden(true); chatTakt(); }
     } catch (e) {
-      if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
+      // Zugang abgelehnt: erst einmal nachfragen (ein kurzer Aussetzer am Server soll niemanden abmelden).
+      // Der Code bleibt gespeichert (Timo 25.11.2026: nicht ständig neu anmelden müssen); nur „Abmelden“ oder ein neuer Code ersetzt ihn.
+      if (e.status === 401) {
+        if (!laden.nachgefragt) { laden.nachgefragt = true; await new Promise(r => setTimeout(r, 1500)); return laden(still); }
+        laden.nachgefragt = false;
+        return ohneZugang(e.message, true);
+      }
       if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
       else toast(e.message);
     }
   }
 
-  function ohneZugang(msg) {
+  function ohneZugang(msg, abgelehnt) {
+    const gemerkt = abgelehnt && ls.get('mt-token');
     $('#app').innerHTML = '<div class="center"><img class="logo" src="../logo_h96.png" srcset="../logo_h48.png 1x, ../logo_h96.png 2x, ../logo_h144.png 3x" alt="Momentum KI Akademie" style="height:48px;margin-bottom:18px"><div class="card"><h2>Team-Portal</h2>' +
-      '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung.</p>' +
+      '<p>' + esc(msg || 'Diese Seite ist nur für das Momentum-Team.') + '</p><p class="muted">Öffne den persönlichen Link, den du von Timo bekommen hast. Danach merkt sich dein Browser die Anmeldung. Tipp: Speichere diesen Link als Lesezeichen.</p>' +
+      (gemerkt ? '<p><button class="btn sec" type="button" id="code_nochmal">Gespeicherte Anmeldung nochmal versuchen</button></p>' : '') +
       '<form id="codef" style="margin-top:14px"><div class="f"><label for="code">Oder den Zugangscode hier einfügen</label><input id="code" autocomplete="off" placeholder="32 Zeichen aus deinem Link"></div><button class="btn" type="submit">Anmelden</button></form></div></div>';
+    if ($('#code_nochmal')) $('#code_nochmal').onclick = () => { TOKEN = ls.get('mt-token'); laden(); };
     $('#codef').onsubmit = ev => {
       ev.preventDefault();
       const c = /([a-f0-9]{20,64})/i.exec($('#code').value || '');

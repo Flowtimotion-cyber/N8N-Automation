@@ -77,7 +77,7 @@ for (const modus of ['speicher', 'postgres']) for (const vp of [DESKTOP, MOBIL])
     assert.equal(await p.$eval('meta[name="referrer"]', m => m.content), 'no-referrer');
     await oeffne(p, S, '', T['mf-anna']);
     assert.ok(!/z=/.test(p.url()), 'Code ist nach dem Laden nicht mehr in der Adresse: ' + p.url());
-    assert.equal(await p.evaluate(() => localStorage.getItem('mt-token')), T['mf-anna']);
+    assert.equal(await p.evaluate(() => localStorage.getItem('mt-pilot-token')), T['mf-anna']);
     assert.equal(await p.title(), 'Team-Portal · Musterfirma GmbH');
     assert.match(await text(p, '.who'), /Anna Muster.*Admin/);
     // Register-Leiste: auf dem Handy mit Scroll-Hinweis (Pfeil rechts), der am Ende verschwindet
@@ -91,7 +91,7 @@ for (const modus of ['speicher', 'postgres']) for (const vp of [DESKTOP, MOBIL])
     assert.match(await text(p, '.who'), /Ben Beispiel/);
     // Abmelden und per Code anmelden
     await tabKlick(p, 'team'); await p.click('#logout'); await p.waitForTimeout(200);
-    assert.match(await text(p, '#app'), /abgemeldet/); assert.equal(await p.evaluate(() => localStorage.getItem('mt-token')), null);
+    assert.match(await text(p, '#app'), /abgemeldet/); assert.equal(await p.evaluate(() => localStorage.getItem('mt-pilot-token')), null);
     await setze(p, '#code', T['mf-clara']); await p.$eval('#codef', f => f.requestSubmit()); await p.waitForTimeout(500);
     assert.match(await text(p, '.who'), /Clara Probe/);
     await p.close();
@@ -266,7 +266,7 @@ test('Firma vom Server hat Vorrang vor mandant.js; 401 meldet ab; Modul aus → 
   // 401: Admin erzeugt für Ben einen neuen Link, Bens nächste Aktion meldet ihn ab
   assert.equal((await api(S, T['mf-anna'], 'mitglied_speichern', { mitglied_id: 'mf-ben', name: 'Ben Beispiel', neuer_link: true })).status, 200);
   await tabKlick(p, 'vorschlaege'); await p.click('[data-vote="mf-v1"]'); await p.waitForTimeout(700);
-  assert.match(await text(p, '#app'), /Zugang ist ungültig/, 'Anmeldeseite mit Meldung'); assert.equal(await p.evaluate(() => localStorage.getItem('mt-token')), null, 'Code gelöscht');
+  assert.match(await text(p, '#app'), /Zugang ist ungültig/, 'Anmeldeseite mit Meldung'); assert.equal(await p.evaluate(() => localStorage.getItem('mt-pilot-token')), null, 'Code gelöscht');
   await p.close();
   await S.reset();
 });
