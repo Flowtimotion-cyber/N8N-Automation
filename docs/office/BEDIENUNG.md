@@ -92,7 +92,7 @@ Auf der Übersicht des Team-Portals steht direkt unter den Kennzahlen die Karte 
 ## Team-Portal: Vorschläge filtern, Pfad-Links, Arbeitszeit-Dialog (ab 18.10.2026, Vorschläge von Kurt)
 
 - **Vorschläge:** oben Suche, Bereichsfilter und „Nach Bereich ordnen“. Schlagworte schreibst du als `#Wort` in Titel oder Text (zum Beispiel `#Arbeitszeit`); ein Klick auf ein Schlagwort zeigt alle Vorschläge dazu. Neu: Bereiche „Vorschläge“ und „KI Office“.
-- **Links auf Laufwerke und Ordner in Notizen:** `[Projektordner](\Server\Freigabe\Projekt)` oder `[Datei](C:\Daten\Datei.docx)`; auch `file:///C:/…` und einfache Pfade werden erkannt. Ein Klick kopiert den Pfad, im Explorer mit Strg+L einfügen (Browser dürfen lokale Dateien nicht selbst öffnen). Pfade mit Leerzeichen in die eckigen Klammern setzen.
+- **Links auf Laufwerke und Ordner in Notizen:** `[Projektordner](\Server\Freigabe\Projekt)` oder `[Datei](C:\Daten\Datei.docx)`; auch `file:///C:/…` und einfache Pfade werden erkannt. Ein Klick kopiert den Pfad; im Explorer mit Strg+L in die Adresszeile wechseln und mit Strg+V einfügen (Browser dürfen lokale Dateien nicht selbst öffnen). Pfade mit Leerzeichen in die eckigen Klammern setzen.
 - **Zeit eintragen:** das Formular lässt sich wie bei Aufgaben und Notizen über den Griff am Rand verbreitern.
 
 

@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import vm from 'node:vm';
 import { MSGS_NICHT_EINGERICHTET, MSGS_BEARBEITEN_FEHLT, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort } from '../lib/nachrichten.js';
 import { C_MsgsDbNachbildung, msgsAntwortMock } from '../dev/mock.mjs';
 import { serverStarten, post } from '../../office/test/hilfe.mjs';
@@ -128,10 +129,14 @@ test('n8n-Datei ist aktuell und enthält die getestete Logik wortgleich', () => 
 
 test('Portal und SQL passen zusammen', () => {
 	const html = lies('docs', 'team', 'index.html'), sql = lies('supabase', 'team_nachrichten.sql');
-	assert.match(html, /const MSGS_API = 'https:\/\/n8n\.hm-storage\.de\/webhook\/team-msgs';/);
+	// Adresse und Höchstlänge stehen zentral in docs/team/konfig.js; index.html liest sie dort
+	const konfig = vm.runInNewContext(lies('docs', 'team', 'konfig.js') + '\n;teamPortalKonfig()');
+	assert.match(html, /const MSGS_API = WH\.nachrichten\.url;/);
+	assert.equal(konfig.n8n.webhooks.nachrichten.url, 'https://n8n.hm-storage.de/webhook/team-msgs');
 	assert.match(html, /class C_MsgsList_Global \{/); assert.match(html, /class C_MsgsList_User \{/);
 	assert.match(html, /const MsgsList_Global = C_MsgsList_Global\.instanz;/); assert.match(html, /const MsgsList_User = C_MsgsList_User\.instanz;/);
-	assert.ok(html.includes('const MSGS_TEXT_MAX = ' + MSGS_TEXT_MAX + ';'), 'gleiche Höchstlänge im Portal');
+	assert.match(html, /const MSGS_TEXT_MAX = KONFIG\.einstellungen\.nachrichten\.textMax;/);
+	assert.equal(konfig.einstellungen.nachrichten.textMax, MSGS_TEXT_MAX, 'gleiche Höchstlänge im Portal (konfig.js)');
 	assert.ok(html.includes('const MSGS_NICHT_EINGERICHTET = ' + JSON.stringify(MSGS_NICHT_EINGERICHTET).replace(/^"|"$/g, "'") + ';'), 'gleiche Meldung „nicht eingerichtet“ im Portal');
 	for (const fn of ['team_msgs_senden', 'team_msgs_laden', 'team_msgs_oeffnen', 'team_msgs_ungelesen']) {
 		assert.match(sql, new RegExp('create or replace function ' + fn + '\\('));
