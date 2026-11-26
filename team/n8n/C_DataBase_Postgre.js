@@ -3,12 +3,12 @@
 // Zweistufig, weil Knoten zwischen „Anfrage prüfen“ und dem Schreiben (z. B. „Social-Felder ergänzen“) noch den body
 // eines Auftrags ändern:
 //   1. neu/aendern/… liefern eine Beschreibung   { art, tab, pk, id | ids, body }
-//   2. C_dbPostgre.sql(auftrag) macht daraus    { sql, params }   (im Code-Knoten „Schreibaufträge“)
+//   2. C_DataBase_Postgre.sql(auftrag) macht daraus    { sql, params }   (im Code-Knoten „Schreibaufträge“)
 //
 // Typumwandlung wie bei PostgREST: Die Zeile geht als JSON-Text in json_populate_record(null::<tabelle>, $1::json),
 // so kommen Arrays, Datum und jsonb-Spalten genauso an wie bei Supabase. Nur die Spalten aus body werden geschrieben,
 // alle anderen behalten ihren Default bzw. bisherigen Wert. Werte gehen nie in den SQL-Text, nur als Parameter.
-class C_dbPostgre extends C_DataBase {
+class C_DataBase_Postgre extends C_DataBase {
 	constructor() {
 		super('postgre');
 	}
@@ -35,23 +35,23 @@ class C_dbPostgre extends C_DataBase {
 
 	// Name von Tabelle, Spalte oder Funktion: nur einfache Bezeichner, in Anführungszeichen gesetzt
 	static name(n) {
-		if (!/^[a-z_][a-z0-9_]*$/.test(String(n))) throw new Error('C_dbPostgre: ungültiger Name „' + n + '“');
+		if (!/^[a-z_][a-z0-9_]*$/.test(String(n))) throw new Error('C_DataBase_Postgre: ungültiger Name „' + n + '“');
 		return '"' + n + '"';
 	}
 
 	// Beschreibung → { sql, params } für den Postgres-Knoten
 	static sql(op) {
-		const N = C_dbPostgre.name;
+		const N = C_DataBase_Postgre.name;
 		const body = op.body || {};
 		const spalten = Object.keys(body).map(N);
 		const zeile = 'json_populate_record(null::' + N(op.tab) + ', $1::json)';
 		switch (op.art) {
 			case 'neu':
-				if (!spalten.length) throw new Error('C_dbPostgre: neue Zeile in ' + op.tab + ' ohne Spalten');
+				if (!spalten.length) throw new Error('C_DataBase_Postgre: neue Zeile in ' + op.tab + ' ohne Spalten');
 				return { sql: 'INSERT INTO ' + N(op.tab) + ' (' + spalten.join(', ') + ') SELECT ' + spalten.join(', ') + ' FROM ' + zeile, params: [JSON.stringify(body)] };
 			case 'aendern':
 			case 'aendernViele': {
-				if (!spalten.length) throw new Error('C_dbPostgre: Änderung an ' + op.tab + ' ohne Spalten');
+				if (!spalten.length) throw new Error('C_DataBase_Postgre: Änderung an ' + op.tab + ' ohne Spalten');
 				const wo = op.art === 'aendern'
 					? 'z.' + N(op.pk) + '::text = $2'
 					: 'z.' + N(op.pk) + '::text IN (SELECT json_array_elements_text($2::json))';
@@ -72,7 +72,7 @@ class C_dbPostgre extends C_DataBase {
 				};
 			}
 			default:
-				throw new Error('C_dbPostgre: unbekannte Auftragsart „' + op.art + '“');
+				throw new Error('C_DataBase_Postgre: unbekannte Auftragsart „' + op.art + '“');
 		}
 	}
 }

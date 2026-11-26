@@ -1,4 +1,4 @@
-// Prüft Zugang und Rechte und bereitet die Schreibaufträge vor (über „dataBase“, siehe team/n8n/db)
+// Prüft Zugang und Rechte und bereitet die Schreibaufträge vor (über „dataBase“, siehe team/n8n/C_DataBase.js)
 let b = $('Team-API').first().json.body || {};
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
 const D = $('Team-Daten laden').first().json || {};

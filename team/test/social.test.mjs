@@ -1,7 +1,7 @@
-// Tests für social/lib/social.js. Start: node --test social/test/
+// Tests für team/n8n/C_Social.js. Start: npm run test:team:social
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { socialAnfrage, neueId, linkGueltig, sicherDateiname, endung, uploadPfad, kanalAusLink, titelAusLink, mimeFuer, bildMime, bildUrl, signierteUrl, auftragsText, ladenAntwort } from '../lib/social.js';
+import { socialAnfrage, neueId, linkGueltig, sicherDateiname, endung, uploadPfad, kanalAusLink, titelAusLink, mimeFuer, bildMime, bildUrl, signierteUrl, auftragsText, ladenAntwort } from '../n8n/C_Social.js';
 
 const JETZT = Date.parse('2026-10-28T12:00:00Z');
 const timo = { mitglied_id: 'm_timo', name: 'Timo', rolle: 'admin', status: 'aktiv', typ: 'mensch' };

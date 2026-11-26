@@ -1,7 +1,7 @@
 // Supabase-Variante von C_DataBase: Schreibaufträge in PostgREST-Schreibweise.
 // Ausgeführt werden sie im Workflow vom HTTP-Knoten „In Supabase schreiben“:
 //   { methode, pfad, body }  →  methode  <Supabase-URL>/rest/v1/<pfad>  mit body als JSON
-class C_dbSupabase extends C_DataBase {
+class C_DataBase_Supabase extends C_DataBase {
 	constructor() {
 		super('supabase');
 	}
@@ -15,15 +15,15 @@ class C_dbSupabase extends C_DataBase {
 	}
 
 	aendern(tab, pk, id, row) {
-		return { methode: 'PATCH', pfad: tab + '?' + pk + '=eq.' + C_dbSupabase.enc(id), body: row };
+		return { methode: 'PATCH', pfad: tab + '?' + pk + '=eq.' + C_DataBase_Supabase.enc(id), body: row };
 	}
 
 	aendernViele(tab, pk, ids, row) {
-		return { methode: 'PATCH', pfad: tab + '?' + pk + '=in.(' + ids.map(C_dbSupabase.enc).join(',') + ')', body: row };
+		return { methode: 'PATCH', pfad: tab + '?' + pk + '=in.(' + ids.map(C_DataBase_Supabase.enc).join(',') + ')', body: row };
 	}
 
 	loeschen(tab, pk, id) {
-		return { methode: 'DELETE', pfad: tab + '?' + pk + '=eq.' + C_dbSupabase.enc(id), body: {} };
+		return { methode: 'DELETE', pfad: tab + '?' + pk + '=eq.' + C_DataBase_Supabase.enc(id), body: {} };
 	}
 
 	funktion(name, params) {

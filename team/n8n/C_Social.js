@@ -1,6 +1,6 @@
 // Social: Logik für „Eigenes Video hochladen“ und „Ideen & starke Mitbewerber-Posts“ im Team-Portal
 // (n8n-Workflow „TEAM: Social-Upload“, Webhook team-social). Läuft im n8n-Code-Knoten (eingebettet von
-// social/n8n/bauen-social.mjs) und in Node (Tests). Kein Netzwerk, kein require.
+// team/n8n/bauen-social.mjs) und in Node (Tests). Kein Netzwerk, kein require.
 
 const SOCIAL_AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'idee_bild_url', 'upload_url', 'upload_status', 'upload_loeschen'];
 const AGENT_AKTIONEN = ['laden', 'upload_status'];           // Agenten (Medien-Cutter) lesen und melden den Stand

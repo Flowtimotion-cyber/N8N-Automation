@@ -4,7 +4,7 @@
 //
 // Die Geschäftslogik (portal-api-anfrage-pruefen.js) gibt es nur einmal. Sie schreibt ausschließlich über das Objekt
 // „dataBase“. Für jede Variante wird in den Code-Knoten „Anfrage prüfen“ eingesetzt:
-//   db/C_DataBase.js  +  db/<Klasse>.js  +  const dataBase = new <Klasse>();  +  Geschäftslogik
+//   C_DataBase.js  +  <Klasse>.js  +  const dataBase = new <Klasse>();  +  Geschäftslogik
 // (n8n-Code-Knoten können keine Dateien nachladen, deshalb wird zusammengefügt.)
 // Die übrigen Knoten (Lesen, Ausführen der Schreibaufträge) stammen aus der Vorlage der Variante. Eine Variante kann
 // statt einer eigenen Vorlage die Supabase-Vorlage per Umbau-Modul abwandeln (PostgreSQL: portal-api.postgre.umbau.mjs).
@@ -18,8 +18,8 @@ const hier = dirname(fileURLToPath(import.meta.url));
 const lies = datei => readFileSync(join(hier, datei), 'utf8').replace(/\r\n/g, '\n'); // CRLF-Checkouts ergäben sonst anderen Code
 
 export const VARIANTEN = [
-	{ kennung: 'supabase', klasse: 'C_dbSupabase', datei: 'db/C_dbSupabase.js', vorlage: 'portal-api.supabase.vorlage.json' },
-	{ kennung: 'postgre',  klasse: 'C_dbPostgre',  datei: 'db/C_dbPostgre.js',  vorlage: 'portal-api.supabase.vorlage.json', umbau: 'portal-api.postgre.umbau.mjs' }
+	{ kennung: 'supabase', klasse: 'C_DataBase_Supabase', datei: 'C_DataBase_Supabase.js', vorlage: 'portal-api.supabase.vorlage.json' },
+	{ kennung: 'postgre',  klasse: 'C_DataBase_Postgre',  datei: 'C_DataBase_Postgre.js',  vorlage: 'portal-api.supabase.vorlage.json', umbau: 'portal-api.postgre.umbau.mjs' }
 ];
 
 export const variante = kennung => {
@@ -39,8 +39,8 @@ export function fehltFuer(kennung) {
 export function dbCode(kennung) {
 	const v = variante(kennung);
 	return [
-		'// ===== db/C_DataBase.js =====',
-		lies('db/C_DataBase.js').trim(),
+		'// ===== C_DataBase.js =====',
+		lies('C_DataBase.js').trim(),
 		'// ===== ' + v.datei + ' =====',
 		lies(v.datei).trim()
 	].join('\n\n');

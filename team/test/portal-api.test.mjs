@@ -1,4 +1,4 @@
-// Test für die Code-Knoten „Anfrage prüfen“ und „Antwort bauen“ der n8n-Portal-API v2 (team/n8n/*.js) und die Datenbank-Klassen (team/n8n/db).
+// Test für die Code-Knoten „Anfrage prüfen“ und „Antwort bauen“ der n8n-Portal-API v2 (team/n8n/*.js) und die Datenbank-Klassen (team/n8n).
 // Führt den Code wie n8n aus: $('Knoten').first().json bzw. .all() werden nachgebildet, kein Netz, keine echten Daten.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { anfragePruefenCode, fehltFuer, workflowBauen, VARIANTEN } from '../n8n/bauen.mjs';
 
 const N8N = join(dirname(fileURLToPath(import.meta.url)), '..', 'n8n');
-const ANFRAGE = anfragePruefenCode('supabase');   // so, wie er in den Knoten „Anfrage prüfen“ kommt (C_DataBase + C_dbSupabase + Logik)
+const ANFRAGE = anfragePruefenCode('supabase');   // so, wie er in den Knoten „Anfrage prüfen“ kommt (C_DataBase + C_DataBase_Supabase + Logik)
 const ANTWORT = readFileSync(join(N8N, 'portal-api-antwort-bauen.js'), 'utf8');
 const TOK = { m_timo: 'tok-timo-0000000000000001', m_kurt: 'tok-kurt-0000000000000002', m_lillien: 'tok-lillien-00000000000003', 'agent-claude': 'tok-agent-0000000000000004' };
 const heute = new Date().toISOString().slice(0, 10);
@@ -137,12 +137,12 @@ test('Deploy-Datei passt zu den Quelldateien (sonst: node team/n8n/bauen-deploy.
   assert.equal(datei.operations[0].value, ANFRAGE);
 });
 
-// ===== Datenbank-Klassen (team/n8n/db) =====
+// ===== Datenbank-Klassen (team/n8n) =====
 const dbLauf = (klasse, ausdruck) => JSON.parse(JSON.stringify(vm.runInNewContext(
-	readFileSync(join(N8N, 'db', 'C_DataBase.js'), 'utf8') + '\n' + readFileSync(join(N8N, 'db', klasse + '.js'), 'utf8') + '\n' + 'const dataBase = new ' + klasse + '();\n' + ausdruck, {})));
+	readFileSync(join(N8N, 'C_DataBase.js'), 'utf8') + '\n' + readFileSync(join(N8N, klasse + '.js'), 'utf8') + '\n' + 'const dataBase = new ' + klasse + '();\n' + ausdruck, {})));
 
-test('C_dbSupabase erzeugt Aufträge in PostgREST-Schreibweise (wie der HTTP-Knoten sie erwartet)', () => {
-	const r = dbLauf('C_dbSupabase', `[
+test('C_DataBase_Supabase erzeugt Aufträge in PostgREST-Schreibweise (wie der HTTP-Knoten sie erwartet)', () => {
+	const r = dbLauf('C_DataBase_Supabase', `[
 		dataBase.kennung,
 		dataBase.neu('team_aufgaben', { titel: 'x' }),
 		dataBase.aendern('team_projekte', 'projekt_id', 'p 2/ä', { name: 'y' }),
@@ -161,8 +161,8 @@ test('C_dbSupabase erzeugt Aufträge in PostgREST-Schreibweise (wie der HTTP-Kno
 });
 
 test('C_DataBase ist nur die Schnittstelle: direkt nicht anlegbar, fehlende Methoden melden sich klar', () => {
-	assert.throws(() => dbLauf('C_dbSupabase', 'new C_DataBase("x")'), /nur die Schnittstelle/);
-	assert.throws(() => dbLauf('C_dbSupabase', 'class C_dbHalb extends C_DataBase { constructor() { super("halb"); } }; new C_dbHalb().neu("t", {})'), /C_dbHalb implementiert neu\(\) nicht/);
+	assert.throws(() => dbLauf('C_DataBase_Supabase', 'new C_DataBase("x")'), /nur die Schnittstelle/);
+	assert.throws(() => dbLauf('C_DataBase_Supabase', 'class C_DataBase_Halb extends C_DataBase { constructor() { super("halb"); } }; new C_DataBase_Halb().neu("t", {})'), /C_DataBase_Halb implementiert neu\(\) nicht/);
 });
 
 test('Geschäftslogik schreibt nur über dataBase (keine PostgREST-Schreibweise mehr)', () => {
@@ -176,19 +176,19 @@ test('Generator: Supabase-Workflow = Vorlage mit eingesetztem Code; unbekannte V
 	const code = n => wf.nodes.find(k => k.name === n).parameters.jsCode;
 	assert.equal(code('Anfrage prüfen'), ANFRAGE);
 	assert.equal(code('Antwort bauen'), ANTWORT.replace(/\r\n/g, '\n'));
-	assert.match(code('Anfrage prüfen'), /const dataBase = new C_dbSupabase\(\);/);
+	assert.match(code('Anfrage prüfen'), /const dataBase = new C_DataBase_Supabase\(\);/);
 	assert.ok(VARIANTEN.some(v => v.kennung === 'postgre'));
 	assert.throws(() => anfragePruefenCode('oracle'), /Unbekannte Datenbank-Variante/);
 });
 
-test('C_dbPostgre: Beschreibung → parametrisiertes SQL, Werte nie im SQL-Text', () => {
-	const [ops, sql] = dbLauf('C_dbPostgre', `const ops = [
+test('C_DataBase_Postgre: Beschreibung → parametrisiertes SQL, Werte nie im SQL-Text', () => {
+	const [ops, sql] = dbLauf('C_DataBase_Postgre', `const ops = [
 		dataBase.neu('team_aufgaben', { titel: "x'); drop table t; --", bearbeiter: ['a', 'b'] }),
 		dataBase.aendern('team_projekte', 'projekt_id', 'p 2/ä', { name: 'y' }),
 		dataBase.aendernViele('team_zeiten', 'zeit_id', ['z1', 'z,2'], { status: 'eingereicht' }),
 		dataBase.loeschen('team_abrechnung', 'abrechnung_id', 'ab1'),
 		dataBase.funktion('team_tn_haken', { p_tn: 't1', p_wert: true, p_datum: null })
-	]; [ops, ops.map(o => C_dbPostgre.sql(o))]`);
+	]; [ops, ops.map(o => C_DataBase_Postgre.sql(o))]`);
 	assert.equal(ops[0].art, 'neu');
 	assert.deepEqual(ops[1], { art: 'aendern', tab: 'team_projekte', pk: 'projekt_id', id: 'p 2/ä', body: { name: 'y' } });
 	assert.deepEqual(sql, [
@@ -198,9 +198,9 @@ test('C_dbPostgre: Beschreibung → parametrisiertes SQL, Werte nie im SQL-Text'
 		{ sql: 'DELETE FROM "team_abrechnung" WHERE "abrechnung_id"::text = $1', params: ['ab1'] },
 		{ sql: 'SELECT "team_tn_haken"("p_tn" := $1, "p_wert" := $2, "p_datum" := $3)', params: ['t1', 'true', null] }
 	]);
-	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.neu("x; drop", { a: 1 }))'), /ungültiger Name/);
-	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.aendern("t", "id", 1, { "a\\" --": 1 }))'), /ungültiger Name/);
-	assert.throws(() => dbLauf('C_dbPostgre', 'C_dbPostgre.sql(dataBase.neu("t", {}))'), /ohne Spalten/);
+	assert.throws(() => dbLauf('C_DataBase_Postgre', 'C_DataBase_Postgre.sql(dataBase.neu("x; drop", { a: 1 }))'), /ungültiger Name/);
+	assert.throws(() => dbLauf('C_DataBase_Postgre', 'C_DataBase_Postgre.sql(dataBase.aendern("t", "id", 1, { "a\\" --": 1 }))'), /ungültiger Name/);
+	assert.throws(() => dbLauf('C_DataBase_Postgre', 'C_DataBase_Postgre.sql(dataBase.neu("t", {}))'), /ohne Spalten/);
 });
 
 test('PostgreSQL-Logik erzeugt dieselben Inhalte wie Supabase, nur in anderer Form', () => {
@@ -223,8 +223,8 @@ test('Generator: PostgreSQL-Workflow aus der Supabase-Vorlage abgeleitet', async
 	assert.equal(k('In Datenbank schreiben').type, 'n8n-nodes-base.postgres');
 	assert.equal(k('Team-Daten lesen (SQL)').parameters.query, 'SELECT team_laden_plus() AS daten');
 	assert.equal(k('Team-Daten laden').type, 'n8n-nodes-base.code', 'Name bleibt, andere Knoten lesen $(„Team-Daten laden“)');
-	assert.match(k('Schreibaufträge').parameters.jsCode, /C_dbPostgre\.sql\(o\)/);
-	assert.match(k('Anfrage prüfen').parameters.jsCode, /const dataBase = new C_dbPostgre\(\);/);
+	assert.match(k('Schreibaufträge').parameters.jsCode, /C_DataBase_Postgre\.sql\(o\)/);
+	assert.match(k('Anfrage prüfen').parameters.jsCode, /const dataBase = new C_DataBase_Postgre\(\);/);
 	const ziele = Object.values(wf.connections).flatMap(q => q.main.flat().map(z => z.node));
 	for (const z of ziele) assert.ok(k(z), 'Verbindung zu fehlendem Knoten ' + z);
 	assert.equal(new Set(wf.nodes.map(n => n.id)).size, wf.nodes.length);

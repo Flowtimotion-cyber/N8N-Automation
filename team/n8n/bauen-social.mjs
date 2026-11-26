@@ -1,6 +1,6 @@
 // Baut die n8n-SDK-Datei für „TEAM: Social-Upload“ (Webhook team-social).
-// Start: node social/n8n/bauen-social.mjs → social/n8n/social.workflow.gen.js
-// Eingebettet wird social/lib/social.js (getestet, node --test social/test/social.test.mjs).
+// Start: node team/n8n/bauen-social.mjs → team/n8n/social.workflow.gen.js
+// Eingebettet wird team/n8n/C_Social.js (getestet, node --test team/test/social.test.mjs).
 // Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url (signierte Upload-URL für ein Bild im öffentlichen Bucket social-ideen),
 // upload_url (signierte Upload-URL für den privaten Bucket medien-roh), upload_status (hochgeladen | beauftragt | geschnitten | fehler),
 // upload_loeschen (nur Admin: Datei + Status geloescht).
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const hier = dirname(fileURLToPath(import.meta.url));
-const LIB = readFileSync(join(hier, '..', 'lib/social.js'), 'utf8').replace(/^export /gm, '');
+const LIB = readFileSync(join(hier, 'C_Social.js'), 'utf8').replace(/^export /gm, '');
 
 const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
@@ -69,14 +69,14 @@ return [{ json: { aktion: 'loeschen', upload_id: z.upload_id, bucket: z.bucket |
 const JS_GELOESCHT = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, id: a.upload_id, hinweis: 'Rohvideo gelöscht. Der Eintrag bleibt als „gelöscht“ sichtbar.' } } }];`;
 
-const sdk = `// GENERIERT von social/n8n/bauen-social.mjs – nicht von Hand ändern.
+const sdk = `// GENERIERT von team/n8n/bauen-social.mjs – nicht von Hand ändern.
 // TEAM: Social-Upload. Webhook team-social, aufgerufen vom Team-Portal (docs/team/index.html, Register „Social Media“).
 // Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url, upload_url, upload_status, upload_loeschen.
 // Zugriff: aktive Teammitglieder mit Portal-Token; Agenten nur laden und upload_status; löschen nur Admin.
 // Rohvideos liegen im privaten Bucket „${BUCKET}“, Bilder zu Ideen im öffentlichen Bucket „${BILD_BUCKET}“. Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
 import { workflow, node, trigger, switchCase, expr, newCredential } from '@n8n/workflow-sdk';
 
-// Gemeinsame Logik aus social/lib/social.js (getestet), in jedem Code-Knoten vorangestellt
+// Gemeinsame Logik aus team/n8n/C_Social.js (getestet), in jedem Code-Knoten vorangestellt
 const LIB = ${JSON.stringify(LIB)};
 
 const api = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Social-API', parameters: { httpMethod: 'POST', path: 'team-social', responseMode: 'responseNode', options: { allowedOrigins: 'https://flowtimotion-cyber.github.io' } } } });
@@ -127,4 +127,4 @@ export default workflow('team-social', 'TEAM: Social-Upload')
     .onCase(7, bildUrlHolen.to(bildUrlMelden).to(antwort)));
 `;
 writeFileSync(join(hier, 'social.workflow.gen.js'), sdk);
-console.log('geschrieben: social/n8n/social.workflow.gen.js', sdk.length, 'Zeichen');
+console.log('geschrieben: team/n8n/social.workflow.gen.js', sdk.length, 'Zeichen');

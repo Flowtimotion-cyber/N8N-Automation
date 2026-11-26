@@ -5,7 +5,7 @@
 //   Webhook            team-api-v2  →  team-api-v2-pg
 //   Team-Daten laden   HTTP rpc/team_laden_plus  →  Postgres „Team-Daten lesen (SQL)“ + Code „Team-Daten laden“
 //                      (der Code-Knoten behält den Namen, weil andere Knoten $('Team-Daten laden') lesen)
-//   Schreibaufträge    macht aus den Beschreibungen von C_dbPostgre jetzt { sql, params }
+//   Schreibaufträge    macht aus den Beschreibungen von C_DataBase_Postgre jetzt { sql, params }
 //   In Supabase …      HTTP-Knoten  →  Postgres-Knoten „In Datenbank schreiben“ (Execute Query)
 //   Ergebnis prüfen    Fehler kommen als { error } statt als HTTP-Status
 // Zugangsdaten: Postgres-Credential muss nach dem Import in beiden Postgres-Knoten gewählt werden.
@@ -61,7 +61,7 @@ export function umbau(wf, { dbCode }) {
 	// Schreiben
 	const schreib = wf.nodes.find(n => n.name === 'Schreibaufträge');
 	schreib.parameters.jsCode = '// GENERIERT von team/n8n/bauen.mjs (Variante „postgre“) – nicht von Hand ändern\n// Beschreibungen aus „Anfrage prüfen“ (ggf. von „Social-Felder ergänzen“ ergänzt) → { sql, params } für den Postgres-Knoten\n\n'
-		+ dbCode + '\n\nreturn ($input.first().json.ops || []).map(o => ({ json: C_dbPostgre.sql(o) }));\n';
+		+ dbCode + '\n\nreturn ($input.first().json.ops || []).map(o => ({ json: C_DataBase_Postgre.sql(o) }));\n';
 	const http = wf.nodes.find(n => n.name === 'In Supabase schreiben');
 	ersetzeKnoten(wf, 'In Supabase schreiben',
 		postgres('In Datenbank schreiben', '={{ $json.sql }}', http.position, { onError: 'continueRegularOutput', options: { queryReplacement: '={{ $json.params }}' } }));

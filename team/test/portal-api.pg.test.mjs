@@ -2,7 +2,7 @@
 // Datenbank nur im Arbeitsspeicher, kein Server, keine Zugangsdaten).
 //   npm run test:team:pg        (einmalig vorher: npm install)
 //
-// Geprüft wird die Kette  Geschäftslogik („Anfrage prüfen“, Variante postgre) → C_dbPostgre.sql() → SQL → Tabellen/Funktionen.
+// Geprüft wird die Kette  Geschäftslogik („Anfrage prüfen“, Variante postgre) → C_DataBase_Postgre.sql() → SQL → Tabellen/Funktionen.
 // Nicht geprüft: der Postgres-Knoten von n8n selbst (dafür ist ein Probelauf in n8n nötig).
 // Schema: Pilot-SQL-Dateien + Team-Ergänzungen + Musterdaten (ein vollständiges Team-Schema in einer Datei gibt es nicht).
 import { test } from 'node:test';
@@ -34,7 +34,7 @@ try {
 	fehltPglite = 'PGlite fehlt: im Ordner N8N-Automation einmal „npm install“ ausführen';
 }
 
-const C = vm.runInNewContext(dbCode('postgre') + '\nC_dbPostgre', {});
+const C = vm.runInNewContext(dbCode('postgre') + '\nC_DataBase_Postgre', {});
 const CODE = anfragePruefenCode('postgre');
 let db;
 

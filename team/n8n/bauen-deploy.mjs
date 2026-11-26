@@ -1,6 +1,6 @@
 // Erzeugt team/n8n/deploy-portal-api.json: die update_workflow-Operationen für die n8n-Portal-API v2
 // (Workflow kMuDaDmT9rCN5Vs2, Supabase-Variante). Geändert wird NUR der Code (jsCode) von Knoten, deren Code sich
-// gegenüber dem Live-Stand unterscheidet. Der Code kommt aus team/n8n/bauen.mjs (C_DataBase + C_dbSupabase + Logik).
+// gegenüber dem Live-Stand unterscheidet. Der Code kommt aus team/n8n/bauen.mjs (C_DataBase + C_DataBase_Supabase + Logik).
 //   node team/n8n/bauen-deploy.mjs
 // Einspielen macht die Mastersitzung nach Timos Ja (siehe „anleitung“ im erzeugten JSON). Nie selbst veröffentlichen.
 import { writeFileSync } from 'node:fs';
@@ -44,7 +44,7 @@ export function deployBauen() {
 			'4. Kurztest: Portal laden, eine Aufgabe speichern, eine Notiz löschen und aus dem Papierkorb wiederherstellen; mit team.py „meine“ abrufen.'
 		],
 		versionName: 'Claude Code: Datenbank-Abstraktion C_DataBase (Supabase)',
-		versionDescription: 'Schreibaufträge in „Anfrage prüfen“ laufen über dataBase = new C_dbSupabase(); erzeugt dieselben Aufträge wie bisher (PostgREST). Vorbereitung für eine PostgreSQL-Variante. Nur jsCode geändert. Quelle: Repo team/n8n (bauen.mjs).',
+		versionDescription: 'Schreibaufträge in „Anfrage prüfen“ laufen über dataBase = new C_DataBase_Supabase(); erzeugt dieselben Aufträge wie bisher (PostgREST). Vorbereitung für eine PostgreSQL-Variante. Nur jsCode geändert. Quelle: Repo team/n8n (bauen.mjs).',
 		operations: geaendert.map(k => ({ type: 'setNodeParameter', nodeName: k.name, path: '/jsCode', value: k.code }))
 	};
 }
