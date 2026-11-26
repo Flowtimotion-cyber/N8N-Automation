@@ -1,6 +1,6 @@
 // Baut die n8n-SDK-Datei für „TEAM: Social-Upload“ (Webhook team-social).
 // Start: node team/n8n/bauen-social.mjs → team/n8n/social.workflow.gen.js
-// Eingebettet wird team/n8n/C_Social.js (getestet, node --test team/test/social.test.mjs).
+// Eingebettet wird die Klasse C_Social aus team/n8n/C_Social.js (getestet, node --test team/test/social.test.mjs).
 // Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url (signierte Upload-URL für ein Bild im öffentlichen Bucket social-ideen),
 // upload_url (signierte Upload-URL für den privaten Bucket medien-roh), upload_status (hochgeladen | beauftragt | geschnitten | fehler),
 // upload_loeschen (nur Admin: Datei + Status geloescht).
@@ -8,14 +8,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { C_Social } from './C_Social.js';
 
 const hier = dirname(fileURLToPath(import.meta.url));
 const LIB = readFileSync(join(hier, 'C_Social.js'), 'utf8').replace(/^export /gm, '');
 
 const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
-const BUCKET = 'medien-roh';
-const BILD_BUCKET = 'social-ideen';
+const BUCKET = C_Social.BUCKET;
+const BILD_BUCKET = C_Social.BILD_BUCKET;
 // newCredential('Name') statt fester ID: Der n8n-MCP-Import (create_workflow_from_code) übernimmt nur diese Form und hängt das
 // bestehende Credential „Supabase account“ (NpKrSLYxAsarf8ar) selbst an; feste {id, name}-Objekte lässt er leer (Befund 28.10.2026).
 const CRED_SUPA = "{ supabaseApi: newCredential('Supabase account') }";
@@ -38,18 +39,18 @@ return [{ json: { token: /^[a-f0-9]{20,64}$/.test(t) ? t : 'ungueltig', aktion: 
 const JS_ANFRAGE = `${LIB}
 const E = $('Eingang').first().json;
 const ich = E.token === 'ungueltig' ? null : (${ICH});
-return [{ json: socialAnfrage(ich, E.aktion, E.daten, Date.now()) }];`;
+return [{ json: C_Social.anfrage(ich, E.aktion, E.daten, Date.now()) }];`;
 const JS_LADEN = `${LIB}
 const ich = ${ICH};
 const ideen = $('Ideen laden').all().map(i => i.json).filter(x => x && x.idee_id);
 const uploads = $('Uploads laden').all().map(i => i.json).filter(x => x && x.upload_id);
-return [{ json: { code: 200, antwort: ladenAntwort(ideen, uploads, ich, ${JSON.stringify(STORAGE)}) } }];`;
+return [{ json: { code: 200, antwort: C_Social.ladenAntwort(ideen, uploads, ich, ${JSON.stringify(STORAGE)}) } }];`;
 const JS_BILD_URL = `${LIB}
 const a = ${A};
 const r = $input.first().json || {};
-const url = signierteUrl(${JSON.stringify(STORAGE)}, r);
+const url = C_Social.signierteUrl(${JSON.stringify(STORAGE)}, r);
 if (!url) return [{ json: { code: 502, antwort: { ok: false, fehler: 'Supabase hat keine Upload-Adresse für das Bild ausgestellt' + (r.message || r.error ? ': ' + (r.message || r.error) : '.') } } }];
-return [{ json: { code: 200, antwort: { ok: true, bucket: a.bild.bucket, pfad: a.bild.pfad, mime: a.bild.mime, url, bild_url: bildUrl(${JSON.stringify(STORAGE)}, a.bild.pfad), gueltig_sek: 7200 } } }];`;
+return [{ json: { code: 200, antwort: { ok: true, bucket: a.bild.bucket, pfad: a.bild.pfad, mime: a.bild.mime, url, bild_url: C_Social.bildUrl(${JSON.stringify(STORAGE)}, a.bild.pfad), gueltig_sek: 7200 } } }];`;
 const JS_IDEE = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, id: a.idee.idee_id, idee: a.idee } } }];`;
 const JS_IDEE_WEG = `const a = ${A};
@@ -57,7 +58,7 @@ return [{ json: { code: 200, antwort: { ok: true, id: a.idee_id, hinweis: 'In de
 const JS_URL = `${LIB}
 const a = ${A};
 const r = $input.first().json || {};
-const url = signierteUrl(${JSON.stringify(STORAGE)}, r);
+const url = C_Social.signierteUrl(${JSON.stringify(STORAGE)}, r);
 if (!url) return [{ json: { code: 502, antwort: { ok: false, fehler: 'Supabase hat keine Upload-Adresse ausgestellt' + (r.message || r.error ? ': ' + (r.message || r.error) : '.') } } }];
 return [{ json: { code: 200, antwort: { ok: true, upload_id: a.upload.upload_id, bucket: a.upload.bucket, pfad: a.upload.pfad, mime: a.upload.mime, url, gueltig_sek: 7200 } } }];`;
 const JS_STATUS = `const a = ${A};
@@ -76,7 +77,7 @@ const sdk = `// GENERIERT von team/n8n/bauen-social.mjs – nicht von Hand ände
 // Rohvideos liegen im privaten Bucket „${BUCKET}“, Bilder zu Ideen im öffentlichen Bucket „${BILD_BUCKET}“. Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
 import { workflow, node, trigger, switchCase, expr, newCredential } from '@n8n/workflow-sdk';
 
-// Gemeinsame Logik aus team/n8n/C_Social.js (getestet), in jedem Code-Knoten vorangestellt
+// Gemeinsame Logik: Klasse C_Social aus team/n8n/C_Social.js (getestet), in jedem Code-Knoten vorangestellt
 const LIB = ${JSON.stringify(LIB)};
 
 const api = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Social-API', parameters: { httpMethod: 'POST', path: 'team-social', responseMode: 'responseNode', options: { allowedOrigins: 'https://flowtimotion-cyber.github.io' } } } });

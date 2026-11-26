@@ -43,7 +43,7 @@ alter table team_social_ideen add column if not exists geaendert_von  text not n
 create index if not exists team_social_ideen_status on team_social_ideen (status, geaendert desc);
 alter table team_social_ideen enable row level security;
 
--- Anlegen oder ändern. p = Felder aus dem Portal (schon geprüft von social/lib/social.js), p_von = mitglied_id.
+-- Anlegen oder ändern. p = Felder aus dem Portal (schon geprüft von C_Social in team/n8n/C_Social.js), p_von = mitglied_id.
 create or replace function team_idee_speichern(p jsonb, p_von text) returns text
 language plpgsql security definer set search_path = public as $$
 declare id text := p ->> 'idee_id';

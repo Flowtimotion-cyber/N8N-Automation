@@ -81,7 +81,7 @@ Chat-Assistent `TJ5E1KT5MvzxvoD9` (gpt-5-mini, siehe `assistent/workflow.js`), W
 
 ## Nachtrag 28.10.2026: API-Vertrag „TEAM: Social-Upload“ (Webhook `team-social`, KI-erstellt: Claude Code)
 
-Eigener Workflow neben der Portal-API v2 (die bleibt unberührt). Logik in `social/lib/social.js` (getestet), Workflow aus `social/n8n/bauen-social.mjs` → `social/n8n/social.workflow.gen.js`.
+Eigener Workflow neben der Portal-API v2 (die bleibt unberührt). Logik in `team/n8n/C_Social.js` (Klasse `C_Social`) (getestet), Workflow aus `team/n8n/bauen-social.mjs` → `team/n8n/social.workflow.gen.js`.
 Request: `POST …/team-social`, Body `{ "token": "…", "aktion": "…", "daten": { … } }`. Antwort wie bei der Portal-API.
 
 | Aktion | Wer | daten | Zweck |

@@ -3322,7 +3322,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		});
 	}
 	async function socialNeu() { SD = await socialLaden(true); if (tab === 'social') socialListen(); }
-	// Auftragstext für den Medien-Cutter (gleiche Fassung wie auftragsText in social/lib/social.js)
+	// Auftragstext für den Medien-Cutter (gleiche Fassung wie C_Social.auftragsText in team/n8n/C_Social.js)
 	function cutterText(u) {
 		return ['Rohvideo im Momentum-Stil für ' + (u.kanal || 'LinkedIn') + ' schneiden: ' + (u.thema || ''), 'Datei: ' + (u.bucket || 'medien-roh') + '/' + (u.pfad || '(Pfad über upload_id ' + u.upload_id + ' nachschlagen)'), u.kontext ? 'Kontext: ' + u.kontext : '',
 			'Erwartet: 3–5 Clip-Vorschläge mit Zeitmarken als Notiz, dann Rohschnitt mit Untertiteln, Bauchbinden und Logo nach Momentum-Marke in 9:16 und 16:9. Nichts veröffentlichen, alles zur Abnahme.'].filter(Boolean).join('\n').slice(0, 2000);
