@@ -87,6 +87,14 @@ function teamPortalKonfig() {
 			nachrichten: { url: N8N_WEBHOOK_BASIS + 'team-msgs',        workflow: 'TEAM: Nachrichten (Portal)',                          id: '0tUWBdqqBPtnlfAj' },
 			// Register „WhatsApp“. → index.html: WA_API
 			whatsapp:    { url: N8N_WEBHOOK_BASIS + 'team-inbox',       workflow: 'TEAM: WhatsApp-Inbox (Portal)',                       id: 'PUrXB6zVrUjUpbGh' },
+			// WhatsApp-Vorlage senden, wenn das 24-Stunden-Fenster zu ist. → index.html: WA_VORLAGE_API
+			waVorlage:   { url: N8N_WEBHOOK_BASIS + 'team-inbox-vorlage', workflow: 'TEAM: WhatsApp-Vorlage senden (App)',                id: 'OsLyyXUA3G4WyETH' },
+			// Team-Chat (Gruppen-, Direkt-, Projekt-Chats). → index.html: CHAT_API
+			chat:        { url: N8N_WEBHOOK_BASIS + 'team-chat',        workflow: 'TEAM: Chat (Portal)',                                 id: 'EjzNbDUU28ngwKQi' },
+			// Team-Chat: Sprachnachricht und „KI korrigieren“. → index.html: HELFER_API
+			chatHelfer:  { url: N8N_WEBHOOK_BASIS + 'team-chat-helfer', workflow: 'TEAM: Chat-Helfer (Portal)',                          id: 'Udi7cuPyYwWUlWGT' },
+			// Team-Chat: Dateianhänge. → index.html: ANHANG_API
+			anhang:      { url: N8N_WEBHOOK_BASIS + 'team-anhang',      workflow: 'TEAM: Anhänge (Portal)',                              id: '26mU82EnBPDha4Fg' },
 			// Register „Vertrieb“ (Twenty CRM). → index.html: VERTRIEB_API
 			vertrieb:    { url: N8N_WEBHOOK_BASIS + 'team-vertrieb',    workflow: 'TEAM: Vertrieb-Pipeline (Twenty)',                    id: 'cWDiokGOeQT5uFsY' },
 			// Register „Diktat“ (Transkription). → index.html: DIKTAT_API
@@ -138,7 +146,7 @@ function teamPortalKonfig() {
 			textMax:     20000	// → index.html: MSGS_TEXT_MAX (muss zur Grenze in der Supabase-Funktion passen)
 		},
 		whatsapp: {
-			autoAktiv:   false	// → index.html: WA_AUTO_AKTIV
+			autoAktiv:   true	// → index.html: WA_AUTO_AKTIV (seit 23.11.2026 an, Vorlage neue_aufgabe freigegeben)
 		},
 		// Anleitungsvideo auf der Übersicht (Loom). → index.html: ANLEITUNG_VIDEO
 		anleitungVideo: { id: 'd8374b76435f44bba6bae75895ded4bf', titel: 'So funktioniert das Portal', dauer: '9½ Minuten' }

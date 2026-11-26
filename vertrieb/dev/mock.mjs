@@ -1,6 +1,6 @@
 // TESTADAPTER: Nachbildung der Vertriebs-API (team-vertrieb, Twenty CRM) und der Diktat-API (team-diktat) für den lokalen Testserver.
 // Synthetische Daten, keine echten Personen, kein OpenAI-Aufruf: Die „Transkription“ ist ein fester Beispieltext.
-import { diktatAnfrage, diktatAntwort } from '../lib/diktat.js';
+import { diktatAnfrage, diktatAntwort, teilAntwort, gesamtAntwort, speichernAuftrag, gespeichertAntwort, diktatDbAntwort } from '../lib/diktat.js';
 
 const vor = (jetztMs, tage) => new Date(jetztMs - tage * 86400000).toISOString();
 export function vertriebDaten(jetztMs) {
@@ -66,18 +66,57 @@ export function multipartLesen(buf, contentType) {
 }
 
 const BEISPIEL_TRANSKRIPT = 'also ich hab grad mit herrn müller telefoniert die haben drei leute im büro und wollen den ki führerschein machen wenn die förderung über den bildungsgutschein klappt ich soll bis freitag ein angebot schicken und er meldet sich dann nächste woche dienstag nochmal wegen dem erhebungsbogen';
+const BEISPIEL_GESAMT_LLM = JSON.stringify({ zusammenfassung: 'Meeting zum KI-Führerschein: Ablauf und Förderung besprochen.', punkte: ['Förderung über Bildungsgutschein'], naechste_schritte: ['Angebot schicken (Vertrieb)'], termine: [] });
 const BEISPIEL_LLM = JSON.stringify({ text: 'Ich habe gerade mit Herrn Müller telefoniert. Die Firma hat drei Mitarbeitende im Büro und möchte den KI-Führerschein machen, wenn die Förderung über den Bildungsgutschein klappt. Ich soll bis Freitag ein Angebot schicken; er meldet sich nächste Woche Dienstag wegen des Erhebungsbogens.', zusammenfassung: 'Müller GmbH (3 Mitarbeitende) will den KI-Führerschein, abhängig von der Förderung per Bildungsgutschein. Angebot bis Freitag, Rückmeldung am Dienstag.', punkte: ['3 Mitarbeitende im Büro', 'Förderung über Bildungsgutschein entscheidend'], naechste_schritte: ['Angebot bis Freitag schicken (Vertrieb)', 'Erhebungsbogen vorbereiten'], termine: ['Freitag: Angebot', 'Dienstag nächste Woche: Rückmeldung Herr Müller'] });
 
 /** Diktat-API-Nachbildung: wie der n8n-Workflow, aber mit festem Beispieltext statt OpenAI. */
+// Nachbildung der Supabase-Tabelle team_diktate (nur im Arbeitsspeicher des Testservers)
+export const DIKTATE = [];
+let dkNr = 0;
+/** Führt einen Supabase-Auftrag ({ methode, pfad, body }) auf DIKTATE aus, wie PostgREST es täte (nur die Filter, die das Portal nutzt). */
+function supaMock(db, jetztMs) {
+  const [tab, qs] = db.pfad.split('?');
+  if (tab === 'team_diktate_ki') {
+    const q0 = new URLSearchParams(qs || ''), id = (q0.get('diktat_id') || '').replace(/^eq\./, '');
+    return { statusCode: 200, body: DIKTATE.filter(z => z.ki_lesen && !z.geloescht_am && (!id || z.diktat_id === id)).map(z => Object.assign({ von: 'Testperson' }, z)) };
+  }
+  if (tab !== 'team_diktate') return { statusCode: 404, body: { message: 'relation team_diktate does not exist' } };
+  const q = new URLSearchParams(qs || '');
+  const passt = z => (!q.get('mitglied_id') || z.mitglied_id === decodeURIComponent(q.get('mitglied_id').replace(/^eq\./, ''))) && (!q.get('diktat_id') || z.diktat_id === q.get('diktat_id').replace(/^eq\./, '')) && (q.get('geloescht_am') !== 'is.null' || !z.geloescht_am);
+  if (db.methode === 'POST') {
+    const z = Object.assign({ diktat_id: 'dk_' + String(++dkNr).padStart(32, '0'), erstellt: new Date(jetztMs + dkNr * 1000).toISOString(), geloescht_am: null }, db.body);
+    z.vorschau = String(z.text || '').slice(0, 600); DIKTATE.push(z); return { statusCode: 201, body: [z] };
+  }
+  const L = DIKTATE.filter(passt);
+  if (db.methode === 'PATCH') { L.forEach(z => { Object.assign(z, db.body); z.vorschau = String(z.text || '').slice(0, 600); }); return { statusCode: 200, body: L }; }
+  return { statusCode: 200, body: L.slice().sort((a, b) => String(b.erstellt).localeCompare(String(a.erstellt))) };
+}
+const mitSpeichern = (erg, kontext, jetztMs) => (erg.code === 200 && erg.antwort.ok && !erg.antwort.teil) ? gespeichertAntwort(erg, supaMock(speichernAuftrag(erg.antwort, kontext), jetztMs)) : erg;
+
 export function diktatAntwortMock(mp, mitglieder, jetztMs) {
   if (!mp) return [400, { ok: false, fehler: 'Bitte als multipart/form-data senden.' }];
   const ich = (mitglieder || []).find(m => m.token === String(mp.felder.token || '')) || null;
   const r = diktatAnfrage(ich, mp.felder, mp.datei);
+  if (r.aktion === 'db') { const a = diktatDbAntwort(r.db, supaMock(r.db, jetztMs)); return [a.code, a.antwort]; }
+  if (r.aktion === 'zusammenfassen') {
+    const erg = mitSpeichern(gesamtAntwort(r.transkript, BEISPIEL_GESAMT_LLM, r.kontext, new Date(jetztMs).toISOString()), r.kontext, jetztMs);
+    erg.antwort.testadapter = true;
+    return [erg.code, erg.antwort];
+  }
   if (r.aktion !== 'transkribieren') return [r.code, r.antwort];
+  if (r.kontext.teil) {
+    // Stück einer langen Aufnahme: fester Beispieltext mit Stücknummer aus dem Dateinamen (stueck-3.webm)
+    const nr = ((mp.datei.fileName || '').match(/stueck-(\d+)/) || [])[1] || '?';
+    if (/kaputt/i.test(mp.datei.fileName || '')) return [502, { ok: false, fehler: 'Die Transkription hat nicht geklappt: HTTP 500. Bitte gleich noch einmal versuchen.' }];
+    const erg = teilAntwort('abschnitt ' + nr + ' vom meeting', JSON.stringify({ text: 'Abschnitt ' + nr + ' aus dem Meeting.' }), r.kontext);
+    erg.antwort.testadapter = true;
+    return [erg.code, erg.antwort];
+  }
   if (/leer|stumm/i.test(mp.datei.fileName || '')) return [422, { ok: false, fehler: 'In der Aufnahme wurde keine Sprache erkannt. Bitte näher ans Mikrofon oder lauter sprechen.' }];
   if (/kaputt/i.test(mp.datei.fileName || '')) return [502, { ok: false, fehler: 'Die Transkription hat nicht geklappt: HTTP 500. Bitte gleich noch einmal versuchen.' }];
   const roh = /ohne-ki/i.test(mp.datei.fileName || '') ? '' : BEISPIEL_LLM;
-  const erg = diktatAntwort(BEISPIEL_TRANSKRIPT, roh, r.kontext, new Date(jetztMs).toISOString());
+  let erg = diktatAntwort(BEISPIEL_TRANSKRIPT, roh, r.kontext, new Date(jetztMs).toISOString());
+  erg = mitSpeichern(erg, r.kontext, jetztMs);
   if (!roh) erg.antwort.hinweis = 'Die KI-Bereinigung war nicht erreichbar; du siehst das Rohtranskript.';
   erg.antwort.testadapter = true;
   return [erg.code, erg.antwort];

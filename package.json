@@ -29,7 +29,8 @@
     "test:team": "node --test team/test/portal-api.test.mjs",
     "test:team:pg": "node --test team/test/portal-api.pg.test.mjs",
     "test:team:social": "node --test team/test/social.test.mjs team/test/social.workflow.test.mjs",
-    "team:bauen-social": "node team/n8n/bauen-social.mjs"
+    "team:bauen-social": "node team/n8n/bauen-social.mjs",
+    "test:chat": "node --test \"chat/test/*.test.mjs\""
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16"

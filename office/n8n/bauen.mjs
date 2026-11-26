@@ -32,6 +32,12 @@ return [{ json: { weiter: r.weiter, code: r.code || 200, antwort: r.antwort || {
   return '// GENERIERT von office/n8n/bauen.mjs aus office/lib/*.js – nicht von Hand ändern.\n' + teile.join('\n\n') + '\n\n' + glue;
 }
 
+/** Kopie der Kennzahlen-Bibliothek für die Oberfläche: GitHub Pages liefert nur docs/ aus. Eine Quelle (office/lib/kennzahlen.js), zwei Orte; der Bündeltest prüft die Gleichheit. */
+export const KENNZAHLEN_KOPIE = join(hier, '..', '..', 'docs', 'office', 'js', 'kennzahlen.js');
+export function kennzahlenKopie() {
+  return '// GENERIERT von office/n8n/bauen.mjs aus office/lib/kennzahlen.js – nicht von Hand ändern.\n' + readFileSync(join(LIB, 'kennzahlen.js'), 'utf8').replace(/\r\n/g, '\n');
+}
+
 const ORIGIN = 'https://flowtimotion-cyber.github.io';
 const SUPABASE = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 
@@ -77,5 +83,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const code = buendel();
   writeFileSync(join(hier, 'code', 'anfrage-pruefen.js'), code);
   writeFileSync(join(hier, 'office-api.workflow.json'), JSON.stringify(workflowJson(code), null, 2) + '\n');
-  console.log('Geschrieben: office/n8n/code/anfrage-pruefen.js (' + code.length + ' Zeichen), office/n8n/office-api.workflow.json');
+  writeFileSync(KENNZAHLEN_KOPIE, kennzahlenKopie());
+  console.log('Geschrieben: office/n8n/code/anfrage-pruefen.js (' + code.length + ' Zeichen), office/n8n/office-api.workflow.json, docs/office/js/kennzahlen.js');
 }

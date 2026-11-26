@@ -8,13 +8,17 @@
 //   2. HTTP-Knoten: POST <Supabase>/rest/v1/rpc/<fn> mit body (volle Antwort, wirft nie)
 //   3. msgsAntwort(anfrage, { statusCode, body }) → { code, antwort }
 
-const MSGS_AKTIONEN = ['laden', 'senden', 'oeffnen', 'ungelesen'];
+const MSGS_AKTIONEN = ['laden', 'senden', 'oeffnen', 'ungelesen', 'gesendet', 'bearbeiten'];
 const MSGS_TEXT_MAX = 20000;
 const MSGS_EMPFAENGER_MAX = 50;
 const MSGS_LADEN_MAX = 300;
+const MSGS_GESENDET_MAX = 100;
 const MSGS_ID = /^[\w:.-]{1,80}$/;
 /** Meldung, wenn der Dienst noch nicht eingerichtet ist. Derselbe Text steht in docs/team/index.html (MSGS_NICHT_EINGERICHTET); ein Test hält beide gleich. */
 const MSGS_NICHT_EINGERICHTET = 'Der Nachrichtendienst ist noch nicht eingerichtet. Wie das geht, steht im Repo N8N-Automation in der Datei nachrichten/README.md, Abschnitt „Einrichten“. Bitte gib Timo Bescheid.';
+
+/** Meldung, wenn supabase/team_bearbeiten.sql noch fehlt (Nachrichtendienst läuft, Bearbeiten noch nicht). */
+const MSGS_BEARBEITEN_FEHLT = 'Bearbeiten ist noch nicht eingerichtet: Die Datei supabase/team_bearbeiten.sql muss noch in Supabase ausgeführt werden. Bitte gib Timo Bescheid.';
 
 const gueltigeId = v => typeof v === 'string' && MSGS_ID.test(v);
 const msgsFehler = (code, fehler) => ({ aktion: 'antwort', code, antwort: { ok: false, fehler } });
@@ -48,6 +52,16 @@ function msgsAnfrage(ich, aktion, daten) {
 		if (text.length > MSGS_TEXT_MAX) return msgsFehler(400, 'Die Nachricht ist zu lang (höchstens ' + MSGS_TEXT_MAX + ' Zeichen).');
 		return { aktion: 'rpc', was: aktion, fn: 'team_msgs_senden', body: { p_absender: wer, p_empfaenger: empfaenger, p_text: text } };
 	}
+	if (aktion === 'gesendet') return { aktion: 'rpc', was: aktion, fn: 'team_msgs_gesendet', body: { p_mitglied: wer, p_max: MSGS_GESENDET_MAX } };
+	if (aktion === 'bearbeiten') {
+		// Nur der Absender darf bearbeiten und nur 24 Stunden lang: Das prüft die Datenbank (team_msgs_bearbeiten), hier nur die Form
+		const id = String(d.msg_id === null || d.msg_id === undefined ? '' : d.msg_id);
+		const text = typeof d.text === 'string' ? d.text.replace(/\r\n/g, '\n') : '';
+		if (!MSGS_ID.test(id)) return msgsFehler(400, 'Ungültige Nachricht.');
+		if (!text.trim()) return msgsFehler(400, 'Die Nachricht ist leer.');
+		if (text.length > MSGS_TEXT_MAX) return msgsFehler(400, 'Die Nachricht ist zu lang (höchstens ' + MSGS_TEXT_MAX + ' Zeichen).');
+		return { aktion: 'rpc', was: aktion, fn: 'team_msgs_bearbeiten', body: { p_mitglied: wer, p_msg_id: id, p_text: text } };
+	}
 	if (aktion === 'oeffnen' || aktion === 'ungelesen') {
 		const id = String(d.msg_id === null || d.msg_id === undefined ? '' : d.msg_id);
 		if (!MSGS_ID.test(id)) return msgsFehler(400, 'Ungültige Nachricht.');
@@ -77,10 +91,16 @@ function msgsAntwort(anfrage, http) {
 			const nachrichten = (Array.isArray(b.nachrichten) ? b.nachrichten : []).filter(m => m && gueltigeId(m.msg_id));
 			return { code: 200, antwort: { ok: true, vorhanden: true, liste, nachrichten } };
 		}
+		if (was === 'gesendet') {
+			const nachrichten = (Array.isArray(b.nachrichten) ? b.nachrichten : []).filter(m => m && gueltigeId(m.msg_id));
+			return { code: 200, antwort: { ok: true, vorhanden: true, nachrichten } };
+		}
 		return { code: 200, antwort: Object.assign({ ok: true }, b) };
 	}
 	if (msgsFehltDb(status, b)) {
 		if (was === 'laden') return { code: 200, antwort: { ok: true, vorhanden: false, liste: [], nachrichten: [] } };
+		if (was === 'gesendet') return { code: 200, antwort: { ok: true, vorhanden: false, nachrichten: [] } };
+		if (was === 'bearbeiten') return { code: 503, antwort: { ok: false, fehler: MSGS_BEARBEITEN_FEHLT } };
 		return { code: 503, antwort: { ok: false, fehler: MSGS_NICHT_EINGERICHTET } };
 	}
 	// Fehler aus den SQL-Funktionen (raise exception, Code P0001) sind für Menschen geschrieben und gehen unverändert durch
@@ -88,4 +108,4 @@ function msgsAntwort(anfrage, http) {
 	return { code: 502, antwort: { ok: false, fehler: 'Die Nachrichten sind gerade nicht erreichbar. Bitte versuch es gleich noch einmal.' } };
 }
 
-export { MSGS_NICHT_EINGERICHTET, MSGS_AKTIONEN, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, MSGS_LADEN_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort };
+export { MSGS_NICHT_EINGERICHTET, MSGS_BEARBEITEN_FEHLT, MSGS_AKTIONEN, MSGS_GESENDET_MAX, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, MSGS_LADEN_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort };

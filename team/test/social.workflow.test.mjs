@@ -16,7 +16,7 @@ const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
 
 // Alle Klassen wie im Code-Knoten; ausdruck wird danach ausgewertet
-const lib = ausdruck => vm.runInNewContext(LIB + '\n' + ausdruck, { URL, encodeURIComponent });
+const lib = ausdruck => vm.runInNewContext(LIB + '\n' + ausdruck, { encodeURIComponent });   // wie im n8n-Code-Knoten: ohne URL
 
 // ===== Medienspeicher =====
 
@@ -79,7 +79,25 @@ test('C_Social.auftraege: Methode jedes Auftrags passt zur festen Methode des au
 			'Als gelöscht markieren': C_Social.loeschenAuftraege(L, { upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/10/a.mov' }, dataBase, medienSpeicher).db
 		})`)));
 	assert.deepEqual(Object.keys(r).sort(), Object.keys(AUSFUEHRUNG).sort(), 'jeder ausführende Knoten hat einen Auftrag');
-	for (const [knoten, auftrag] of Object.entries(r)) assert.equal(auftrag.methode, AUSFUEHRUNG[knoten].methode, knoten);
+	for (const [knoten, auftrag] of Object.entries(r)) {
+		assert.equal(auftrag.methode, AUSFUEHRUNG[knoten].methode, knoten);
+		// Supabase-Funktionen antworten mit Text: Antwortformat „Text“ genau bei rpc/… (Fehler 21.11.2026)
+		assert.equal(!!AUSFUEHRUNG[knoten].text, auftrag.pfad.startsWith('rpc/'), knoten + ': Antwortformat Text');
+	}
+	const gen = readFileSync(GEN, 'utf8');
+	assert.equal((gen.match(/responseFormat: 'text'/g) || []).length, Object.values(AUSFUEHRUNG).filter(x => x.text).length, 'SDK-Datei: Text-Format in allen rpc-Knoten');
+});
+
+test('Eingebetteter Code läuft ohne URL (wie im n8n-Code-Knoten)', () => {
+	assert.equal(lib('typeof URL'), 'undefined', 'Testkiste soll wie n8n kein URL haben');
+	const insta = 'https://www.instagram.com/p/DfRyne7A5Gc/?evlk=c2wzYXV0ZW44Nngy';
+	const r = JSON.parse(JSON.stringify(lib(`[
+		C_Social.linkGueltig(${JSON.stringify(insta)}), C_Social.kanalAusLink(${JSON.stringify(insta)}), C_Social.titelAusLink(${JSON.stringify(insta)}),
+		C_Social.linkGueltig('https://www.linkedin.com/feed/update/urn:li:activity:1'), C_Social.linkGueltig('https://müller-beispiel.de/seite#a'),
+		C_Social.linkGueltig('http://unsicher.de/x'), C_Social.linkGueltig('https://localhost/a'), C_Social.linkGueltig('javascript:alert(1)'), C_Social.linkGueltig('https://a b.de/x'),
+		C_Social.anfrage({ mitglied_id: 'm_timo', rolle: 'admin', status: 'aktiv' }, 'idee_speichern', { link: ${JSON.stringify(insta)}, titel: 'Erklärvideo', kanal: 'Instagram', warum_stark: 'Stil', status: 'neu' }, 1790000000000).idee.kanal
+	]`)));
+	assert.deepEqual(r, [true, 'Instagram', 'instagram.com/p/DfRyne7A5Gc', true, true, false, false, false, false, 'Instagram']);
 });
 
 // ===== Workflow im Simulator =====

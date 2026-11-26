@@ -36,11 +36,22 @@ export class C_Social {
 	/** Neue ID im Portal-Format: Präfix_Zeit36Zufall6 (wie neueId in der Portal-API). */
 	static neueId(praefix) { return praefix + '_' + Date.now().toString(36) + C_Social.rnd(6); }
 
+	/** Link in Host und Pfad zerlegen, ohne den Baustein URL: Den gibt es in n8n-Code-Knoten nicht
+	 *  (dort scheiterte jede Prüfung mit „Link muss vollständig sein“, auch bei korrekten Links; Fehler 21.11.2026). Nur https. */
+	static linkTeile(u) {
+		const m = /^https:\/\/(?:[^\s/?#@]*@)?([^\s/?#:@]+)(?::\d{1,5})?([/?#][^\s]*)?$/i.exec(String(u || '').trim());
+		if (!m) return null;
+		const host = m[1].toLowerCase().replace(/\.$/, '');
+		if (!/^[\p{L}\p{N}-]+(\.[\p{L}\p{N}-]+)+$/u.test(host)) return null;
+		const pfad = (m[2] || '/').split(/[?#]/)[0] || '/';
+		return { host, pfad: pfad.startsWith('/') ? pfad : '/' + pfad };
+	}
+
 	/** Nur https-Links zu Beiträgen, Profilen, Artikeln. Kein javascript:, keine Mailadressen. */
 	static linkGueltig(u) {
 		const s = String(u || '').trim();
 		if (s.length < 12 || s.length > 1000) return false;
-		try { const x = new URL(s); return x.protocol === 'https:' && !!x.hostname.includes('.'); } catch (e) { return false; }
+		return !!C_Social.linkTeile(s);
 	}
 
 	/** Dateiname für den Bucket: nur Buchstaben, Ziffern, Punkt, Minus, Unterstrich. Umlaute werden ersetzt. */
@@ -138,7 +149,8 @@ export class C_Social {
 
 	/** Kanal am Link erkennen, sonst „Sonstiges“. */
 	static kanalAusLink(link) {
-		let h = ''; try { h = new URL(link).hostname.toLowerCase(); } catch (e) { return 'Sonstiges'; }
+		const t = C_Social.linkTeile(link); if (!t) return 'Sonstiges';
+		const h = t.host;
 		if (/(^|\.)linkedin\.com$/.test(h)) return 'LinkedIn';
 		if (/(^|\.)instagram\.com$/.test(h)) return 'Instagram';
 		if (/(^|\.)(youtube\.com|youtu\.be)$/.test(h)) return 'YouTube';
@@ -149,7 +161,8 @@ export class C_Social {
 
 	/** Lesbarer Ersatztitel aus dem Link (Host + Anfang des Pfads). */
 	static titelAusLink(link) {
-		try { const u = new URL(link); return (u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/+$/, '')).slice(0, 80); } catch (e) { return 'Link'; }
+		const t = C_Social.linkTeile(link); if (!t) return 'Link';
+		return (t.host.replace(/^www\./, '') + t.pfad.replace(/\/+$/, '')).slice(0, 80);
 	}
 
 	/** MIME-Typ aus der Endung; was der Browser meldet, zählt nur, wenn es ein Video-Typ ist. */

@@ -45,7 +45,8 @@ export function ausfuehren(wf, { body, antworten = {}, kontext = {} }) {
 		if (!ausgaben[name]) throw new Error('Knoten „' + name + '“ ist (noch) nicht gelaufen');
 		return { first: () => ausgaben[name][0], all: () => ausgaben[name] };
 	};
-	const globale = { URL, encodeURIComponent, ...kontext };
+	// Wie im n8n-Code-Knoten: kein URL (Fehler 21.11.2026), kein require
+	const globale = { encodeURIComponent, ...kontext };
 	const auswerten = (wert, eingabe) => {
 		const s = wert && wert.ausdruck !== undefined ? wert.ausdruck : wert;
 		if (typeof s !== 'string' || !s.includes('{{')) return s;

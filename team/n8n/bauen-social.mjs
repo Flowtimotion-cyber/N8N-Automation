@@ -35,7 +35,10 @@ const CRED_SUPA = "{ supabaseApi: newCredential('Supabase account') }";
 
 const jsQuelle = js => js.startsWith(LIB) ? 'LIB + ' + JSON.stringify(js.slice(LIB.length)) : JSON.stringify(js);
 const code = (name, js) => `node({ type: 'n8n-nodes-base.code', version: 2, config: { name: ${JSON.stringify(name)}, parameters: { mode: 'runOnceForAllItems', jsCode: ${jsQuelle(js)} } } })`;
-const supa = (name, method, pfad, body, extra = '') => `node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: ${JSON.stringify(name)}, executeOnce: true, alwaysOutputData: true,${extra} parameters: { method: '${method}', url: ${pfad}, authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi'${body ? `, sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: ${body}` : ''}, options: { timeout: 20000 } }, credentials: ${CRED_SUPA}, retryOnFail: true, maxTries: 3, waitBetweenTries: 1000 } })`;
+// text: Antwortformat „Text“. Supabase-Funktionen (rpc/…) antworten mit einem einfachen Text (z. B. der ID), nicht mit einem JSON-Objekt;
+// ohne „Text“ bricht der HTTP-Knoten mit „Response body is not valid JSON“ ab und das Portal bekommt keine Antwort (Fenster bleibt offen,
+// Fehler 21.11.2026). Die Adresse steht erst zur Laufzeit im Auftrag fest, deshalb ist „text“ je Knoten in AUSFUEHRUNG eingetragen.
+const supa = (name, method, pfad, body, extra = '', text = false) => `node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: ${JSON.stringify(name)}, executeOnce: true, alwaysOutputData: true,${extra} parameters: { method: '${method}', url: ${pfad}, authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi'${body ? `, sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: ${body}` : ''}, options: { timeout: 20000${text ? ", response: { response: { responseFormat: 'text' } }" : ''} } }, credentials: ${CRED_SUPA}, retryOnFail: true, maxTries: 3, waitBetweenTries: 1000 } })`;
 const e = s => `expr(${JSON.stringify(s)})`;
 const fall = key => `{ outputKey: '${key}', conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict' }, conditions: [{ leftValue: expr('{{ $json.aktion }}'), operator: { type: 'string', operation: 'equals' }, rightValue: '${key}' }], combinator: 'and' } }`;
 
@@ -45,24 +48,25 @@ const ICH = "$('Mitglied prüfen').all().map(i => i.json).find(m => m && m.mitgl
 const AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload_loeschen', 'fehler', 'idee_bild_url'];
 
 // Ausführung eines Auftrags { methode, pfad, body }: Adresse = Basis + pfad, Body = JSON von body.
-// Die Methode steht fest im Knoten; social.workflow.test.mjs prüft, dass sie zur Methode des Auftrags passt.
+// Methode und Antwortformat stehen fest im Knoten (text: true bei Supabase-Funktionen, siehe supa);
+// social.workflow.test.mjs prüft, dass beides zum Auftrag passt (Methode gleich, text genau bei pfad rpc/…).
 export const AUSFUEHRUNG = {
 	'Mitglied prüfen':          { methode: 'GET',    basis: SUPA,    auftrag: '$json.db' },
 	'Ideen laden':              { methode: 'GET',    basis: SUPA,    auftrag: A + '.db.ideen' },
 	'Uploads laden':            { methode: 'GET',    basis: SUPA,    auftrag: A + '.db.uploads' },
-	'Idee speichern':           { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true },
-	'Idee in Papierkorb':       { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true },
-	'Upload anlegen':           { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true },
+	'Idee speichern':           { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true, text: true },
+	'Idee in Papierkorb':       { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true, text: true },
+	'Upload anlegen':           { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true, text: true },
 	'Upload-Adresse signieren': { methode: 'POST',   basis: STORAGE, auftrag: A + '.speicher', body: true, extra: " onError: 'continueRegularOutput'," },
 	'Bild-Adresse signieren':   { methode: 'POST',   basis: STORAGE, auftrag: A + '.speicher', body: true, extra: " onError: 'continueRegularOutput'," },
-	'Upload-Status setzen':     { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true },
+	'Upload-Status setzen':     { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true, text: true },
 	'Upload suchen':            { methode: 'GET',    basis: SUPA,    auftrag: A + '.db' },
 	'Datei löschen':            { methode: 'DELETE', basis: STORAGE, auftrag: L + '.speicher', extra: " onError: 'continueRegularOutput'," },
-	'Als gelöscht markieren':   { methode: 'POST',   basis: SUPA,    auftrag: L + '.db', body: true }
+	'Als gelöscht markieren':   { methode: 'POST',   basis: SUPA,    auftrag: L + '.db', body: true, text: true }
 };
 const ausfuehren = name => {
 	const x = AUSFUEHRUNG[name];
-	return supa(name, x.methode, e(`${x.basis}{{ ${x.auftrag}.pfad }}`), x.body ? e(`{{ JSON.stringify(${x.auftrag}.body) }}`) : null, x.extra);
+	return supa(name, x.methode, e(`${x.basis}{{ ${x.auftrag}.pfad }}`), x.body ? e(`{{ JSON.stringify(${x.auftrag}.body) }}`) : null, x.extra, !!x.text);
 };
 
 const JS_EINGANG = `${LIB}

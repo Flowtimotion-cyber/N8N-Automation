@@ -9,12 +9,15 @@ export class C_MsgsDbNachbildung {
 		this.jetzt = jetzt;
 		this.msgs = [];                     // team_msgs
 		this.user = [];                     // team_msgs_user
+		this.fassungen = [];                // team_nachricht_fassungen (supabase/team_bearbeiten.sql)
+		this.bearbeitenEingerichtet = true; // false: team_bearbeiten.sql fehlt noch
 		this.nr = 0;
 	}
 
 	rpc(fn, body) {
 		if (!this.eingerichtet) return { statusCode: 404, body: { code: 'PGRST202', message: 'Could not find the function public.' + fn } };
-		const f = { team_msgs_senden: this.senden, team_msgs_laden: this.laden, team_msgs_oeffnen: this.oeffnen, team_msgs_ungelesen: this.ungelesen }[fn];
+		const f = { team_msgs_senden: this.senden, team_msgs_laden: this.laden, team_msgs_oeffnen: this.oeffnen, team_msgs_ungelesen: this.ungelesen }[fn]
+			|| (this.bearbeitenEingerichtet ? { team_msgs_gesendet: this.gesendet, team_msgs_bearbeiten: this.bearbeiten }[fn] : null);
 		if (!f) return { statusCode: 404, body: { code: 'PGRST202', message: 'Could not find the function public.' + fn } };
 		try {
 			return { statusCode: 200, body: JSON.parse(JSON.stringify(f.call(this, body || {}))) };
@@ -30,7 +33,7 @@ export class C_MsgsDbNachbildung {
 		const ok = new Set(this.mitglieder().filter(m => m.status !== 'gesperrt').map(m => m.mitglied_id));
 		const unbekannt = empf.filter(e => !ok.has(e));
 		if (unbekannt.length) throw new Error('Unbekannte oder gesperrte Empfänger: ' + unbekannt.join(', '));
-		const msg = { msg_id: 'msg_test' + String(++this.nr).padStart(4, '0'), absender: String(p_absender || '').trim() || null, empfaenger: empf, text: p_text, gesendet: this.jetzt(), empfangen: {} };
+		const msg = { msg_id: 'msg_test' + String(++this.nr).padStart(4, '0'), absender: String(p_absender || '').trim() || null, empfaenger: empf, text: p_text, gesendet: this.jetzt(), empfangen: {}, bearbeitet: null };
 		this.msgs.push(msg);
 		empf.forEach(e => this.user.push({ mitglied_id: e, msg_id: msg.msg_id, gelesen: false, geaendert: msg.gesendet }));
 		return { nachricht: msg };
@@ -63,6 +66,25 @@ export class C_MsgsDbNachbildung {
 		const u = this.eintrag(p_mitglied, p_msg_id);
 		u.gelesen = false; u.geaendert = this.jetzt();
 		return { eintrag: { msg_id: p_msg_id, gelesen: false } };
+	}
+
+	// Nachbildung von team_msgs_gesendet und team_msgs_bearbeiten (supabase/team_bearbeiten.sql)
+	gesendet({ p_mitglied, p_max }) {
+		return { nachrichten: this.msgs.filter(m => m.absender === p_mitglied)
+			.sort((a, b) => String(b.gesendet).localeCompare(String(a.gesendet)) || b.msg_id.localeCompare(a.msg_id))
+			.slice(0, Math.max(1, Math.min(Number(p_max) || 100, 300))) };
+	}
+
+	bearbeiten({ p_mitglied, p_msg_id, p_text }) {
+		const m = this.msgs.find(x => x.msg_id === p_msg_id);
+		if (!m) throw new Error('Diese Nachricht gibt es nicht (mehr).');
+		if (m.absender !== p_mitglied) throw new Error('Bearbeiten kann nur, wer die Nachricht geschrieben hat.');
+		if (Date.parse(m.gesendet) < Date.parse(this.jetzt()) - 86400000) throw new Error('Nachrichten kann man nur bis 24 Stunden nach dem Senden bearbeiten.');
+		if (!String(p_text || '').trim()) throw new Error('Die Nachricht ist leer.');
+		if (p_text === m.text) return { nachricht: m, unveraendert: true };
+		this.fassungen.push({ quelle: 'posteingang', nachricht: m.msg_id, autor: p_mitglied, text: m.text, gueltig_bis: this.jetzt() });
+		m.text = p_text; m.bearbeitet = this.jetzt();
+		return { nachricht: m };
 	}
 }
 

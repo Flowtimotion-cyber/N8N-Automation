@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 import { execSync } from 'node:child_process';
 import { serverStarten, post, REPO } from '../../office/test/hilfe.mjs';
 import { TOKENS } from '../../office/dev/testdaten.mjs';
@@ -21,12 +22,13 @@ async function seite(vp, name) {
   p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|Blocked script execution/.test(m.text())) fehler.push(name + ' console: ' + m.text()); });
   p.on('dialog', d => d.accept());
   const um = (muster, ziel) => p.route(muster, async r => { const res = await fetch(S.base + ziel, { method: 'POST', headers: { 'content-type': r.request().headers()['content-type'] || 'text/plain' }, body: r.request().postDataBuffer() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
-  await um(/webhook\/team-api-v2/, '/api/team'); await um(/webhook\/team-vertrieb/, '/api/vertrieb'); await um(/webhook\/team-diktat/, '/api/diktat');
+  await um(/webhook\/team-api-v2/, '/api/team'); await um(/webhook\/team-vertrieb/, '/api/vertrieb'); await um(/webhook\/team-diktat/, '/api/diktat'); await um(/webhook\/team-msgs/, '/api/nachrichten'); await um(/webhook\/team-chat$/, '/api/chat');  // Posteingang und Chat lädt das Portal beim Start
   return p;
 }
 const text = async (p, sel) => (await p.locator(sel).first().textContent()) || '';
 const shot = (p, name, vp) => p.screenshot({ path: join(SHOTS, (vp.width > 600 ? 'desktop' : 'mobil') + '-' + name + '.png'), fullPage: true });
 async function aufnehmen(p) {
+  if (await p.locator('#vd_pc').count()) await p.locator('#vd_pc').uncheck();   // nur Mikrofon (PC-Ton testet diktat.browser.test.mjs)
   await p.locator('#vd_rec').click(); await p.waitForTimeout(1500); await p.locator('#vd_stop').click();
   await p.waitForFunction(() => !document.querySelector('#vd_erg').hidden, null, { timeout: 15000 });
 }
@@ -58,6 +60,72 @@ for (const vp of [DESKTOP, MOBIL]) {
     await p.close();
   });
 }
+
+test('Letzte Diktate: gespeichert in der Ablage, ganzer Text, KI-Haken, Download, Löschen, nur eigene', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Ablage');
+  await p.goto(S.base + '/team/?z=' + TOKENS.m_murat + '#/tab/diktat', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
+  await p.locator('#vd_ki').check();
+  await aufnehmen(p);
+  assert.match(await text(p, '#vd_meta'), /gespeichert unter „Letzte Diktate“, KI darf lesen/);
+  await p.waitForFunction(() => document.querySelectorAll('#dk_liste .dk-eintrag').length > 0, null, { timeout: 5000 });
+  const erster = p.locator('#dk_liste .dk-eintrag').first();
+  assert.match(await erster.textContent(), /Diktat/); assert.match(await erster.textContent(), /🤖/, 'KI-Haken aus der Aufnahme übernommen');
+  assert.equal(await erster.locator('[data-dkki]').isChecked(), true);
+  // Fenster „Ganzes Transkript“ aus der Liste: ganzer Text, Rohtranskript, Zusammenfassung, Kopieren, Datei optional
+  await p.route(/webhook\/office-api/, async r => { const res = await fetch(S.base + '/api/office', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: r.request().postData() || '' }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
+  await erster.locator('[data-dkganz]').click(); await p.waitForSelector('#dkf[open] #dkf_text');
+  await p.waitForFunction(() => /Herrn Müller telefoniert/.test((document.querySelector('#dkf_text') || {}).value || ''));
+  await p.locator('[data-dkfa="roh"]').click(); assert.match(await p.locator('#dkf_text').inputValue(), /herrn müller/);
+  await p.locator('[data-dkfa="zus"]').click(); assert.match(await p.locator('#dkf_text').inputValue(), /Zusammenfassung:/);
+  await p.locator('#dkf_kopie').click(); await p.waitForFunction(() => /Kopiert|markiert/.test(document.querySelector('#dkf_status').textContent), null, { timeout: 5000 });
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.locator('#dkf_dl').click()]);
+  const inhalt = require('node:fs').readFileSync(await dl.path(), 'utf8');
+  assert.match(inhalt, /--- Text ---/); assert.match(inhalt, /--- Rohtranskript ---/);
+  // Neu zusammenfassen mit Vorlage (ändert die gespeicherte Aufnahme, keine neue)
+  const vorherAnzahl = await p.locator('#dk_liste .dk-eintrag').count();
+  await p.locator('#dkf_vorlage').selectOption('meeting'); await p.locator('#dkf_neu').click();
+  await p.waitForFunction(() => /Neue Zusammenfassung ist gespeichert/.test(document.querySelector('#dkf_status').textContent), null, { timeout: 8000 });
+  assert.match(await p.locator('#dkf_text').inputValue(), /Meeting zum KI-Führerschein/);
+  // An KI-Agent geben: Agentenliste aus dem KI Office, Vorschlag, Auftrag
+  await p.waitForFunction(() => document.querySelectorAll('#dkf_agent option[value]:not([value=""])').length > 0, null, { timeout: 8000 });
+  await p.locator('[data-dkfvor="0"]').click(); assert.match(await p.locator('#dkf_auftrag').inputValue(), /gründliche Zusammenfassung/);
+  await shot(p, 'vertrieb-diktat-transkript-fenster', DESKTOP);
+  await p.locator('#dkf_los').click();
+  await p.waitForFunction(() => /Auftrag (an|angelegt)/.test(document.querySelector('#dkf_status').textContent), null, { timeout: 8000 });
+  await p.locator('#dkf_zu').click(); assert.equal(await p.evaluate(() => document.querySelector('#dkf').open), false);
+  await p.waitForTimeout(500);
+  assert.equal(await p.locator('#dk_liste .dk-eintrag').count(), vorherAnzahl, 'Neu zusammenfassen legt keine zweite Aufnahme an');
+  // Knopf „Ganzes Transkript“ direkt am Ergebnis öffnet dasselbe Fenster
+  await p.locator('#vd_dl').click(); await p.waitForFunction(() => document.querySelector('#dkf').open && /Herrn Müller/.test((document.querySelector('#dkf_text') || {}).value || ''), null, { timeout: 5000 });
+  await p.locator('#dkf_zu').click();
+  // KI-Haken aus
+  await p.locator('#dk_liste .dk-eintrag').first().locator('[data-dkki]').uncheck();
+  await p.waitForFunction(() => /nicht mehr lesen/.test(document.querySelector('#toast').textContent), null, { timeout: 5000 });
+  assert.doesNotMatch(await p.locator('#dk_liste .dk-eintrag').first().locator('.kopf').textContent(), /🤖/);
+  // Auch Timo (Admin) sieht Murats Aufnahmen nicht
+  const q = await seite(DESKTOP, 'Ablage Admin');
+  await q.goto(S.base + '/team/?z=' + TOKENS.m_timo + '#/tab/diktat', { waitUntil: 'networkidle' }); await q.waitForTimeout(800);
+  const fremd = await q.locator('#dk_liste').textContent();
+  assert.doesNotMatch(fremd, /Herrn Müller telefoniert/, 'fremde Aufnahmen unsichtbar');
+  await q.close();
+  // Löschen
+  const vorher = await p.locator('#dk_liste .dk-eintrag').count();
+  await p.locator('#dk_liste .dk-eintrag').first().locator('[data-dkweg]').click();
+  await p.waitForFunction(n => document.querySelectorAll('#dk_liste .dk-eintrag').length === n - 1, vorher, { timeout: 5000 });
+  await shot(p, 'vertrieb-diktat-letzte', DESKTOP);
+  await p.close();
+});
+
+test('Letzte Diktate: alter Workflow ohne Ablage zeigt die Liste aus diesem Browser', async t => {
+  if (!B) return t.skip();
+  const p = await seite(DESKTOP, 'Ablage fehlt');
+  await p.route(/team-diktat/, r => /name="aktion"\r\n\r\n(liste|lesen|ki|zuordnen|loeschen)/.test(String(r.request().postData() || '')) ? r.fulfill({ status: 400, contentType: 'application/json', body: '{"ok":false,"fehler":"Es ist keine Aufnahme angekommen."}' }) : r.fallback());
+  await p.addInitScript(() => localStorage.setItem('mt-diktate', JSON.stringify([{ zeit: '2026-11-20T10:00:00Z', ziel: 'Alt GmbH', text: 'Alter Eintrag', dauer_sek: 60 }])));
+  await p.goto(S.base + '/team/?z=' + TOKENS.m_murat + '#/tab/diktat', { waitUntil: 'networkidle' }); await p.waitForTimeout(800);
+  assert.match(await text(p, '#dk_liste'), /Alter Eintrag/); assert.match(await text(p, '#dk_liste'), /aus diesem Browser/);
+  await p.close();
+});
 
 test('E-Mail: vorhandener Kontakt mit Chance, Kontakt ohne Chance, neuer Kontakt wird angelegt', async t => {
   if (!B) return t.skip();

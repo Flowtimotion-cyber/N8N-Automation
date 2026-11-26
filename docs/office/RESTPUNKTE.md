@@ -112,3 +112,12 @@ Die Aufgabe nannte den Branch `feature/ki-office`; die Sitzungsumgebung hatte zu
 | B | Register „Diktat“: nach dem ersten echten Speichern mit neuer E-Mail prüfen, ob die Vertriebs-API bei `speichern` die ID liefert (sonst greift die Suche per E-Mail/Name) | `docs/team/index.html`, `dkZiel` |
 | C | Diktat auch für Aufgaben-Kommentare und Notizen außerhalb des Vertriebs anbieten (gleicher Workflow, anderer Speicherort) | Team-Portal |
 
+
+## Ergänzung 24.11.2026: KI Office 2.0, Paket 1 Design (KI-erstellt: Claude Code)
+
+| Prio | Punkt | Bezug |
+|---|---|---|
+| B | Schlanke Abfrage `puls`: SQL-Funktion mit Fingerabdruck der `office_*`-Tabellen (prüft den Token selbst) und eigener Zweig im Workflow „TEAM: Office-API“ vor „Team-Daten laden“; das Office fragt im 30-Sekunden-Takt nur den Fingerabdruck und lädt voll nach, wenn er sich ändert. Senkt den Supabase-Datenverkehr des Live-Takts auf fast null. Braucht SQL (Timo) und eine Workflow-Änderung (Timos Ja) | ARCHITEKTUR.md Abschnitt 14, BETRIEB.md |
+| B | n8n-Ausführer (Text, Orchestrierer, Verwaltungs-Status): Titel ihrer Schritte in Ich-Form schreiben, wie es der Abholer jetzt tut. Heute zeigt der Ticker ihre Schritte wörtlich („Aufgaben gelesen“). Workflow-Änderung, nur mit Timos Ja | `office/n8n/ausfuehrer-*.workflow.js`, `ichForm` |
+| C | Büro-Szene (`#/tab/szene`) im hellen Thema: die Szene selbst bleibt dunkel (eigene Grafik); bei Bedarf helle Variante | `docs/office/js/buero.js` |
+| C | Portal-Übersicht: die eingebettete kompakte Fassung ist dunkel im hellen Portal. Wer das nicht mag: im Portal `?thema=hell` an die iframe-Adresse hängen | `docs/team/index.html`, ARCHITEKTUR.md Abschnitt 14 |
