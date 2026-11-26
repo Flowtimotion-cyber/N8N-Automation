@@ -61,5 +61,10 @@ export default workflow('team-msgs', 'TEAM: Nachrichten (Portal)')
 		.onCase(0, datenbank.to(antwortBauen).to(antwort))
 		.onCase(1, antwort));
 `;
-writeFileSync(join(hier, 'nachrichten.workflow.gen.js'), gen);
-console.log('Geschrieben: nachrichten/n8n/nachrichten.workflow.gen.js (' + gen.length + ' Zeichen)');
+// Code der beiden Knoten, die sich bei einer Änderung an der Logik ändern (für Deploy-Dateien wie nachrichten/n8n/bauen-deploy-bearbeiten.mjs)
+export const KNOTEN_CODE = { 'Anfrage prüfen': anfrageJs, 'Antwort bauen': antwortJs };
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+	writeFileSync(join(hier, 'nachrichten.workflow.gen.js'), gen);
+	console.log('Geschrieben: nachrichten/n8n/nachrichten.workflow.gen.js (' + gen.length + ' Zeichen)');
+}

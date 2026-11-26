@@ -375,6 +375,8 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   const startTab = () => { const t = tabs(); return t.length ? t[0][0] : 'start'; };
 
   // ---------- Speicher (nur Komfort, darf fehlen) ----------
+  // Eigener Schlüssel „mt-pilot-token“: Auf github.io liegt der Pilot unter derselben Adresse wie das echte Team-Portal (mt-token).
+  // Mit gleichem Schlüssel überschrieb das Öffnen des Pilots die echte Anmeldung (Befund 25.11.2026).
   const ls = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -386,8 +388,8 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
   function tokenLesen() {
     const h = /[#&]z=([a-f0-9]{20,64})/i.exec(location.hash), q = /[?&]z=([a-f0-9]{20,64})/i.exec(location.search);
     const m = h || q;
-    if (!m) { TOKEN = ls.get('mt-token'); return false; }
-    TOKEN = m[1].toLowerCase(); ls.set('mt-token', TOKEN);
+    if (!m) { TOKEN = ls.get('mt-pilot-token'); return false; }
+    TOKEN = m[1].toLowerCase(); ls.set('mt-pilot-token', TOKEN);
     // Eine Route wie #/tab/aufgaben&z=… bleibt ohne den Code erhalten, alles andere wird zu einer sauberen Adresse
     const rest = location.hash.replace(/[#&]z=[a-f0-9]{20,64}/i, '');
     const route = /^#\/[\w\/-]+$/.test(rest) ? rest : (/^\/[\w\/-]+$/.test(rest) ? '#' + rest : '');
@@ -429,7 +431,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
     if (!r.ok || !j || j.ok === false) {
       const err = new Error((j && j.fehler) || 'Das hat nicht geklappt. Bitte versuch es gleich noch einmal.'); err.status = r.status; err.daten = j;
       // 401: der Zugang gilt nicht mehr (gesperrt, neuer Link, Code falsch): immer abmelden, egal bei welcher Aktion
-      if (r.status === 401) { ls.del('mt-token'); TOKEN = null; D = null; if ($('#dlg').open) $('#dlg').close(); ohneZugang(err.message); err.abgemeldet = true; }
+      if (r.status === 401) { ls.del('mt-pilot-token'); TOKEN = null; D = null; if ($('#dlg').open) $('#dlg').close(); ohneZugang(err.message); err.abgemeldet = true; }
       // 403 „Modul nicht aktiviert“: das Register verschwindet, statt eines Toasts steht ein Hinweis in der Übersicht
       if (r.status === 403 && j && j.modul_nicht_aktiviert) { const m = MODUL_VON_AKTION(aktion) || MODUL_VON_TAB[tab] || ''; if (m) MODUL_AUS.add(m); modulHinweis = err.message; toast.leise = err.message; if ($('#dlg').open) $('#dlg').close(); if (D && !D.setup) render(); err.modul = true; }
       throw err;
@@ -507,7 +509,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
       if (!filterGeprueft) { filterGeprueft = true; if (!ls.get('mt-filter') && istAdmin() && !(D.aufgaben || []).some(a => a.verantwortlich === D.ich.mitglied_id && a.status !== 'Erledigt')) F.person = ''; }
       render();
     } catch (e) {
-      if (e.status === 401) { ls.del('mt-token'); return ohneZugang(e.message); }
+      if (e.status === 401) { ls.del('mt-pilot-token'); return ohneZugang(e.message); }
       if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
       else toast(e.message);
     }
@@ -521,7 +523,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
       ev.preventDefault();
       const c = /([a-f0-9]{20,64})/i.exec($('#code').value || '');
       if (!c) return toast('Das sieht nicht nach einem gültigen Code aus.');
-      TOKEN = c[1].toLowerCase(); ls.set('mt-token', TOKEN); laden();
+      TOKEN = c[1].toLowerCase(); ls.set('mt-pilot-token', TOKEN); laden();
     };
   }
 
@@ -3107,7 +3109,7 @@ details.pdtr{padding:12px 0;border-top:1px solid var(--line,#E6E3EE)}details.pdt
     document.querySelectorAll('[data-stups]').forEach(b => b.onclick = () => stupsDialog(mitglied(b.dataset.stups)));
     document.querySelectorAll('[data-vertrag]').forEach(e => e.onclick = () => vertragDialog(e.dataset.vertrag));
     document.querySelectorAll('[data-akte]').forEach(b => b.onclick = () => { agentAkte = b.dataset.akte; setzeHash('#/agent/' + agentAkte); vTeam(); window.scrollTo(0, 0); });
-    $('#logout').onclick = () => { ls.del('mt-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
+    $('#logout').onclick = () => { ls.del('mt-pilot-token'); TOKEN = null; ohneZugang('Du bist abgemeldet.'); };
     if (admin) {
       $('#neum').onclick = () => mitgliedDialog(null); $('#neua').onclick = () => mitgliedDialog(null, true);
       document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => mitgliedDialog(mitglied(b.dataset.m)));

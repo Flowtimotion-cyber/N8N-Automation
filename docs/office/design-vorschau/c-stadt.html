@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow"><meta name="color-scheme" content="dark">
+<title>Design C · Stadt · KI Office 2.0 (Vorschau)</title>
+<link rel="stylesheet" href="basis.css">
+<style>
+/* Richtung C: die Stadt bei Nacht. Jedes Gebäude ein Projekt, jede Etage ein Aspekt, jedes Licht ein Agent. Der Kern in der Mitte ist die Zentrale. */
+:root{--ink:#F2F1FA;--mut:#A9A7C8;--line:#272652;--bg:#07071A;--card:#121130;--card2:#1B1A3D;--acc:#B48CFF;--acc2:#8FA6FF;--schatten:0 14px 40px rgba(0,0,0,.4)}
+body{background:var(--bg)}
+header{position:sticky;top:0;z-index:20;background:rgba(7,7,26,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0}
+.logo{height:32px;background:#fff;border-radius:8px;padding:3px 8px;display:block}
+.htitle{font-weight:700;letter-spacing:.12em;font-size:12.5px;color:var(--mut);text-transform:uppercase}
+.status{margin-left:auto;font-size:13px;color:var(--mut);display:flex;gap:12px;align-items:center}
+.tabs button{color:var(--mut)}.tabs button.on{color:#fff;border-bottom-color:var(--acc)}
+.chip{background:#262552;color:#E7E5FA}.chip.pr-ok{background:#163D2D;color:#6FE0A8}.chip.pr-offen{background:#4A3212;color:#F5C26B}.chip.pr-nein{background:#4A1C17;color:#FF9A8A}
+.btn.sec{background:#1F1E3C;color:#fff;border-color:#3A3970}
+.kopfzahlen div{background:var(--card)}.kopfzahlen b{font-family:var(--mono)}
+.urteil.st-liefert{background:#163D2D;color:#6FE0A8}.urteil.st-beobachten{background:#4A3212;color:#F5C26B}.urteil.st-nicht,.urteil.st-leer{background:#4A1C17;color:#FF9A8A}
+.zl-punkt{border-color:var(--card)}
+/* Stadt */
+.stadt-wrap{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+.stadt{background:radial-gradient(700px 300px at 50% 100%,#1A1848 0%,transparent 70%),linear-gradient(180deg,#0A0A2A 0%,#07071A 100%);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.stadt-scroll{overflow-x:auto}
+svg.skyline{display:block;width:100%;height:auto;min-width:680px}
+svg.skyline a{cursor:pointer}
+svg.skyline a:hover .haus,svg.skyline a:focus .haus,svg.skyline a.on .haus{stroke:#fff;stroke-width:1.5}
+svg.skyline text{font-family:var(--font);pointer-events:none}
+.licht{animation:flimmer 2.4s ease-in-out infinite}
+.kern{animation:atmen 3s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes flimmer{0%,100%{opacity:1}50%{opacity:.55}}
+@keyframes atmen{0%,100%{opacity:.9}50%{opacity:.5}}
+.strasse{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);background:#0B0B26}
+.strasse .laufband{border:0;padding:0;flex:1;font-size:13px}
+.strasse .lb-item b{color:var(--acc)}
+.legende{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--mut);padding:10px 14px;border-top:1px solid var(--line)}
+.legende i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;box-shadow:0 0 8px currentColor}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:sticky;top:120px}
+.detail h2{font-size:17px}.detail .klein{color:var(--mut)}
+.detail .agent{display:grid;grid-template-columns:14px 1fr;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.detail .agent i{width:12px;height:12px;border-radius:50%;margin-top:4px;box-shadow:0 0 10px currentColor}
+.detail .agent b{display:block}
+.detail .kern-text{font-size:13px;color:#E7E5FA}
+.lichter{margin-top:14px}
+.lichter table{width:100%;border-collapse:collapse;font-size:13px}
+.lichter td,.lichter th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.lichter th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.lichter .punkt{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 8px currentColor}
+.lichter .guthaben{margin:0;min-width:140px}
+.fd{background:#1B1A3D;border-left:3px solid var(--orange);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}.fd b{display:block}.fd .btns{display:flex;gap:6px;margin-top:6px}.fd .btn{padding:4px 9px;font-size:12px}
+@media (prefers-reduced-motion: reduce){.licht,.kern{animation:none}}
+@media (max-width:980px){.stadt-wrap{grid-template-columns:1fr}.detail{position:static}}
+@media (max-width:640px){.htitle{display:none}.status span:not(.live){display:none}.logo{height:28px}}
+</style></head>
+<body>
+<header><div class="wrap"><div class="hrow"><img class="logo" src="../../logo_h96.png" alt="Momentum KI Akademie"><span class="htitle">KI Office · Die Stadt</span><div class="status"><span>Jedes Gebäude ein Projekt · jedes Licht ein Agent</span><span><b style="color:#fff">Timo</b> · Admin</span></div></div>
+<nav class="tabs" role="tablist"><button role="tab" data-tab="buero">Stadt</button><button role="tab" data-tab="projekte">Projekte</button><button role="tab" data-tab="run">Run-Zeitleiste</button><button role="tab" data-tab="auswertung">Auswertung</button><button role="tab" data-tab="vorschlaege">Vorschläge <span class="chip klein" style="background:#4A3212;color:#F5C26B">4</span></button></nav></div></header>
+<main class="wrap">
+<div class="vorschau-banner" style="background:#2E1512;border-color:#7A2E25;color:#FFB3A6"><b>Design-Vorschau C „Stadt“</b> mit Musterdaten. Nichts hiervon ist echt, Knöpfe lösen nichts aus. Vergleich: <a href="index.html" style="color:#FFB3A6">Übersicht der drei Richtungen</a>.</div>
+<section id="tab-buero" class="tab-panel">
+  <div id="kopf"></div>
+  <div class="stadt-wrap">
+    <div class="stadt"><div class="stadt-scroll" id="skyline"></div><div class="strasse"><span class="klein" style="color:var(--acc);font-weight:700;letter-spacing:.08em">TICKER</span><div id="laufband"></div></div><div class="legende" id="legende"></div></div>
+    <aside class="detail" id="detail"></aside>
+  </div>
+  <div class="card lichter"><h2>Alle Lichter <span class="klein muted" style="font-weight:400">Agenten mit Zustand, Aufgabe, Guthaben und Kosten je Ergebnis</span></h2><div class="tabelle-scroll" id="lichter"></div></div>
+</section>
+<section id="tab-projekte" class="tab-panel" hidden><h1 style="margin-bottom:12px">Projekte</h1><div id="projekte"></div></section>
+<section id="tab-run" class="tab-panel" hidden><div class="card" id="run"></div></section>
+<section id="tab-auswertung" class="tab-panel" hidden><div class="card" id="auswertung"></div></section>
+<section id="tab-vorschlaege" class="tab-panel" hidden><h1 style="margin-bottom:6px">Vorschläge aus den Kennzahlen</h1><p class="muted" style="margin-bottom:14px">Skalieren, pausieren oder auffüllen: jede Karte ist ein Vorschlag, jede Entscheidung eine Freigabe durch dich.</p><div id="karten"></div></section>
+</main>
+<script src="musterdaten.js"></script><script src="vorschau.js"></script>
+<script>
+(function(){
+  const M = window.MUSTER, V = window.VORSCHAU, esc = M.esc, eur = M.eur;
+  const K = V.kopfZahlen();
+  document.getElementById('kopf').innerHTML = '<div class="kopfzahlen"><div><b>' + K.laufend + '</b><span>Lichter an (Agenten arbeiten)</span></div><div class="warn"><b>' + K.warten + '</b><span>warten auf dich</span></div><div class="' + (K.pausiert ? 'rot' : '') + '"><b>' + K.pausiert + '</b><span>dunkel, Guthaben leer</span></div><div><b>' + K.abgen + '</b><span>Ergebnisse abgenommen (4 Wo.)</span></div><div><b>' + eur(K.kosten) + '</b><span>von ' + eur(K.budget) + ' Monatsguthaben</span></div></div>';
+  // Skyline: ein Gebäude je Projekt. Höhe = Aufgaben gesamt, Etagen = Aspekte (Aufgaben, Agenten, Freigaben, Ergebnisse), Fenster = Agenten (Farbe = Zustand).
+  const W = 1000, H = 440, boden = 380;
+  const P = M.projekte; const breite = 118, luecke = 28, start = (W - (P.length * breite + (P.length - 1) * luecke)) / 2;
+  let ausgewaehlt = P[3].id;
+  const sterne = Array.from({ length: 50 }, (_, i) => '<circle cx="' + ((i * 197) % W) + '" cy="' + ((i * 83) % 250) + '" r="' + (i % 4 ? .8 : 1.5) + '" fill="#fff" opacity="' + (.15 + (i % 5) * .1) + '"/>').join('');
+  const haus = (p, i) => {
+    const x = start + i * (breite + luecke); const etagen = Math.min(7, 3 + Math.round((p.offen + p.erledigt) / 3)); const eh = 24; const h = etagen * eh + 18; const y = boden - h;
+    const A = p.agenten.map(M.agent);
+    let fenster = '';
+    A.forEach((a, k) => { const fx = x + 14 + (k % 3) * 32, fy = y + 14 + Math.floor(k / 3) * eh; const an = a.zustand !== 'frei' && a.zustand !== 'pausiert'; const f = M.ZUSTAND_FARBE[a.zustand]; fenster += '<g><title>' + esc(a.name + ': ' + M.ZUSTAND_TEXT[a.zustand]) + '</title>' + (an ? '<rect x="' + (fx - 4) + '" y="' + (fy - 4) + '" width="30" height="20" rx="4" fill="' + f + '" opacity=".28"/>' : '') + '<rect class="' + (a.zustand === 'arbeitet' ? 'licht' : '') + '" x="' + fx + '" y="' + fy + '" width="22" height="12" rx="2" fill="' + (a.zustand === 'pausiert' ? '#1A1038' : an ? f : '#2A2956') + '" stroke="' + (a.zustand === 'pausiert' ? '#D9452F' : 'none') + '" stroke-dasharray="' + (a.zustand === 'pausiert' ? '2 2' : '0') + '"/></g>'; });
+    for (let e = 2; e < etagen; e++) fenster += [0, 1, 2].map(k => '<rect x="' + (x + 14 + k * 32) + '" y="' + (y + 14 + e * eh) + '" width="22" height="12" rx="2" fill="#1C1B3F"/>').join('');
+    const warn = p.freigaben ? '<g><circle cx="' + (x + breite - 12) + '" cy="' + (y - 10) + '" r="9" fill="#E98A15"/><text x="' + (x + breite - 12) + '" y="' + (y - 6) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">' + p.freigaben + '</text></g>' : p.fehler ? '<g><circle cx="' + (x + breite - 12) + '" cy="' + (y - 10) + '" r="9" fill="#D9452F"/><text x="' + (x + breite - 12) + '" y="' + (y - 6) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">!</text></g>' : '';
+    return '<a href="#projekt-' + esc(p.id) + '" data-projekt="' + esc(p.id) + '" class="' + (p.id === ausgewaehlt ? 'on' : '') + '" aria-label="' + esc(p.name + ': ' + p.laufend + ' Agent läuft, ' + p.offen + ' Aufgaben offen') + '"><title>' + esc(p.name) + '</title>' +
+      '<rect x="' + (x + 6) + '" y="' + (boden + 2) + '" width="' + (breite - 12) + '" height="6" rx="3" fill="#000" opacity=".5"/>' +
+      '<rect class="haus" x="' + x + '" y="' + y + '" width="' + breite + '" height="' + h + '" rx="4" fill="#15143A" stroke="' + p.farbe + '" stroke-opacity=".7"/>' +
+      '<rect x="' + x + '" y="' + y + '" width="' + breite + '" height="6" fill="' + p.farbe + '"/>' + fenster + warn +
+      '<text x="' + (x + breite / 2) + '" y="' + (boden + 24) + '" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">' + esc(p.name.length > 18 ? p.name.slice(0, 17) + '…' : p.name) + '</text>' +
+      '<text x="' + (x + breite / 2) + '" y="' + (boden + 38) + '" text-anchor="middle" font-size="10" fill="#A9A7C8">' + esc(M.RAUM_ICON[p.raum] + ' ' + p.raum + ' · ' + eur(p.kosten)) + '</text></a>';
+  };
+  const skyline = () => { document.getElementById('skyline').innerHTML = '<svg class="skyline" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Skyline: sechs Gebäude, eines je Projekt; erleuchtete Fenster sind arbeitende Agenten; der Kern in der Mitte ist die Zentrale mit dem Orchestrierer."><defs><radialGradient id="kernglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#B48CFF" stop-opacity=".9"/><stop offset=".5" stop-color="#7B3FE4" stop-opacity=".35"/><stop offset="1" stop-color="#7B3FE4" stop-opacity="0"/></radialGradient></defs>' + sterne +
+    '<g class="kern"><circle cx="' + (W / 2) + '" cy="92" r="80" fill="url(#kernglow)"/><circle cx="' + (W / 2) + '" cy="92" r="20" fill="#B48CFF" opacity=".9"/><circle cx="' + (W / 2) + '" cy="92" r="28" fill="none" stroke="#B48CFF" stroke-width="1" opacity=".5"/></g><text x="' + (W / 2) + '" y="134" text-anchor="middle" font-size="10.5" letter-spacing=".12em" fill="#C9ADFF">KERN · ORCHESTRIERER</text><text x="' + (W / 2) + '" y="148" text-anchor="middle" font-size="10" fill="#A9A7C8">1 Team läuft · 5 zusammengeführt · 0 €</text>' +
+    '<line x1="0" y1="' + boden + '" x2="' + W + '" y2="' + boden + '" stroke="#2E2D5C"/>' + P.map(haus).join('') + '</svg>';
+    document.querySelectorAll('svg.skyline a[data-projekt]').forEach(a => a.onclick = ev => { ev.preventDefault(); ausgewaehlt = a.dataset.projekt; skyline(); detail(); }); };
+  const detail = () => { const p = P.find(x => x.id === ausgewaehlt); const A = p.agenten.map(M.agent);
+    document.getElementById('detail').innerHTML = '<div class="klein">' + M.RAUM_ICON[p.raum] + ' ' + esc(p.raum) + ' · Verantwortlich: ' + esc(p.verantwortlich) + '</div><h2 style="margin:2px 0 6px">' + esc(p.name) + '</h2>' +
+      '<div class="pk-fortschritt"><i style="width:' + Math.round(100 * p.erledigt / (p.erledigt + p.offen)) + '%"></i></div><div class="klein">' + p.erledigt + ' von ' + (p.erledigt + p.offen) + ' Aufgaben erledigt · ' + eur(p.kosten) + ' in 4 Wochen</div>' +
+      '<div class="klein" style="margin-top:8px"><b style="color:#fff">Nächster Schritt:</b> ' + esc(p.naechster) + '</div>' +
+      '<h3 style="margin-top:12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)">Lichter in diesem Gebäude</h3>' +
+      A.map(a => '<div class="agent"><i style="background:' + M.ZUSTAND_FARBE[a.zustand] + ';color:' + M.ZUSTAND_FARBE[a.zustand] + '"></i><div><b>' + esc(a.name) + ' <span class="klein" style="font-weight:400">' + esc(M.ZUSTAND_TEXT[a.zustand]) + '</span></b><span class="klein">' + (a.aufgabe ? esc(a.aufgabe) : a.letztes ? 'Zuletzt: ' + esc(a.letztes.titel) : 'noch kein Ergebnis') + '</span>' + V.guthaben(a) + '</div></div>').join('') +
+      (p.freigaben ? '<div class="fd"><b>Freigabe wartet: LinkedIn-Beitrag KW 46</b>Marketing-Texter<div class="btns"><button class="btn" data-demo>Freigeben</button><button class="btn sec" data-demo>Ablehnen</button></div></div>' : '') + (p.fehler ? '<div class="fd" style="border-left-color:#8B5CF6"><b>Frage: Kundennummer oder E-Mail?</b>Kunden-Entwickler<div class="btns"><button class="btn sec" data-demo>Antworten</button></div></div>' : '') +
+      '<p class="klein" style="margin-top:10px"><a href="#projekte" data-tab="projekte" style="color:var(--acc)">Alle Projekte →</a></p>'; };
+  skyline(); detail();
+  document.getElementById('laufband').innerHTML = V.laufband();
+  document.getElementById('legende').innerHTML = Object.keys(M.ZUSTAND_TEXT).map(k => '<span><i style="background:' + M.ZUSTAND_FARBE[k] + ';color:' + M.ZUSTAND_FARBE[k] + '"></i>' + esc(M.ZUSTAND_TEXT[k]) + '</span>').join('') + '<span>🟠 Zahl am Dach = offene Freigaben · ! = Rückfrage oder Fehler</span>';
+  document.getElementById('lichter').innerHTML = '<table><thead><tr><th></th><th>Agent</th><th>Gebäude / Raum</th><th>Gerade</th><th>Zuletzt</th><th>Guthaben</th><th>je Ergebnis</th></tr></thead><tbody>' + M.agenten.map(a => '<tr><td><i class="punkt" style="background:' + M.ZUSTAND_FARBE[a.zustand] + ';color:' + M.ZUSTAND_FARBE[a.zustand] + '"></i></td><td><b>' + esc(a.name) + '</b><br><span class="klein muted">' + esc(a.modell) + '</span></td><td>' + (M.RAUM_ICON[a.raum] || '🧠') + ' ' + esc(a.raum) + '</td><td>' + (a.aufgabe ? esc(a.aufgabe) : '<span class="muted">' + esc(M.ZUSTAND_TEXT[a.zustand]) + '</span>') + '</td><td>' + (a.letztes ? esc(a.letztes.titel) + ' ' + V.pruefChip(a.letztes.pruef) : '<span class="muted">–</span>') + '</td><td>' + V.guthaben(a) + '</td><td>' + V.kostenJeErgebnis(a) + '</td></tr>').join('') + '</tbody></table>';
+  document.getElementById('projekte').innerHTML = V.projekte();
+  document.getElementById('run').innerHTML = V.runZeitleiste();
+  document.getElementById('auswertung').innerHTML = V.auswertung();
+  document.getElementById('karten').innerHTML = V.skalierungskarten();
+  V.reiter('buero'); V.demo();
+})();
+</script>
+</body></html>

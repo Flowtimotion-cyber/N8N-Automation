@@ -9,6 +9,16 @@ const DIKTAT_ARTEN = ['anruf', 'notiz', 'termin', 'mail'];
 const DIKTAT_MODI = ['diktat', 'gespraech'];            // diktat = eigene Notiz nach dem Gespräch; gespraech = Mitschnitt (nur mit Einwilligung aller)
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;              // Grenze der OpenAI-Transkription
 const MAX_AUDIO_SEK = 30 * 60;
+// Lange Aufnahmen (Meetings, Workshops) schickt das Portal in Stücken von etwa 1 Minute (Feld teil=1): Die Transkriptionsmodelle
+// liefern höchstens rund 2.000 Token Text, sonst bricht der Text nach ca. 8–10 Minuten still ab. Danach kommt ein Aufruf
+// aktion=zusammenfassen mit dem zusammengesetzten Text (ohne Audio), der nur noch Zusammenfassung, Punkte, Schritte und Termine liefert.
+const MAX_GESAMT_SEK = 4 * 60 * 60;
+const MAX_GESAMT_ZEICHEN = 400000;
+// Alle fertigen Aufnahmen landen in Supabase (Tabelle team_diktate, supabase/team_diktate.sql): Liste „Letzte Diktate“, ganzer Text,
+// Haken „KI darf lesen“ (Sicht team_diktate_ki), Löschen. Jede Person sieht nur ihre eigenen Aufnahmen.
+const DIKTAT_DB_AKTIONEN = ['liste', 'lesen', 'ki', 'zuordnen', 'loeschen'];
+const DIKTAT_ID = /^dk_[a-f0-9]{32}$/;
+const DIKTAT_KI_AKTIONEN = ['ki_liste', 'ki_lesen'];
 const TRANSKRIPTION_MODELL = 'gpt-4o-mini-transcribe';  // ~0,003 USD je Sprechminute (Preisliste OpenAI, Stand 10/2026, geschätzt)
 const BEREINIGUNG_MODELL = 'gpt-5-mini';                // wie der Kurs-Chat-Assistent; über dasselbe OpenAI-Credential in n8n
 const KOSTEN_JE_MIN_USD = 0.003;
@@ -17,8 +27,13 @@ const WOERTERBUCH = ['Momentum KI Akademie', 'KI Flow', 'KI-Führerschein', 'Bil
 
 const txt = (v, n) => String(v ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').trim().slice(0, n);
 
-/** Prompt für die Spracherkennung: Deutsch, Fachwörter. */
-function transkriptionsPrompt() { return 'Deutsches Vertriebsgespräch der Momentum KI Akademie. Begriffe: ' + WOERTERBUCH.join(', ') + '.'; }
+/** Prompt für die Spracherkennung: Deutsch, Fachwörter. Bei PC-Ton (Meeting, Workshop, Video) neutral statt „Vertriebsgespräch“. */
+function transkriptionsPrompt(kontext) { return ((kontext || {}).pc_ton ? 'Deutsche Aufnahme (Meeting, Workshop oder Video).' : 'Deutsches Vertriebsgespräch der Momentum KI Akademie.') + ' Begriffe: ' + WOERTERBUCH.join(', ') + '.'; }
+
+/** Entfernt das Echo des Prompts: Bei Stille oder Musik gibt die Spracherkennung oft nur den Prompt zurück (Timo 24.11.2026). */
+function transkriptSaeubern(text) {
+  return String(text ?? '').replace(/(Deutsche[rs]? (Vertriebsgespräch[^.]*|Aufnahme[^.]*)\.\s*)?Begriffe:\s*Momentum KI Akademie,[^.]*\.?/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 /**
  * Prüft Zugang und Eingabe. ich = Zeile aus team_mitglieder (oder null), felder = Formularfelder, datei = { mimeType, fileSize } oder null.
@@ -28,9 +43,18 @@ function diktatAnfrage(ich, felder, datei) {
   const raus = (code, fehler) => ({ aktion: 'fehler', code, antwort: { ok: false, fehler } });
   if (!ich || ich.status === 'gesperrt') return raus(401, 'Dein Zugang ist ungültig. Bitte öffne das Portal über deinen persönlichen Link.');
   if (ich.status !== 'aktiv') return raus(403, 'Bitte richte zuerst dein Profil im Team-Portal ein.');
-  if (ich.typ === 'agent' || ich.rolle === 'agent') return raus(403, 'Das Diktat ist für Menschen im Vertrieb gedacht, nicht für Agenten.');
+  // KI-Agenten (KI Office, Claude Code, Hermes) dürfen nur freigegebene Aufnahmen lesen (Haken „KI darf lesen“, Sicht team_diktate_ki)
+  if (ich.typ === 'agent' || ich.rolle === 'agent') return DIKTAT_KI_AKTIONEN.includes((felder || {}).aktion) ? diktatKiAnfrage(felder) : raus(403, 'Agenten lesen hier nur freigegebene Aufnahmen: aktion=ki_liste oder aktion=ki_lesen mit diktat_id.');
   if (!DIKTAT_ROLLEN.includes(ich.rolle)) return raus(403, 'Das Diktat nutzen Timo, Kurt, Murat und das Vertriebsteam.');
   const f = felder || {};
+  if (DIKTAT_DB_AKTIONEN.includes(f.aktion)) return diktatDbAnfrage(ich, f, new Date().toISOString());
+  if (f.aktion === 'zusammenfassen') {
+    const transkript = String(f.transkript ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').trim();
+    if (transkript.length < 2) return raus(400, 'Es ist kein Text zum Zusammenfassen angekommen.');
+    if (transkript.length > MAX_GESAMT_ZEICHEN) return raus(413, 'Der Text ist zu lang zum Zusammenfassen (über 4 Stunden Gespräch).');
+    const chance_id = /^[A-Za-z0-9-]{1,80}$/.test(String(f.chance_id || '')) ? String(f.chance_id) : '';
+    return { aktion: 'zusammenfassen', transkript, kontext: { mitglied_id: ich.mitglied_id, name: ich.name, chance_id, chance_name: txt(f.chance_name, 120), kontakt_name: txt(f.kontakt_name, 120), art: DIKTAT_ARTEN.includes(f.art) ? f.art : 'anruf', modus: DIKTAT_MODI.includes(f.modus) ? f.modus : 'diktat', dauer_sek: Math.max(0, Math.min(MAX_GESAMT_SEK, Number(f.dauer_sek) || 0)), gesamt: true, pc_ton: String(f.pc_ton) === '1', ki_lesen: String(f.ki_lesen) === '1', diktat_id: DIKTAT_ID.test(String(f.diktat_id || '')) ? String(f.diktat_id) : '', vorlage: ZUSAMMENFASSUNG_VORLAGEN[f.vorlage] ? f.vorlage : '', roh: String(f.roh ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').trim().slice(0, MAX_GESAMT_ZEICHEN) } };
+  }
   if (!datei) return raus(400, 'Es ist keine Aufnahme angekommen. Bitte noch einmal aufnehmen oder eine Audiodatei wählen.');
   const groesse = Number(datei.fileSize) || 0;
   if (groesse > MAX_AUDIO_BYTES) return raus(413, 'Die Aufnahme ist größer als 25 MB. Bitte kürzer aufnehmen oder die Datei verkleinern.');
@@ -39,12 +63,19 @@ function diktatAnfrage(ich, felder, datei) {
   const dauer = Math.max(0, Math.min(MAX_AUDIO_SEK, Number(f.dauer_sek) || 0));
   if (Number(f.dauer_sek) > MAX_AUDIO_SEK) return raus(413, 'Aufnahmen bis 30 Minuten. Bitte in Abschnitten aufnehmen.');
   const chance_id = /^[A-Za-z0-9-]{1,80}$/.test(String(f.chance_id || '')) ? String(f.chance_id) : '';
-  return { aktion: 'transkribieren', kontext: { mitglied_id: ich.mitglied_id, name: ich.name, chance_id, chance_name: txt(f.chance_name, 120), kontakt_name: txt(f.kontakt_name, 120), art: DIKTAT_ARTEN.includes(f.art) ? f.art : 'anruf', modus: DIKTAT_MODI.includes(f.modus) ? f.modus : 'diktat', dauer_sek: dauer, mime: mime || 'audio/webm', groesse } };
+  return { aktion: 'transkribieren', kontext: { mitglied_id: ich.mitglied_id, name: ich.name, chance_id, chance_name: txt(f.chance_name, 120), kontakt_name: txt(f.kontakt_name, 120), art: DIKTAT_ARTEN.includes(f.art) ? f.art : 'anruf', modus: DIKTAT_MODI.includes(f.modus) ? f.modus : 'diktat', dauer_sek: dauer, mime: mime || 'audio/webm', groesse, teil: String(f.teil) === '1', pc_ton: String(f.pc_ton) === '1', ki_lesen: String(f.ki_lesen) === '1' } };
 }
 
 /** Prompt für Bereinigung und Zusammenfassung. Ausgabe als JSON mit festen Feldern. */
 function bereinigungsPrompt(kontext, transkript) {
   const k = kontext || {};
+  if (k.teil) {
+    // Stück einer langen Aufnahme: nur sauber aufschreiben, zusammengefasst wird am Ende über den ganzen Text
+    const system = 'Du bist Assistent für Gesprächsnotizen der Momentum KI Akademie (Weiterbildung „KI-Führerschein“, Förderung über Bildungsgutschein/QCG). ' +
+      'Du bekommst die rohe Transkription eines etwa einminütigen Abschnitts aus einer längeren Aufnahme (Meeting, Workshop, Video). Gib den Text in sauberem Deutsch wieder: Erkennungsfehler korrigieren, falsch erkannte Sprache ins Deutsche übersetzen, Fachbegriffe und Eigennamen beibehalten, Inhalt nicht verändern, nichts dazuerfinden, nichts kürzen, Füllwörter weglassen. Der Abschnitt kann mitten im Satz beginnen oder enden; lass das so. ' +
+      'Antworte NUR mit JSON: {"text": "..."}. Keine Erklärungen, kein Markdown außerhalb des JSON.';
+    return { system, user: 'Abschnitt:\n' + String(transkript || '') };
+  }
   const system = 'Du bist Assistent für Gesprächsnotizen im Vertrieb der Momentum KI Akademie (Weiterbildung „KI-Führerschein“, Förderung über Bildungsgutschein/QCG). ' +
     'Du bekommst die rohe Transkription eines Diktats oder Gesprächs. Aufgaben: 1) Gib den Text in sauberem Deutsch wieder: Erkennungsfehler korrigieren, falsch erkannte Sprache ins Deutsche übersetzen, Fachbegriffe und Eigennamen beibehalten, Inhalt nicht verändern, nichts dazuerfinden, Füllwörter weglassen. ' +
     '2) Fasse in 2 bis 3 Sätzen zusammen. 3) Nenne die wichtigsten Punkte. 4) Nenne konkrete nächste Schritte mit Zuständigkeit, falls genannt. 5) Nenne Termine und Fristen, falls genannt (Datum im Format TT.MM.JJJJ, sonst wörtlich). ' +
@@ -53,18 +84,149 @@ function bereinigungsPrompt(kontext, transkript) {
   return { system, user };
 }
 
-/** Liest die JSON-Antwort des Modells robust (Codezäune, Text davor/danach). */
-function llmAntwortLesen(roh, transkript) {
+// Vorlagen für die Zusammenfassung (Portal: Fenster „Ganzes Transkript“ → „Neu zusammenfassen“). 'auto' wählt nach Art der Aufnahme.
+const ZUSAMMENFASSUNG_VORLAGEN = {
+  meeting: 'Schreibe ein Meeting-Protokoll: Worum ging es, welche Themen wurden besprochen (je Thema 1 bis 3 Sätze), was wurde entschieden, wer übernimmt welche Aufgabe bis wann, welche Fragen sind offen.',
+  vertrieb: 'Werte es als Vertriebsgespräch aus: Bedarf und Ausgangslage der Interessenten, Einwände und Bedenken, Förderung (Bildungsgutschein/QCG) und Budget, Entscheidungsweg, vereinbarte nächste Schritte.',
+  lernen: 'Werte es als Lerninhalt aus (Video, Workshop, Vortrag): Kernaussagen, wichtige Beispiele, genannte Werkzeuge und Methoden, und was man konkret umsetzen kann.',
+  aufgaben: 'Konzentriere dich auf Aufgaben: Liste jede konkrete Aufgabe mit Zuständigkeit und Frist, so wie sie im Text vorkommt. Die Zusammenfassung bleibt kurz (2 bis 3 Sätze).'
+};
+const vorlageVon = k => ZUSAMMENFASSUNG_VORLAGEN[(k || {}).vorlage] ? k.vorlage : ((k || {}).pc_ton ? 'meeting' : 'vertrieb');
+
+/** Prompt für die Zusammenfassung einer langen Aufnahme. Der Text ist schon bereinigt und wird nicht zurückgegeben. */
+function zusammenfassungsPrompt(kontext, text) {
+  const k = kontext || {};
+  const laenge = String(text || '').length, lang = laenge > 12000;
+  const system = 'Du bist Assistent für Gesprächsnotizen der Momentum KI Akademie (Weiterbildung „KI-Führerschein“, Förderung über Bildungsgutschein/QCG). ' +
+    'Du bekommst den bereinigten Wortlaut einer Aufnahme (Meeting, Workshop, Video oder Diktat). Gib den Wortlaut NICHT zurück. Lies den ganzen Text, auch das Ende. ' + ZUSAMMENFASSUNG_VORLAGEN[vorlageVon(k)] + ' ' +
+    'Felder: zusammenfassung = ' + (lang ? '6 bis 12 Sätze, nach Themen gegliedert (Absätze mit \\n\\n)' : '3 bis 6 Sätze') + '; punkte = die wichtigsten Punkte (höchstens 15); entscheidungen = was beschlossen wurde; naechste_schritte = konkrete Aufgaben mit Zuständigkeit und Frist, falls genannt; offene_fragen = was ungeklärt blieb; termine = Termine und Fristen (Datum im Format TT.MM.JJJJ, sonst wörtlich). Leere Felder als []. Nichts dazuerfinden, keine Vermutungen über Personen. ' +
+    'Antworte NUR mit JSON: {"zusammenfassung": "...", "punkte": ["..."], "entscheidungen": ["..."], "naechste_schritte": ["..."], "offene_fragen": ["..."], "termine": ["..."]}. Keine Erklärungen, kein Markdown außerhalb des JSON. Schreibe neutral.';
+  const user = 'Kontext: ' + (k.modus === 'gespraech' ? 'Mitschnitt' : 'Diktat') + (k.pc_ton ? ' mit Computerton (Meeting, Workshop oder Video)' : '') + ' (' + (k.art || 'anruf') + ')' + (k.chance_name ? ', Verkaufschance „' + k.chance_name + '“' : '') + (k.kontakt_name ? ', Kontakt ' + k.kontakt_name : '') + (k.dauer_sek ? ', Dauer ' + Math.round(k.dauer_sek / 60) + ' Min.' : '') + '.\n\nWortlaut:\n' + String(text || '');
+  return { system, user };
+}
+
+/** Holt das JSON-Objekt aus einer Modellantwort (Codezäune, Text davor/danach). null, wenn keins lesbar ist. */
+function jsonAusLlm(roh) {
   let s = String(roh ?? '').trim();
-  const fallback = { text: String(transkript || '').trim(), zusammenfassung: '', punkte: [], naechste_schritte: [], termine: [], bereinigt: false };
-  if (!s) return fallback;
+  if (!s) return null;
   s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const a = s.indexOf('{'), b = s.lastIndexOf('}');
-  if (a < 0 || b <= a) return fallback;
-  let j; try { j = JSON.parse(s.slice(a, b + 1)); } catch (e) { return fallback; }
+  if (a < 0 || b <= a) return null;
+  try { const j = JSON.parse(s.slice(a, b + 1)); return j && typeof j === 'object' ? j : null; } catch (e) { return null; }
+}
+const llmListe = v => (Array.isArray(v) ? v : (v ? [v] : [])).map(x => txt(x, 400)).filter(Boolean).slice(0, 20);
+
+/** Liest die JSON-Antwort des Modells robust (Codezäune, Text davor/danach). */
+function llmAntwortLesen(roh, transkript) {
+  const fallback = { text: String(transkript || '').trim(), zusammenfassung: '', punkte: [], naechste_schritte: [], termine: [], bereinigt: false };
+  const j = jsonAusLlm(roh);
+  if (!j) return fallback;
   const liste = v => (Array.isArray(v) ? v : (v ? [v] : [])).map(x => txt(x, 400)).filter(Boolean).slice(0, 20);
   const text = txt(j.text, 20000) || fallback.text;
   return { text, zusammenfassung: txt(j.zusammenfassung, 1500), punkte: liste(j.punkte), naechste_schritte: liste(j.naechste_schritte), termine: liste(j.termine), bereinigt: !!txt(j.text, 20000) };
+}
+
+/** Antwort für ein Stück einer langen Aufnahme: nur der (bereinigte) Text, keine Zusammenfassung. */
+function teilAntwort(transkript, llmRoh, kontext) {
+  const t = String(transkript || '').trim();
+  const k = kontext || {};
+  const j = jsonAusLlm(llmRoh);
+  const sauber = j ? txt(j.text, 20000) : '';
+  return { code: 200, antwort: { ok: true, teil: true, text: sauber || t, roh: t, bereinigt: !!sauber, dauer_sek: k.dauer_sek || 0, kosten: kostenSchaetzung(k.dauer_sek), modelle: { transkription: TRANSKRIPTION_MODELL, bereinigung: BEREINIGUNG_MODELL } } };
+}
+
+/** Antwort auf aktion=zusammenfassen: Der Text kommt vom Portal, vom Modell nur Zusammenfassung, Punkte, Schritte, Termine. */
+function gesamtAntwort(text, llmRoh, kontext, jetztIso) {
+  const k = kontext || {};
+  const j = jsonAusLlm(llmRoh) || {};
+  const erg = { text: txt(text, MAX_GESAMT_ZEICHEN), zusammenfassung: txt(j.zusammenfassung, 6000), punkte: llmListe(j.punkte), entscheidungen: llmListe(j.entscheidungen), naechste_schritte: llmListe(j.naechste_schritte), offene_fragen: llmListe(j.offene_fragen), termine: llmListe(j.termine), bereinigt: true };
+  return { code: 200, antwort: { ok: true, gesamt: true, text: erg.text, roh: '', zusammenfassung: erg.zusammenfassung, punkte: erg.punkte, entscheidungen: erg.entscheidungen, naechste_schritte: erg.naechste_schritte, offene_fragen: erg.offene_fragen, termine: erg.termine, bereinigt: true, zusammengefasst: !!erg.zusammenfassung, vorlage: vorlageVon(k), diktat_id: k.diktat_id || undefined,
+    aktivitaet: aktivitaetBauen(erg, k, jetztIso), art: k.art || 'anruf', modus: k.modus || 'diktat', chance_id: k.chance_id || '', dauer_sek: k.dauer_sek || 0, kosten: kostenSchaetzung(k.dauer_sek),
+    modelle: { transkription: TRANSKRIPTION_MODELL, bereinigung: BEREINIGUNG_MODELL }, stand: jetztIso || new Date().toISOString() } };
+}
+
+/**
+ * Verwaltung der gespeicherten Aufnahmen (Liste, ganzer Text, KI-Haken, Zuordnung, Löschen). Immer nur Zeilen der anfragenden Person.
+ * Liefert { aktion: 'db', db: { art, methode, pfad, body } } (Supabase REST) oder einen Fehler.
+ */
+function diktatDbAnfrage(ich, f, jetztIso) {
+  const raus = (code, fehler) => ({ aktion: 'fehler', code, antwort: { ok: false, fehler } });
+  const wer = 'mitglied_id=eq.' + encodeURIComponent(ich.mitglied_id) + '&geloescht_am=is.null';
+  const id = DIKTAT_ID.test(String(f.diktat_id || '')) ? String(f.diktat_id) : '';
+  const db = (art, methode, pfad, body) => ({ aktion: 'db', db: { art, methode, pfad, body: body || null } });
+  if (f.aktion === 'liste') return db('liste', 'GET', 'team_diktate?select=diktat_id,erstellt,titel,art,modus,pc_ton,dauer_sek,ziel,chance_id,zusammenfassung,vorschau,ki_lesen&' + wer + '&order=erstellt.desc&limit=200');
+  if (!id) return raus(400, 'Unbekannte Aufnahme.');
+  const zeile = 'team_diktate?diktat_id=eq.' + id + '&' + wer;
+  if (f.aktion === 'lesen') return db('lesen', 'GET', zeile + '&select=*');
+  if (f.aktion === 'ki') return db('ki', 'PATCH', zeile, { ki_lesen: String(f.ki_lesen) === '1', geaendert: jetztIso });
+  if (f.aktion === 'zuordnen') {
+    const body = { ziel: txt(f.ziel, 200) || null, chance_id: /^[A-Za-z0-9-]{1,80}$/.test(String(f.chance_id || '')) ? String(f.chance_id) : null, geaendert: jetztIso };
+    const t = String(f.text ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').trim();
+    if (t.length >= 2) body.text = t.slice(0, MAX_GESAMT_ZEICHEN);   // vom Menschen gegengelesener Text
+    return db('zuordnen', 'PATCH', zeile, body);
+  }
+  // Löschen: Inhalt sofort leeren, Zeile als gelöscht markieren
+  return db('loeschen', 'PATCH', zeile, { geloescht_am: jetztIso, geaendert: jetztIso, titel: '(gelöscht)', text: '', roh: '', zusammenfassung: '', punkte: [], naechste_schritte: [], termine: [], ki_lesen: false, ziel: null });
+}
+
+/** Lesen für KI-Agenten: nur die Sicht team_diktate_ki (Haken „KI darf lesen“, nicht gelöscht). */
+function diktatKiAnfrage(f) {
+  const db = (art, pfad) => ({ aktion: 'db', db: { art, methode: 'GET', pfad, body: null } });
+  if (f.aktion === 'ki_liste') return db('ki_liste', 'team_diktate_ki?select=diktat_id,von,erstellt,titel,ziel,dauer_sek,zusammenfassung&order=erstellt.desc&limit=50');
+  const id = DIKTAT_ID.test(String(f.diktat_id || '')) ? String(f.diktat_id) : '';
+  if (!id) return { aktion: 'fehler', code: 400, antwort: { ok: false, fehler: 'Unbekannte Aufnahme (diktat_id fehlt).' } };
+  return db('ki_lesen', 'team_diktate_ki?diktat_id=eq.' + id + '&select=*');
+}
+
+/** Titel einer gespeicherten Aufnahme, z. B. „🖥️ Mitschnitt mit Computerton (62 Min.)“. */
+function diktatTitel(kontext) {
+  const k = kontext || {};
+  const min = Math.round((Number(k.dauer_sek) || 0) / 60);
+  return (k.pc_ton ? '🖥️ Mitschnitt mit Computerton' : k.modus === 'gespraech' ? '🎙️ Gesprächsmitschnitt' : '🎙️ Diktat') + (k.chance_name ? ' · ' + k.chance_name : '') + (min ? ' (' + min + ' Min.)' : '');
+}
+
+/** Speicher-Auftrag für eine fertige Aufnahme (nicht für Stücke). antwort = Antwort an den Browser. */
+function speichernAuftrag(antwort, kontext) {
+  const k = kontext || {}, a = antwort || {};
+  const liste = v => Array.isArray(v) ? v : [];
+  // Neu zusammengefasst: vorhandene Aufnahme ergänzen statt eine neue anzulegen (Text bleibt, nur die eigene Aufnahme)
+  if (k.diktat_id) return { art: 'speichern', methode: 'PATCH', pfad: 'team_diktate?diktat_id=eq.' + k.diktat_id + '&mitglied_id=eq.' + encodeURIComponent(k.mitglied_id) + '&geloescht_am=is.null', body: {
+    zusammenfassung: txt([a.zusammenfassung].concat(liste(a.entscheidungen).length ? ['Entscheidungen: ' + liste(a.entscheidungen).join('; ')] : [], liste(a.offene_fragen).length ? ['Offene Fragen: ' + liste(a.offene_fragen).join('; ')] : []).filter(Boolean).join('\n\n'), 6000),
+    punkte: liste(a.punkte), naechste_schritte: liste(a.naechste_schritte), termine: liste(a.termine), geaendert: new Date().toISOString() } };
+  return { art: 'speichern', methode: 'POST', pfad: 'team_diktate', body: {
+    mitglied_id: k.mitglied_id, titel: diktatTitel(k), art: DIKTAT_ARTEN.includes(k.art) ? k.art : 'anruf', modus: k.modus === 'gespraech' ? 'gespraech' : 'diktat', pc_ton: !!k.pc_ton,
+    dauer_sek: Math.round(Number(a.dauer_sek || k.dauer_sek) || 0), chance_id: k.chance_id || null, ziel: k.chance_name || null,
+    text: txt(a.text, MAX_GESAMT_ZEICHEN), roh: txt(a.roh || k.roh || '', MAX_GESAMT_ZEICHEN), zusammenfassung: txt([a.zusammenfassung].concat(liste(a.entscheidungen).length ? ['Entscheidungen: ' + liste(a.entscheidungen).join('; ')] : [], liste(a.offene_fragen).length ? ['Offene Fragen: ' + liste(a.offene_fragen).join('; ')] : []).filter(Boolean).join('\n\n'), 6000),
+    punkte: liste(a.punkte), naechste_schritte: liste(a.naechste_schritte), termine: liste(a.termine), ki_lesen: !!k.ki_lesen } };
+}
+
+/** Hängt das Speicherergebnis an die Antwort (diktat_id), Fehler beim Speichern nur als Hinweis. r = Antwort von Supabase { statusCode, body }. */
+function gespeichertAntwort(erg, r) {
+  const e = JSON.parse(JSON.stringify(erg || {}));
+  delete e.db;
+  const status = Number((r || {}).statusCode) || 0, body = (r || {}).body;
+  const zeile = Array.isArray(body) ? body[0] : null;
+  if (e.antwort && status > 0 && status < 300 && zeile && zeile.diktat_id) { e.antwort.diktat_id = zeile.diktat_id; e.antwort.gespeichert = true; }
+  else if (e.antwort) { e.antwort.gespeichert = false; e.antwort.hinweis = (e.antwort.hinweis ? e.antwort.hinweis + ' · ' : '') + 'Nicht unter „Letzte Diktate“ gespeichert' + (/team_diktate/.test(JSON.stringify(body || '')) ? ' (Tabelle team_diktate fehlt noch)' : '') + '. Kopiere den Text, bevor du die Seite verlässt.'; }
+  return e;
+}
+
+/** Antwort auf eine Verwaltungsaktion. db = Auftrag aus diktatDbAnfrage, r = Antwort von Supabase { statusCode, body }. */
+function diktatDbAntwort(db, r) {
+  const status = Number((r || {}).statusCode) || 0, body = (r || {}).body;
+  if (status < 200 || status >= 300) {
+    const fehlt = /team_diktate|does not exist|PGRST20/.test(JSON.stringify(body || ''));
+    return { code: 502, antwort: { ok: false, fehler: fehlt ? 'Die Ablage für Diktate ist noch nicht eingerichtet (supabase/team_diktate.sql ausführen).' : 'Die gespeicherten Diktate sind gerade nicht erreichbar (HTTP ' + (status || 'ohne Antwort') + ').' } };
+  }
+  const zeilen = Array.isArray(body) ? body : [];
+  const liste = v => Array.isArray(v) ? v : [];
+  if (db.art === 'ki_liste') return { code: 200, antwort: { ok: true, diktate: zeilen.map(z => ({ diktat_id: z.diktat_id, von: z.von || '', erstellt: z.erstellt, titel: z.titel || '', ziel: z.ziel || '', dauer_sek: z.dauer_sek || 0, zusammenfassung: z.zusammenfassung || '' })) } };
+  if (db.art === 'ki_lesen') { const k = zeilen[0]; return k ? { code: 200, antwort: { ok: true, diktat: { diktat_id: k.diktat_id, von: k.von || '', erstellt: k.erstellt, titel: k.titel || '', art: k.art, modus: k.modus, pc_ton: !!k.pc_ton, dauer_sek: k.dauer_sek || 0, ziel: k.ziel || '', zusammenfassung: k.zusammenfassung || '', punkte: liste(k.punkte), naechste_schritte: liste(k.naechste_schritte), termine: liste(k.termine), text: k.text || '', roh: k.roh || '' } } } : { code: 404, antwort: { ok: false, fehler: 'Diese Aufnahme gibt es nicht oder sie ist nicht für die KI freigegeben.' } }; }
+  if (db.art === 'liste') return { code: 200, antwort: { ok: true, diktate: zeilen.map(z => ({ diktat_id: z.diktat_id, erstellt: z.erstellt, titel: z.titel || '', art: z.art, modus: z.modus, pc_ton: !!z.pc_ton, dauer_sek: z.dauer_sek || 0, ziel: z.ziel || '', chance_id: z.chance_id || '', zusammenfassung: z.zusammenfassung || '', vorschau: z.vorschau || '', ki_lesen: !!z.ki_lesen })) } };
+  const z = zeilen[0];
+  if (!z) return { code: 404, antwort: { ok: false, fehler: 'Diese Aufnahme gibt es nicht (mehr).' } };
+  if (db.art === 'lesen') return { code: 200, antwort: { ok: true, diktat: { diktat_id: z.diktat_id, erstellt: z.erstellt, titel: z.titel || '', art: z.art, modus: z.modus, pc_ton: !!z.pc_ton, dauer_sek: z.dauer_sek || 0, ziel: z.ziel || '', chance_id: z.chance_id || '', text: z.text || '', roh: z.roh || '', zusammenfassung: z.zusammenfassung || '', punkte: liste(z.punkte), naechste_schritte: liste(z.naechste_schritte), termine: liste(z.termine), ki_lesen: !!z.ki_lesen } } };
+  return { code: 200, antwort: { ok: true, diktat_id: z.diktat_id, ki_lesen: !!z.ki_lesen, ziel: z.ziel || '', geloescht: !!z.geloescht_am } };
 }
 
 /** Kosten nur als Schätzung aus der Aufnahmedauer (vom Browser gemeldet). */
@@ -78,11 +240,13 @@ function aktivitaetBauen(erg, kontext, jetztIso) {
   const k = kontext || {};
   const d = new Date(jetztIso || Date.now());
   const datum = isNaN(d) ? '' : d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
-  const kopf = (k.modus === 'gespraech' ? '🎙️ Gesprächsmitschnitt' : '🎙️ Diktat') + (k.name ? ' von ' + k.name : '') + (datum ? ' am ' + datum : '') + (k.dauer_sek ? ' (' + Math.round(k.dauer_sek / 60) + ' Min.)' : '') + ', KI-bereinigt';
+  const kopf = (k.pc_ton ? '🖥️ Mitschnitt mit Computerton' : k.modus === 'gespraech' ? '🎙️ Gesprächsmitschnitt' : '🎙️ Diktat') + (k.name ? ' von ' + k.name : '') + (datum ? ' am ' + datum : '') + (k.dauer_sek ? ' (' + Math.round(k.dauer_sek / 60) + ' Min.)' : '') + ', KI-bereinigt';
   const teile = [kopf];
   if (erg.zusammenfassung) teile.push('**Zusammenfassung:** ' + erg.zusammenfassung);
   if (erg.punkte && erg.punkte.length) teile.push('**Wichtige Punkte:**\n' + erg.punkte.map(p => '- ' + p).join('\n'));
+  if (erg.entscheidungen && erg.entscheidungen.length) teile.push('**Entscheidungen:**\n' + erg.entscheidungen.map(p => '- ' + p).join('\n'));
   if (erg.naechste_schritte && erg.naechste_schritte.length) teile.push('**Nächste Schritte:**\n' + erg.naechste_schritte.map(p => '- ' + p).join('\n'));
+  if (erg.offene_fragen && erg.offene_fragen.length) teile.push('**Offene Fragen:**\n' + erg.offene_fragen.map(p => '- ' + p).join('\n'));
   if (erg.termine && erg.termine.length) teile.push('**Termine:** ' + erg.termine.join('; '));
   if (erg.text) teile.push('**Wortlaut' + (erg.bereinigt ? ' (bereinigt)' : ' (Rohtranskript)') + ':**\n' + erg.text);
   return teile.join('\n\n');
@@ -99,4 +263,4 @@ function diktatAntwort(transkript, llmRoh, kontext, jetztIso) {
     modelle: { transkription: TRANSKRIPTION_MODELL, bereinigung: BEREINIGUNG_MODELL }, stand: jetztIso || new Date().toISOString() } };
 }
 
-export { DIKTAT_ROLLEN, DIKTAT_ARTEN, DIKTAT_MODI, MAX_AUDIO_BYTES, MAX_AUDIO_SEK, TRANSKRIPTION_MODELL, BEREINIGUNG_MODELL, WOERTERBUCH, transkriptionsPrompt, diktatAnfrage, bereinigungsPrompt, llmAntwortLesen, kostenSchaetzung, aktivitaetBauen, diktatAntwort };
+export { DIKTAT_KI_AKTIONEN, diktatKiAnfrage, ZUSAMMENFASSUNG_VORLAGEN, transkriptSaeubern, DIKTAT_DB_AKTIONEN, diktatDbAnfrage, diktatTitel, speichernAuftrag, gespeichertAntwort, diktatDbAntwort, DIKTAT_ROLLEN, DIKTAT_ARTEN, DIKTAT_MODI, MAX_AUDIO_BYTES, MAX_AUDIO_SEK, MAX_GESAMT_SEK, MAX_GESAMT_ZEICHEN, TRANSKRIPTION_MODELL, BEREINIGUNG_MODELL, WOERTERBUCH, transkriptionsPrompt, diktatAnfrage, bereinigungsPrompt, zusammenfassungsPrompt, jsonAusLlm, llmAntwortLesen, teilAntwort, gesamtAntwort, kostenSchaetzung, aktivitaetBauen, diktatAntwort };

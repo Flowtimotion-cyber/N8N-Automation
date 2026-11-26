@@ -1,0 +1,21 @@
+{
+ "workflowId": "QG7TlVF1CzjlmnDf",
+ "workflow": "KOM: WhatsApp an Team bei neuer Aufgabe",
+ "live_version_vorher": "0a744635-6c61-4ee2-b028-8012471ef59d",
+ "versionsname": "Claude Code: Vorlage je Art (neue_aufgabe, chat_erwaehnung)",
+ "beschreibung": "Team-Chat Stufe 1: Einträge mit art = chat_erwaehnung (Markierung im Chat mit WhatsApp-Haken) bekommen die Vorlage chat_erwaehnung, alle anderen wie bisher neue_aufgabe. Nur jsCode von „Aufteilen“. Vorher: Vorlage chat_erwaehnung im WhatsApp-Konto 1666267811876429 anlegen und freigeben lassen.",
+ "abgleich": {
+  "knoten": "Aufteilen",
+  "sha256_live_vorher": "e79ec045374a1cfe8678edb2bb0eec63dfea88724c866dcfffe539b655b00c5d",
+  "sha256_nachher": "eef4d2d1abbe813dadac3a07481a4f045dc0facdba6b98413de8d59ec5f5de33"
+ },
+ "operations": [
+  {
+   "type": "updateNodeParameters",
+   "nodeName": "Aufteilen",
+   "parameters": {
+    "jsCode": "// Vorlage je Art: neue_aufgabe (Aufgabe zugewiesen) oder chat_erwaehnung (im Team-Chat markiert, Haken beim Senden). Beide: {{1}} Empfänger, {{2}} von, {{3}} Titel.\nconst VORLAGE = { neue_aufgabe: 'neue_aufgabe', chat_erwaehnung: 'chat_erwaehnung' };\nconst L = ($input.first().json.liste || []).filter(x => x && x.id && /^\\d{8,15}$/.test(String(x.wa || '')));\nconst kurz = (s, n) => { s = String(s || '').replace(/[\\n\\t]+/g, ' ').replace(/ {4,}/g, '   ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : (s || '–'); };\nreturn L.map(x => ({ json: { id: x.id, wa_body: { messaging_product: 'whatsapp', to: String(x.wa), type: 'template', template: { name: VORLAGE[x.art] || 'neue_aufgabe', language: { code: 'de' }, components: [{ type: 'body', parameters: [{ type: 'text', text: kurz(x.an_name, 40) }, { type: 'text', text: kurz(x.von_name, 40) }, { type: 'text', text: kurz(x.titel, 200) }] }] } } } }));"
+   }
+  }
+ ]
+}

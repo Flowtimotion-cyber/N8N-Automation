@@ -1,0 +1,65 @@
+{
+ "workflowId": "ZfStqgtH3IZugnv5",
+ "workflow": "TEAM: Social-Upload",
+ "live_version_vorher": "53ff2916-45ca-4426-b2f6-b7487c3c3220",
+ "versionsname": "Claude Code: Supabase-Funktionen als Text lesen",
+ "beschreibung": "Fehler 21.11.2026: Die rpc-Knoten erwarteten JSON, Supabase antwortet mit Text (ID). Der Knoten brach ab, das Portal bekam keine Antwort, das Fenster blieb offen (Idee war trotzdem gespeichert). Nur options.response.response.responseFormat = text in fünf Knoten.",
+ "operations": [
+  {
+   "type": "setNodeParameter",
+   "nodeName": "Idee speichern",
+   "path": "/options/response",
+   "value": {
+    "response": {
+     "responseFormat": "text"
+    }
+   }
+  },
+  {
+   "type": "setNodeParameter",
+   "nodeName": "Idee in Papierkorb",
+   "path": "/options/response",
+   "value": {
+    "response": {
+     "responseFormat": "text"
+    }
+   }
+  },
+  {
+   "type": "setNodeParameter",
+   "nodeName": "Upload anlegen",
+   "path": "/options/response",
+   "value": {
+    "response": {
+     "responseFormat": "text"
+    }
+   }
+  },
+  {
+   "type": "setNodeParameter",
+   "nodeName": "Upload-Status setzen",
+   "path": "/options/response",
+   "value": {
+    "response": {
+     "responseFormat": "text"
+    }
+   }
+  },
+  {
+   "type": "setNodeParameter",
+   "nodeName": "Als gelöscht markieren",
+   "path": "/options/response",
+   "value": {
+    "response": {
+     "responseFormat": "text"
+    }
+   }
+  }
+ ],
+ "eingespielt": {
+  "am": "2026-11-21",
+  "von": "Claude Code (Timos Ja)",
+  "neue_version": "3ff52261-45a5-480e-90db-626756b392b5",
+  "abgleich": "nur diese fünf Knoten geändert, Verbindungen unverändert"
+ }
+}

@@ -18,6 +18,9 @@ const neueSeite = async (vp, opts = {}) => {
   p.on('console', m => { if (m.type() === 'error' && !(opts.netzfehlerErwartet && /Failed to load resource/.test(m.text())) && !/Blocked script execution in '[^']*\/testbilder\/[^']*' because the document's frame is sandboxed/.test(m.text())) fehler.push(vp.width + ' ' + opts.name + ' console: ' + m.text()); });
   // Das Anleitungs-Video (Loom) in der Portal-Übersicht nie wirklich laden: Stub statt Netz
   await p.route(/loom\.com\//, r => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Loom (Teststub)</title>' }));
+  // Nachrichten und Team-Chat lädt das Portal beim Start: an die Nachbildung im Testserver, nie an das echte n8n
+  for (const [muster, ziel] of [[/n8n\.hm-storage\.de\/webhook\/team-msgs/, '/api/nachrichten'], [/n8n\.hm-storage\.de\/webhook\/team-chat/, '/api/chat']])
+    await p.route(muster, async r => { const res = await fetch(S.base + ziel, { method: 'POST', body: r.request().postData() }); r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() }); });
   return p;
 };
 const oeffne = async (p, hash, tok = TOKENS.m_timo) => { await p.goto(S.base + '/office/?z=' + tok + hash, { waitUntil: 'networkidle' }); await p.waitForTimeout(250); };
@@ -55,17 +58,17 @@ for (const vp of [DESKTOP, MOBIL]) {
     await oeffne(p, '#/projekt/p_kurs'); assert.equal(await p.locator('#main a.run[href="#/run/' + kind.run_id + '"]').count(), 1, 'Kind-Run genau einmal im Projekt'); assert.ok((await p.locator('.zweig a.run').count()) >= 2);
     await oeffne(p, '#/tab/freigaben'); assert.match(await text(p, 'h1'), /Freigaben/); assert.ok((await p.locator('[data-freigabe][data-entscheidung="erteilt"]').count()) >= 1); await shot(p, 'freigaben', vp);
     // Büro: SVG vorhanden, Räume und Agenten verlinkt, Tastatur: Tab bis zum ersten Raum-Link, Enter filtert Projekte
-    await oeffne(p, '#/tab/buero'); assert.ok(await p.locator('svg.buero').count()); assert.ok((await p.locator('svg.buero a').count()) >= 15); await shot(p, 'buero', vp);
+    await oeffne(p, '#/tab/szene'); assert.ok(await p.locator('svg.buero').count()); assert.ok((await p.locator('svg.buero a').count()) >= 15); await shot(p, 'buero', vp);
     // Zentrale: Orchestrierer sitzt dort (nicht auf einer Raumplattform), laufendes Team als Linien zu den Figuren, Legende und Liste nennen das Team
     assert.equal(await p.locator('svg.buero a.zentrale-agent[href="#/agent/orchestrierer"]').count(), 1); assert.equal(await p.locator('svg.buero a.agent:not(.zentrale-agent)[href="#/agent/orchestrierer"]').count(), 0);
     assert.equal(await p.locator('svg.buero line.teamlinie').count(), 2, 'zwei Teammitglieder'); assert.ok((await text(p, '.legende')).includes('1 Team laufend: Orchestrierer mit Akademie-Redakteur, Kurs-Wächter')); assert.ok((await text(p, '#main')).includes('1 Orchestrierer · 1 Teams laufend')); assert.ok((await p.locator('ul.teams li').count()) >= 1);
     await p.evaluate(() => document.querySelector('svg.buero a').focus()); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
     assert.match(await p.evaluate(() => location.hash), /^#\/raum\//); assert.ok((await text(p, '#main')).includes('Filter aufheben')); await shot(p, 'projekte-raumfilter', vp);
     // Klick auf Agent führt zur Arbeitsübersicht
-    await oeffne(p, '#/tab/buero'); await p.evaluate(() => { const a = Array.from(document.querySelectorAll('svg.buero a')).find(x => /#\/agent\//.test(x.getAttribute('href'))); a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); if (location.hash.indexOf('#/agent/') !== 0) location.hash = a.getAttribute('href'); }); await p.waitForTimeout(300);
+    await oeffne(p, '#/tab/szene'); await p.evaluate(() => { const a = Array.from(document.querySelectorAll('svg.buero a')).find(x => /#\/agent\//.test(x.getAttribute('href'))); a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); if (location.hash.indexOf('#/agent/') !== 0) location.hash = a.getAttribute('href'); }); await p.waitForTimeout(300);
     assert.match(await p.evaluate(() => location.hash), /^#\/agent\//);
     // reduced motion: keine Animation
-    await p.emulateMedia({ reducedMotion: 'reduce' }); await oeffne(p, '#/tab/buero');
+    await p.emulateMedia({ reducedMotion: 'reduce' }); await oeffne(p, '#/tab/szene');
     const anim = await p.evaluate(() => { const e = document.querySelector('.puls'); return e ? getComputedStyle(e).animationName : 'none'; }); assert.equal(anim, 'none');
     assert.equal(await p.evaluate(() => { const e = document.querySelector('line.teamlinie.fluss'); return e ? getComputedStyle(e).animationName : 'none'; }), 'none', 'Teamlinien stehen bei reduced motion still');
     await p.emulateMedia({ reducedMotion: 'no-preference' });
@@ -81,7 +84,7 @@ for (const vp of [DESKTOP, MOBIL]) {
   test(n + ': Monitor zeigt Bild / zeigt ungeprüft / leer, HTML nur in der Sandbox, Monitorwand', async t => {
     if (!B) return t.skip();
     const p = await neueSeite(vp, { name: n + ' monitor' });
-    await oeffne(p, '#/tab/buero');
+    await oeffne(p, '#/tab/szene');
     const mon = raum => 'svg.buero a.monitor[data-raum="' + raum + '"]';
     assert.equal(await p.locator('svg.buero a.monitor').count(), 5, 'ein Monitor je Raum');
     // Akademie: Bild aus testbilder/, Run fachlich abgenommen → „geprüft“
@@ -162,7 +165,7 @@ test('Leerzustände (Szenario leer) und Freigabe-Entscheidung im Browser', async
     await oeffne(p, '#/tab/projekte'); assert.ok((await text(p, '#main')).includes('Noch kein Agent') || (await text(p, '.kpis')).includes('0')); await shot(p, 'leer-projekte', vp);
     await oeffne(p, '#/tab/agenten'); assert.ok((await text(p, '#main')).includes('zuletzt nie')); await shot(p, 'leer-agenten', vp);
     await oeffne(p, '#/tab/freigaben'); assert.ok((await text(p, '#main')).includes('Keine offenen Freigaben')); await shot(p, 'leer-freigaben', vp);
-    await oeffne(p, '#/tab/buero'); assert.ok((await text(p, '#main')).includes('0 laufend')); assert.equal(await p.locator('svg.buero a.monitor[data-typ="leer"]').count(), 5, 'alle fünf Monitore: noch kein Ergebnis'); await shot(p, 'leer-buero', vp);
+    await oeffne(p, '#/tab/szene'); assert.ok((await text(p, '#main')).includes('0 laufend')); assert.equal(await p.locator('svg.buero a.monitor[data-typ="leer"]').count(), 5, 'alle fünf Monitore: noch kein Ergebnis'); await shot(p, 'leer-buero', vp);
     await oeffne(p, '#/agent/kurs-waechter'); assert.ok((await text(p, '#main')).includes('Noch keine Ausführungen')); await shot(p, 'leer-agent-detail', vp);
     await p.close();
   }
@@ -636,5 +639,62 @@ test('Portal: Social Media – Video hochladen (signierte Adresse, PUT, Auftrag 
     await p.close();
   }
 });
+
+// KI Office 2.0, Paket 1: Kontrollraum (Karten je Agent, „Für dich“, Live-Ticker in Ich-Form), Thema dunkel/hell, kompakte Einbettung, Kennzahlenzeile am Run
+for (const vp of [DESKTOP, MOBIL]) {
+  const n = vp.width > 600 ? 'Desktop' : 'Mobil';
+  test(n + ': Kontrollraum – Karten je Agent, Für dich, Ticker in Ich-Form, Thema, Einbettung, Run-Kennzahlen', async t => {
+    if (!B) return t.skip();
+    await post(S.base, '/api/test/reset', { szenario: 'standard' });
+    const p = await neueSeite(vp, { name: n + ' Kontrollraum' });
+    // Ohne Hash und ohne gemerkten Reiter landet man im Kontrollraum
+    await p.goto(S.base + '/office/?z=' + TOKENS.m_timo, { waitUntil: 'networkidle' }); await p.evaluate(() => { localStorage.removeItem('ko-tab'); localStorage.removeItem('ko-thema'); });
+    await p.goto(S.base + '/office/?z=' + TOKENS.m_timo, { waitUntil: 'networkidle' }); await p.waitForTimeout(250);
+    assert.equal(await p.evaluate(() => location.hash), '#/tab/buero'); assert.match(await text(p, 'h1'), /Kontrollraum/);
+    const z = await fetch(S.base + '/api/test/zustand').then(r => r.json());
+    const aktiveAgenten = z.tabellen.office_agenten.filter(a => a.aktiv !== false).length;
+    assert.equal(await p.locator('.akarte').count(), aktiveAgenten, 'eine Karte je aktivem Agenten');
+    assert.equal(await p.locator('.kpis .kpi').count(), 5);
+    assert.equal(await p.locator('.kr-raum[data-raum="Zentrale"] .akarte[data-agent="orchestrierer"]').count(), 1, 'Orchestrierer sitzt in der Zentrale');
+    // Karte: Zustand, aktuelle Aufgabe, letztes Ergebnis mit Prüfmarke, Kostenzeile; Kosten ohne Meldung heißen „unbekannt“, nie 0 €
+    const texter = '.akarte[data-agent="marketing-texter"]';
+    assert.ok((await p.locator(texter + '.z-wartet_freigabe').count()) === 1, 'Texter wartet auf Freigabe');
+    assert.ok((await text(p, texter)).includes('LinkedIn-Beitrag KW 43 (Vorschau)'), 'letztes Ergebnis auf der Karte');
+    assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('Kosten (4 Wochen)')); assert.ok((await text(p, '.akarte[data-agent="akademie-redakteur"]')).includes('unbekannt'));
+    assert.ok((await p.locator('.akarte.still').count()) >= 1, 'stiller Agent bekommt einen roten Rand'); assert.ok((await text(p, '.akarte.still')).includes('kein Lebenszeichen'));
+    const main = await text(p, '#main'); assert.ok(!main.includes('undefined') && !main.includes('NaN'));
+    // Für dich: Freigaben mit Knöpfen (gleicher Dialog wie im Register Freigaben), Rückfrage, stiller Agent, Abnahmen
+    assert.ok((await p.locator('#krFuerDich [data-freigabe][data-entscheidung="erteilt"]').count()) >= 2); assert.ok((await p.locator('#krFuerDich .fd.frage').count()) >= 1); assert.ok((await p.locator('#krFuerDich .fd.problem').count()) >= 1);
+    await p.locator('#krFuerDich [data-freigabe][data-entscheidung="erteilt"]').first().click(); await p.waitForTimeout(150);
+    assert.ok(await p.evaluate(() => document.querySelector('#dlg').open)); assert.ok((await text(p, '#dlgInner')).includes('Hash')); await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+    // Ticker: Sätze in Ich-Form, jede Zeile führt zum Run
+    assert.ok((await p.locator('#krTicker .ticker li').count()) >= 8); const tick = await text(p, '#krTicker');
+    assert.ok(tick.includes('Ich habe den Auftrag übernommen') || tick.includes('Ich habe ein Ergebnis abgelegt') || tick.includes('Ich brauche'), 'Ich-Form im Ticker'); assert.equal(await p.locator('#krTicker .ticker li a:not([href^="#/run/"])').count(), 0);
+    assert.ok((await text(p, '.kr-stand')).includes('alle 30 Sekunden'), 'solange ein Agent arbeitet: 30-Sekunden-Takt'); assert.ok((await text(p, 'footer')).includes('nur bei sichtbarem Tab'));
+    await shot(p, 'kontrollraum', vp);
+    // Thema: dunkel ist Standard, der Knopf schaltet auf hell und merkt es sich
+    assert.equal(await p.evaluate(() => document.documentElement.dataset.thema), 'dunkel'); assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()), '#0E0D22');
+    await p.locator('#themaKnopf').click(); await p.waitForTimeout(150);
+    assert.equal(await p.evaluate(() => document.documentElement.dataset.thema), 'hell'); assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()), '#F6F6FB'); assert.equal(await p.evaluate(() => localStorage.getItem('ko-thema')), 'hell');
+    await shot(p, 'kontrollraum-hell', vp);
+    await p.locator('#themaKnopf').click(); await p.waitForTimeout(100); assert.equal(await p.evaluate(() => localStorage.getItem('ko-thema')), 'dunkel');
+    // „Jetzt aktualisieren“ lädt neu und bleibt bedienbar; Klick auf die Karte öffnet die Arbeitsübersicht
+    await p.locator('#krNeu').click(); await p.waitForTimeout(500); assert.equal(await p.locator('#krNeu:not([disabled])').count(), 1);
+    await p.locator('.akarte[data-agent="akademie-redakteur"] h3 a').click(); await p.waitForTimeout(250); assert.equal(await p.evaluate(() => location.hash), '#/agent/akademie-redakteur');
+    // Run-Seite: Kennzahlenzeile über der Zeitleiste
+    const ab = z.tabellen.office_runs.find(r => r.status === 'abgeschlossen' && r.abgenommen === true);
+    await oeffne(p, '#/run/' + ab.run_id); assert.equal(await p.locator('#runKz > div').count(), 5); assert.ok((await text(p, '#runKz')).includes('Kosten')); assert.ok((await text(p, '#runKz')).includes('abgenommen'));
+    // Die Büro-Szene liegt jetzt unter „szene“; die alte Adresse „buero“ zeigt den Kontrollraum (Einbettung im Portal bleibt gültig)
+    await oeffne(p, '#/tab/szene'); assert.ok(await p.locator('svg.buero').count()); await oeffne(p, '#/tab/buero'); assert.equal(await p.locator('svg.buero').count(), 0);
+    // Kompakte Einbettung für die Portal-Übersicht: nur Agenten, bei denen etwas läuft oder wartet, alle anderen als Zeile; kein eigener Kopf, kein „Für dich“
+    await p.goto(S.base + '/office/?einbetten=1&nur=buero&z=' + TOKENS.m_timo + '#/tab/buero', { waitUntil: 'networkidle' }); await p.waitForTimeout(250);
+    const kompakt = await p.locator('.akarte').count(); assert.ok(kompakt >= 1 && kompakt < aktiveAgenten, 'nur aktive Karten'); assert.ok(await p.locator('#krFrei a.chip').count() >= 1);
+    assert.equal(await p.locator('#krFuerDich').count(), 0); assert.equal(await p.locator('h1').count(), 0); assert.ok((await p.locator('#krTicker .ticker li').count()) >= 5);
+    await shot(p, 'kontrollraum-eingebettet', vp);
+    // Agenten sehen keinen „Für dich“-Block und nur ihre eigenen Projekte (Rechte entscheidet der Server)
+    await oeffne(p, '#/tab/buero', TOKENS['agent-hermes']); assert.equal(await p.locator('#krFuerDich').count(), 0); assert.equal(await p.locator('#neuAuftrag').count(), 0);
+    await p.close();
+  });
+}
 
 test('keine JavaScript-Fehler in allen Ansichten', t => { if (!B) return t.skip(); assert.deepEqual(fehler, []); });

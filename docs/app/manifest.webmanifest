@@ -1,0 +1,17 @@
+{
+  "name": "Momentum Team",
+  "short_name": "Momentum",
+  "start_url": "/N8N-Automation/app/",
+  "scope": "/N8N-Automation/app/",
+  "display": "standalone",
+  "background_color": "#F4F5F7",
+  "theme_color": "#2B59C3",
+  "icons": [
+    {
+      "src": "/N8N-Automation/app/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
