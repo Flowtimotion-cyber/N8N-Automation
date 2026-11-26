@@ -23,8 +23,21 @@ const SCHEMA = [
 	'portal-pilot/supabase/120_option_social.sql',
 	'supabase/team_vorschlaege_kurt_1.sql',
 	'supabase/team_vorschlaege_kurt_2_prio.sql',
-	'portal-pilot/supabase/900_seed_musterfirma.sql'
+	'portal-pilot/supabase/900_seed_musterfirma.sql',
+	// Ergänzung vom 26.11.2026 (in portal_test auf dem Server eingespielt): Chat, Diktate, Nachrichten, Kommunikation, Anhänge, Bearbeiten
+	'supabase/team_chat.sql',
+	'supabase/team_diktate.sql',
+	'supabase/team_nachrichten.sql',
+	'supabase/kommunikation.sql',
+	'supabase/kommunikation_team.sql',
+	'supabase/team_chat_reaktionen.sql',
+	'storage-ersatz',
+	'supabase/team_chat_anhaenge.sql',
+	'supabase/team_bearbeiten.sql'
 ];
+// Ersatz für das Supabase-Schema storage: nur storage.buckets (team_chat_anhaenge.sql legt dort den Bucket an).
+// storage.objects fehlt absichtlich; die SQL prüft selbst, ob es die Tabelle gibt.
+const STORAGE_ERSATZ = 'create schema if not exists storage; create table if not exists storage.buckets (id text primary key, name text not null, public boolean default false, file_size_limit bigint, allowed_mime_types text[], created_at timestamptz default now(), updated_at timestamptz default now());';
 
 let PGlite, pgcrypto, fehltPglite = false;
 try {
@@ -44,7 +57,7 @@ async function datenbank() {
 	// Rollen, die die Supabase-Skripte in grant/revoke erwarten
 	await db.exec('create role service_role; create role anon; create role authenticated;');
 	for (const f of SCHEMA) {
-		try { await db.exec(readFileSync(join(REPO, f), 'utf8')); }
+		try { await db.exec(f === 'storage-ersatz' ? STORAGE_ERSATZ : readFileSync(join(REPO, f), 'utf8')); }
 		catch (e) { throw new Error('Schema ' + f + ': ' + e.message); }
 	}
 	return db;
@@ -173,4 +186,12 @@ test('lesen: Filter, Sortierung, Limit, in und <> gegen echtes PostgreSQL', opt,
 	assert.equal((await rows('team_mitglieder', { wo: [['rolle', '<>', 'admin']] })).length, ungleich);
 	// Typ des Parameters kommt aus der Spalte (Zeitstempel als Text)
 	assert.ok(Array.isArray(await rows('team_aufgaben', { wo: [['geaendert', '>=', '2000-01-01T00:00:00Z']], limit: 1 })));
+});
+
+test('Ergänzung 26.11.2026: Chat, Diktate, Anhänge, Bearbeiten sind im Schema (wie portal_test)', opt, async () => {
+	await datenbank();
+	const tabellen = (await db.query("select table_schema || '.' || table_name as t from information_schema.tables where table_schema in ('public', 'storage')")).rows.map(r => r.t);
+	for (const t of ['public.team_chats', 'public.team_chat_mitglieder', 'public.team_chat_nachrichten', 'public.team_diktate', 'public.team_msgs',
+		'public.kom_benachrichtigungen', 'public.team_anhaenge', 'public.team_nachricht_fassungen', 'storage.buckets']) assert.ok(tabellen.includes(t), t);
+	assert.deepEqual((await db.query("select id, public from storage.buckets where id = 'team-anhaenge'")).rows, [{ id: 'team-anhaenge', public: false }]);
 });
