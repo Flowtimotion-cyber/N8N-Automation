@@ -33,6 +33,11 @@ class C_DataBase_Postgre extends C_DataBase {
 		return { art: 'funktion', tab: name, body: params };
 	}
 
+	// Leseauftrag: die geprüfte Abfrage, SQL erst in sql()
+	lesen(tab, abfrage) {
+		return Object.assign({ art: 'lesen' }, C_DataBase.abfrage(tab, abfrage));
+	}
+
 	// Name von Tabelle, Spalte oder Funktion: nur einfache Bezeichner, in Anführungszeichen gesetzt
 	static name(n) {
 		if (!/^[a-z_][a-z0-9_]*$/.test(String(n))) throw new Error('C_DataBase_Postgre: ungültiger Name „' + n + '“');
@@ -69,6 +74,28 @@ class C_DataBase_Postgre extends C_DataBase {
 				return {
 					sql: 'SELECT ' + N(op.tab) + '(' + namen.map((p, i) => N(p) + ' := $' + (i + 1)).join(', ') + ')',
 					params: namen.map(p => wert(body[p]))
+				};
+			}
+			case 'lesen': {
+				// Vergleiche ohne Typumwandlung: PostgreSQL leitet den Typ des Parameters aus der Spalte ab (wie PostgREST).
+				// NULL erfüllt keinen Vergleich, auch nicht <> (wie PostgREST neq).
+				// op kommt aus lesen() (schon geprüft); Namen prüft N() hier noch einmal, Vergleich und Limit ebenso.
+				const a = op;
+				if (a.limit && !Number.isInteger(a.limit)) throw new Error('C_DataBase_Postgre: ungültiges Limit „' + a.limit + '“');
+				const params = [];
+				const bedingung = ([spalte, vergleich, wert]) => {
+					if (!C_DataBase.VERGLEICHE.includes(vergleich)) throw new Error('C_DataBase_Postgre: unbekannter Vergleich „' + vergleich + '“');
+					params.push(vergleich === 'in' ? JSON.stringify(wert) : wert);
+					return vergleich === 'in'
+						? N(spalte) + '::text IN (SELECT json_array_elements_text($' + params.length + '::json))'
+						: N(spalte) + ' ' + vergleich + ' $' + params.length;
+				};
+				return {
+					sql: 'SELECT ' + (a.spalten.length ? a.spalten.map(N).join(', ') : '*') + ' FROM ' + N(a.tab)
+						+ (a.wo.length ? ' WHERE ' + a.wo.map(bedingung).join(' AND ') : '')
+						+ (a.sortierung.length ? ' ORDER BY ' + a.sortierung.map(([spalte, richtung]) => N(spalte) + (richtung === 'desc' ? ' DESC' : ' ASC')).join(', ') : '')
+						+ (a.limit ? ' LIMIT ' + a.limit : ''),
+					params
 				};
 			}
 			default:

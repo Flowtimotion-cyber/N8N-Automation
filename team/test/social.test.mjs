@@ -1,7 +1,14 @@
 // Tests für C_Social (team/n8n/C_Social.js). Start: npm run test:team:social
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { C_Social } from '../n8n/C_Social.js';
+
+// Medienspeicher wie im Workflow (Klassen ohne export, deshalb per vm geladen)
+const N8N = new URL('../n8n/', import.meta.url);
+const MS = vm.runInNewContext(['C_MedienSpeicher.js', 'C_MedienSpeicher_Supabase.js'].map(d => readFileSync(new URL(d, N8N), 'utf8')).join('\n') + '\nC_MedienSpeicher_Supabase', { encodeURIComponent });
+const speicher = basis => new MS(basis, C_Social.BEREICHE);
 
 const JETZT = Date.parse('2026-10-28T12:00:00Z');
 const timo = { mitglied_id: 'm_timo', name: 'Timo', rolle: 'admin', status: 'aktiv', typ: 'mensch' };
@@ -71,8 +78,8 @@ test('Bild zu einer Idee: Endung, Größe, Pfad, öffentliche Adresse', () => {
 	const r = C_Social.anfrage(lilli, 'idee_bild_url', { dateiname: 'Screenshot 2026-10-28 (1).PNG', groesse: 123, mime: 'image/png' }, JETZT);
 	assert.equal(r.bild.bucket, 'social-ideen'); assert.match(r.bild.pfad, /^ideen\/2026\/10\/bild_[a-z0-9]+_Screenshot-2026-10-28-1-\.PNG$/); assert.equal(r.bild.mime, 'image/png');
 	assert.equal(C_Social.bildMime('jpg', 'text/html'), 'image/jpeg'); assert.equal(C_Social.bildMime('webp', 'image/webp'), 'image/webp');
-	assert.equal(C_Social.bildUrl('https://p.supabase.co/storage/v1/', 'ideen/2026/10/bild_a_b c.png'), 'https://p.supabase.co/storage/v1/object/public/social-ideen/ideen/2026/10/bild_a_b%20c.png');
-	assert.equal(C_Social.bildUrl('https://p.supabase.co/storage/v1', ''), null);
+	assert.equal(speicher('https://p.supabase.co/storage/v1/').oeffentlicheAdresse('social-ideen', 'ideen/2026/10/bild_a_b c.png'), 'https://p.supabase.co/storage/v1/object/public/social-ideen/ideen/2026/10/bild_a_b%20c.png');
+	assert.equal(speicher('https://p.supabase.co/storage/v1').oeffentlicheAdresse('social-ideen', ''), null);
 });
 
 test('Helfer', () => {
@@ -84,8 +91,8 @@ test('Helfer', () => {
 	assert.equal(C_Social.kanalAusLink('https://youtu.be/abc'), 'YouTube'); assert.equal(C_Social.kanalAusLink('https://blog.example.org/x'), 'Sonstiges'); assert.equal(C_Social.kanalAusLink('https://notlinkedin.com/x'), 'Sonstiges');
 	assert.equal(C_Social.titelAusLink('https://www.tiktok.com/@a/video/1/'), 'tiktok.com/@a/video/1');
 	assert.equal(C_Social.mimeFuer('mp4', 'video/mp4'), 'video/mp4'); assert.equal(C_Social.mimeFuer('mkv', ''), 'video/x-matroska'); assert.equal(C_Social.mimeFuer('mov', 'text/html'), 'video/quicktime');
-	assert.equal(C_Social.signierteUrl('https://p.supabase.co/storage/v1/', { url: '/object/upload/sign/medien-roh/a.mp4?token=t' }), 'https://p.supabase.co/storage/v1/object/upload/sign/medien-roh/a.mp4?token=t');
-	assert.equal(C_Social.signierteUrl('https://p.supabase.co/storage/v1', {}), null);
+	assert.equal(speicher('https://p.supabase.co/storage/v1/').uploadAdresse({ url: '/object/upload/sign/medien-roh/a.mp4?token=t' }), 'https://p.supabase.co/storage/v1/object/upload/sign/medien-roh/a.mp4?token=t');
+	assert.equal(speicher('https://p.supabase.co/storage/v1').uploadAdresse({}), null);
 	const t = C_Social.auftragsText({ thema: 'Werkstatt', kanal: 'Instagram', pfad: '2026/10/up_1_x.mov', kontext: 'ab Minute 2' });
 	assert.match(t, /^Rohvideo im Momentum-Stil für Instagram schneiden: Werkstatt\n/); assert.match(t, /medien-roh\/2026\/10\/up_1_x\.mov/); assert.match(t, /Kontext: ab Minute 2/); assert.match(t, /zur Abnahme/);
 });
@@ -93,12 +100,12 @@ test('Helfer', () => {
 test('laden: sortiert, ohne gelöschte, Pfad nur für Admin und Agent', () => {
 	const ideen = [{ idee_id: 'idee_1', geaendert: '2026-10-01', link: 'https://x.de/a' }, { idee_id: 'idee_2', geaendert: '2026-10-27', bild_pfad: 'ideen/2026/10/bild_q_r.png' }, null];
 	const uploads = [{ upload_id: 'up_1', pfad: '2026/10/a', status: 'hochgeladen', erstellt: '2026-10-01', groesse: '5' }, { upload_id: 'up_2', pfad: '2026/10/b', status: 'geloescht', erstellt: '2026-10-02' }, { upload_id: 'up_3', pfad: '2026/10/c', status: 'beauftragt', run_id: 'run_1', erstellt: '2026-10-03' }];
-	const a = C_Social.ladenAntwort(ideen, uploads, lilli, 'https://p.supabase.co/storage/v1/');
+	const a = C_Social.ladenAntwort(ideen, uploads, lilli, speicher('https://p.supabase.co/storage/v1/'));
 	assert.deepEqual(a.ideen.map(i => i.idee_id), ['idee_2', 'idee_1']);
 	assert.equal(a.ideen[0].art, 'bild'); assert.equal(a.ideen[0].bild_url, 'https://p.supabase.co/storage/v1/object/public/social-ideen/ideen/2026/10/bild_q_r.png');
 	assert.equal(a.ideen[1].art, 'link'); assert.equal(a.ideen[1].bild_url, null); assert.equal(a.max_bild_bytes, 20971520);
 	assert.deepEqual(a.uploads.map(u => u.upload_id), ['up_3', 'up_1']);
 	assert.equal(a.uploads[1].pfad, undefined, 'Teammitglied sieht keinen Pfad'); assert.equal(a.uploads[1].groesse, 5);
-	assert.equal(C_Social.ladenAntwort([], uploads, timo).uploads[0].pfad, '2026/10/c'); assert.equal(C_Social.ladenAntwort([], uploads, claude).uploads[0].pfad, '2026/10/c');
+	assert.equal(C_Social.ladenAntwort([], uploads, timo, speicher('')).uploads[0].pfad, '2026/10/c'); assert.equal(C_Social.ladenAntwort([], uploads, claude, speicher('')).uploads[0].pfad, '2026/10/c');
 	assert.ok(a.kanaele.includes('LinkedIn')); assert.equal(a.max_bytes, 2147483648);
 });

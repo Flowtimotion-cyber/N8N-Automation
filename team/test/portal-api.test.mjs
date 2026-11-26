@@ -160,6 +160,51 @@ test('C_DataBase_Supabase erzeugt Aufträge in PostgREST-Schreibweise (wie der H
 	]);
 });
 
+test('C_DataBase_Supabase.lesen: genau die Adressen, die der Social-Workflow heute von Hand baut', () => {
+	const r = dbLauf('C_DataBase_Supabase', `[
+		dataBase.lesen('team_mitglieder', { spalten: ['mitglied_id', 'name', 'rolle', 'status', 'typ'], wo: [['token', '=', 'abc123']] }),
+		dataBase.lesen('team_social_ideen', { sortierung: ['geaendert desc'], limit: 200 }),
+		dataBase.lesen('team_social_uploads', { wo: [['status', '<>', 'geloescht']], sortierung: ['erstellt desc'], limit: 50 }),
+		dataBase.lesen('team_social_uploads', { spalten: ['upload_id', 'bucket', 'pfad'], wo: [['upload_id', '=', 'up_a/b c']] }),
+		dataBase.lesen('t', { wo: [['a', '<', 1], ['b', '>=', '2026-01-01'], ['c', 'in', ['x', 'y,z']]], sortierung: ['a', 'b desc'] }),
+		dataBase.lesen('t')
+	]`);
+	assert.deepEqual(r, [
+		{ methode: 'GET', pfad: 'team_mitglieder?select=mitglied_id,name,rolle,status,typ&token=eq.abc123' },
+		{ methode: 'GET', pfad: 'team_social_ideen?select=*&order=geaendert.desc&limit=200' },
+		{ methode: 'GET', pfad: 'team_social_uploads?select=*&status=neq.geloescht&order=erstellt.desc&limit=50' },
+		{ methode: 'GET', pfad: 'team_social_uploads?select=upload_id,bucket,pfad&upload_id=eq.up_a%2Fb%20c' },
+		{ methode: 'GET', pfad: 't?select=*&a=lt.1&b=gte.2026-01-01&c=in.(x,y%2Cz)&order=a.asc,b.desc' },
+		{ methode: 'GET', pfad: 't?select=*' }
+	]);
+});
+
+test('C_DataBase.lesen: falsche Angaben werden abgelehnt (beide Varianten)', () => {
+	for (const klasse of ['C_DataBase_Supabase', 'C_DataBase_Postgre']) {
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t; drop")'), /ungültiger Name/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { spalten: ["a,b"] })'), /ungültiger Name/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { wo: [["a", "like", "x"]] })'), /unbekannter Vergleich/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { wo: [["a", "=", null]] })'), /ungültiger Wert/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { wo: [["a", "in", "x"]] })'), /ungültiger Wert/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { sortierung: ["a abwärts"] })'), /ungültige Sortierung/);
+		assert.throws(() => dbLauf(klasse, 'dataBase.lesen("t", { limit: "5; drop" })'), /ungültiges Limit/);
+	}
+});
+
+test('C_DataBase_Postgre.lesen: Beschreibung → SELECT mit Parametern', () => {
+	const sql = dbLauf('C_DataBase_Postgre', `[
+		dataBase.lesen('team_social_uploads', { wo: [['status', '<>', 'geloescht']], sortierung: ['erstellt desc'], limit: 50 }),
+		dataBase.lesen('t', { spalten: ['a', 'b'], wo: [['a', '=', "x' or 1=1 --"], ['c', 'in', ['1', '2']]], sortierung: ['a', 'b desc'] }),
+		dataBase.lesen('t')
+	].map(o => C_DataBase_Postgre.sql(o))`);
+	assert.deepEqual(sql, [
+		{ sql: 'SELECT * FROM "team_social_uploads" WHERE "status" <> $1 ORDER BY "erstellt" DESC LIMIT 50', params: ['geloescht'] },
+		{ sql: 'SELECT "a", "b" FROM "t" WHERE "a" = $1 AND "c"::text IN (SELECT json_array_elements_text($2::json)) ORDER BY "a" ASC, "b" DESC', params: ["x' or 1=1 --", '["1","2"]'] },
+		{ sql: 'SELECT * FROM "t"', params: [] }
+	]);
+	assert.throws(() => dbLauf('C_DataBase_Postgre', 'const o = dataBase.lesen("t"); o.wo = [["a", "; drop", "x"]]; C_DataBase_Postgre.sql(o)'), /unbekannter Vergleich/);
+});
+
 test('C_DataBase ist nur die Schnittstelle: direkt nicht anlegbar, fehlende Methoden melden sich klar', () => {
 	assert.throws(() => dbLauf('C_DataBase_Supabase', 'new C_DataBase("x")'), /nur die Schnittstelle/);
 	assert.throws(() => dbLauf('C_DataBase_Supabase', 'class C_DataBase_Halb extends C_DataBase { constructor() { super("halb"); } }; new C_DataBase_Halb().neu("t", {})'), /C_DataBase_Halb implementiert neu\(\) nicht/);

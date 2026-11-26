@@ -155,3 +155,22 @@ test('Ungültige Namen werden vor der Datenbank abgefangen', () => {
 	assert.throws(() => C.sql({ art: 'neu', tab: 'x; drop table team_aufgaben', body: { a: 1 } }), /ungültiger Name/);
 	assert.throws(() => C.sql({ art: 'neu', tab: 'team_aufgaben', body: { 'titel"; --': 1 } }), /ungültiger Name/);
 });
+
+test('lesen: Filter, Sortierung, Limit, in und <> gegen echtes PostgreSQL', opt, async () => {
+	await datenbank();
+	const dataBase = new C();
+	const rows = async (tab, abfrage) => { const q = C.sql(dataBase.lesen(tab, abfrage)); return (await db.query(q.sql, q.params)).rows; };
+	// Mitglied über Token (wie „Mitglied prüfen“ im Social-Workflow)
+	const tok = await token('mf-anna');
+	assert.deepEqual(await rows('team_mitglieder', { spalten: ['mitglied_id', 'rolle'], wo: [['token', '=', tok]] }), [{ mitglied_id: 'mf-anna', rolle: 'admin' }]);
+	assert.deepEqual(await rows('team_mitglieder', { wo: [['token', '=', "x' or '1'='1"]] }), [], 'Wert bleibt Wert');
+	// Sortierung + Limit wie von Hand
+	const alle = (await db.query('select mitglied_id from team_mitglieder order by name desc, mitglied_id asc')).rows.map(r => r.mitglied_id);
+	assert.deepEqual((await rows('team_mitglieder', { spalten: ['mitglied_id'], sortierung: ['name desc', 'mitglied_id'], limit: 2 })).map(r => r.mitglied_id), alle.slice(0, 2));
+	// in und <> (NULL zählt wie bei PostgREST nicht als „ungleich“)
+	assert.deepEqual((await rows('team_mitglieder', { spalten: ['mitglied_id'], wo: [['mitglied_id', 'in', ['mf-anna', 'mf-ben', 'gibtsnicht']]], sortierung: ['mitglied_id'] })).map(r => r.mitglied_id), ['mf-anna', 'mf-ben']);
+	const ungleich = (await db.query("select count(*)::int as n from team_mitglieder where rolle <> 'admin'")).rows[0].n;
+	assert.equal((await rows('team_mitglieder', { wo: [['rolle', '<>', 'admin']] })).length, ungleich);
+	// Typ des Parameters kommt aus der Spalte (Zeitstempel als Text)
+	assert.ok(Array.isArray(await rows('team_aufgaben', { wo: [['geaendert', '>=', '2000-01-01T00:00:00Z']], limit: 1 })));
+});

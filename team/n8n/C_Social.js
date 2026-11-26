@@ -21,6 +21,8 @@ export class C_Social {
 	static BUCKET         = 'medien-roh';                          // privat: Rohvideos
 	static BILD_BUCKET    = 'social-ideen';                        // öffentlich: Bilder zu Ideen (Screenshots fremder Beiträge, eigene Motive)
 	static BILD_PFAD_RE   = /^ideen\/\d{4}\/\d{2}\/bild_[a-z0-9]{6,30}_[A-Za-z0-9._-]{1,80}$/;
+	// Bereiche im Medienspeicher (Namen = Feld „bucket“ in den Tabellen), siehe C_MedienSpeicher
+	static BEREICHE       = { [C_Social.BUCKET]: { oeffentlich: false }, [C_Social.BILD_BUCKET]: { oeffentlich: true } };
 
 	/** Text bereinigen: Zeilenenden vereinheitlichen, trimmen, auf n Zeichen kürzen. */
 	static txt(v, n) { return String(v == null ? '' : v).replace(/\r\n/g, '\n').trim().slice(0, n); }
@@ -164,17 +166,64 @@ export class C_Social {
 		return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[e] || 'application/octet-stream';
 	}
 
-	/** Öffentliche Adresse eines Bildes im Bucket social-ideen. */
-	static bildUrl(storageBasis, pfad) {
-		return pfad ? String(storageBasis).replace(/\/+$/, '') + '/object/public/' + C_Social.BILD_BUCKET + '/' + String(pfad).split('/').map(encodeURIComponent).join('/') : null;
+	// ===== Aufträge an Datenbank und Medienspeicher =====
+	// Was gelesen, geschrieben, hochgeladen oder gelöscht wird, steht hier; der Workflow führt die Aufträge nur aus.
+	// dataBase: C_DataBase-Variante, medienSpeicher: C_MedienSpeicher-Variante (mit C_Social.BEREICHE angelegt).
+
+	/** Leseauftrag „Mitglied prüfen“: Mitglied zum Portal-Token (Token ist schon geprüft: hex oder „ungueltig“). */
+	static mitgliedLesen(dataBase, token) {
+		return dataBase.lesen('team_mitglieder', { spalten: ['mitglied_id', 'name', 'rolle', 'status', 'typ'], wo: [['token', '=', token]] });
 	}
 
-	/** Antwort von storage/v1/object/upload/sign/... in eine vollständige PUT-Adresse verwandeln. */
-	static signierteUrl(storageBasis, antwort) {
-		const b = antwort && typeof antwort === 'object' ? antwort : {};
-		const u = String(b.url || '');
-		if (!u) return null;
-		return /^https?:\/\//.test(u) ? u : String(storageBasis).replace(/\/+$/, '') + '/' + u.replace(/^\/+/, '');
+	/**
+	 * Ergebnis von C_Social.anfrage um die Aufträge der Aktion ergänzen:
+	 *   r.db        Datenbank-Auftrag (bei „laden“: { ideen, uploads })
+	 *   r.speicher  Speicher-Auftrag (befristete Upload-Adresse)
+	 */
+	static auftraege(r, dataBase, medienSpeicher) {
+		switch (r.aktion) {
+			case 'laden':
+				r.db = {
+					ideen:   dataBase.lesen('team_social_ideen', { sortierung: ['geaendert desc'], limit: 200 }),
+					uploads: dataBase.lesen('team_social_uploads', { wo: [['status', '<>', 'geloescht']], sortierung: ['erstellt desc'], limit: 50 })
+				};
+				break;
+			case 'idee_speichern':
+				r.db = dataBase.funktion('team_idee_speichern', { p: r.idee, p_von: r.wer });
+				break;
+			case 'idee_loeschen':
+				r.db = dataBase.funktion('team_loeschen', { p_art: 'idee', p_id: r.idee_id, p_von: r.wer });
+				break;
+			case 'idee_bild_url':
+				r.speicher = medienSpeicher.uploadAdresseHolen(r.bild.bucket, r.bild.pfad);
+				break;
+			case 'upload_url':
+				r.db = dataBase.funktion('team_upload_anlegen', { p: r.upload, p_von: r.wer });
+				r.speicher = medienSpeicher.uploadAdresseHolen(r.upload.bucket, r.upload.pfad);
+				break;
+			case 'upload_status':
+				r.db = dataBase.funktion('team_upload_status', { p_id: r.upload_id, p_status: r.status, p_von: r.wer, p_run: r.run_id || null, p_fehler: r.fehler || null });
+				break;
+			case 'upload_loeschen':
+				r.db = dataBase.lesen('team_social_uploads', { spalten: ['upload_id', 'bucket', 'pfad'], wo: [['upload_id', '=', r.upload_id]] });
+				break;
+		}
+		return r;
+	}
+
+	/**
+	 * „Löschen prüfen“ (nur Admin, nach dem Lesen der Upload-Zeile): Datei löschen und Eintrag als „geloescht“ markieren.
+	 * a = Ergebnis von „Anfrage prüfen“, zeile = gefundene Upload-Zeile oder undefined.
+	 */
+	static loeschenAuftraege(a, zeile, dataBase, medienSpeicher) {
+		const S = C_Social;
+		if (!zeile) return { aktion: 'fehler', code: 404, antwort: { ok: false, fehler: 'Upload nicht gefunden.' } };
+		const bucket = zeile.bucket || S.BUCKET;
+		let speicher;
+		try { speicher = medienSpeicher.loeschen(bucket, zeile.pfad); }
+		catch (e) { return { aktion: 'fehler', code: 409, antwort: { ok: false, fehler: 'Der Upload hat keinen gültigen Dateipfad und wurde nicht gelöscht.' } }; }
+		return { aktion: 'loeschen', upload_id: zeile.upload_id, bucket, pfad: zeile.pfad, wer: a.wer, speicher,
+			db: dataBase.funktion('team_upload_status', { p_id: a.upload_id, p_status: 'geloescht', p_von: a.wer }) };
 	}
 
 	/** Auftragstext für den Medien-Cutter aus einem Upload (kommt aus dem Portal in auftrag_starten). */
@@ -187,11 +236,11 @@ export class C_Social {
 	}
 
 	/** Antwort für „laden“: Listen aufbereiten, nichts Sensibles (Tokens gibt es hier nicht, Pfade sind intern). */
-	static ladenAntwort(ideen, uploads, ich, storageBasis) {
+	static ladenAntwort(ideen, uploads, ich, medienSpeicher) {
 		const S = C_Social;
 		const admin = !!(ich && ich.rolle === 'admin');
 		const I = (ideen || []).filter(x => x && x.idee_id).sort((a, b) => String(b.geaendert || '').localeCompare(String(a.geaendert || '')))
-			.map(i => ({ ...i, art: i.art || (i.bild_pfad ? 'bild' : (i.link ? 'link' : 'idee')), bild_url: i.bild_pfad ? S.bildUrl(storageBasis || '', i.bild_pfad) : null }));
+			.map(i => ({ ...i, art: i.art || (i.bild_pfad ? 'bild' : (i.link ? 'link' : 'idee')), bild_url: i.bild_pfad ? medienSpeicher.oeffentlicheAdresse(S.BILD_BUCKET, i.bild_pfad) : null }));
 		const U = (uploads || []).filter(x => x && x.upload_id && x.status !== 'geloescht').sort((a, b) => String(b.erstellt || '').localeCompare(String(a.erstellt || '')))
 			.map(u => ({ upload_id: u.upload_id, dateiname: u.dateiname, groesse: Number(u.groesse) || 0, thema: u.thema, kanal: u.kanal, kontext: u.kontext, status: u.status,
 				run_id: u.run_id || null, post_id: u.post_id || null, fehler: u.fehler || null, erstellt: u.erstellt, erstellt_von: u.erstellt_von, aufbewahren_bis: u.aufbewahren_bis,
