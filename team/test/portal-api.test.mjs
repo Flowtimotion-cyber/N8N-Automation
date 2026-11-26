@@ -129,7 +129,7 @@ test('Code-Knoten nutzen kein require (in n8n gesperrt)', () => {
 
 test('Deploy-Datei passt zu den Quelldateien (sonst: node team/n8n/bauen-deploy.mjs)', async () => {
   const { deployBauen } = await import('../n8n/bauen-deploy.mjs');
-  const datei = JSON.parse(readFileSync(join(N8N, 'deploy-portal-api-vorschlaege.json'), 'utf8'));
+  const datei = JSON.parse(readFileSync(join(N8N, 'deploy-portal-api-privat.json'), 'utf8'));
   assert.deepEqual(datei, JSON.parse(JSON.stringify(deployBauen())));
   assert.ok(datei.versionName.startsWith('Claude Code: '));
   assert.deepEqual(datei.operations.map(o => o.nodeName), ['Anfrage prüfen', 'Antwort bauen']);

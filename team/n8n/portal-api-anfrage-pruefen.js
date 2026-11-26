@@ -3,7 +3,7 @@ let b = $('Team-API').first().json.body || {};
 if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
 const D = $('Team-Daten laden').first().json || {};
 const alle = (D.mitglieder || []).filter(m => m && m.mitglied_id);
-const aufgaben = (D.aufgaben || []).filter(a => a && a.aufgabe_id);
+const aufgabenAlle = (D.aufgaben || []).filter(a => a && a.aufgabe_id);
 const zeiten = (D.zeiten || []).filter(z => z && z.zeit_id);
 const projekte = (D.projekte || []).filter(p => p && p.projekt_id);
 const notizen = (D.notizen || []).filter(n => n && n.notiz_id);
@@ -18,6 +18,11 @@ const weg = (tab, pk, id) => ({ methode: 'DELETE', pfad: tab + '?' + pk + '=eq.'
 const tok = String(b.token || '');
 const ich = tok.length >= 20 ? alle.find(m => m.token === tok) : null;
 if (!ich || ich.status === 'gesperrt') return raus(401, 'Dein Zugang ist ungültig. Bitte frag Timo nach einem neuen Link.');
+// Private Aufgaben (Entscheidung Timo 23.11.2026): sichtbar nur für die Person, die sie angelegt hat, und die eingetragenen Bearbeiter.
+// Gilt auch für Timo (Admin) und für Agenten. Alles Weitere arbeitet mit „aufgaben“ (nur Sichtbares): Fremde private Aufgaben gibt es hier nicht (404).
+const bearbeiterListe = a => Array.isArray(a.bearbeiter) && a.bearbeiter.length ? a.bearbeiter : (a.verantwortlich ? [a.verantwortlich] : []);
+const sichtbar = a => !a || a.privat !== true || a.erstellt_von === ich.mitglied_id || bearbeiterListe(a).includes(ich.mitglied_id);
+const aufgaben = aufgabenAlle.filter(sichtbar);
 const aktion = String(b.aktion || '');
 const jetzt = new Date().toISOString();
 const txt = (v, n) => String(v ?? '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').trim().slice(0, n);
@@ -66,7 +71,7 @@ if (ich.status !== 'aktiv') return raus(403, 'Bitte trag zuerst deine E-Mail-Adr
 
 const PROJEKTE = projekte.length ? projekte.map(p => p.name) : ['Sonstiges'];
 const STATUS_A = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
-const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
+const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden', '⚖️ Entscheidung'];
 const isoWoche = ds => { const t = new Date(ds + 'T12:00:00Z'); const wd = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - wd + 3); const j = t.getUTCFullYear(); const e = new Date(Date.UTC(j, 0, 4)); const w = 1 + Math.round(((t - e) / 864e5 - 3 + ((e.getUTCDay() + 6) % 7)) / 7); return j + '-W' + String(w).padStart(2, '0'); };
 const mitgliedDa = id => alle.some(m => m.mitglied_id === id);
 const VBEREICHE = ['Übersicht', 'Aufgaben', 'Projekte', 'Arbeitszeit', 'Notizen', 'Social Media', 'Kurs & Teilnehmer', 'Systeme', 'Webseite', 'Team', 'Assistent', 'Sonstiges'];
@@ -135,6 +140,9 @@ switch (aktion) {
       verantwortlich, bearbeiter, deadline, geaendert: jetzt
     };
     if (typeof d.agent_geeignet === 'boolean') row.agent_geeignet = d.agent_geeignet;
+    // Privat: nur wer die Aufgabe sieht, kann es ändern (also Ersteller und Bearbeiter). Nur das neue Portal schickt das Feld.
+    if (typeof d.privat === 'boolean') row.privat = d.privat;
+    const privatNeu = typeof d.privat === 'boolean' ? d.privat : !!(alt && alt.privat === true);
     if (!alt) { row.erstellt = jetzt; row.erstellt_von = ich.mitglied_id; }
     if (status === 'Erledigt' && (!alt || alt.status !== 'Erledigt')) row.erledigt_am = jetzt;
     // WhatsApp über den bestehenden Knoten (eine Nachricht): an die erste neu hinzugekommene Person mit Einwilligung.
@@ -147,9 +155,10 @@ switch (aktion) {
     const name = id => (alle.find(m => m.mitglied_id === id) || {}).name || id;
     const ops = [alt ? aend('team_aufgaben', 'aufgabe_id', alt.aufgabe_id, row) : neu('team_aufgaben', row)];
     const andere = bearbeiter.filter(x => x !== ich.mitglied_id);
-    if (!alt) ops.push(verlauf(row.aufgabe_id, 'status', 'Angelegt' + (andere.length ? ', Bearbeiter: ' + bearbeiter.map(name).join(', ') : '')));
+    if (!alt) ops.push(verlauf(row.aufgabe_id, 'status', 'Angelegt' + (privatNeu ? ' (privat)' : '') + (andere.length ? ', Bearbeiter: ' + bearbeiter.map(name).join(', ') : '')));
     else {
       if (alt.status !== status) ops.push(verlauf(row.aufgabe_id, 'status', 'Status: ' + (alt.status || '–') + ' → ' + status));
+      if (privatNeu !== (alt.privat === true)) ops.push(verlauf(row.aufgabe_id, 'status', privatNeu ? '🔒 Privat: nur Ersteller und Bearbeiter sehen die Aufgabe' : 'Für das ganze Team sichtbar gemacht'));
       const dazu = bearbeiter.filter(x => !listeAlt.includes(x)), weg = listeAlt.filter(x => !bearbeiter.includes(x));
       if (dazu.length || weg.length) ops.push(verlauf(row.aufgabe_id, 'status', 'Bearbeiter: ' + dazu.map(x => '+ ' + name(x)).concat(weg.map(x => '− ' + name(x))).join(', ')));
     }
@@ -245,7 +254,9 @@ switch (aktion) {
     // aufgabe_id bleibt die erste Aufgabe. Alte Programme schicken nur aufgabe_id; dann hält der Supabase-Trigger die Liste passend.
     const neueListe = Array.isArray(d.aufgaben_ids);
     const wunschIds = neueListe ? d.aufgaben_ids.map(String) : [String(d.aufgabe_id || '')];
-    const aufgListe = [...new Set(wunschIds)].map(id => aufgaben.find(a => a.aufgabe_id === id)).filter(Boolean).slice(0, 10);
+    // Private Aufgaben anderer (z. B. Timo bearbeitet Lilliens Eintrag): bereits verknüpfte bleiben erhalten, neu verknüpfen geht nur mit sichtbaren
+    const schonDran = new Set(alt ? (Array.isArray(alt.aufgaben_ids) ? alt.aufgaben_ids : []).concat(alt.aufgabe_id ? [alt.aufgabe_id] : []) : []);
+    const aufgListe = [...new Set(wunschIds)].map(id => aufgaben.find(a => a.aufgabe_id === id) || (schonDran.has(id) ? aufgabenAlle.find(a => a.aufgabe_id === id) : null)).filter(Boolean).slice(0, 10);
     const aufgabe = aufgListe[0];
     const row = { zeit_id: alt ? alt.zeit_id : neueId('z'), mitglied_id: alt ? alt.mitglied_id : ich.mitglied_id, datum, von: d.von, bis: d.bis,
       pause_min: pause, minuten, taetigkeit, aufgabe_id: aufgabe ? aufgabe.aufgabe_id : '', projekt: PROJEKTE.includes(d.projekt) ? d.projekt : (aufgabe ? aufgabe.projekt : 'Sonstiges'),
@@ -283,7 +294,7 @@ switch (aktion) {
     const doppelt = projekte.find(p => p.name.toLowerCase() === name.toLowerCase() && (!alt || p.projekt_id !== alt.projekt_id));
     if (doppelt) return raus(400, 'Ein Projekt mit diesem Namen gibt es schon.');
     if (alt && alt.name !== name) {
-      const benutzt = aufgaben.some(a => a.projekt === alt.name) || zeiten.some(z => z.projekt === alt.name) || notizen.some(n => n.projekt === alt.name);
+      const benutzt = aufgabenAlle.some(a => a.projekt === alt.name) || zeiten.some(z => z.projekt === alt.name) || notizen.some(n => n.projekt === alt.name);
       if (benutzt) return raus(400, 'Der Name wird schon in Aufgaben, Zeiten oder Notizen verwendet und kann deshalb nicht mehr geändert werden. Beschreibung, Status und Farbe kannst du ändern.');
     }
     // Links: nur http(s), keine Zugangsdaten in der Adresse
@@ -308,7 +319,7 @@ switch (aktion) {
     if (!istAdmin) return raus(403, 'Projekte löscht Timo. Setz es sonst auf „abgeschlossen“.');
     const alt = projekte.find(p => p.projekt_id === d.projekt_id);
     if (!alt) return raus(404, 'Dieses Projekt gibt es nicht mehr.');
-    const benutzt = aufgaben.some(a => a.projekt === alt.name) || zeiten.some(z => z.projekt === alt.name) || notizen.some(n => n.projekt === alt.name);
+    const benutzt = aufgabenAlle.some(a => a.projekt === alt.name) || zeiten.some(z => z.projekt === alt.name) || notizen.some(n => n.projekt === alt.name);
     if (benutzt) return raus(400, 'Das Projekt wird noch in Aufgaben, Zeiten oder Notizen verwendet. Setz es auf „abgeschlossen“.');
     return schreiben([weg('team_projekte', 'projekt_id', alt.projekt_id)], { id: alt.projekt_id });
   }
@@ -400,7 +411,8 @@ switch (aktion) {
   case 'papierkorb': {
     // Timo sieht alles, alle anderen nur, was sie selbst gelöscht haben
     const ART = { aufgabe: 'Aufgabe', notiz: 'Notiz', vorschlag: 'Vorschlag', social: 'Social-Beitrag', system: 'System', zeit: 'Zeiteintrag', teilnehmer: 'Teilnehmer' };
-    const sicht = papierkorb.filter(e => istAdmin || e.geloescht_von === ich.mitglied_id);
+    // Gelöschte private Aufgaben sieht auch Timo nur, wenn er sie vorher sehen durfte
+    const sicht = papierkorb.filter(e => (istAdmin || e.geloescht_von === ich.mitglied_id) && (e.art !== 'aufgabe' || sichtbar(e.daten)));
     return lesen({ tage: PK_TAGE, eintraege: sicht.map(e => {
       const z = e.daten || {};
       const text = String(z.inhalt || z.beschreibung || z.text || z.notiz || '');
@@ -413,6 +425,7 @@ switch (aktion) {
   case 'papierkorb_wiederherstellen': {
     const e = papierkorb.find(x => x.eintrag_id === d.eintrag_id);
     if (!e) return raus(404, 'Dieser Eintrag ist nicht mehr im Papierkorb.');
+    if (e.art === 'aufgabe' && !sichtbar(e.daten)) return raus(404, 'Dieser Eintrag ist nicht mehr im Papierkorb.');
     if (!istAdmin && e.geloescht_von !== ich.mitglied_id) return raus(403, 'Wiederherstellen kann, wer gelöscht hat, oder Timo.');
     return schreiben([{ methode: 'POST', pfad: 'rpc/team_wiederherstellen', body: { p_eintrag: e.eintrag_id } }], { id: e.objekt_id });
   }

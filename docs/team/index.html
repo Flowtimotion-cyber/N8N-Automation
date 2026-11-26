@@ -99,6 +99,28 @@ h3{font-size:15px;margin:0 0 8px}
 .bcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
 .bcard .t{font-weight:600;font-size:14px}
 .empty{color:var(--mut);padding:18px 4px;text-align:center}
+/* Pipeline-Board (23.11.2026): Spalten nach Status oder Priorität, Karten ziehen */
+.board.prio{grid-template-columns:repeat(4,minmax(220px,1fr))}
+.board .col.drop{outline:2px dashed var(--acc);outline-offset:-2px;background:#E9E3FB}
+.bcard[draggable=true]{cursor:grab}.bcard.zieht{opacity:.45}.bcard .meta{margin-top:6px}
+.col h3 .ph{font-weight:600;text-transform:none;letter-spacing:0}
+.chip.privat{background:#FFF1D6;color:#8A5A00}
+/* Klickbare Kennzahlen */
+button.kpi{font:inherit;text-align:left;cursor:pointer;color:var(--ink);width:100%}button.kpi:hover{border-color:var(--acc);box-shadow:0 6px 18px rgba(123,63,228,.12)}
+button.kpi span::after{content:' →';opacity:.55}
+.kpi.ze-kpi{border:2px solid var(--acc);background:#FBF9FF}.kpi.ze-kpi b{color:var(--acc)}
+/* „Zu entscheiden“ (Entscheidungs-Zentrale) */
+.ze{border:2px solid var(--acc)}
+.ze-filter{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+.ze-filter button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font:inherit;font-size:13px;font-weight:600;color:var(--mut);cursor:pointer}
+.ze-filter button.on{background:var(--acc);border-color:var(--acc);color:#fff}.ze-filter button span{opacity:.75;margin-left:2px}
+.ze-z{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:none;padding:10px 4px;cursor:pointer;font:inherit;color:var(--ink)}
+.ze-z:hover{background:#F8F6FE}.ze-z:first-of-type{border-top:0}
+.ze-i{font-size:20px;text-align:center}.ze-b{display:flex;flex-direction:column;min-width:0;gap:1px}
+.ze-t{font-weight:600;overflow:hidden;text-overflow:ellipsis}.ze-art{font-size:12px;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:.03em}
+.ze-z.dringend .ze-art{color:var(--red)}.ze-go{color:var(--acc);font-weight:700;font-size:13px;white-space:nowrap}
+@media (max-width:600px){.ze-go{display:none}.ze-z{grid-template-columns:28px 1fr}}
+.ze-liste{border:1px solid var(--line);border-radius:12px;padding:4px 12px;margin:8px 0}
 .offFrame{width:100%;border:0;display:block;height:720px;background:var(--bg)}
 .bars .row{display:grid;grid-template-columns:minmax(110px,42%) 1fr auto;gap:10px;align-items:center;margin:6px 0;font-size:14px}
 .bars .bt{height:10px;background:var(--soft);border-radius:6px;overflow:hidden}
@@ -450,7 +472,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
   const projOpts = cur => { const l = projektNamen(); return cur && !l.includes(cur) ? l.concat([cur]) : l; };
   const STATUS = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet', 'Erledigt'];
   const BOARD = ['Offen', 'Geplant', 'In Arbeit', 'Wartet', 'Wird getestet'];
-  const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden'];
+  const LABELS = ['', '🔥 Hohe Prio', '🐸 Eat the Frog', '💬 Zu besprechen', '🛑 Blockiert', 'wartet auf..', '🗂️ Zu klären', 'Übergabe an Kunden', '⚖️ Entscheidung'];
+  // Aufgaben mit diesem Label landen bei ihren Bearbeitern in „Zu entscheiden“ auf der Übersicht (auch Stundennachweis-Anfragen)
+  const LABEL_ENTSCHEIDUNG = '⚖️ Entscheidung';
   const PROFILE = [['Instagram', 'https://www.instagram.com/momentumkiakademie/', '@momentumkiakademie']];
   const KANAELE = ['LinkedIn', 'Instagram', 'Facebook', 'YouTube', 'TikTok', 'Newsletter', 'Webseite / Blog', 'Sonstiges'];
   const SSTATUS = ['Idee', 'In Arbeit', 'Zur Freigabe', 'Geplant', 'Veröffentlicht'];
@@ -472,7 +496,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 
   let D = null;            // Daten vom Server
   let tab = ls.get('mt-tab') || 'start';
-  const F = Object.assign({ person: 'ich', projekt: '', status: 'offen', q: '', ansicht: 'liste', kanal: '' }, JSON.parse(ls.get('mt-filter') || '{}'));
+  const F = Object.assign({ person: 'ich', projekt: '', status: 'offen', q: '', ansicht: 'liste', kanal: '', board: 'status' }, JSON.parse(ls.get('mt-filter') || '{}'));
 
   // ---------- Helfer ----------
   const $ = s => document.querySelector(s);
@@ -1286,16 +1310,14 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const posts = D.social.filter(p => p.status !== 'Veröffentlicht' && p.datum && dDate(p.datum) >= heute()).sort((a, b) => a.datum.localeCompare(b.datum)).slice(0, 4);
     const anfr = (D.anfragen || []).filter(a => a.typ === 'angebot').slice(0, 4);
     const k = D.kurs || {};
-    const zurFreigabe = (D.social || []).filter(p => p.status === 'Zur Freigabe').sort((a, b) => String(a.datum || '9').localeCompare(String(b.datum || '9')));
     const h = new Date().getHours();
     $('#main').innerHTML = '<h1>' + (h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend') + ', ' + esc(D.ich.name) + '</h1><p class="sub">Das läuft gerade bei Momentum. Stand: ' + fmtDT(D.stand) + '</p>' +
-      '<div class="kpis">' +
-      kpi(meine.length, 'meine offenen Aufgaben') + kpi(late.length, 'überfällig (alle)', late.length > 0) + kpi(p1.length, 'offen mit Prio 1–2') +
-      kpi(k.teilnehmende || 0, 'Teilnehmende im Kurs') + kpi(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)') + kpi((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen') + (istAdmin() ? kpi(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht')) : '') + '</div>' +
+      // Kennzahlen sind anklickbar (Timo 23.11.2026): führen direkt zur passenden Liste
+      '<div class="kpis">' + kpiK('…', 'warten auf deine Entscheidung', false, 'ze', ' ze-kpi', 'zeKpi') +
+      kpiK(meine.length, 'meine offenen Aufgaben', false, 'meine') + kpiK(late.length, 'überfällig (alle)', late.length > 0, 'late') + kpiK(p1.length, 'offen mit Prio 1–2', false, 'p12') +
+      kpiK(k.teilnehmende || 0, 'Teilnehmende im Kurs', false, 'kurs') + kpiK(k.fragen_7_tage || 0, 'Fragen an den Assistenten (7 Tage)', false, 'kurs') + kpiK((D.anfragen || []).filter(a => a.typ === 'angebot').length, 'Angebots-Anfragen', false, 'kurs') + (istAdmin() ? kpiK(new Set((D.zeiten || []).filter(z => z.status === 'eingereicht').map(z => z.mitglied_id + z.kw)).size, 'Wochen zur Freigabe', (D.zeiten || []).some(z => z.status === 'eingereicht'), 'zeit') : '') + '</div>' +
+      '<div id="entscheiden"></div>' +
       anleitungVideoHtml() +
-      (zurFreigabe.length ? '<div class="card" style="border:2px solid #9b2fc7"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">📣 ' + zurFreigabe.length + (zurFreigabe.length === 1 ? 'Social-Beitrag wartet' : ' Social-Beiträge warten') + ' auf deine Freigabe</h2><button class="btn" data-goto="social">Alle im Plan ansehen →</button></div>' +
-        '<p class="small muted" style="margin:6px 0 4px">Öffnen, Bilder und Text prüfen, dann „Freigeben &amp; planen“. Erst danach wird auf Instagram veröffentlicht.</p>' +
-        zurFreigabe.slice(0, 5).map(postRow).join('') + '</div>' : '') +
       '<div id="fuerDich"></div>' +
       dashHtml() +
       '<div class="card" style="padding:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px 6px"><h2 style="margin:0">🛰️ KI Office: Kontrollraum</h2><button class="btn ghost" data-goto="office">Zum KI Office →</button></div><iframe class="offFrame" style="height:560px" src="' + OFFICE + '?einbetten=1&nur=buero#/tab/buero" title="Kontrollraum des KI Office (eingebettet)" loading="lazy"></iframe></div>' +
@@ -1309,7 +1331,21 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     bindTasks(); bindPosts(); bindAnleitungVideo();
     document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { tab = b.dataset.goto; ls.set('mt-tab', tab); render(); });
     const n = $('[data-neu]'); if (n) n.onclick = () => aufgabeDialog(null);
+    document.querySelectorAll('[data-kpi]').forEach(b => b.onclick = () => kpiOeffnen(b.dataset.kpi));
+    zentraleKarte();
     dashBind();
+  }
+  // Kennzahl als Knopf: Klick öffnet die Aufgabenliste mit passendem Filter bzw. springt zu „Zu entscheiden“
+  const kpiK = (n, l, warn, ziel, extra, id) => '<button type="button" class="kpi' + (warn ? ' warn' : '') + (extra || '') + '" data-kpi="' + esc(ziel) + '"' + (id ? ' id="' + id + '"' : '') + ' title="Anklicken zum Ansehen"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></button>';
+  function kpiOeffnen(ziel) {
+    const zuAufgaben = (person, status) => { Object.assign(F, { person, status, projekt: '', q: '', ansicht: 'liste' }); saveF(); tab = 'aufgaben'; ls.set('mt-tab', tab); setzeHash('#/tab/aufgaben'); render(); window.scrollTo(0, 0); };
+    if (ziel === 'meine') return zuAufgaben('ich', 'offen');
+    if (ziel === 'late') return zuAufgaben('', 'late');
+    if (ziel === 'p12') return zuAufgaben('', 'prio12');
+    if (ziel === 'kurs') { tab = 'kurs'; ls.set('mt-tab', tab); render(); window.scrollTo(0, 0); return; }
+    // „Zu entscheiden“ bzw. „Wochen zur Freigabe“: zur Liste auf der Übersicht springen (Arbeitszeit vorgefiltert)
+    ZE.filter = ziel === 'zeit' ? 'zeit' : 'alle'; ZE.alle = false; zentraleZeigen();
+    const e = $('#entscheiden'); if (e) e.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   const kpi = (n, l, warn) => '<div class="kpi' + (warn ? ' warn' : '') + '"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
 
@@ -1353,7 +1389,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     return '<div class="task' + (a.status === 'Erledigt' ? ' done' : '') + '" data-a="' + esc(a.aufgabe_id) + '">' + avs(a) +
       '<div><div class="t">' + hl(esc(a.titel)) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + hl(esc(vorschauText(a.beschreibung))) + '</div>' : '') + '<div class="meta"><span class="chip ' + prioKl(a.prio) + '">Prio ' + esc(prioZahl(a.prio)) + '</span>' +
       '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' +
-      (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
+      (a.privat === true ? '<span class="chip privat" title="Privat: nur Ersteller und Bearbeiter sehen diese Aufgabe">🔒 privat</span>' : '') + (a.label ? '<span class="chip">' + esc(a.label) + '</span>' : '') + (a.agent_geeignet === true ? '<span class="chip ki" title="Kann ein KI-Agent erledigen">🤖 Agent</span>' : '') + ((D.verlauf || []).some(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status') ? '<span title="Kommentare/Berichte">💬 ' + D.verlauf.filter(v => v.aufgabe_id === a.aufgabe_id && v.art !== 'status').length + '</span>' : '') + '<span><i class="pdot" style="background:' + esc(projektFarbe(a.projekt)) + '"></i>' + esc(a.projekt) + '</span>' +
       (a.deadline ? '<span class="' + (late ? 'late' : '') + '">bis ' + fmtD(a.deadline) + (late ? ' · überfällig' : '') + '</span>' : '') + aufgabeDaten(a) + '</div></div>' +
       '<div class="right small muted">' + esc(bearbeiterNamen(a)) + '</div></div>';
   }
@@ -1364,22 +1400,26 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     let L = D.aufgaben.slice();
     if (F.person === 'ich') L = L.filter(a => istBearbeiter(a, ich));
     else if (F.person === 'von_mir') L = L.filter(a => a.erstellt_von === ich);
+    else if (F.person === 'privat') L = L.filter(a => a.privat === true);
     else if (F.person) L = L.filter(a => istBearbeiter(a, F.person));
     if (F.projekt) L = L.filter(a => a.projekt === F.projekt);
     if (F.status === 'offen') L = L.filter(a => a.status !== 'Erledigt');
     else if (F.status === 'late') L = L.filter(ueberfaellig);
+    else if (F.status === 'prio12') L = L.filter(a => a.status !== 'Erledigt' && prioZahl(a.prio) <= 2);
+    else if (F.status === 'entscheidung') L = L.filter(a => a.status !== 'Erledigt' && a.label === LABEL_ENTSCHEIDUNG);
     else if (F.status) L = L.filter(a => a.status === F.status);
     if (F.q) { const q = F.q.toLowerCase(); L = L.filter(a => (a.titel + ' ' + a.beschreibung).toLowerCase().includes(q)); }
     const sortArt = SORTEN.some(s => s[0] === F.sort) ? F.sort : 'prio';
     L.sort(aufgabenSortierer(sortArt));
     $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>Aufgaben</h1><p class="sub">' + esc(SORT_TEXT[sortArt]) + ' Klick auf eine Aufgabe zum Bearbeiten.</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec" id="pk_a" title="Gelöschte Aufgaben und Notizen zurückholen">🗑 Papierkorb</button><button class="btn" id="neu">+ Neue Aufgabe</button></span></div>' +
-      '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option>' +
+      '<div class="tools"><select id="fp" aria-label="Person"><option value="">Alle Personen</option><option value="ich"' + (F.person === 'ich' ? ' selected' : '') + '>Mir zugewiesen</option><option value="von_mir"' + (F.person === 'von_mir' ? ' selected' : '') + '>Von mir erstellt</option><option value="privat"' + (F.person === 'privat' ? ' selected' : '') + '>🔒 Private (nur für mich und Bearbeiter)</option>' +
       (D.mitglieder || []).map(p => '<option value="' + esc(p.mitglied_id) + '"' + (F.person === p.mitglied_id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select>' +
       '<select id="fj" aria-label="Projekt"><option value="">Alle Projekte</option>' + opt(projektNamen(true), F.projekt) + '</select>' +
-      '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option>' + opt(STATUS, F.status) + '</select>' +
+      '<select id="fs" aria-label="Status"><option value="offen"' + (F.status === 'offen' ? ' selected' : '') + '>Alles Offene</option><option value=""' + (F.status === '' ? ' selected' : '') + '>Alle inkl. erledigt</option><option value="late"' + (F.status === 'late' ? ' selected' : '') + '>Überfällig</option><option value="prio12"' + (F.status === 'prio12' ? ' selected' : '') + '>Offen mit Prio 1–2</option><option value="entscheidung"' + (F.status === 'entscheidung' ? ' selected' : '') + '>⚖️ Entscheidung nötig</option>' + opt(STATUS, F.status) + '</select>' +
       '<select id="fso" aria-label="Sortieren" title="Sortieren">' + SORTEN.map(([v, t]) => '<option value="' + v + '"' + (v === sortArt ? ' selected' : '') + '>↕ ' + esc(t) + '</option>').join('') + '</select>' +
       '<input class="grow" id="fq" type="search" placeholder="Suchen in Titel und Text …" value="' + esc(F.q) + '">' +
-      '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Board</button></div></div>' +
+      '<div class="seg"><button data-v="liste" class="' + (F.ansicht === 'liste' ? 'on' : '') + '">Liste</button><button data-v="board" class="' + (F.ansicht === 'board' ? 'on' : '') + '">Pipeline</button></div>' +
+      (F.ansicht === 'board' ? '<div class="seg" aria-label="Spalten der Pipeline"><button data-bs="status" class="' + (F.board !== 'prio' ? 'on' : '') + '" title="Spalten nach Status">nach Status</button><button data-bs="prio" class="' + (F.board === 'prio' ? 'on' : '') + '" title="Spalten nach Priorität">nach Prio</button></div>' : '') + '</div>' +
       (F.ansicht === 'board' ? board(L) : '<div class="card">' + (L.length ? L.map(taskRow).join('') : '<p class="empty">Keine Aufgaben für diesen Filter.</p>') + '</div>');
     bindTasks();
     $('#neu').onclick = () => aufgabeDialog(null); $('#pk_a').onclick = papierkorbDialog;
@@ -1389,10 +1429,55 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     $('#fso').onchange = e => { F.sort = e.target.value; saveF(); vAufgaben(); };
     $('#fq').oninput = e => { F.q = e.target.value; clearTimeout(vAufgaben.t); vAufgaben.t = setTimeout(() => { vAufgaben(); const x = $('#fq'); x.focus(); x.setSelectionRange(x.value.length, x.value.length); }, 250); };
     document.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { F.ansicht = b.dataset.v; saveF(); vAufgaben(); });
+    document.querySelectorAll('[data-bs]').forEach(b => b.onclick = () => { F.board = b.dataset.bs; saveF(); vAufgaben(); });
+    if (F.ansicht === 'board') bindBoard();
   }
+  // Pipeline (Timo 23.11.2026): Spalten nach Status (wie bisher) oder nach Priorität wie in Notion. Karte ziehen ändert Status bzw. Prio.
+  // Beim Ziehen in eine Prio-Spalte bekommt die Aufgabe den obersten Wert der Spalte (z. B. „Hoch“ = Prio 3). Erledigtes steht nur in der Liste.
+  const PRIO_SPALTEN = [[1, 2, 'Sofort'], [3, 4, 'Hoch'], [5, 6, 'Normal'], [7, 10, 'Später']];
   function board(L) {
-    return '<div class="board">' + BOARD.map(s => { const c = L.filter(a => a.status === s); return '<div class="col"><h3>' + esc(s) + '<span>' + c.length + '</span></h3>' +
-      (c.length ? c.map(a => '<div class="bcard" data-a="' + esc(a.aufgabe_id) + '" title="Erstellt ' + esc(datumLang(a.erstellt)) + ' · geändert ' + esc(datumLang(a.geaendert)) + '"><div class="t">' + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') + '<div class="meta"><span class="chip ' + prioKl(a.prio) + '">P' + esc(prioZahl(a.prio)) + '</span>' + (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + avs(a) + '</span></div></div>').join('') : '<p class="empty small">leer</p>') + '</div>'; }).join('') + '</div>';
+    const nachPrio = F.board === 'prio';
+    const spalten = nachPrio
+      ? PRIO_SPALTEN.map(([v, bis, t]) => ({ key: String(v), titel: t, zusatz: 'Prio ' + v + '–' + bis, L: L.filter(a => a.status !== 'Erledigt' && prioZahl(a.prio) >= v && prioZahl(a.prio) <= bis).sort(sortAufgaben) }))
+      : BOARD.map(st => ({ key: st, titel: st, zusatz: '', L: L.filter(a => a.status === st) }));
+    const karte = a => '<div class="bcard" draggable="true" data-a="' + esc(a.aufgabe_id) + '" title="Erstellt ' + esc(datumLang(a.erstellt)) + ' · geändert ' + esc(datumLang(a.geaendert)) + '"><div class="t">' + (a.privat === true ? '🔒 ' : '') + esc(a.titel) + '</div>' + (a.beschreibung ? '<div class="vorsch">' + esc(klartext(a.beschreibung).slice(0, 140)) + '</div>' : '') +
+      '<div class="meta"><span class="chip ' + prioKl(a.prio) + '">P' + esc(prioZahl(a.prio)) + '</span>' + (nachPrio ? '<span class="chip st-' + esc(String(a.status).replace(/\s/g, '-')) + '">' + esc(a.status) + '</span>' : '') + (a.label === LABEL_ENTSCHEIDUNG ? '<span class="chip" title="Entscheidung nötig">⚖️</span>' : '') +
+      (a.deadline ? '<span class="' + (ueberfaellig(a) ? 'late' : '') + '">' + fmtD(a.deadline) + '</span>' : '') + '<span style="margin-left:auto">' + avs(a) + '</span></div></div>';
+    return '<p class="small muted" style="margin:-4px 0 8px">Karte in eine andere Spalte ziehen, um ' + (nachPrio ? 'die Priorität' : 'den Status') + ' zu ändern. Am Handy: Karte antippen und im Fenster ändern.</p>' +
+      '<div class="board' + (nachPrio ? ' prio' : '') + '">' + spalten.map(c => '<div class="col" data-spalte="' + esc(c.key) + '"><h3><span>' + esc(c.titel) + (c.zusatz ? ' <span class="ph">· ' + esc(c.zusatz) + '</span>' : '') + '</span><span>' + c.L.length + '</span></h3>' +
+        (c.L.length ? c.L.map(karte).join('') : '<p class="empty small">leer</p>') + '</div>').join('') + '</div>';
+  }
+  function bindBoard() {
+    document.querySelectorAll('.bcard[draggable]').forEach(c => {
+      c.ondragstart = e => { e.dataTransfer.setData('text/plain', c.dataset.a); e.dataTransfer.effectAllowed = 'move'; c.classList.add('zieht'); };
+      c.ondragend = () => c.classList.remove('zieht');
+    });
+    document.querySelectorAll('.board .col[data-spalte]').forEach(col => {
+      col.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop'); };
+      col.ondragleave = e => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop'); };
+      col.ondrop = e => { e.preventDefault(); col.classList.remove('drop'); boardVerschieben(e.dataTransfer.getData('text/plain'), col.dataset.spalte); };
+    });
+  }
+  async function boardVerschieben(id, spalte) {
+    const a = (D.aufgaben || []).find(x => x.aufgabe_id === id); if (!a) return;
+    let aenderung, text;
+    if (F.board === 'prio') {
+      const s = PRIO_SPALTEN.find(x => String(x[0]) === spalte); if (!s) return;
+      const p = prioZahl(a.prio); if (p >= s[0] && p <= s[1]) return;
+      aenderung = { prio: s[0] }; text = 'Prio ' + s[0] + ' (' + s[2] + ')';
+    } else {
+      if (a.status === spalte || !BOARD.includes(spalte)) return;
+      aenderung = { status: spalte }; text = '„' + spalte + '“';
+    }
+    const vorher = { prio: a.prio, status: a.status }, stand = a.geaendert || '';
+    Object.assign(a, aenderung); vAufgaben();   // sofort zeigen, danach vom Server nachladen
+    try {
+      await api('aufgabe_speichern', Object.assign({}, a, aenderung, { stand, kommentar: '' }));
+      toast('„' + a.titel.slice(0, 40) + '“ → ' + text); await laden(true);
+    } catch (e) {
+      Object.assign(a, vorher); if (tab === 'aufgaben') vAufgaben();
+      toast(e.daten && e.daten.konflikt ? 'Die Aufgabe wurde inzwischen geändert. Bitte öffnen und dort ändern.' : e.message, 'warn');
+    }
   }
 
   function aufgabeDialog(a) {
@@ -1412,7 +1497,9 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       '<div class="f"><label for="a_j">Projekt</label>' + projSelect('a_j', a.projekt) + '</div>' +
       '<div class="f"><label for="a_l">Label</label><select id="a_l">' + opt(LABELS, a.label, v => v || 'kein Label') + '</select></div></div>' +
       '<label class="check" style="margin:2px 0 4px" id="a_wa_l"><input type="checkbox" id="a_wa"><span id="a_wa_t"></span></label>' +
-      '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
+      '<label class="check" style="margin:2px 0 4px"><input type="checkbox" id="a_ki"' + (a.agent_geeignet === true ? ' checked' : '') + '><span>🤖 Kann ein KI-Agent erledigen (Claude, Codex oder Hermes holen sich solche Aufgaben ab)</span></label>' +
+      // Privat (Timo 23.11.2026): nur Ersteller und Bearbeiter sehen die Aufgabe, auch Timo nicht. Gefiltert wird auf dem Server.
+      '<label class="check" style="margin:2px 0 10px"><input type="checkbox" id="a_pr"' + (a.privat === true ? ' checked' : '') + '><span>🔒 Privat: nur ' + (neu || a.erstellt_von === D.ich.mitglied_id ? 'du' : esc(mitglied(a.erstellt_von).name)) + ' und die Bearbeiter sehen die Aufgabe. Das übrige Team ' + (istAdmin() ? '' : 'und Timo ') + 'nicht, und sie fehlt im KI Office, im Wochenstand und beim Portal-Assistenten.</span></label>' +
       verlaufHtml(a) +
       (!neu ? '<p class="small muted" id="a_daten">Erstellt ' + (a.erstellt_von ? 'von ' + esc(mitglied(a.erstellt_von).name) + ' ' : '') + 'am ' + esc(datumLang(a.erstellt)) + ' · zuletzt geändert am ' + esc(datumLang(a.geaendert)) + (a.erledigt_am ? ' · erledigt am ' + fmtD(a.erledigt_am) : '') + '</p>' : '') +
       '<div class="dlgbtns">' + (darfLoeschen ? '<button type="button" class="btn danger left" id="a_del">In den Papierkorb</button>' : '') +
@@ -1465,7 +1552,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       const btn = ev.target.querySelector('[type=submit]'); btn.disabled = true;
       if (!bListe.length) { btn.disabled = false; return toast('Bitte mindestens eine Person als Bearbeiter auswählen.'); }
       const daten = { aufgabe_id: a.aufgabe_id, titel: $('#a_t').value, beschreibung: $('#a_b').value, bearbeiter: bListe.slice(), verantwortlich: bListe.includes(a.verantwortlich) ? a.verantwortlich : bListe[0], deadline: $('#a_d').value,
-        prio: Number($('#a_p').value), skala: 10, status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked,
+        prio: Number($('#a_p').value), skala: 10, status: $('#a_s').value, projekt: $('#a_j').value, label: $('#a_l').value, agent_geeignet: $('#a_ki').checked, privat: $('#a_pr').checked,
         kommentar: $('#a_k') ? $('#a_k').value : '' };
       if (!neu) daten.stand = a.geaendert || '';
       if (aufgabeTrotzdem) { daten.trotzdem = true; aufgabeTrotzdem = false; }
@@ -4162,11 +4249,13 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       html += '<div class="mstat"><div><b>' + std(W) + '</b><span>gearbeitet in ' + monatName(ym) + '</span></div></div>' + (p.mitglied_id === D.ich.mitglied_id || admin ? '' : '');
     }
     const offen = E.filter(z => z.status !== 'freigegeben').length;
+    const nwOffen = (D.aufgaben || []).find(a => a.status !== 'Erledigt' && a.erstellt_von === D.ich.mitglied_id && String(a.beschreibung || '').includes('[nachweis:' + D.ich.mitglied_id + ':' + ym + ']'));
     html += (mo && mo.abgeschlossen ? '<div class="note" style="margin-bottom:10px">Monat abgeschlossen am ' + fmtD(String(mo.abschluss.erstellt || '').slice(0, 10)) + '. Der Monatsnachweis ist fertig für das Lohnbüro.</div>' :
       offen && !laufend ? '<div class="note warn" style="margin-bottom:10px">' + offen + ' Eintrag/Einträge noch nicht von Timo freigegeben. Der Monatsnachweis ist bis dahin vorläufig.</div>' : '') +
       '<div class="dlgbtns" style="justify-content:flex-start;margin:0 0 6px"><button class="btn sec" id="mpdf">Monatsnachweis als PDF</button>' +
       (admin && hatVertrag(p) && !laufend && mo && !mo.abgeschlossen ? '<button class="btn" id="mabs"' + (offen ? ' disabled title="Erst alle Einträge freigeben"' : '') + '>Monat abschließen</button>' : '') +
-      (admin && mo && mo.abgeschlossen ? '<button class="btn danger" id="mauf">Abschluss aufheben</button>' : '') + '</div>';
+      (admin && mo && mo.abgeschlossen ? '<button class="btn danger" id="mauf">Abschluss aufheben</button>' : '') +
+      (!admin && zPerson === D.ich.mitglied_id ? (nwOffen ? '<span class="small muted" style="align-self:center">🧾 Nachweis angefordert am ' + esc(fmtD(nwOffen.erstellt)) + ', liegt bei ' + esc(bearbeiterNamen(nwOffen)) + '</span>' : '<button class="btn sec" id="mnach" title="Timo bekommt die Anfrage unter „Zu entscheiden“">🧾 Nachweis bei Timo anfordern</button>') : '') + '</div>';
     html += wochen.length ? wochen.map(w => '<div class="wkhead"><span>KW ' + esc(w.kw.slice(-2)) + '</span><span>' + std(minSumme(w.E)) + '</span></div>' + w.E.map(z => zeitRow(z)).join('')).join('') +
       '<div class="wkhead" style="border-bottom:0;color:var(--ink);font-size:15px"><span>Summe ' + monatName(ym) + '</span><span>' + std(W) + '</span></div>' : '<p class="empty">Keine Einträge in diesem Monat.</p>';
     html += '</div>';
@@ -4180,6 +4269,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       ab.disabled = true;
       try { await api('monat_abschliessen', { mitglied_id: zPerson, monat: ym }); toast('Monat abgeschlossen'); await laden(true); } catch (e) { toast(e.message); ab.disabled = false; }
     };
+    const nb = $('#mnach'); if (nb) nb.onclick = () => nachweisAnfordern(ym);
     const au = $('#mauf'); if (au) au.onclick = async () => {
       if (!au.dataset.sicher) { au.dataset.sicher = '1'; au.textContent = 'Wirklich aufheben?'; return; }
       try { await api('monat_aufheben', { mitglied_id: zPerson, monat: ym }); toast('Abschluss aufgehoben'); await laden(true); } catch (e) { toast(e.message); }
@@ -4260,6 +4350,28 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     doc.save('Arbeitszeitnachweis_' + String(p.name).replace(/[^\wäöüÄÖÜß-]+/g, '_') + '_' + ym + '.pdf');
   }
 
+  // Stundennachweis anfordern (Timo 23.11.2026, z. B. für Lillien): legt eine private Aufgabe für Timo mit Label „⚖️ Entscheidung“ an.
+  // Sie erscheint bei ihm unter „Zu entscheiden“; der Merker [nachweis:Person:Monat] in der Beschreibung verbindet sie mit dem Monat.
+  function nachweisAnfordern(ym) {
+    const admins = (D.mitglieder || []).filter(m => m.rolle === 'admin' && m.typ !== 'agent' && m.status !== 'gesperrt').map(m => m.mitglied_id);
+    if (!admins.length) return toast('Es ist niemand als Admin eingetragen.');
+    $('#dlgInner').innerHTML = '<h2>Stundennachweis ' + esc(monatName(ym)) + ' anfordern</h2><form id="nwa">' +
+      '<p class="small muted">Timo bekommt die Anfrage auf seiner Übersicht unter „Zu entscheiden“. Er gibt deine Wochen frei, schließt den Monat ab und schickt dir den Nachweis. Nur ihr beide seht die Anfrage.</p>' +
+      '<div class="f"><label for="nw_w">Wofür brauchst du ihn? (optional)</label><input id="nw_w" maxlength="200" placeholder="z. B. Agentur für Arbeit, Lohnbüro, eigene Unterlagen"></div>' +
+      '<div class="f"><label for="nw_d">Bis wann? (optional)</label><input id="nw_d" type="date"></div>' +
+      '<div class="dlgbtns"><button type="button" class="btn sec" id="nw_c">Abbrechen</button><button class="btn" type="submit">Anfordern</button></div></form>';
+    const dlg = openDlg(false);
+    $('#nw_c').onclick = () => dlg.close();
+    $('#nwa').onsubmit = async ev => {
+      ev.preventDefault(); const b = ev.target.querySelector('[type=submit]'); b.disabled = true;
+      const wofuer = $('#nw_w').value.trim();
+      try {
+        await api('aufgabe_speichern', { titel: 'Stundennachweis ' + monatName(ym) + ': ' + D.ich.name, status: 'Offen', prio: 3, skala: 10, label: LABEL_ENTSCHEIDUNG, projekt: 'Sonstiges', privat: true, bearbeiter: admins, deadline: $('#nw_d').value,
+          beschreibung: D.ich.name + ' bittet um den Arbeitszeitnachweis für ' + monatName(ym) + '.' + (wofuer ? '\n\nWofür: ' + wofuer : '') + '\n\nBitte die Wochen freigeben, den Monat abschließen und den Nachweis (PDF unter Arbeitszeit → Monat) schicken.\n\n[nachweis:' + D.ich.mitglied_id + ':' + ym + ']' });
+        dlg.close(); toast('Angefordert. Timo sieht es unter „Zu entscheiden“.'); await laden(true);
+      } catch (e) { b.disabled = false; toast(e.message); }
+    };
+  }
   function vertragDialog(mid) {
     const p = mitglied(mid);
     const eigen = mid === D.ich.mitglied_id;
@@ -5097,15 +5209,15 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
     const zeigen = off => {
       if (!$('#fuerDich')) return;
       const P = fuerDichPunkte(off);
-      const T = [['freigabe', '✅ Wartet auf deine Freigabe'], ['frage', '🤖 Agenten fragen dich'], ['erwaehnt', '💬 Du wurdest erwähnt'], ['neu', '📥 Neu für dich'], ['bericht', '📋 Berichte zur Kenntnis'], ['abnahme', '📄 Agenten-Ergebnisse abnehmen'], ['geaendert', '✏️ Geändert seit deinem letzten Besuch']];
-      // Die Zahl oben zählt, was wirklich auf dich wartet: Freigaben, Rückfragen und Neues. Berichte und Ergebnis-Abnahmen stehen darunter, ohne die Zahl aufzublähen.
-      const offenAnz = P.freigabe.length + P.frage.length + [...P.erwaehnt, ...P.neu, ...P.geaendert].filter(p => p.neu).length;
+      // Seit 23.11.2026 stehen Freigaben, Rückfragen und Ergebnis-Abnahmen in „Zu entscheiden“ (oben). „Für dich“ zeigt nur noch Infos.
+      const T = [['erwaehnt', '💬 Du wurdest erwähnt'], ['neu', '📥 Neu für dich'], ['bericht', '📋 Berichte zur Kenntnis'], ['geaendert', '✏️ Geändert seit deinem letzten Besuch']];
+      const offenAnz = [...P.erwaehnt, ...P.neu, ...P.geaendert].filter(p => p.neu).length;
       punkte = {};
       let nr = 0;
       const zeile = (p, k) => { const id = 'p' + (nr++); punkte[id] = p; return '<button class="fd-z" data-fd="' + id + '"><span class="fd-t">' + (p.neu && ['erwaehnt', 'neu', 'geaendert'].includes(k) ? '<span class="chip fd-neu">neu</span> ' : '') + esc(p.titel) + '</span><span class="small muted">' + esc(p.text) + ' · ' + fmtDT(p.zeit) + '</span></button>'; };
       const teile = T.filter(([k]) => P[k].length).map(([k, l]) => { const alle = fdAufgeklappt.has(k); return '<div class="fd-g' + (k === 'freigabe' ? ' fd-frei' : '') + '"><div class="fd-h">' + l + ' <span class="muted">(' + P[k].length + ')</span></div>' + (alle ? P[k] : P[k].slice(0, FD_MAX)).map(p => zeile(p, k)).join('') + (P[k].length > FD_MAX ? '<button class="btn ghost" style="padding:4px 8px;font-size:12.5px" data-fdmehr="' + k + '">' + (alle ? 'Weniger anzeigen' : (P[k].length - FD_MAX) + ' weitere anzeigen') + '</button>' : '') + '</div>'; });
-      $('#fuerDich').innerHTML = '<div class="card fd"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🔔 Für dich' + (offenAnz ? ' <span class="chip fd-neu">' + offenAnz + '</span>' : '') + '</h2>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (teile.length ? '<button class="btn ghost" id="fdGesehen" title="Markiert Erwähnungen, neue Aufgaben und Änderungen als gesehen. Freigaben und Rückfragen bleiben, bis sie erledigt sind.">Alles gesehen ✓</button>' : '') + '<a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Freigaben im KI Office →</a></div></div>' +
+      $('#fuerDich').innerHTML = '<div class="card fd"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🔔 Für dich zur Info' + (offenAnz ? ' <span class="chip fd-neu">' + offenAnz + '</span>' : '') + '</h2>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (teile.length ? '<button class="btn ghost" id="fdGesehen" title="Markiert Erwähnungen, neue Aufgaben und Änderungen als gesehen. Was du entscheiden musst, steht oben unter „Zu entscheiden“.">Alles gesehen ✓</button>' : '') + '<a class="btn ghost" href="' + OFFICE + '#/tab/freigaben">Freigaben im KI Office →</a></div></div>' +
         (teile.length ? teile.join('') : '<p class="empty">Nichts Neues für dich. Schreib @Vorname in einen Kommentar, damit jemand es hier sieht.</p>') +
         (off ? '' : '<p class="small muted" style="margin-top:6px">KI Office wird geladen …</p>') + '</div>';
       $('#fuerDich').querySelectorAll('[data-fd]').forEach(b => b.onclick = () => {
@@ -5195,6 +5307,176 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
       else if (p.typ === 'run') fertig('Zurückgewiesen', k => officeApi('run_abnehmen', { run_id: r.run_id, abgenommen: false, kommentar: k }));
       else if (p.typ === 'formal') fertig('Abgelehnt', k => officeApi('freigabe_entscheiden', { freigabe_id: f.freigabe_id, entscheidung: 'abgelehnt', begruendung: k }));
     };
+  }
+
+  // ---------- „Zu entscheiden“ auf der Übersicht (Entscheidungs-Zentrale, Timo 23.11.2026) ----------
+  // Eine priorisierte Liste aller Dinge, die die angemeldete Person entscheiden oder bestätigen muss. Ein Klick öffnet direkt die Stelle.
+  // Quellen: Freigaben, Rückfragen und Ergebnisse aus dem KI Office und Portal-Aufgaben (gleiche Regeln wie „Für dich“, siehe fuerDichPunkte),
+  // Aufgaben mit Label „⚖️ Entscheidung“ (auch Stundennachweis-Anfragen), Social-Beiträge „Zur Freigabe“,
+  // nur für Timo: neue Social-Ideen/Links (Knopf an den Social-Planer), eingereichte Arbeitszeitwochen, Monate zum Abschließen, neue Vorschläge.
+  // Reihenfolge: Rang je Art (0 = blockiert gerade jemanden), überfällig oder seit 7 Tagen offen rückt eine Stufe vor; gleicher Rang: älteste zuerst.
+  const ZE = { off: null, ideen: null, filter: 'alle', alle: false, punkte: [] };
+  const ZE_QUELLEN = [['alle', 'Alle'], ['ki', '🤖 KI & Agenten'], ['aufgaben', '✅ Aufgaben'], ['social', '📣 Social Media'], ['zeit', '⏱️ Arbeitszeit'], ['vorschlag', '💬 Vorschläge']];
+  const ZE_MAX = 8;
+  const NACHWEIS_RE = /\[nachweis:([\w-]+):(\d{4}-\d{2})\]/;
+  const zeTage = s => { const t = fdZeit(s); return t ? Math.max(0, Math.floor((Date.now() - t) / 864e5)) : 0; };
+  const zeSeit = s => !fdZeit(s) ? '' : (n => n === 0 ? 'seit heute' : n === 1 ? 'seit gestern' : 'seit ' + n + ' Tagen')(zeTage(s));
+  function zentralePunkte(off) {
+    const ich = D.ich.mitglied_id, admin = istAdmin(), L = [], drin = new Set();
+    const P = fuerDichPunkte(off);
+    for (const p of P.freigabe) {
+      if (p.aufgabe) drin.add(p.aufgabe.aufgabe_id);
+      const formal = p.typ === 'formal', agent = p.typ === 'agent';
+      L.push({ quelle: formal || agent ? 'ki' : 'aufgaben', icon: formal ? '🛡️' : agent ? '🤖' : '🧪', art: formal ? 'Freigabe im KI Office' : agent ? 'Von der KI angelegt' : 'Wird getestet – abnehmen',
+        titel: p.titel, text: p.text, zeit: p.zeit, rang: formal ? 0 : agent ? (p.wichtig ? 1 : 2) : 3, deadline: p.aufgabe && p.aufgabe.deadline, auf: () => fdPruefen(p, off || {}) });
+    }
+    for (const p of P.frage) L.push({ quelle: 'ki', icon: '❓', art: 'Agent wartet auf Antwort', titel: p.titel, text: p.text, zeit: p.zeit, rang: 0, auf: () => fdPruefen(p, off || {}) });
+    for (const p of P.abnahme) L.push({ quelle: 'ki', icon: '📄', art: 'Agenten-Ergebnis abnehmen', titel: p.titel, text: p.text, zeit: p.zeit, rang: 4, auf: () => fdPruefen(p, off || {}) });
+    // Aufgaben mit Label „⚖️ Entscheidung“, bei denen ich Bearbeiter bin
+    for (const a of D.aufgaben || []) {
+      if (a.status === 'Erledigt' || a.label !== LABEL_ENTSCHEIDUNG || !istBearbeiter(a, ich) || drin.has(a.aufgabe_id)) continue;
+      drin.add(a.aufgabe_id);
+      const nw = NACHWEIS_RE.exec(a.beschreibung || '');
+      L.push({ quelle: nw ? 'zeit' : 'aufgaben', icon: nw ? '🧾' : '⚖️', art: nw ? 'Stundennachweis angefordert' : 'Entscheidung nötig', titel: a.titel,
+        text: 'von ' + mitglied(a.erstellt_von).name + (a.deadline ? ' · bis ' + fmtD(a.deadline) : ''), zeit: a.erstellt, rang: 2, deadline: a.deadline,
+        auf: () => nw ? nachweisPruefen(a, nw[1], nw[2]) : aufgabeDialog(a) });
+    }
+    // Social-Beiträge zur Freigabe (Timo und die zuständige Person). Termin in den nächsten 2 Tagen: weiter nach oben.
+    for (const s of D.social || []) if (s.status === 'Zur Freigabe' && (admin || s.verantwortlich === ich)) {
+      const bald = s.datum && dDate(s.datum) - heute() <= 2 * 864e5;
+      L.push({ quelle: 'social', icon: '📣', art: 'Social-Beitrag freigeben', titel: s.thema, text: (s.kanal || '') + (s.datum ? ' · geplant ' + fmtD(s.datum) : ' · noch ohne Datum'), zeit: s.geaendert || s.datum, rang: bald ? 1 : 3, dringend: bald, auf: () => postDialog(s) });
+    }
+    if (admin) {
+      // Neue Ideen und Links aus „Social Media“: den Social-Planer um einen Vorschlag bitten oder verwerfen
+      for (const i of ZE.ideen || []) if (i.status === 'neu')
+        L.push({ quelle: 'social', icon: '💡', art: 'Neue Idee / Link', titel: i.titel || i.link || 'Idee', text: 'von ' + mitglied(i.erstellt_von).name + (i.kanal ? ' · ' + i.kanal : '') + ' · Social-Planer fragen?', zeit: i.erstellt || i.geaendert, rang: 5, auf: () => ideeEntscheiden(i) });
+      // Eingereichte Arbeitszeitwochen je Person und KW
+      const W = {};
+      for (const z of D.zeiten || []) if (z.status === 'eingereicht') (W[z.mitglied_id + '|' + z.kw] = W[z.mitglied_id + '|' + z.kw] || []).push(z);
+      for (const [k, E] of Object.entries(W)) {
+        const [mid, kw] = k.split('|');
+        L.push({ quelle: 'zeit', icon: '⏱️', art: 'Arbeitszeit freigeben', titel: mitglied(mid).name + ', KW ' + kw.slice(-2), text: E.length + (E.length === 1 ? ' Eintrag · ' : ' Einträge · ') + std(minSumme(E)), zeit: E.map(z => z.eingereicht_am || z.geaendert || '').sort()[0], rang: 2, auf: () => wocheEntscheiden(mid, kw) });
+      }
+      // Abgelaufene Monate ohne Abschluss (Personen mit Vertrag, letzte 3 Monate mit Einträgen). Danach gibt es den Monatsnachweis als PDF.
+      for (const m of D.mitglieder || []) {
+        if (m.typ === 'agent' || m.status === 'gesperrt' || !hatVertrag(m)) continue;
+        for (let o = -1; o >= -3; o--) {
+          const ym = ymPlus(ymJetzt(), o);
+          if (ym < String(m.abrechnung_ab || '2026-10-05').slice(0, 7) || (D.abrechnung || []).some(r => r.mitglied_id === m.mitglied_id && r.monat === ym)) continue;
+          const E = (D.zeiten || []).filter(z => z.mitglied_id === m.mitglied_id && String(z.datum).slice(0, 7) === ym);
+          if (!E.length) continue;
+          const offen = E.filter(z => z.status !== 'freigegeben').length;
+          L.push({ quelle: 'zeit', icon: '🗓️', art: 'Monat abschließen', titel: m.name + ', ' + monatName(ym), text: offen ? offen + ' Einträge noch nicht freigegeben' : 'alles freigegeben, bereit zum Abschluss (danach PDF-Nachweis)',
+            zeit: ymPlus(ym, 1) + '-01T08:00:00', rang: offen ? 4 : 3, auf: () => zuMonat(m.mitglied_id, ym) });
+        }
+      }
+      for (const v of D.vorschlaege || []) if (v.status === 'neu')
+        L.push({ quelle: 'vorschlag', icon: '💬', art: 'Neuer Vorschlag', titel: v.titel, text: 'von ' + mitglied(v.autor).name + ' · ' + (Array.isArray(v.stimmen) ? v.stimmen.length : 0) + ' Stimmen', zeit: v.erstellt, rang: 5, auf: () => vorschlagDialog(v) });
+    }
+    for (const x of L) if ((x.deadline && dDate(x.deadline) < heute()) || zeTage(x.zeit) >= 7) { x.rang = Math.max(0, x.rang - 1); x.dringend = true; }
+    L.sort((a, b) => a.rang - b.rang || fdZeit(a.zeit) - fdZeit(b.zeit));
+    return L;
+  }
+  function zentraleZeigen() {
+    const el = $('#entscheiden'); if (!el || !D || !D.ich || D.ich.rolle === 'agent') return;
+    const L = zentralePunkte(ZE.off);
+    const anz = q => q === 'alle' ? L.length : L.filter(x => x.quelle === q).length;
+    if (ZE.filter !== 'alle' && !anz(ZE.filter)) ZE.filter = 'alle';
+    const S = L.filter(x => ZE.filter === 'alle' || x.quelle === ZE.filter);
+    ZE.punkte = ZE.alle ? S : S.slice(0, ZE_MAX);
+    const k = $('#zeKpi'); if (k) { k.querySelector('b').textContent = ZE.off ? L.length : L.length + '+'; k.classList.toggle('warn', L.some(x => x.dringend)); }
+    const zeile = (x, i) => '<button type="button" class="ze-z' + (x.dringend ? ' dringend' : '') + '" data-ze="' + i + '"><span class="ze-i" aria-hidden="true">' + x.icon + '</span><span class="ze-b"><span class="ze-art">' + esc(x.art) + (x.dringend ? ' · dringend' : '') + '</span><span class="ze-t">' + esc(x.titel) + '</span><span class="small muted">' + esc(x.text) + (zeSeit(x.zeit) ? ' · wartet ' + esc(zeSeit(x.zeit)) : '') + '</span></span><span class="ze-go">Öffnen →</span></button>';
+    el.innerHTML = '<div class="card ze"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">⚖️ Zu entscheiden' + (L.length ? ' <span class="chip fd-neu">' + L.length + '</span>' : '') + '</h2>' +
+      '<span class="small muted">Wichtigstes zuerst. Klick öffnet direkt die Stelle.</span></div>' +
+      (L.length ? '<div class="ze-filter" role="tablist">' + ZE_QUELLEN.filter(([q]) => q === 'alle' || anz(q)).map(([q, l]) => '<button type="button" data-zef="' + q + '" class="' + (ZE.filter === q ? 'on' : '') + '">' + esc(l) + ' <span>' + anz(q) + '</span></button>').join('') + '</div>' +
+        '<div class="ze-liste">' + ZE.punkte.map(zeile).join('') + '</div>' +
+        (S.length > ZE_MAX ? '<button type="button" class="btn ghost" id="zeMehr" style="padding:4px 8px;font-size:12.5px">' + (ZE.alle ? 'Weniger anzeigen' : 'Alle ' + S.length + ' anzeigen') + '</button>' : '')
+        : '<p class="empty">Gerade wartet nichts auf deine Entscheidung. 🎉</p>') +
+      (ZE.off ? '' : '<p class="small muted" style="margin:6px 0 0">KI Office wird geladen …</p>') + '</div>';
+    el.querySelectorAll('[data-ze]').forEach(b => b.onclick = () => { const x = ZE.punkte[Number(b.dataset.ze)]; if (x) x.auf(); });
+    el.querySelectorAll('[data-zef]').forEach(b => b.onclick = () => { ZE.filter = b.dataset.zef; ZE.alle = false; zentraleZeigen(); });
+    const m = $('#zeMehr'); if (m) m.onclick = () => { ZE.alle = !ZE.alle; zentraleZeigen(); };
+  }
+  function zentraleKarte() {
+    if (!$('#entscheiden') || !D || !D.ich || D.ich.rolle === 'agent') return;
+    zentraleZeigen();
+    officeLaden().then(j => { ZE.off = j; zentraleZeigen(); }).catch(() => { ZE.off = { runs: [], ereignisse: [], agenten: [], freigaben: [] }; zentraleZeigen(); });
+    if (istAdmin()) socialLaden().then(d => { SD = d; ZE.ideen = d.ideen || []; zentraleZeigen(); }).catch(() => {});
+  }
+  const zeNeu = async () => { officeCache = null; await laden(true); };
+  // Arbeitszeit: Monat einer Person öffnen (Register Arbeitszeit, Ansicht Monat)
+  function zuMonat(mid, ym) {
+    const j = heute();
+    tab = 'zeit'; zAns = 'monat'; zPerson = mid; moOff = Math.min(0, (Number(ym.slice(0, 4)) - j.getFullYear()) * 12 + Number(ym.slice(5, 7)) - 1 - j.getMonth());
+    ls.set('mt-tab', tab); if ($('#dlg').open) $('#dlg').close(); render(); window.scrollTo(0, 0);
+  }
+  // Eingereichte Woche: Einträge ansehen, dann freigeben oder zurückgeben (gleicher Ablauf wie im Register Arbeitszeit)
+  function wocheEntscheiden(mid, kw) {
+    const E = (D.zeiten || []).filter(z => z.mitglied_id === mid && z.kw === kw && z.status !== 'freigegeben').sort((a, b) => (a.datum + a.von).localeCompare(b.datum + b.von));
+    const titelVon = id => ((D.aufgaben || []).find(a => a.aufgabe_id === id) || {}).titel || '';
+    $('#dlgInner').innerHTML = '<p class="small muted" style="margin:0">Arbeitszeit zur Freigabe</p><h2 style="margin-top:2px">' + esc(mitglied(mid).name) + ', KW ' + esc(kw.slice(-2)) + ' · ' + std(minSumme(E)) + '</h2>' +
+      (E.length ? E.map(z => '<div class="zt" style="grid-template-columns:110px 1fr auto"><div><b>' + fmtD(z.datum) + '</b><div class="small muted">' + esc(z.von) + '–' + esc(z.bis) + (Number(z.pause_min) ? ', ' + esc(z.pause_min) + ' min Pause' : '') + '</div></div>' +
+        '<div>' + esc(z.taetigkeit) + '<div class="small muted">' + esc(z.projekt || '') + (titelVon(z.aufgabe_id) ? ' · ' + esc(titelVon(z.aufgabe_id)) : '') + '</div></div><div><b>' + std(Number(z.minuten) || 0) + '</b></div></div>').join('') : '<p class="empty">Nichts mehr offen.</p>') +
+      '<div class="dlgbtns" style="flex-wrap:wrap"><button type="button" class="btn ghost" id="zw_m">Ganzen Monat ansehen</button><button type="button" class="btn sec" id="zw_x">Schließen</button>' +
+      (E.length ? '<button type="button" class="btn danger" id="zw_n">↩ Zurückgeben</button><button type="button" class="btn" id="zw_j">✅ Freigeben</button>' : '') + '</div>';
+    openDlg(true);
+    $('#zw_x').onclick = () => $('#dlg').close();
+    $('#zw_m').onclick = () => zuMonat(mid, (E[0] ? E[0].datum : ymd(heute())).slice(0, 7));
+    const k = mid + '|' + kw;
+    if (E.length) { $('#zw_j').onclick = () => freigabeDialog(k, 'freigegeben'); $('#zw_n').onclick = () => freigabeDialog(k, 'abgelehnt'); }
+  }
+  // Stundennachweis-Anfrage (z. B. Lillien): Stand des Monats sehen, zum Monat springen, als erledigt abhaken
+  function nachweisPruefen(a, mid, ym) {
+    const E = (D.zeiten || []).filter(z => z.mitglied_id === mid && String(z.datum).slice(0, 7) === ym);
+    const offen = E.filter(z => z.status !== 'freigegeben').length;
+    const fertig = (D.abrechnung || []).some(r => r.mitglied_id === mid && r.monat === ym);
+    const laufend = ym >= ymJetzt();
+    const stand = !E.length ? 'In ' + monatName(ym) + ' sind noch keine Zeiten eingetragen.' : fertig ? 'Monat ist abgeschlossen. Der Nachweis kann als PDF heruntergeladen und geschickt werden.' :
+      offen ? offen + ' von ' + E.length + ' Einträgen sind noch nicht freigegeben. Erst freigeben, dann ist der Nachweis endgültig.' : laufend ? 'Alle Einträge freigegeben, der Monat läuft aber noch (vorläufiger Nachweis).' : 'Alle Einträge freigegeben. Monat abschließen, dann ist der Nachweis endgültig.';
+    $('#dlgInner').innerHTML = '<p class="small muted" style="margin:0">Stundennachweis angefordert · von ' + esc(mitglied(a.erstellt_von).name) + ' am ' + esc(datumLang(a.erstellt)) + '</p><h2 style="margin-top:2px">' + esc(a.titel) + '</h2>' +
+      '<div class="note' + (offen ? ' warn' : '') + '" style="margin-bottom:10px">' + esc(stand) + (E.length ? ' (' + std(minSumme(E)) + ')' : '') + '</div>' +
+      '<div class="md">' + md(String(a.beschreibung || '').replace(NACHWEIS_RE, '').trim() || '_(kein Text)_') + '</div>' +
+      '<form id="nwf" style="margin-top:12px"><div class="f"><label for="nw_k">Kommentar an ' + esc(mitglied(a.erstellt_von).name) + ' (optional)</label><textarea id="nw_k" rows="2" maxlength="2000" placeholder="z. B. PDF per Mail geschickt"></textarea></div>' +
+      '<div class="dlgbtns" style="flex-wrap:wrap"><button type="button" class="btn ghost" id="nw_m">Zur Monatsübersicht</button><button type="button" class="btn sec" id="nw_x">Schließen</button><button type="submit" class="btn">✅ Erledigt (Nachweis geschickt)</button></div></form>';
+    openDlg(true);
+    $('#nw_x').onclick = () => $('#dlg').close();
+    $('#nw_m').onclick = () => zuMonat(mid, ym);
+    $('#nwf').onsubmit = async ev => {
+      ev.preventDefault(); const b = ev.target.querySelector('[type=submit]'); b.disabled = true;
+      const k = $('#nw_k').value.trim();
+      try { await api('aufgabe_speichern', Object.assign({}, a, { status: 'Erledigt', stand: a.geaendert || '', kommentar: 'Nachweis erledigt' + (k ? ': ' + k : '') })); $('#dlg').close(); toast('Erledigt. ' + mitglied(a.erstellt_von).name + ' sieht es im Verlauf.'); await zeNeu(); }
+      catch (e) { b.disabled = false; toast(e.message); }
+    };
+  }
+  // Neue Idee / Link: dem Social-Planer (KI Office) geben, verwerfen oder bearbeiten. Der fertige Vorschlag kommt als „Agenten-Ergebnis abnehmen“ zurück.
+  function ideeAuftrag(i, hinweis) {
+    return ['Vorschlag zu einer Idee aus dem Team-Portal (Social Media, Ideen-Liste, idee_id ' + i.idee_id + ').',
+      'Leite daraus 1–2 Beitragsideen für Momentum ab: Thema, Kanal, Hook, Format (Bild, Karussell, Reel, Text) und einen Terminvorschlag. Begründe kurz, warum es zu uns passt.',
+      'Regeln: nichts kopieren (weder Text noch Bild), nichts veröffentlichen, du-Form. Ergebnis als Notiz, Beitragsentwürfe höchstens mit Status „Zur Freigabe“.',
+      i.link ? 'Link: ' + i.link : '', i.titel ? 'Worum es geht: ' + i.titel : '', i.quelle ? 'Quelle: ' + i.quelle : '', i.kanal ? 'Kanal: ' + i.kanal : '',
+      i.warum_stark ? 'Was daran stark ist: ' + i.warum_stark : '', i.thema_fuer_uns ? 'Thema für uns: ' + i.thema_fuer_uns : '', hinweis ? 'Hinweis von ' + D.ich.name + ': ' + hinweis : ''].filter(Boolean).join('\n').slice(0, 2000);
+  }
+  function ideeEntscheiden(i) {
+    let host = ''; try { host = new URL(i.link).hostname.replace(/^www\./, ''); } catch (e) {}
+    $('#dlgInner').innerHTML = '<p class="small muted" style="margin:0">Neue Idee / Link · von ' + esc(mitglied(i.erstellt_von).name) + (i.erstellt ? ' am ' + esc(datumLang(i.erstellt)) : '') + '</p><h2 style="margin-top:2px">' + esc(i.titel || host || 'Idee') + '</h2>' +
+      (i.link ? '<div class="fd-links"><a class="btn sec" href="' + esc(i.link) + '" target="_blank" rel="noopener">↗ ' + esc(host || 'Link öffnen') + '</a></div>' : '') +
+      (i.bild_url ? '<img src="' + esc(i.bild_url) + '" alt="" style="max-height:180px;border-radius:10px;margin:6px 0">' : '') +
+      (i.warum_stark ? '<p style="margin:6px 0"><b>Was stark ist:</b> ' + esc(i.warum_stark) + '</p>' : '') + (i.thema_fuer_uns ? '<p style="margin:6px 0"><b>Thema für uns:</b> ' + esc(i.thema_fuer_uns) + '</p>' : '') +
+      '<form id="ief" style="margin-top:10px"><div class="f"><label for="ie_h">Hinweis für den Social-Planer (optional)</label><textarea id="ie_h" rows="2" maxlength="500" placeholder="z. B. eher für LinkedIn, Bezug auf unseren Kursstart"></textarea></div>' +
+      '<p class="small muted">Der Social-Planer (KI Office) macht 1–2 Beitragsvorschläge. Die kommen hier unter „Agenten-Ergebnis abnehmen“ zurück. Veröffentlicht wird nichts ohne deine Freigabe.</p>' +
+      '<div class="dlgbtns" style="flex-wrap:wrap"><button type="button" class="btn ghost" id="ie_b">Bearbeiten</button><button type="button" class="btn sec" id="ie_x">Später</button><button type="button" class="btn danger" id="ie_v">Verwerfen</button><button type="submit" class="btn">🤖 Social-Planer: Vorschlag machen</button></div></form>';
+    openDlg(true);
+    const felder = st => ({ idee_id: i.idee_id, link: i.link || '', bild_pfad: i.bild_pfad || '', titel: i.titel || '', quelle: i.quelle || '', kanal: i.kanal || '', warum_stark: i.warum_stark || '', thema_fuer_uns: i.thema_fuer_uns || '', status: st });
+    const fertig = async (fn, msg) => { const K = $('#ief').querySelectorAll('button'); K.forEach(b => b.disabled = true); try { await fn(); $('#dlg').close(); toast(msg); i.status = 'x'; SD = await socialLaden(true); ZE.ideen = SD.ideen || []; await zeNeu(); } catch (e) { K.forEach(b => b.disabled = false); toast(e.message); } };
+    $('#ie_x').onclick = () => $('#dlg').close();
+    $('#ie_b').onclick = () => ideeDialog(i);
+    $('#ie_v').onclick = () => fertig(() => socialApi('idee_speichern', felder('verworfen')), 'Idee verworfen');
+    $('#ief').onsubmit = ev => { ev.preventDefault(); fertig(async () => {
+      const r = await officeApi('auftrag_starten', { agent_id: 'social-planer', projekt: 'Social Media', auftrag: ideeAuftrag(i, $('#ie_h').value.trim()), idempotenzschluessel: 'idee-' + i.idee_id,
+        eingabe: { idee_id: i.idee_id, link: i.link || null, kanal: i.kanal || null } });
+      await socialApi('idee_speichern', felder('geprüft'));
+      return r;
+    }, 'Auftrag an den Social-Planer angelegt. Sein Vorschlag erscheint hier, sobald er fertig ist.'); };
   }
 
   function vOffice() {
