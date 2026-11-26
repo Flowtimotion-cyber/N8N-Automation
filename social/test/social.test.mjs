@@ -102,3 +102,21 @@ test('laden: sortiert, ohne gelöschte, Pfad nur für Admin und Agent', () => {
   assert.equal(ladenAntwort([], uploads, timo).uploads[0].pfad, '2026/10/c'); assert.equal(ladenAntwort([], uploads, claude).uploads[0].pfad, '2026/10/c');
   assert.ok(a.kanaele.includes('LinkedIn')); assert.equal(a.max_bytes, 2147483648);
 });
+
+// Fehler vom 21.11.2026: In n8n-Code-Knoten gibt es den Baustein URL nicht, dadurch wurde jeder Link als ungültig abgelehnt.
+// Der eingebettete Code wird hier ohne URL ausgeführt, genau wie in n8n.
+test('Link-Prüfung läuft ohne URL (wie im n8n-Code-Knoten)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const lib = readFileSync(new URL('../lib/social.js', import.meta.url), 'utf8').replace(/^export /gm, '');
+  const kiste = vm.createContext({ Date, Math, JSON, String, Number, RegExp, encodeURIComponent });
+  vm.runInContext(lib + '\nthis.f = { linkGueltig, kanalAusLink, titelAusLink, socialAnfrage };', kiste);
+  assert.equal(vm.runInContext('typeof URL', kiste), 'undefined', 'Testkiste soll wie n8n kein URL haben');
+  const { linkGueltig: lg, kanalAusLink: ka, titelAusLink: ta, socialAnfrage: sa } = kiste.f;
+  const insta = 'https://www.instagram.com/p/DfRyne7A5Gc/?evlk=c2wzYXV0ZW44Nngy';
+  assert.ok(lg(insta)); assert.equal(ka(insta), 'Instagram'); assert.equal(ta(insta), 'instagram.com/p/DfRyne7A5Gc');
+  assert.ok(lg('https://www.linkedin.com/feed/update/urn:li:activity:1')); assert.ok(lg('https://müller-beispiel.de/seite#a'));
+  assert.ok(!lg('http://unsicher.de/x')); assert.ok(!lg('https://localhost/a')); assert.ok(!lg('javascript:alert(1)')); assert.ok(!lg('https://a b.de/x'));
+  const r = sa(timo, 'idee_speichern', { link: insta, titel: 'Erklärvideo', kanal: 'Instagram', warum_stark: 'Stil', status: 'neu' }, JETZT);
+  assert.equal(r.aktion, 'idee_speichern'); assert.equal(r.idee.link, insta); assert.equal(r.idee.kanal, 'Instagram');
+});

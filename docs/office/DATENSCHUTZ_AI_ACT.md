@@ -170,3 +170,29 @@ Bis diese Punkte geklärt sind, bekommt der PA-Assistent keinen Ausführer mit P
 | Mitschnitte nur mit Einwilligung | § 201 StGB; Art. 6, 13 DSGVO | ja | ✅ Standard ist Diktat ohne Mitschnitt; Mitschnitt nur über Häkchen mit Hinweis; Kennzeichnung in der Aktivität | Portal-Dialog, `aktivitaetBauen` | Kurze Teamregel schriftlich | Timo |
 | Zugriff nur Vertriebsrollen | Art. 25, 32 | ja | ✅ serverseitig (`diktatAnfrage`), Tests | `vertrieb/test/diktat.test.mjs` | – | – |
 
+
+## Ergänzung 24.11.2026: Diktat mit PC-Ton (Meetings, Workshops, Videos)
+
+Timos Entscheidung (24.11.2026): Im Diktat ist „PC-Ton mit aufnehmen“ **standardmäßig an** (Chrome/Edge am Computer); ein Haken schaltet es ab. Die Einwilligung holt das Team selbst ein, das Portal fragt nicht per Klick nach, sondern zeigt einen festen Hinweis. Damit gilt die Zeile „Standard ist Diktat ohne Mitschnitt“ oben für diesen Weg nicht mehr.
+
+| Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | Offener Punkt | Verantwortlich |
+|---|---|---|---|---|---|---|
+| Mitschnitt von Meetings nur mit Einwilligung aller | § 201 StGB; Art. 6, 13 DSGVO | ja | 🔶 Team fragt selbst; Hinweis im Portal („Mitschnitte nur mit Einverständnis aller; YouTube und Workshops nur intern“); Aktivität gekennzeichnet „Mitschnitt mit Computerton“; Balken „PC“ zeigt sichtbar, dass Ton aufgenommen wird | `docs/team/index.html` (`diktatBox`), `aktivitaetBauen` | Teamregel schriftlich: vor jedem Meeting ansagen und Zustimmung einholen, sonst Haken aus | Timo |
+| Inhalte Dritter (YouTube, Workshops) | UrhG §§ 44a, 53 | ja | 🔶 nur Hinweis: interner Gebrauch, nicht weitergeben | Portal-Hinweis | – | Team |
+| Drittlandtransfer (OpenAI) | Art. 44 ff. | ja | wie oben (⬜): Meeting-Mitschnitte enthalten mehr Stimmen Dritter als ein Diktat | – | OpenAI-DPA/EU-Projekt vor breitem Einsatz klären | Timo |
+| Keine Speicherung von Audio | Art. 5 | ja | ✅ unverändert: Stücke (je ca. 4 Min.) werden nur durchgereicht, das Bild der Bildschirmfreigabe wird nie aufgenommen | `vertrieb/lib/diktat.js` | wie oben (`EXECUTIONS_DATA_MAX_AGE`) | Timo |
+
+Keine Rechtsberatung; Einordnung als Arbeitshilfe.
+
+## Ergänzung 24.11.2026 (2): Ablage aller Diktate und Haken „KI darf lesen“
+
+Timos Wunsch (24.11.2026): Alle Aufnahmen erscheinen unter „Letzte Diktate“, der ganze Text ist abrufbar, und die KI darf eine Aufnahme lesen, wenn der Haken gesetzt ist.
+
+| Anforderung | Quelle/Artikel | Anwendbarkeit | Umsetzung | Nachweis | Offener Punkt | Verantwortlich |
+|---|---|---|---|---|---|---|
+| Speicherung von Gesprächsinhalten | Art. 5 Abs. 1 lit. c, e; Art. 6 | ja | 🔶 Text (bereinigt + roh) und Zusammenfassung in Supabase `team_diktate`, **kein Audio**; nur die aufnehmende Person sieht ihre Aufnahmen (auch Admins nicht fremde) | `supabase/team_diktate.sql`, `diktatDbAnfrage` (Filter mitglied_id), Tests | Löschfrist festlegen (Vorschlag: nach 12 Monaten automatisch leeren) | Timo |
+| Löschen auf Wunsch | Art. 17 | ja | ✅ „Löschen“ im Portal leert Text, Rohtranskript, Zusammenfassung sofort; Zeile bleibt nur als Markierung | `diktatDbAnfrage` (loeschen), Browsertest | In Twenty gespeicherte Aktivität separat löschen | Team |
+| KI-Zugriff nur mit Freigabe | Art. 5, 25 | ja | ✅ Standard aus; Haken „KI darf lesen“ je Aufnahme (vor der Aufnahme oder später in der Liste); KI liest nur die Sicht `team_diktate_ki` (service_role) | `supabase/team_diktate.sql` | Welche KI die Sicht nutzt, festlegen | Timo |
+| Twenty-Notizen über 50.000 Zeichen | – | ja | ✅ gekürzt mit Hinweis, ganzer Text bleibt in der Ablage | `twentyText` im Portal | – | – |
+
+Keine Rechtsberatung; Einordnung als Arbeitshilfe.

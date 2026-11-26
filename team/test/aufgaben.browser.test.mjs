@@ -12,7 +12,7 @@ import { TOKENS } from '../../office/dev/testdaten.mjs';
 
 const SHOTS = join(REPO, 'team', 'screenshots');
 const DESKTOP = { width: 1440, height: 900 }, MOBIL = { width: 390, height: 844 };
-let S, B, fehler = [];
+let S, B, fehler = [], WA_MIT = [];
 
 function playwright() {
   const orte = [process.cwd() + '/'];
@@ -41,6 +41,8 @@ function anpassen(d) {
   Object.assign(a('a_w1'), { prio: 7, bearbeiter: ['m_lillien', 'm_kurt', 'm_murat'] });
   Object.assign(a('a_k4'), { prio: 5 });
   a('a_s2').prio = 9;
+  // Automatische WhatsApp: diese Personen haben im Test eine (erfundene) Handynummer und die Einwilligung im Profil
+  for (const m of d.mitglieder) if (WA_MIT.includes(m.mitglied_id)) Object.assign(m, { whatsapp_ok: true, telefon: '+4915100000000' });
   for (let i = 0; i < 25; i++) d.verlauf.push({ aufgabe_id: 'a_k1', autor: i % 2 ? 'm_kurt' : 'm_timo', art: 'kommentar', text: 'Kommentar ' + i, erstellt: new Date(Date.now() - (25 - i) * 3600e3).toISOString() });
   return d;
 }
@@ -249,4 +251,45 @@ test('Mobil: Aufgabenfenster mit Bearbeitern und Prio passt in die Breite', asyn
   await shot(p, 'aufgabe-bearbeiter', MOBIL);
   await p.close();
   assert.deepEqual(fehler, []);
+});
+
+test('WhatsApp automatisch: Haken nennt alle mit Einwilligung, Handlink nur für die anderen, Abwählen bestellt ab', async t => {
+  if (!B) return t.skip();
+  WA_MIT = ['m_timo'];
+  try {
+    const p = await seite(DESKTOP, 'wa-auto');
+    p.inbox = [];
+    await p.route(/webhook\/team-inbox/, async r => { p.inbox.push(JSON.parse(r.request().postData())); r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' }); });
+    await p.selectOption('#fp', '');
+    await p.click('#main .task[data-a="a_w1"]');
+    await p.waitForTimeout(300);
+    assert.equal(await p.locator('#a_wa_l').isVisible(), false, 'ohne neue Person kein Haken');
+    await p.selectOption('#a_badd', 'm_timo');
+    await p.selectOption('#a_badd', 'm_neu');
+    assert.equal(await p.locator('#a_wa_l').isVisible(), true);
+    assert.equal(await p.isChecked('#a_wa'), false, 'Haken ist nie vorausgewählt (Timo 23.11.2026)');
+    const zeile = await p.locator('#a_wa_t').innerText();
+    assert.match(zeile, /Timo \(Test\) per WhatsApp informieren \(Haken setzen/); assert.match(zeile, /Neu \(Test\) ohne WhatsApp-Einwilligung/);
+    await p.check('#a_wa');
+    await shot(p, 'aufgabe-whatsapp-haken', DESKTOP);
+    await p.click('#af [type=submit]');
+    await p.waitForTimeout(400);
+    assert.match(await p.locator('#dlgInner h2').innerText(), /^Aufgabe an Neu \(Test\) übergeben$/, 'Handweg nur für die Person ohne WhatsApp');
+    assert.match(await p.locator('#dlgInner').innerText(), /Timo \(Test\) bekommt in etwa einer Minute automatisch eine WhatsApp/);
+    assert.equal(await p.locator('#dlgInner a.btn.wa').count(), 0, 'kein zusätzlicher WhatsApp-Link (Timo bekommt sie automatisch, Neu hat keine Nummer)');
+    assert.deepEqual(p.inbox, [], 'Haken gesetzt: nichts abbestellt');
+    await shot(p, 'aufgabe-whatsapp-gespeichert', DESKTOP);
+    await p.click('#z_x');
+    // Zweiter Fall: nur Timo neu, Haken nicht gesetzt → Abbestellung, kein Dialog
+    await p.click('#main .task[data-a="a_k4"]');
+    await p.waitForTimeout(300);
+    await p.selectOption('#a_badd', 'm_timo');
+    assert.equal(await p.isChecked('#a_wa'), false);
+    await p.click('#af [type=submit]');
+    await p.waitForTimeout(400);
+    assert.equal(await p.locator('#dlg').evaluate(d => d.open), false, 'Dialog geschlossen');
+    assert.deepEqual(p.inbox.map(x => [x.aktion, x.daten.aufgabe_id]), [['benachrichtigung_aus', 'a_k4']]);
+    await p.close();
+    assert.deepEqual(fehler, []);
+  } finally { WA_MIT = []; }
 });

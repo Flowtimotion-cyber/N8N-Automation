@@ -1,6 +1,7 @@
 // KI Office: Ansichten. HTML per String, jeder Datenwert durch esc().
 import { $, $$, esc, toast, fmtD, fmtDT, relativ, ueberfaellig, farbe, chip, kpi, kurz, opt, md } from './util.js';
 import { api, neuerSchluessel, PORTAL, ls } from './api.js';
+import { runKostenGemeldet, runDauerMin } from './kennzahlen.js';
 import { RAEUME, AKTIVE_RUN_STATUS, PROBLEM_RUN_STATUS, mitglied, agentReg, projektVon, projektById, runVon, ereignisseVon, artefakteVon, freigabenVon, letzteAktivitaetRun, raumVon, projektStand, agentZustand, ZUSTAND_TEXT, ZUSTAND_FARBE, verbrauchText, istOrchestrierer, kinderVon, elternVon, delegierteVon, istStartFreigabe, wartendeStarts, darfEntscheiden, startHinweis, KOSTENSTUFE_ANZEIGE } from './modell.js';
 
 export const F = Object.assign({ q: '', raum: '', zust: '', status: 'aktiv', zeitraum: 'alle', ansicht: 'liste', runStatus: '' }, JSON.parse(ls.get('ko-filter') || '{}'));
@@ -119,7 +120,7 @@ export function vAgenten(ctx) {
   const D = ctx.D; const A = (D.agenten || []).slice();
   const zust = new Map(A.map(a => [a.agent_id, agentZustand(D, a)]));
   const alleRuns = D.runs || [];
-  $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>KI Office: Agenten</h1><p class="sub">Wer welche Rolle hat, mit welchem Modell und welchen Werkzeugen, und was tatsächlich ausgeführt wurde. <a href="#/tab/buero">Ins virtuelle Büro →</a></p></div>' + (istMensch(D) ? '<button class="btn" id="neuAuftrag">+ Auftrag an Agent</button>' : '') + '</div>' +
+  $('#main').innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h1>KI Office: Agenten</h1><p class="sub">Wer welche Rolle hat, mit welchem Modell und welchen Werkzeugen, und was tatsächlich ausgeführt wurde. <a href="#/tab/buero">Zum Kontrollraum →</a></p></div>' + (istMensch(D) ? '<button class="btn" id="neuAuftrag">+ Auftrag an Agent</button>' : '') + '</div>' +
     '<div class="kpis">' + kpi(A.filter(a => a.aktiv !== false).length, 'aktive Agenten') + kpi(alleRuns.filter(r => AKTIVE_RUN_STATUS.includes(r.status)).length, 'laufende Aufträge') + kpi(alleRuns.filter(r => r.status === 'abgeschlossen').length, 'technisch abgeschlossen') + kpi(alleRuns.filter(r => r.abgenommen === true).length, 'fachlich abgenommen') + kpi(alleRuns.filter(r => PROBLEM_RUN_STATUS.includes(r.status)).length, 'fehlgeschlagen / veraltet', alleRuns.some(r => PROBLEM_RUN_STATUS.includes(r.status))) + '</div>' +
     (A.length ? RAEUME.map(raum => { const R = A.filter(a => a.raum === raum); return R.length ? '<h2 style="margin-top:18px"><a href="#/raum/' + esc(raum) + '" style="color:inherit;text-decoration:none">' + esc(raum) + '</a></h2><div class="grid">' + R.map(a => agentKarte(D, a, zust.get(a.agent_id))).join('') + '</div>' : ''; }).join('') : '<div class="card">' + leer('Noch keine Agenten in der Registry. Timo legt sie über die Office-API (agent_speichern) oder supabase/team_office.sql an.') + '</div>') +
     '<div class="card" style="margin-top:18px"><h2>Nur dokumentiert: Chat-Assistent im Kurs</h2><p class="small muted">Der Setup-Assistent der Kursseite läuft mit <b>gpt-5-mini</b> im n8n-Workflow TJ5E1KT5MvzxvoD9 und ist kein Teil des KI Office. Er wird nicht geändert, nur hier aufgeführt, damit alle KI-Anwendungen an einer Stelle stehen.</p></div>' +
@@ -141,7 +142,7 @@ export function vAgent(ctx, id) {
   if (!a) { $('#main').innerHTML = '<p class="small"><a href="#/tab/agenten">← Agenten</a></p><div class="card">' + leer('Diesen Agenten gibt es nicht.') + '</div>'; return; }
   const z = agentZustand(D, a);
   const R = z.runs.filter(r => !F.runStatus || r.status === F.runStatus).sort((x, y) => String(letzteAktivitaetRun(D, y)).localeCompare(String(letzteAktivitaetRun(D, x))));
-  $('#main').innerHTML = '<p class="small"><a href="#/tab/agenten">← Agenten</a> · <a href="#/tab/buero">Büro</a></p>' +
+  $('#main').innerHTML = '<p class="small"><a href="#/tab/agenten">← Agenten</a> · <a href="#/tab/buero">Kontrollraum</a></p>' +
     '<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><span class="av ki" style="width:56px;height:56px;font-size:28px">🤖</span><div style="flex:1;min-width:200px"><h1 style="margin:0">' + esc(a.name) + ' <span class="chip ki" style="vertical-align:middle">KI-Agent</span></h1><p class="sub" style="margin:2px 0 0">' + esc(a.rolle || '') + ' · Raum ' + esc(a.raum) + ' · Zustand: ' + esc(ZUSTAND_TEXT[z.zustand]) + '</p></div><div style="display:flex;gap:6px;flex-wrap:wrap">' + (a.mitglied_id ? '<a class="btn sec" href="' + PORTAL + '#/agent/' + esc(a.mitglied_id) + '">Akte im Portal ↗</a>' : '') + (istMensch(D) && a.aktiv !== false ? '<button class="btn" id="neuAuftrag">+ Auftrag für ' + esc(a.name) + '</button>' : '') + '</div></div>' +
     '<div class="grid">' + agentKarte(D, a, z) + '<div class="card" style="margin:0"><h2>Zusammenfassung der Arbeit</h2>' + (z.runs.length ? '<dl class="kv"><dt>Ausführungen</dt><dd>' + z.runs.length + '</dd><dt>Technisch abgeschlossen</dt><dd>' + (z.zaehler.abgeschlossen || 0) + '</dd><dt>Fachlich abgenommen</dt><dd>' + z.runs.filter(r => r.abgenommen === true).length + ' <span class="quelle">(Entscheidung von Menschen)</span></dd><dt>Fehlgeschlagen</dt><dd>' + (z.zaehler.fehlgeschlagen || 0) + '</dd><dt>Unbekannt / veraltet</dt><dd>' + (z.zaehler.unbekannt || 0) + '</dd><dt>Abgebrochen</dt><dd>' + (z.zaehler.abgebrochen || 0) + '</dd><dt>Verbrauch</dt><dd>' + esc(verbrauchSumme(z.runs)) + '</dd></dl>' : leer('Noch keine Ausführungen.')) + '</div></div>' +
     '<div class="card" style="margin-top:14px"><div class="tools"><h2 style="margin:0;flex:1">Ausführungen</h2><select id="runStatus" aria-label="Status filtern"><option value="">Alle Zustände</option>' + opt(Object.keys(D.status_text || {}), F.runStatus, v => D.status_text[v]) + '</select></div>' + (R.length ? runBaum(D, R.concat(istOrchestrierer(a) ? delegierteVon(D, a.agent_id).filter(k => !F.runStatus || k.status === F.runStatus) : [])) : leer(z.runs.length ? 'Keine Ausführung in diesem Zustand.' : 'Noch keine Ausführungen für ' + a.name + '.')) + '</div>';
@@ -175,6 +176,7 @@ export function vRun(ctx, id) {
   $('#main').innerHTML = '<p class="small"><a href="#/agent/' + esc(r.agent_id) + '">← ' + esc(reg ? reg.name : r.agent_id) + '</a>' + (p ? ' · <a href="#/projekt/' + esc(p.projekt_id) + '">' + esc(p.name) + '</a>' : '') + brotkrume + '</p>' +
     '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:260px"><h1 style="font-size:22px">' + esc(r.auftrag) + '</h1><div class="meta">' + stChip(D, r.status) + (r.abgenommen === true ? chip('fachlich abgenommen', 'fs-erteilt') : r.abgenommen === false ? chip('fachlich zurückgewiesen', 'fs-abgelehnt') : r.status === 'abgeschlossen' ? chip('fachliche Abnahme offen', 'fs-offen') : '') + chip('Versuch ' + (r.versuche || 1) + ' von ' + (r.max_versuche || '?')) + (K.length ? chip('Team: ' + K.length + ' Teilaufträge' + (offeneKinder ? ', ' + offeneKinder + ' offen' : ''), 'team') : '') + (r.eltern_run_id ? chip('Teilauftrag', 'team') : '') + (r.team_id ? chip('Team ' + kurz(r.team_id, 24), 'team', 'team_id: ' + r.team_id) : '') + '<span class="hash">' + esc(r.run_id) + '</span></div></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap" id="runAktionen"></div></div>' +
+    runKennzahlen(r, E, Art) +
     (r.status === 'unbekannt' ? '<div class="note warn" style="margin:10px 0">Dieser Run gilt als <b>unbekannt / veraltet</b>: ' + esc(r.grund || 'Timeout.') + ' Eine später eintreffende Rückmeldung wird protokolliert, macht den Run aber nicht nachträglich erfolgreich.</div>' : '') +
     (wartetAufStartFreigabe ? (admin ? '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf deine Freigabe.</b> ' + name(D, r.auftraggeber) + ' hat diesen Auftrag angelegt. Er startet erst, wenn du ihn freigibst. Die Entscheidung triffst du unten bei „Freigaben“.</div>' : '<div class="note warn" id="startHinweis" style="margin:10px 0"><b>Wartet auf Timo.</b> Dein Auftrag ist angelegt, der Agent startet aber erst, wenn Timo ihn freigibt. Du musst nichts tun.</div>') : '') +
     (r.status === 'fehlgeschlagen' ? '<div class="note warn" style="margin:10px 0"><b>Fehler:</b> ' + esc(r.fehler || 'ohne Beschreibung') + '</div>' : '') +
@@ -196,6 +198,21 @@ export function vRun(ctx, id) {
   }
   $$('[data-freigabe]').forEach(b => b.onclick = () => freigabeDialog(ctx, b.dataset.freigabe, b.dataset.entscheidung));
 }
+/** Kennzahlenzeile über der Run-Zeitleiste: Kosten (nur gemeldet, sonst „unbekannt“), Dauer, Schritte, Ergebnisse, fachliche Prüfung. */
+function runKennzahlen(r, E, Art) {
+  const k = runKostenGemeldet(r); const d = runDauerMin(r);
+  const laeuft = r.gestartet && !r.beendet ? Math.max(0, Math.round((Date.now() - new Date(r.gestartet).getTime()) / 60000)) : null;
+  const dauer = d != null ? (d < 1 ? '< 1 Min' : Math.round(d) + ' Min') : laeuft != null ? 'seit ' + laeuft + ' Min' : '–';
+  const pruef = r.abgenommen === true ? 'abgenommen' : r.abgenommen === false ? 'zurückgewiesen' : r.status === 'abgeschlossen' ? 'offen' : '–';
+  const zelle = (wert, text) => '<div><b>' + esc(wert) + '</b><span>' + text + '</span></div>';
+  return '<div class="run-kz" id="runKz">' +
+    zelle(k ? euroKurz(k.eur) : 'unbekannt', k ? 'Kosten, ' + esc(k.art) + (r.budget_eur != null ? ' · Limit ' + esc(euroKurz(r.budget_eur)) : '') : 'Kosten: der Ausführer hat keinen Verbrauch gemeldet' + (r.budget_eur != null ? ' · Limit ' + esc(euroKurz(r.budget_eur)) : '')) +
+    zelle(dauer, d != null ? 'Dauer von Start bis Ergebnis' : 'Dauer') +
+    zelle(String(E.filter(e => ['schritt', 'tool', 'quelle'].includes(e.art)).length), 'Schritte und Werkzeugaufrufe') +
+    zelle(String(Art.length), Art.length === 1 ? 'Ergebnis abgelegt' : 'Ergebnisse abgelegt') +
+    zelle(pruef, 'fachliche Prüfung durch einen Menschen') + '</div>';
+}
+const euroKurz = x => Number(x).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: Number(x) < 0.1 ? 3 : 2 });
 /** Kurzblock zu einer Startfreigabe: Agent, Kostenstufe, Auftraggeber (und der Auftragstext, wenn gewünscht). */
 function startDetails(D, f, r, mitText) {
   const reg = r ? agentReg(D, r.agent_id) : null;

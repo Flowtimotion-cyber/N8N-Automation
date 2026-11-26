@@ -6,7 +6,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { MSGS_NICHT_EINGERICHTET, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort } from '../lib/nachrichten.js';
+import vm from 'node:vm';
+import { MSGS_NICHT_EINGERICHTET, MSGS_BEARBEITEN_FEHLT, MSGS_TEXT_MAX, MSGS_EMPFAENGER_MAX, empfaengerLesen, msgsAnfrage, msgsAntwort } from '../lib/nachrichten.js';
 import { C_MsgsDbNachbildung, msgsAntwortMock } from '../dev/mock.mjs';
 import { serverStarten, post } from '../../office/test/hilfe.mjs';
 import { TOKENS } from '../../office/dev/testdaten.mjs';
@@ -128,15 +129,87 @@ test('n8n-Datei ist aktuell und enthält die getestete Logik wortgleich', () => 
 
 test('Portal und SQL passen zusammen', () => {
 	const html = lies('docs', 'team', 'index.html'), sql = lies('supabase', 'team_nachrichten.sql');
-	assert.match(html, /const MSGS_API = 'https:\/\/n8n\.hm-storage\.de\/webhook\/team-msgs';/);
+	// Adresse und Höchstlänge stehen zentral in docs/team/konfig.js; index.html liest sie dort
+	const konfig = vm.runInNewContext(lies('docs', 'team', 'konfig.js') + '\n;teamPortalKonfig()');
+	assert.match(html, /const MSGS_API = WH\.nachrichten\.url;/);
+	assert.equal(konfig.n8n.webhooks.nachrichten.url, 'https://n8n.hm-storage.de/webhook/team-msgs');
 	assert.match(html, /class C_MsgsList_Global \{/); assert.match(html, /class C_MsgsList_User \{/);
 	assert.match(html, /const MsgsList_Global = C_MsgsList_Global\.instanz;/); assert.match(html, /const MsgsList_User = C_MsgsList_User\.instanz;/);
-	assert.ok(html.includes('const MSGS_TEXT_MAX = ' + MSGS_TEXT_MAX + ';'), 'gleiche Höchstlänge im Portal');
+	assert.match(html, /const MSGS_TEXT_MAX = KONFIG\.einstellungen\.nachrichten\.textMax;/);
+	assert.equal(konfig.einstellungen.nachrichten.textMax, MSGS_TEXT_MAX, 'gleiche Höchstlänge im Portal (konfig.js)');
 	assert.ok(html.includes('const MSGS_NICHT_EINGERICHTET = ' + JSON.stringify(MSGS_NICHT_EINGERICHTET).replace(/^"|"$/g, "'") + ';'), 'gleiche Meldung „nicht eingerichtet“ im Portal');
 	for (const fn of ['team_msgs_senden', 'team_msgs_laden', 'team_msgs_oeffnen', 'team_msgs_ungelesen']) {
 		assert.match(sql, new RegExp('create or replace function ' + fn + '\\('));
 		assert.match(sql, new RegExp('grant execute on function ' + fn + '\\(.*service_role'));
 	}
+});
+
+test('Bearbeiten: Form prüfen, nur der Absender, nur 24 Stunden, alte Fassung bleibt', () => {
+	// Form: ID, leer, zu lang; der Bearbeitende kommt aus dem Token
+	assert.equal(msgsAnfrage(kurt, 'bearbeiten', { msg_id: '<x>', text: 'a' }).code, 400);
+	assert.equal(msgsAnfrage(kurt, 'bearbeiten', { msg_id: 'msg_1', text: '  ' }).code, 400);
+	assert.equal(msgsAnfrage(kurt, 'bearbeiten', { msg_id: 'msg_1', text: 'x'.repeat(MSGS_TEXT_MAX + 1) }).code, 400);
+	assert.deepEqual(msgsAnfrage(kurt, 'bearbeiten', { msg_id: 'msg_1', text: 'neu\r\nzeile', p_mitglied: 'm_timo' }).body, { p_mitglied: 'm_kurt', p_msg_id: 'msg_1', p_text: 'neu\nzeile' });
+	assert.equal(msgsAnfrage(kurt, 'gesendet', { p_mitglied: 'm_timo' }).body.p_mitglied, 'm_kurt');
+
+	let jetzt = '2026-11-23T10:00:00.000Z';
+	const db = new C_MsgsDbNachbildung({ mitglieder: () => MITGLIEDER, jetzt: () => jetzt });
+	const rufe = (wer, aktion, daten) => msgsAntwortMock({ token: wer.token, aktion, daten }, MITGLIEDER, db);
+	const id = rufe(kurt, 'senden', { empfaenger: ['m_timo', 'm_lillien'], text: 'Treffen um 10' })[1].nachricht.msg_id;
+	assert.equal(db.msgs[0].bearbeitet, null);
+	// Gesendet: Kurt sieht seine Nachricht, Timo nicht
+	assert.deepEqual(rufe(kurt, 'gesendet')[1].nachrichten.map(m => m.msg_id), [id]);
+	assert.deepEqual(rufe(timo, 'gesendet')[1].nachrichten, []);
+	// Nur der Absender
+	const [c1, a1] = rufe(timo, 'bearbeiten', { msg_id: id, text: 'gefälscht' });
+	assert.equal(c1, 400); assert.match(a1.fehler, /nur, wer die Nachricht geschrieben hat/);
+	// Timo hat gelesen; Kurt bearbeitet: Text neu, „bearbeitet“ gesetzt, Lesestand bleibt, alte Fassung gespeichert
+	rufe(timo, 'oeffnen', { msg_id: id });
+	jetzt = '2026-11-23T10:05:00.000Z';
+	const [c2, a2] = rufe(kurt, 'bearbeiten', { msg_id: id, text: 'Treffen um 11' });
+	assert.equal(c2, 200); assert.equal(a2.nachricht.text, 'Treffen um 11'); assert.equal(a2.nachricht.bearbeitet, jetzt);
+	assert.deepEqual(db.fassungen.map(f => [f.quelle, f.nachricht, f.text]), [['posteingang', id, 'Treffen um 10']]);
+	const L = rufe(timo, 'laden')[1];
+	assert.equal(L.nachrichten[0].text, 'Treffen um 11'); assert.equal(L.nachrichten[0].bearbeitet, jetzt); assert.equal(L.liste[0].gelesen, true);
+	// Gleicher Text: nichts gespeichert
+	assert.equal(rufe(kurt, 'bearbeiten', { msg_id: id, text: 'Treffen um 11' })[1].unveraendert, true);
+	assert.equal(db.fassungen.length, 1);
+	// Nach 24 Stunden nicht mehr
+	jetzt = '2026-11-24T10:00:01.000Z';
+	const [c3, a3] = rufe(kurt, 'bearbeiten', { msg_id: id, text: 'zu spät' });
+	assert.equal(c3, 400); assert.match(a3.fehler, /24 Stunden/);
+	// Nachrichten des Portals (ohne Absender) kann niemand bearbeiten
+	const sys = db.senden({ p_absender: null, p_empfaenger: ['m_timo'], p_text: 'Hinweis' }).nachricht.msg_id;
+	assert.equal(rufe(timo, 'bearbeiten', { msg_id: sys, text: 'x' })[0], 400);
+});
+
+test('Bearbeiten ohne supabase/team_bearbeiten.sql: Posteingang läuft, Bearbeiten meldet verständlich', () => {
+	const db = new C_MsgsDbNachbildung({ mitglieder: () => MITGLIEDER });
+	db.bearbeitenEingerichtet = false;
+	const id = msgsAntwortMock({ token: kurt.token, aktion: 'senden', daten: { empfaenger: ['m_timo'], text: 'x' } }, MITGLIEDER, db)[1].nachricht.msg_id;
+	assert.deepEqual(msgsAntwortMock({ token: kurt.token, aktion: 'gesendet' }, MITGLIEDER, db), [200, { ok: true, vorhanden: false, nachrichten: [], testadapter: true }]);
+	const [c, a] = msgsAntwortMock({ token: kurt.token, aktion: 'bearbeiten', daten: { msg_id: id, text: 'y' } }, MITGLIEDER, db);
+	assert.equal(c, 503); assert.equal(a.fehler, MSGS_BEARBEITEN_FEHLT);
+	assert.match(lies('supabase', 'team_bearbeiten.sql'), /create or replace function team_msgs_bearbeiten\(/);
+});
+
+test('Deploy-Datei „bearbeiten“ (am 23.11.2026 eingespielt) ist in sich stimmig und enthält nur die zwei Code-Knoten je Workflow', async () => {
+	// Die Datei hält fest, was eingespielt wurde. Spätere Änderungen an der Logik bekommen eigene Deploy-Dateien
+	// (z. B. chat/n8n/deploy/reaktionen-deploy.json), darum hier kein Vergleich mit dem aktuellen Code, sondern mit den eigenen Prüfsummen.
+	const { createHash } = await import('node:crypto');
+	const datei = JSON.parse(lies('nachrichten', 'n8n', 'deploy', 'bearbeiten-deploy.json'));
+	for (const w of datei.workflows) for (const o of w.operations) {
+		const k = w.abgleich_23_11_2026.knoten.find(x => x.name === o.nodeName);
+		assert.equal(createHash('sha256').update(o.value, 'utf8').digest('hex'), k.sha256_neu, w.workflow + ' · ' + o.nodeName);
+	}
+	assert.deepEqual(datei.workflows.map(w => w.workflowId), ['0tUWBdqqBPtnlfAj', 'EjzNbDUU28ngwKQi']);
+	for (const w of datei.workflows) {
+		assert.match(w.versionName, /^Claude Code: /);
+		assert.deepEqual(w.operations.map(o => [o.type, o.nodeName, o.path]), [['setNodeParameter', 'Anfrage prüfen', '/jsCode'], ['setNodeParameter', 'Antwort bauen', '/jsCode']]);
+	}
+	assert.ok(datei.workflows[0].operations[0].value.includes("fn: 'team_msgs_bearbeiten'"));
+	assert.ok(datei.workflows[1].operations[0].value.includes("fn: 'team_chat_bearbeiten'"));
+	assert.doesNotMatch(JSON.stringify(datei), /service_role|eyJ[\w-]{20,}/, 'kein Schlüssel in der Datei');
 });
 
 // Weg über den Testserver (HTTP), wie ihn das Portal benutzt

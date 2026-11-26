@@ -565,3 +565,19 @@ Screenshots: `screenshots/*-portal-freigaben-admin.png` zeigen die Karte oben in
 
 **Ungetestet (kein Zugang):** echter Aufruf mit Audiodatei über den Webhook (Binärfeld-Name des Webhook-Knotens bei multipart, OpenAI-Transkription mit `gpt-4o-mini-transcribe`, `gpt-5-mini` mit `response_format: json_object`), Twenty-Notiz und das Anlegen von Kontakt/Verkaufschance über die echte Vertriebs-API (ob `speichern` die neue ID zurückgibt, ist unbekannt; das Portal sucht sonst per E-Mail/Name in der neu geladenen Liste), Mikrofon auf echten Handys (iOS Safari liefert `audio/mp4`, wird akzeptiert). Erster echter Test: SETUP.md, Abschnitt Diktat.
 
+
+## 32. Nachtrag 24.11.2026: KI Office 2.0, Paket 1 Kontrollraum (Branch `feature/ki-office-2`, KI-erstellt: Claude Code)
+
+`npm run test:office` (mit Playwright aus dem Hauptordner, `NODE_PATH`): **124 von 124 bestanden**, davor 115 auf `main` (Stand d6f7e2c).
+
+| Test | Was geprüft wird | Ergebnis |
+|---|---|---|
+| `unit.kennzahlen.test.mjs` (7 Tests, neu) | Kopie `docs/office/js/kennzahlen.js` ist aktuell; Kosten zählen nur, wenn gemeldet (ohne Meldung `null`, nie 0 €); Kennzahlen je Agent über 28 Tage (abgenommen, zurückgewiesen, Kosten je abgenommenem Ergebnis, Quote, Dauer, Trend in vier Wochenscheiben, anderer Agent und älteres Fenster zählen nicht); Trendrichtung; Guthaben-Stufen; Kontrollraum aus den Testdaten (Karten, stiller Agent, „Für dich“ für Admin, Teammitglied und Agent, Ticker in Ich-Form ohne Statuspfeile); feste Server-Texte → Sätze, freie Texte wörtlich | bestanden |
+| `browser.test.mjs` „Kontrollraum“ (Desktop 1280 und Mobil 390, neu) | Start ohne Hash landet im Kontrollraum; eine Karte je aktivem Agenten, Orchestrierer in der Zentrale; Karte zeigt Zustand, letztes Ergebnis, Kosten „unbekannt“ statt 0; stiller Agent mit rotem Rand; „Für dich“ mit Freigabe-Knöpfen öffnet den bekannten Dialog mit Hash; Ticker in Ich-Form, jede Zeile führt zum Run; 30-Sekunden-Hinweis solange ein Agent arbeitet; Thema dunkel als Standard, Knopf schaltet auf hell und merkt es sich; „Jetzt aktualisieren“; Klick auf die Karte öffnet den Agenten; Kennzahlenzeile auf der Run-Seite; Büro-Szene unter `#/tab/szene`; kompakte Einbettung (`nur=buero`) ohne Kopf und ohne „Für dich“; Agent sieht keinen „Für dich“-Block | bestanden |
+| bestehende Browsertests | Szene, Monitore und Sandbox-Prüfung laufen jetzt gegen `#/tab/szene`; alle übrigen Ansichten, Dialoge, Fehler- und Leerzustände, Portal-Register „KI Office“, Startfreigabe unverändert | bestanden, „keine JavaScript-Fehler in allen Ansichten“ ebenfalls |
+
+Zusätzlich im eingebauten Browser gesichtet: Kontrollraum, Projekte, Run-Seite, Büro-Szene, helles Thema, 375 px Breite ohne seitliches Scrollen, keine Konsolenfehler.
+
+Screenshots: `desktop-`/`mobil-kontrollraum.png`, `-kontrollraum-hell.png`, `-kontrollraum-eingebettet.png` neu; die übrigen Office-Ansichten und `portal-register-ki-office` im neuen Design neu erzeugt. Portal-Screenshots ohne Office-Bezug sind unverändert geblieben.
+
+**Nicht getestet:** die Live-Seite auf GitHub Pages (erst nach dem Merge), das Verhalten des 30-Sekunden-Takts über längere Zeit gegen das echte Supabase (Datenverkehr, BETRIEB.md), echte Agentenläufe mit Schritten in Ich-Form.

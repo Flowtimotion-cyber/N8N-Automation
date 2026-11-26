@@ -27,7 +27,8 @@
     "vertrieb:bauen": "node vertrieb/n8n/bauen-diktat.mjs",
     "team:bauen": "node team/n8n/bauen.mjs",
     "test:team": "node --test team/test/portal-api.test.mjs",
-    "test:team:pg": "node --test team/test/portal-api.pg.test.mjs"
+    "test:team:pg": "node --test team/test/portal-api.pg.test.mjs",
+    "test:chat": "node --test \"chat/test/*.test.mjs\""
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16"
