@@ -98,6 +98,9 @@ test('Eingebetteter Code läuft ohne URL und require, n8n-Datei ist aktuell', ()
 
 test('Portal: Adresse und Meldung passen zum Workflow', () => {
 	const html = readFileSync(new URL('../../docs/team/index.html', import.meta.url), 'utf8');
-	assert.match(html, /const HELFER_API = 'https:\/\/n8n\.hm-storage\.de\/webhook\/team-chat-helfer';/);
+	// Adressen stehen zentral in docs/team/konfig.js; index.html liest sie dort
+	assert.match(html, /const HELFER_API = WH\.chatHelfer\.url;/);
+	const konfig = vm.runInNewContext(readFileSync(new URL('../../docs/team/konfig.js', import.meta.url), 'utf8') + '\n;teamPortalKonfig()');
+	assert.equal(konfig.n8n.webhooks.chatHelfer.url, 'https://n8n.hm-storage.de/webhook/team-chat-helfer');
 	assert.match(html, /id="ch_kik"/); assert.match(html, /id="ch_mic"/);
 });
