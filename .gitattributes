@@ -6,3 +6,9 @@
 *.md text eol=lf
 *.html text eol=lf
 *.css text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+# Windows-Stapeldateien brauchen CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
