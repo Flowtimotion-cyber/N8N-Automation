@@ -1,0 +1,45 @@
+# Einheitliche Formatierung für alle Editoren (https://editorconfig.org).
+# Visual Studio und JetBrains lesen diese Datei von selbst, VS Code mit der Erweiterung „EditorConfig for VS Code“.
+# Claude Code und andere KI-Werkzeuge lesen sie nicht von selbst; ihnen muss man die Regel eigens sagen (z. B. in einer CLAUDE.md).
+#
+# Konvention: Quelltext wird mit Tabs eingerückt, ein Tab entspricht 4 Leerzeichen. Das gilt auch für umgebrochene
+# Zeilen; Leerzeichen nur für die Ausrichtung mitten in der Zeile. Ausnahmen unten, wo das Format es verlangt.
+# Bestehende Dateien ändert diese Datei nicht; sie gilt für das, was neu geschrieben wird.
+# Zeilenenden: .gitattributes sorgt beim Auschecken für LF; hier dasselbe für den Editor.
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = tab
+indent_size = 4
+tab_width = 4
+
+[*.{js,mjs,cjs,json,sql,html,css,md,sh,yml,yaml}]
+end_of_line = lf
+
+# npm schreibt package.json mit 2 Leerzeichen; so bleibt der Diff nach „npm install“ klein
+[{package.json,package-lock.json}]
+indent_style = space
+indent_size = 2
+
+# Python: Leerzeichen (PEP 8), wie in allen .py-Dateien des Repos
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Markdown: Einrückung mit Leerzeichen, sonst werden Listen und Code-Blöcke falsch dargestellt;
+# zwei Leerzeichen am Zeilenende sind ein Zeilenumbruch und dürfen nicht entfernt werden
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# YAML erlaubt keine Tabs
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Windows-Stapeldateien brauchen CRLF
+[*.{bat,cmd}]
+end_of_line = crlf
