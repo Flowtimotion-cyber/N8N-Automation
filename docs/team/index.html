@@ -624,7 +624,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 					? 'ist auf dem Server nicht eingerichtet oder nicht veröffentlicht.'
 					: 'antwortet nicht. Mögliche Ursachen: Er fehlt auf dem Server oder ist nicht veröffentlicht, er lässt diese Adresse (' + esc(location.origin) + ') nicht zu, oder er bricht mit einem Fehler ab.') +
 				' Bitte Timo Bescheid geben.');
-			if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
+			if (!still) $('#app').innerHTML = '<div class="center card"><h2>Keine Verbindung</h2><p class="muted">' + esc(C_Meldung.textVon(e)) + '</p><button class="btn" onclick="location.reload()">Erneut versuchen</button></div>';
 			else C_Meldung.fehler(e);
 		}
 	}
@@ -1041,7 +1041,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				if (!nochHier()) return;
 				$('#msgs_info').textContent = L.length + (L.length === 1 ? ' gesendete Nachricht' : ' gesendete Nachrichten') + ' · bearbeiten bis 24 Stunden nach dem Senden';
 				$('#msgs_box').innerHTML = this.gesendetHtml(); binden();
-			}).catch(e => { if (nochHier()) $('#msgs_info').textContent = e.message; });
+			}).catch(e => { if (nochHier()) $('#msgs_info').textContent = C_Meldung.textVon(e); });
 		}
 		// Eine eigene gesendete Nachricht ansehen: wer sie wann zuerst geöffnet hat, und „Bearbeiten“
 		eigeneDialog(id) {
@@ -1862,7 +1862,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function konfliktZeigen(e, nochmal, textFeld, hinweis) {
 		const alt = $('#konfl'); if (alt) alt.remove();
 		const box = document.createElement('div'); box.className = 'note warn'; box.id = 'konfl'; box.style.margin = '0 0 12px';
-		box.innerHTML = '<b>Achtung:</b> ' + esc(e.message) + ' Deine Fassung ist noch hier im Fenster. ' + esc(hinweis) +
+		box.innerHTML = '<b>Achtung:</b> ' + esc(C_Meldung.textVon(e)) + ' Deine Fassung ist noch hier im Fenster. ' + esc(hinweis) +
 			'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn" id="k_ja">Meine Fassung trotzdem speichern</button>' +
 			'<button type="button" class="btn sec" id="k_kopie">Meinen Text kopieren</button><button type="button" class="btn ghost" id="k_neu">Abbrechen und neu laden</button></div>';
 		const knoepfe = $('#dlg .dlgbtns'); knoepfe.parentNode.insertBefore(box, knoepfe);
@@ -1889,7 +1889,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				try { await api('papierkorb_wiederherstellen', { eintrag_id: b.dataset.wh }); toast('Wiederhergestellt'); await laden(true); papierkorbDialog(); }
 				catch (e) { C_Meldung.fehler(e); b.disabled = false; }
 			});
-		}).catch(e => { $('#pk_info').textContent = e.message; });
+		}).catch(e => { $('#pk_info').textContent = C_Meldung.textVon(e); });
 	}
 	// Notiz-Versionen: Vor jeder Änderung sichert die Datenbank die alte Fassung
 	function versionenZeigen(n) {
@@ -1905,7 +1905,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				if (!confirm('Den Text im Editor durch diese Fassung ersetzen? Gespeichert wird erst mit „Speichern“.')) return;
 				const ta = $('#n_i'); ta.value = V[b.dataset.vu].inhalt || ''; ta.dispatchEvent(new Event('input', { bubbles: true })); toast('Fassung übernommen. Zum Behalten auf „Speichern“ klicken.');
 			});
-		}).catch(e => { box.innerHTML = '<p class="small muted">' + esc(e.message) + '</p>'; });
+		}).catch(e => { box.innerHTML = '<p class="small muted">' + esc(C_Meldung.textVon(e)) + '</p>'; });
 	}
 	document.addEventListener('input', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
 	document.addEventListener('change', ev => { if (ev.target.closest && ev.target.closest('#dlg form')) dlgGeaendert = true; }, true);
@@ -2042,7 +2042,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	async function chatLaden(still) {
 		if (CH.laedt) return; CH.laedt = true;
 		try { const r = await chatApi('liste'); CH.liste = r.chats || []; CH.vorhanden = r.vorhanden !== false; CH.fehler = ''; }
-		catch (e) { CH.fehler = e.message; if (!CH.liste) CH.liste = []; if (!still && tab === 'chat') C_Meldung.fehler(e); }
+		catch (e) { CH.fehler = C_Meldung.textVon(e); if (!CH.liste) CH.liste = []; if (!still && tab === 'chat') C_Meldung.fehler(e); }
 		finally { CH.laedt = false; }
 		chTabZahl();
 		if (tab === 'chat') chListeZeigen();
@@ -2096,7 +2096,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			chTabZahl();
 			if (CH.offen === id && (neu.length || geaendert || sofort)) { chChatZeigen(); chListeZeigen(); }
 		} catch (e) {
-			v.fehler = e.message;
+			v.fehler = C_Meldung.textVon(e);
 			if (e.status === 400 && CH.offen === id) { CH.offen = null; C_Meldung.fehler(e); chatLaden(true); }
 			if (CH.offen === id) chChatZeigen();
 		}
@@ -2596,7 +2596,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	const waBraucht = g => g.status !== 'erledigt' && g.wartet > 0 && (g.modus === 'mensch');
 	async function waLaden(still) {
 		WA.laedt = true; if (!still) WA.fehler = '';
-		try { WA.liste = (await waApi('liste')).gespraeche || []; WA.fehler = ''; } catch (e) { if (!still) WA.fehler = e.message; }
+		try { WA.liste = (await waApi('liste')).gespraeche || []; WA.fehler = ''; } catch (e) { if (!still) WA.fehler = C_Meldung.textVon(e); }
 		WA.laedt = false; if (tab === 'whatsapp') waListeZeigen();
 	}
 	async function waOeffnen(id, still) {
@@ -2801,7 +2801,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		d.innerHTML = '<p class="small muted">Transkript wird geladen …</p>'; if (!d.open) d.showModal();
 		let g;
 		try { g = q && q.diktat_id ? (await dkApi('lesen', { diktat_id: q.diktat_id })).diktat : Object.assign({ titel: 'Aufnahme (nicht gespeichert)', erstellt: new Date().toISOString() }, q || {}); }
-		catch (e) { d.innerHTML = '<p>' + esc(e.message) + '</p><div class="reihe"><button class="btn sec" id="dkf_zu">Schließen</button></div>'; $('#dkf_zu').onclick = () => d.close(); return; }
+		catch (e) { d.innerHTML = '<p>' + esc(C_Meldung.textVon(e)) + '</p><div class="reihe"><button class="btn sec" id="dkf_zu">Schließen</button></div>'; $('#dkf_zu').onclick = () => d.close(); return; }
 		const gespeichert = !!g.diktat_id, min = Math.round((Number(g.dauer_sek) || 0) / 60);
 		let ansicht = 'text';
 		const inhalt = () => ansicht === 'roh' ? (g.roh || '(kein Rohtranskript)') : ansicht === 'zus' ? dkfZus(g) : (g.text || '');
@@ -2877,7 +2877,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	}
 	async function vLaden() {
 		VT.laedt = true; VT.fehler = '';
-		try { VT.d = await vApi('liste'); } catch (e) { VT.fehler = e.message; }
+		try { VT.d = await vApi('liste'); } catch (e) { VT.fehler = C_Meldung.textVon(e); }
 		VT.laedt = false; if (tab === 'vertrieb') vVertrieb();
 	}
 	const vMitglied = id => ((VT.d && VT.d.mitglieder) || []).find(m => m.id === id);
@@ -3031,7 +3031,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				const N = r.notizen || [];
 				$('#v_notizen').innerHTML = (r.verlauf ? '<details class="vnotiz"><summary class="small"><b>Instagram-Verlauf</b> (vom Setter-Bot)</summary><div class="small md" style="margin-top:6px">' + md(r.verlauf) + '</div></details>' : '') +
 					(N.length ? N.map(n => '<div class="vnotiz"><div class="kopf">' + esc(n.titel || 'Notiz') + ' · ' + fmtDT(n.erstellt) + '</div><div class="small md">' + md(n.text) + '</div></div>').join('') : '<p class="small muted">Noch keine Aktivitäten.</p>');
-			} catch (e) { $('#v_notizen').innerHTML = '<p class="small muted">' + esc(e.message) + '</p>'; }
+			} catch (e) { $('#v_notizen').innerHTML = '<p class="small muted">' + esc(C_Meldung.textVon(e)) + '</p>'; }
 		}
 		notizenLaden();
 		diktatAnbinden(c, notizenLaden);
@@ -3290,7 +3290,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				s.zustand = 'laeuft'; fortschritt();
 				for (let versuch = 1; versuch <= 2; versuch++) {
 					try { const e = await stueckSenden(s); s.text = e.text; s.roh = e.roh; s.zustand = 'fertig'; break; }
-					catch (e) { s.zustand = 'fehler'; s.fehler = e.message; }
+					catch (e) { s.zustand = 'fehler'; s.fehler = C_Meldung.textVon(e); }
 				}
 				fortschritt();
 			}
@@ -3378,12 +3378,12 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		dkZiel();
 		diktatAnbinden(null, () => {}, { onErgebnis: j => { DK.ergebnis = j; dkZiel(); $('#dk_ziel').scrollIntoView({ block: 'nearest' }); dkListeLaden(); }, onVerwerfen: () => { DK.ergebnis = null; dkZiel(); } });
 		dkListeAnbinden(); dkListeLaden();
-		if (!VT.d && !DK.laedt) { DK.laedt = true; vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DK.laedt = false; if (tab === 'diktat') dkZiel(); }); }
+		if (!VT.d && !DK.laedt) { DK.laedt = true; vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = C_Meldung.textVon(e); }).finally(() => { DK.laedt = false; if (tab === 'diktat') dkZiel(); }); }
 	}
 	// „Letzte Diktate“: alle eigenen Aufnahmen aus der Ablage (Supabase), sonst die letzten aus diesem Browser
 	function dkListeLaden() {
 		if (DK.listeLaedt) return; DK.listeLaedt = true;
-		dkApi('liste').then(j => { DK.liste = j.diktate || []; DK.listeFehler = ''; }).catch(e => { DK.listeFehler = e.message; }).finally(() => { DK.listeLaedt = false; dkListeZeigen(); });
+		dkApi('liste').then(j => { DK.liste = j.diktate || []; DK.listeFehler = ''; }).catch(e => { DK.listeFehler = C_Meldung.textVon(e); }).finally(() => { DK.listeLaedt = false; dkListeZeigen(); });
 	}
 	function dkListeZeigen() {
 		const k = $('#dk_liste'); if (!k) return;
@@ -3551,7 +3551,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 	function dashNachladen() {
 		if (DB.tab === 'vertrieb' && darfVertrieb() && !VT.d && !VT.laedt && !DB.vLaedt) {
 			DB.vLaedt = true;
-			vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = e.message; }).finally(() => { DB.vLaedt = false; if (tab === 'start' && DB.tab === 'vertrieb' && $('#dbody')) dashSetzen(); });
+			vApi('liste').then(d => { VT.d = d; }).catch(e => { VT.fehler = C_Meldung.textVon(e); }).finally(() => { DB.vLaedt = false; if (tab === 'start' && DB.tab === 'vertrieb' && $('#dbody')) dashSetzen(); });
 		}
 	}
 	function dashSetzen() {
@@ -3639,7 +3639,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			let j = null; try { j = await r.json(); } catch (e) {}
 			if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Webseiten-Statistik ist gerade nicht erreichbar.');
 			WEB.d = j;
-		} catch (e) { WEB.fehler = e.message; }
+		} catch (e) { WEB.fehler = C_Meldung.textVon(e); }
 		WEB.laedt = false;
 		if (tab === 'start' && DB.tab === 'web' && $('#dbody')) dashSetzen();
 	}
@@ -3697,7 +3697,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Die Kennzahlen der ChatGPT-Werbung sind gerade nicht erreichbar.');
 			ADS.d[tage] = { geholt: Date.now(), daten: j };
 			if (ADS.tage === tage) ADS.fehler = '';
-		} catch (e) { if (ADS.tage === tage) ADS.fehler = e.message; }
+		} catch (e) { if (ADS.tage === tage) ADS.fehler = C_Meldung.textVon(e); }
 		if (ADS.laedt === tage) ADS.laedt = 0;
 		if (tab === 'werbung' && ADS.tage === tage) adsZeigen();
 	}
@@ -3763,7 +3763,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 			let j = null; try { j = await r.json(); } catch (e) {}
 			if (!r.ok || !j || j.ok === false) throw new Error((j && j.fehler) || 'Das Klassenbuch ist gerade nicht erreichbar.');
 			KB.d = j;
-		} catch (e) { KB.fehler = e.message; }
+		} catch (e) { KB.fehler = C_Meldung.textVon(e); }
 		KB.laedt = false;
 		if (tab === 'kurs' && $('#kbBox')) kbZeigen();
 		if (tab === 'start' && DB.tab === 'kurs' && $('#dbody')) dashSetzen();
@@ -4578,7 +4578,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		$('#id_neu').onclick = () => ideeDialog(null);
 		$('#id_st').onchange = e => { SF.status = e.target.value; ls.set('mt-ideenstatus', SF.status); socialListen(); };
 		// Ohne Social-Daten: Grund in beiden Listen (rot) und als Fehlermeldung, sonst sieht es nur nach einer leeren Liste aus
-		socialLaden().then(d => { SD = d; if (tab === 'social') socialListen(); }).catch(e => { if (tab !== 'social') return; const h = '<p class="empty small" style="color:#8a1c1c">⚠ Social-Daten nicht geladen: ' + esc(e.message) + '</p>'; if ($('#upListe')) $('#upListe').innerHTML = h; if ($('#idListe')) $('#idListe').innerHTML = h; C_Meldung.fehler(e, 'Social-Daten nicht geladen'); });
+		socialLaden().then(d => { SD = d; if (tab === 'social') socialListen(); }).catch(e => { if (tab !== 'social') return; const h = '<p class="empty small" style="color:#8a1c1c">⚠ Social-Daten nicht geladen: ' + esc(C_Meldung.textVon(e)) + '</p>'; if ($('#upListe')) $('#upListe').innerHTML = h; if ($('#idListe')) $('#idListe').innerHTML = h; C_Meldung.fehler(e, 'Social-Daten nicht geladen'); });
 	}
 	// Rechte wie in n8n (C_Social.uploadAuftraege): ansehen = eigenes Video, Admin oder im Team freigegeben; freigeben nur das eigene;
 	// löschen = eigenes Video oder Admin. n8n prüft noch einmal, die Knöpfe sind nur die Anzeige dazu.
@@ -4758,7 +4758,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				}
 				await socialApi('idee_speichern', { idee_id: i.idee_id, link: $('#id_l').value.trim(), bild_pfad, titel: $('#id_t').value, quelle: $('#id_q').value, kanal: $('#id_k').value, warum_stark: $('#id_w').value, thema_fuer_uns: $('#id_u').value, status: $('#id_s').value });
 				dlg.close(); toast('Gespeichert'); await socialNeu();
-			} catch (e) { $('#id_st').textContent = '⚠ ' + e.message; $('#id_st').style.color = '#8a1c1c'; C_Meldung.fehler(e); btn.disabled = false; }
+			} catch (e) { $('#id_st').textContent = '⚠ ' + C_Meldung.textVon(e); $('#id_st').style.color = '#8a1c1c'; C_Meldung.fehler(e); btn.disabled = false; }
 		};
 	}
 
@@ -4809,7 +4809,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 		const box = $('#tnBox'); if (!box) return;
 		if (!TN) {
 			box.innerHTML = '<div class="card"><h2>Teilnehmer-Register</h2><p class="small muted">Wird geladen …</p></div>';
-			tnLaden().then(tnZeigen).catch(e => { if ($('#tnBox')) $('#tnBox').innerHTML = '<div class="card"><h2>Teilnehmer-Register</h2><p class="small muted">' + esc(e.message) + '</p></div>'; });
+			tnLaden().then(tnZeigen).catch(e => { if ($('#tnBox')) $('#tnBox').innerHTML = '<div class="card"><h2>Teilnehmer-Register</h2><p class="small muted">' + esc(C_Meldung.textVon(e)) + '</p></div>'; });
 			return;
 		}
 		const SP = (TN.spalten || []).filter(x => x.aktiv);
@@ -5322,7 +5322,7 @@ body[data-tab="whatsapp"] #kiBtn{display:none}
 				const el = $('#offKpis'); if (el) el.innerHTML = kpi(laufend, 'laufende Agentenaufträge') + kpi(frei, 'offene Freigaben', frei > 0) + kpi(fehler, 'fehlgeschlagen / veraltet', fehler > 0) + kpi(offen, 'Ergebnisse ohne Abnahme');
 				const st = $('#offStand'); if (st) st.textContent = 'Office-API erreichbar, Stand ' + fmtDT(j.stand) + (j.quelle === 'testadapter' ? ' (TESTADAPTER, synthetische Daten)' : '') + '.';
 			}).catch(e => {
-				const el = $('#offKpis'); if (el) el.innerHTML = '<div class="note warn" style="grid-column:1/-1">Die Office-API antwortet noch nicht (' + esc(e.message) + '). Der n8n-Workflow „TEAM: Office-API“ muss erst importiert und aktiviert werden, siehe docs/office/SETUP.md im Repo.</div>';
+				const el = $('#offKpis'); if (el) el.innerHTML = '<div class="note warn" style="grid-column:1/-1">Die Office-API antwortet noch nicht (' + esc(C_Meldung.textVon(e)) + '). Der n8n-Workflow „TEAM: Office-API“ muss erst importiert und aktiviert werden, siehe docs/office/SETUP.md im Repo.</div>';
 			});
 	}
 

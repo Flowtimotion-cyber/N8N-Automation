@@ -37,9 +37,17 @@ class C_Meldung {
 		C_Meldung.#zeigen('fehler', vorsatz ? vorsatz + ': ' + text : text);
 	}
 
-	// Text einer Fehlerursache: Error → message, sonst als Text
+	// Text einer Fehlerursache: Error → message, sonst als Text.
+	// Scheitert fetch selbst (kein Netz, Server weg, Verbindung abgebrochen, CORS), meldet der Browser nur einen kurzen
+	// englischen Text (Chrome „Failed to fetch“, Firefox „NetworkError …“, Safari „Load failed“); daraus wird ein verständlicher Satz.
+	static VERBINDUNG = 'Verbindung: Der Server (n8n) war gerade nicht erreichbar oder die Verbindung ist abgebrochen. Bitte prüf dein Internet und versuch es gleich noch einmal.';
+
 	static textVon(fehler) {
-		if (fehler && typeof fehler === 'object' && 'message' in fehler) return String(fehler.message || 'Unbekannter Fehler');
+		if (fehler && typeof fehler === 'object' && 'message' in fehler) {
+			const t = String(fehler.message || '');
+			if (fehler.name === 'TypeError' && /failed to fetch|networkerror|load failed|network request failed/i.test(t)) return C_Meldung.VERBINDUNG;
+			return t || 'Unbekannter Fehler';
+		}
 		return String(fehler ?? 'Unbekannter Fehler');
 	}
 

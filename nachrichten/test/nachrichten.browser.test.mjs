@@ -129,7 +129,7 @@ test('Senden, Symbol rot/grau, lesen, als ungelesen schließen, Empfangszeit', a
 	await p.locator('#msgneu').click();
 	await p.locator('#ms_t').fill('Ohne Empfänger');
 	await p.locator('#ms_f [type=submit]').click();
-	assert.match(await p.locator('#toast').textContent(), /mindestens einen Empfänger/);
+	assert.match(await p.locator('#m_am').textContent(), /mindestens einen Empfänger/, 'Hinweis direkt an der Empfängerliste');
 	p.once('dialog', d => d.accept());
 	await p.locator('#ms_c').click();
 	assert.equal(await p.locator('#dlg').evaluate(d => d.open), false, 'Abbrechen nach Rückfrage');
@@ -303,7 +303,7 @@ test('Unbekannte Markierung: Warnung in Notiz und Aufgabe (nicht von „Gespeich
 		const res = await fetch(S.base + '/api/team', { method: 'POST', body: r.request().postDataBuffer() });
 		r.fulfill({ status: res.status, contentType: 'application/json', body: await res.text() });
 	});
-	const warnung = async () => { await p.waitForTimeout(900); return (await p.locator('#toast.warn.show').count()) ? await p.locator('#toast').textContent() : ''; };
+	const warnung = async () => { await p.waitForTimeout(900); return (await p.locator('#toast.warnung.show').count()) ? await p.locator('#toast').textContent() : ''; };
 	// Notiz: Tippfehler und Name mit Leerzeichen-Ersatz, den es nicht gibt; Satzzeichen danach gehören nicht dazu
 	await oeffnen(p, 'm_timo', '#/tab/notizen');
 	await p.locator('#neun').click();
@@ -363,7 +363,7 @@ test('Markierung bei gleichem Vornamen: @Vorname ist nicht eindeutig, @Vorname_N
 	let toastText = await notiz('Bitte @anna fragen.');
 	assert.equal(gesendet.length, 0, 'mehrdeutig: keine Nachricht');
 	assert.match(toastText, /⚠ @anna ist nicht eindeutig, dafür wurde keine Nachricht verschickt\. Bitte so markieren: @Anna_Berg oder @Anna_von_Kurz/);
-	assert.ok(await p.locator('#toast.warn.show').count(), 'Warnung hervorgehoben');
+	assert.ok(await p.locator('#toast.warnung.show').count(), 'Warnung hervorgehoben');
 	await shot(p, 'markierung-warnung', DESKTOP);
 	// Leerzeichen und Punkt gehören nicht zur Kennung: „@Anna Berg“ und „@anna.von.kurz“ sind nur „@Anna“, also nicht eindeutig
 	toastText = await notiz('@Anna Berg und @anna.von.kurz');
