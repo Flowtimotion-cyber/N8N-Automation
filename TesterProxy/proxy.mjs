@@ -14,6 +14,11 @@ import { runInNewContext } from 'node:vm';
 const DOCS = resolve(process.argv[2] || '.');
 const i = process.argv.indexOf('--port');
 const PORT = Number(i > 0 ? process.argv[i + 1] : 8788);
+// --umleiten team-social=team-social-test,team-api-v2=team-api-v2-test : Webhooks auf andere Pfade (z. B. Testkopien aus
+// team/n8n/bauen-testkopien.mjs) umleiten, ohne konfig.js zu ändern. Nur der Pfad nach /webhook/ wird ersetzt.
+const u = process.argv.indexOf('--umleiten');
+const UMLEITEN = Object.fromEntries((u > 0 ? process.argv[u + 1] || '' : '').split(',').filter(Boolean).map(p => p.split('=').map(s => s.trim())));
+for (const [von, nach] of Object.entries(UMLEITEN)) if (!/^[a-z0-9-]+$/.test(von) || !/^[a-z0-9-]+$/.test(nach || '')) throw new Error('--umleiten: ungültig „' + von + '=' + nach + '“');
 // konfig.js ist ein klassisches Browser-Skript (kein Modul): in einer leeren Umgebung ausführen und teamPortalKonfig() aufrufen
 const ZIEL = runInNewContext(await readFile(join(DOCS, 'team', 'konfig.js'), 'utf8') + '\n;teamPortalKonfig()').n8n.instanz;
 const TYPEN = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -26,13 +31,14 @@ createServer(async (req, res) => {
 		if (url.pathname.startsWith('/webhook/')) {
 			const chunks = [];
 			for await (const c of req) chunks.push(c);
-			const r = await fetch(ZIEL + url.pathname + url.search, {
+			const pfad = url.pathname.replace(/^\/webhook\/([^/]+)/, (m, p) => '/webhook/' + (UMLEITEN[p] || p));
+			const r = await fetch(ZIEL + pfad + url.search, {
 				method: req.method,
 				headers: { 'Content-Type': req.headers['content-type'] || 'text/plain;charset=UTF-8' },
 				body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks)
 			});
 			const body = Buffer.from(await r.arrayBuffer());
-			console.log(new Date().toLocaleTimeString(), req.method, url.pathname, '→', r.status);
+			console.log(new Date().toLocaleTimeString(), req.method, url.pathname + (pfad !== url.pathname ? ' ⇒ ' + pfad : ''), '→', r.status);
 			res.writeHead(r.status, { 'Content-Type': r.headers.get('content-type') || 'application/json' });
 			return res.end(body);
 		}
@@ -57,6 +63,7 @@ createServer(async (req, res) => {
 	}
 }).listen(PORT, '127.0.0.1', () => {
 	console.log('PROXY auf ECHTE Daten · docs: ' + DOCS + ' · n8n: ' + ZIEL);
+	for (const [von, nach] of Object.entries(UMLEITEN)) console.log('  umgeleitet: /webhook/' + von + ' ⇒ /webhook/' + nach);
 	console.log('  Team-Portal: http://127.0.0.1:' + PORT + '/team/');
 	console.log('  KI Office:   http://127.0.0.1:' + PORT + '/office/');
 });

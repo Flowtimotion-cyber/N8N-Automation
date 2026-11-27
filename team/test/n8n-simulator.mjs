@@ -13,26 +13,27 @@ export function workflowLaden(datei) {
 		.replace(/^import .*from '@n8n\/workflow-sdk';$/m, '')
 		.replace(/^export default /m, 'return ');
 	const knoten = new Map();
+	let kopfdaten = {};
 	const kopf = x => x.kopf || x;
 	const ende = x => x.ende || x;
 	const kette = (k, e) => ({ kopf: k, ende: e, to(x) { ende(e).weiter.push(kopf(x)); return kette(k, ende(x)); } });
 	const neu = def => {
-		const n = { name: def.config.name, type: def.type, config: def.config, weiter: [], faelle: [] };
+		const n = { name: def.config.name, type: def.type, version: def.version, config: def.config, weiter: [], faelle: [] };
 		n.to = x => { n.weiter.push(kopf(x)); return kette(n, ende(x)); };
 		n.onCase = (i, x) => { n.faelle[i] = kopf(x); return n; };
 		knoten.set(n.name, n);
 		return n;
 	};
 	const sdk = {
-		workflow: (id, name) => ({ id, name, add: n => kette(n, n) }),
+		workflow: (id, name) => { kopfdaten = { id, name }; return { add: n => kette(n, n) }; },
 		node: neu,
 		trigger: neu,
 		switchCase: def => neu({ type: 'n8n-nodes-base.switch', ...def }),
 		expr: s => ({ ausdruck: s }),
 		newCredential: name => ({ neu: name })
 	};
-	const wf = new Function(...Object.keys(sdk), quelle)(...Object.values(sdk));
-	return { name: wf.name, knoten };
+	new Function(...Object.keys(sdk), quelle)(...Object.values(sdk));
+	return { id: kopfdaten.id, name: kopfdaten.name, knoten };
 }
 
 // Läuft den Workflow ab dem Knoten nach dem Trigger. kontext: zusätzliche Globale für vm (z. B. festes Date, Math)
@@ -73,7 +74,9 @@ export function ausfuehren(wf, { body, antworten = {}, kontext = {} }) {
 			if (!aus.length && n.config.alwaysOutputData) aus = [{ json: {} }];
 		} else if (n.type === 'n8n-nodes-base.switch') {
 			const wert = eingabe[0].json.aktion;
-			const i = p.rules.values.findIndex(r => r.conditions.conditions[0].rightValue === wert);
+			// Regeln vergleichen $json.aktion mit festen Werten; mehrere Bedingungen mit „or“ oder „and“ verknüpft
+			const passt = r => { const c = r.conditions; const t = x => x.rightValue === wert; return c.combinator === 'or' ? c.conditions.some(t) : c.conditions.every(t); };
+			const i = p.rules.values.findIndex(passt);
 			ausgaben[n.name] = eingabe;
 			n = i >= 0 ? n.faelle[i] : null;
 			continue;
