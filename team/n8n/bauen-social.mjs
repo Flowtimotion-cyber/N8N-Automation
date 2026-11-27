@@ -1,8 +1,9 @@
 // Baut die n8n-SDK-Datei für „TEAM: Social-Upload“ (Webhook team-social).
-// Start: node team/n8n/bauen-social.mjs → team/n8n/social.workflow.gen.js
+// Start: node team/n8n/bauen-social.mjs → team/n8n/social.workflow.gen.js und team/n8n/out/social.supabase.workflow.json (zum Import)
 // Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url (signierte Upload-URL für ein Bild im öffentlichen Bereich social-ideen),
 // upload_url (signierte Upload-URL für den privaten Bereich medien-roh), upload_status (hochgeladen | beauftragt | geschnitten | fehler),
-// upload_loeschen (nur Admin: Datei + Status geloescht).
+// upload_loeschen (wer hochgeladen hat oder Admin: Datei + Status geloescht), upload_ansehen (befristete Lese-Adresse: wer hochgeladen hat,
+// Admin, alle bei Freigabe im Team), upload_teilen (nur wer hochgeladen hat: Freigabe im Team setzen oder zurücknehmen).
 // Die Portal-API v2 (kMuDaDmT9rCN5Vs2) bleibt unberührt.
 //
 // Aufbau: Die Code-Knoten bekommen vorangestellt (n8n-Code-Knoten können keine Dateien nachladen)
@@ -13,7 +14,7 @@
 //
 // Varianten: bisher nur Supabase (Datenbank + Storage). Eine zweite Variante braucht eine eigene Speicher-Klasse
 // (z. B. C_MedienSpeicher_Rclone) und Ausführungsknoten für ihre Aufträge.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -24,6 +25,8 @@ const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
 const DB_KLASSE = 'C_DataBase_Supabase';
 const SPEICHER_KLASSE = 'C_MedienSpeicher_Supabase';
+const FEHLER_WORKFLOW = 'pka7MaqDJwuhjHpY';
+const WEBHOOK_ID = '2f6798f7-c86c-4a08-93c3-2182857e3b7b';	// webhookId des Knotens „Social-API“ im Live-Workflow
 
 export const KLASSEN = ['C_DataBase', DB_KLASSE, 'C_MedienSpeicher', SPEICHER_KLASSE, 'C_Social'];
 export const LIB = KLASSEN.map(k => '// ===== ' + k + '.js =====\n' + lies(k + '.js').replace(/^export /gm, '').trim()).join('\n\n')
@@ -40,12 +43,16 @@ const code = (name, js) => `node({ type: 'n8n-nodes-base.code', version: 2, conf
 // Fehler 21.11.2026). Die Adresse steht erst zur Laufzeit im Auftrag fest, deshalb ist „text“ je Knoten in AUSFUEHRUNG eingetragen.
 const supa = (name, method, pfad, body, extra = '', text = false) => `node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: ${JSON.stringify(name)}, executeOnce: true, alwaysOutputData: true,${extra} parameters: { method: '${method}', url: ${pfad}, authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi'${body ? `, sendBody: true, contentType: 'json', specifyBody: 'json', jsonBody: ${body}` : ''}, options: { timeout: 20000${text ? ", response: { response: { responseFormat: 'text' } }" : ''} } }, credentials: ${CRED_SUPA}, retryOnFail: true, maxTries: 3, waitBetweenTries: 1000 } })`;
 const e = s => `expr(${JSON.stringify(s)})`;
-const fall = key => `{ outputKey: '${key}', conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict' }, conditions: [{ leftValue: expr('{{ $json.aktion }}'), operator: { type: 'string', operation: 'equals' }, rightValue: '${key}' }], combinator: 'and' } }`;
+// fall: Ausgang outputKey, wenn $json.aktion einer der Werte ist (ein Wert oder mehrere, dann „oder“)
+const fall = (key, werte = [key]) => `{ outputKey: '${key}', conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict' }, conditions: [${werte.map(w => `{ leftValue: expr('{{ $json.aktion }}'), operator: { type: 'string', operation: 'equals' }, rightValue: '${w}' }`).join(', ')}], combinator: '${werte.length > 1 ? 'or' : 'and'}' } }`;
 
 const A = "$('Anfrage prüfen').first().json";
-const L = "$('Löschen prüfen').first().json";
+const L = "$('Upload prüfen').first().json";
 const ICH = "$('Mitglied prüfen').all().map(i => i.json).find(m => m && m.mitglied_id) || null";
-const AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload_loeschen', 'fehler', 'idee_bild_url'];
+// Ausgänge von „Was tun?“; Ausgang „upload“ nimmt alle Aktionen an einem bestehenden Upload (C_Social.UPLOAD_AKTIONEN)
+const UPLOAD_AKTIONEN = ['upload_loeschen', 'upload_ansehen', 'upload_teilen'];
+const AKTIONEN = ['laden', 'idee_speichern', 'idee_loeschen', 'upload_url', 'upload_status', 'upload', 'fehler', 'idee_bild_url'];
+const fallAktion = key => key === 'upload' ? fall(key, UPLOAD_AKTIONEN) : fall(key);
 
 // Ausführung eines Auftrags { methode, pfad, body }: Adresse = Basis + pfad, Body = JSON von body.
 // Methode und Antwortformat stehen fest im Knoten (text: true bei Supabase-Funktionen, siehe supa);
@@ -62,7 +69,9 @@ export const AUSFUEHRUNG = {
 	'Upload-Status setzen':     { methode: 'POST',   basis: SUPA,    auftrag: A + '.db', body: true, text: true },
 	'Upload suchen':            { methode: 'GET',    basis: SUPA,    auftrag: A + '.db' },
 	'Datei löschen':            { methode: 'DELETE', basis: STORAGE, auftrag: L + '.speicher', extra: " onError: 'continueRegularOutput'," },
-	'Als gelöscht markieren':   { methode: 'POST',   basis: SUPA,    auftrag: L + '.db', body: true, text: true }
+	'Als gelöscht markieren':   { methode: 'POST',   basis: SUPA,    auftrag: L + '.db', body: true, text: true },
+	'Lese-Adresse signieren':   { methode: 'POST',   basis: STORAGE, auftrag: L + '.speicher', body: true, extra: " onError: 'continueRegularOutput'," },
+	'Freigabe setzen':          { methode: 'POST',   basis: SUPA,    auftrag: L + '.db', body: true, text: true }
 };
 const ausfuehren = name => {
 	const x = AUSFUEHRUNG[name];
@@ -102,18 +111,27 @@ if (!url) return [{ json: { code: 502, antwort: { ok: false, fehler: 'Supabase h
 return [{ json: { code: 200, antwort: { ok: true, upload_id: a.upload.upload_id, bucket: a.upload.bucket, pfad: a.upload.pfad, mime: a.upload.mime, url, gueltig_sek: 7200 } } }];`;
 const JS_STATUS = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, id: a.upload_id, status: a.status, run_id: a.run_id || null } } }];`;
-const JS_LOESCHEN_PRUEFEN = `${LIB}
+const JS_UPLOAD_PRUEFEN = `${LIB}
 const a = ${A};
 const z = $('Upload suchen').all().map(i => i.json).find(x => x && x.upload_id);
-return [{ json: C_Social.loeschenAuftraege(a, z, dataBase, medienSpeicher) }];`;
+return [{ json: C_Social.uploadAuftraege(a, z, dataBase, medienSpeicher) }];`;
+const JS_ANSEHEN = `${LIB}
+const l = ${L};
+const r = $input.first().json || {};
+const url = medienSpeicher.leseAdresse(r);
+if (!url) return [{ json: { code: 502, antwort: { ok: false, fehler: 'Der Speicher hat keine Adresse zum Ansehen ausgestellt' + (r.message || r.error ? ': ' + (r.message || r.error) : '.') } } }];
+return [{ json: { code: 200, antwort: { ok: true, id: l.upload_id, url, gueltig_sek: l.gueltig_sek } } }];`;
+const JS_GETEILT = `const l = ${L};
+return [{ json: { code: 200, antwort: { ok: true, id: l.upload_id, im_team: l.im_team, hinweis: l.im_team ? 'Das Video ist jetzt für alle im Team sichtbar.' : 'Das Video ist nicht mehr im Team freigegeben.' } } }];`;
 const JS_GELOESCHT = `const a = ${A};
 return [{ json: { code: 200, antwort: { ok: true, id: a.upload_id, hinweis: 'Rohvideo gelöscht. Der Eintrag bleibt als „gelöscht“ sichtbar.' } } }];`;
 
 export const SDK = `// GENERIERT von team/n8n/bauen-social.mjs – nicht von Hand ändern.
 // TEAM: Social-Upload. Webhook team-social, aufgerufen vom Team-Portal (docs/team/index.html, Register „Social Media“).
-// Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url, upload_url, upload_status, upload_loeschen.
-// Zugriff: aktive Teammitglieder mit Portal-Token; Agenten nur laden und upload_status; löschen nur Admin.
-// Rohvideos liegen im privaten Bereich „medien-roh“, Bilder zu Ideen im öffentlichen Bereich „social-ideen“ (Supabase-Buckets). Der Browser bekommt eine signierte Upload-URL (2 h), nie einen Supabase-Schlüssel.
+// Aktionen: laden, idee_speichern, idee_loeschen, idee_bild_url, upload_url, upload_status, upload_loeschen, upload_ansehen, upload_teilen.
+// Zugriff: aktive Teammitglieder mit Portal-Token; Agenten nur laden und upload_status. Ein Video ansehen: wer es hochgeladen hat, Admins,
+// und alle, wenn es im Team freigegeben ist; freigeben nur, wer es hochgeladen hat; löschen, wer es hochgeladen hat, und Admins.
+// Rohvideos liegen im privaten Bereich „medien-roh“, Bilder zu Ideen im öffentlichen Bereich „social-ideen“ (Supabase-Buckets). Der Browser bekommt signierte Adressen (Upload 2 h, Ansehen 1 h), nie einen Supabase-Schlüssel.
 import { workflow, node, trigger, switchCase, expr, newCredential } from '@n8n/workflow-sdk';
 
 // Gemeinsame Klassen aus team/n8n (${KLASSEN.join(', ')}; getestet), in den Code-Knoten vorangestellt
@@ -123,7 +141,7 @@ const api = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { na
 const eingang = ${code('Eingang', JS_EINGANG)};
 const mitglied = node({ type: 'n8n-nodes-base.httpRequest', version: 4.5, config: { name: 'Mitglied prüfen', executeOnce: true, alwaysOutputData: true, onError: 'continueRegularOutput', parameters: { method: '${AUSFUEHRUNG['Mitglied prüfen'].methode}', url: ${e(`${SUPA}{{ $json.db.pfad }}`)}, authentication: 'predefinedCredentialType', nodeCredentialType: 'supabaseApi', options: { timeout: 15000 } }, credentials: ${CRED_SUPA} } });
 const anfrage = ${code('Anfrage prüfen', JS_ANFRAGE)};
-const wasTun = switchCase({ version: 3.2, config: { name: 'Was tun?', parameters: { rules: { values: [${AKTIONEN.map(fall).join(', ')}] } } } });
+const wasTun = switchCase({ version: 3.2, config: { name: 'Was tun?', parameters: { rules: { values: [${AKTIONEN.map(fallAktion).join(', ')}] } } } });
 const antwort = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Antwort senden', parameters: { respondWith: 'json', responseBody: expr('{{ JSON.stringify($json.antwort) }}'), options: { responseCode: expr('{{ $json.code }}') } } } });
 
 // laden
@@ -146,13 +164,18 @@ const bildUrlMelden = ${code('Bild-Adresse melden', JS_BILD_URL)};
 // upload_status
 const statusSetzen = ${ausfuehren('Upload-Status setzen')};
 const statusMelden = ${code('Status melden', JS_STATUS)};
-// upload_loeschen (nur Admin): Datei aus dem Bereich, Eintrag auf „geloescht“
+// upload_loeschen, upload_ansehen, upload_teilen: Zeile lesen, Rechte prüfen (C_Social.uploadAuftraege), dann
+//   loeschen: Datei aus dem Bereich, Eintrag auf „geloescht“;  ansehen: befristete Lese-Adresse;  teilen: Freigabe im Team setzen
 const uploadSuchen = ${ausfuehren('Upload suchen')};
-const loeschenPruefen = ${code('Löschen prüfen', JS_LOESCHEN_PRUEFEN)};
-const gefunden = switchCase({ version: 3.2, config: { name: 'Gefunden?', parameters: { rules: { values: [${fall('loeschen')}, ${fall('fehler')}] } } } });
+const uploadPruefen = ${code('Upload prüfen', JS_UPLOAD_PRUEFEN)};
+const mitUpload = switchCase({ version: 3.2, config: { name: 'Was mit dem Upload?', parameters: { rules: { values: [${fall('loeschen')}, ${fall('ansehen')}, ${fall('teilen')}, ${fall('fehler')}] } } } });
 const dateiWeg = ${ausfuehren('Datei löschen')};
 const geloeschtSetzen = ${ausfuehren('Als gelöscht markieren')};
 const geloeschtMelden = ${code('Gelöscht melden', JS_GELOESCHT)};
+const leseHolen = ${ausfuehren('Lese-Adresse signieren')};
+const leseMelden = ${code('Lese-Adresse melden', JS_ANSEHEN)};
+const freigabeSetzen = ${ausfuehren('Freigabe setzen')};
+const freigabeMelden = ${code('Freigabe melden', JS_GETEILT)};
 
 export default workflow('team-social', 'TEAM: Social-Upload')
 	.add(api).to(eingang).to(mitglied).to(anfrage)
@@ -162,7 +185,11 @@ export default workflow('team-social', 'TEAM: Social-Upload')
 		.onCase(2, ideeWeg.to(ideeWegMelden).to(antwort))
 		.onCase(3, uploadAnlegen.to(urlHolen).to(urlMelden).to(antwort))
 		.onCase(4, statusSetzen.to(statusMelden).to(antwort))
-		.onCase(5, uploadSuchen.to(loeschenPruefen).to(gefunden.onCase(0, dateiWeg.to(geloeschtSetzen).to(geloeschtMelden).to(antwort)).onCase(1, antwort)))
+		.onCase(5, uploadSuchen.to(uploadPruefen).to(mitUpload
+			.onCase(0, dateiWeg.to(geloeschtSetzen).to(geloeschtMelden).to(antwort))
+			.onCase(1, leseHolen.to(leseMelden).to(antwort))
+			.onCase(2, freigabeSetzen.to(freigabeMelden).to(antwort))
+			.onCase(3, antwort)))
 		.onCase(6, antwort)
 		.onCase(7, bildUrlHolen.to(bildUrlMelden).to(antwort)));
 `;
@@ -170,4 +197,12 @@ export default workflow('team-social', 'TEAM: Social-Upload')
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 	writeFileSync(join(hier, 'social.workflow.gen.js'), SDK);
 	console.log('geschrieben: team/n8n/social.workflow.gen.js', SDK.length, 'Zeichen');
+	// Zum Einspielen über die n8n-Oberfläche (Live-Workflow ZfStqgtH3IZugnv5 öffnen, „Import from File…“):
+	// gleicher Webhook-Pfad und gleiche webhookId wie live, Fehler-Workflow wie bei allen TEAM-Workflows.
+	const { sdkNachJson } = await import('./bauen-testkopien.mjs');
+	const wf = sdkNachJson(join(hier, 'social.workflow.gen.js'), { executionOrder: 'v1', availableInMCP: true, errorWorkflow: FEHLER_WORKFLOW });
+	wf.nodes.find(n => n.type === 'n8n-nodes-base.webhook').webhookId = WEBHOOK_ID;
+	mkdirSync(join(hier, 'out'), { recursive: true });
+	writeFileSync(join(hier, 'out', 'social.supabase.workflow.json'), JSON.stringify(wf, null, '\t') + '\n');
+	console.log('geschrieben: team/n8n/out/social.supabase.workflow.json', wf.nodes.length, 'Knoten');
 }

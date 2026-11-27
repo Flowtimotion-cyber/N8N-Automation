@@ -9,7 +9,10 @@ export class C_Social {
 		throw new Error('C_Social ist ein Namespace (nur statische Elemente) und wird nicht angelegt.');
 	}
 
-	static AKTIONEN       = ['laden', 'idee_speichern', 'idee_loeschen', 'idee_bild_url', 'upload_url', 'upload_status', 'upload_loeschen'];
+	static AKTIONEN       = ['laden', 'idee_speichern', 'idee_loeschen', 'idee_bild_url', 'upload_url', 'upload_status', 'upload_loeschen', 'upload_ansehen', 'upload_teilen'];
+	// Aktionen an einem bestehenden Upload: erst die Zeile lesen, dann entscheidet C_Social.uploadAuftraege über die Rechte
+	static UPLOAD_AKTIONEN = { upload_loeschen: 'loeschen', upload_ansehen: 'ansehen', upload_teilen: 'teilen' };
+	static ANSEHEN_SEK    = 3600;                                  // Gültigkeit der Adresse zum Ansehen (1 Stunde)
 	static AGENT_AKTIONEN = ['laden', 'upload_status'];            // Agenten (Medien-Cutter) lesen und melden den Stand
 	static KANAELE        = ['LinkedIn', 'Instagram', 'YouTube', 'TikTok', 'Facebook', 'Sonstiges'];
 	static IDEE_STATUS    = ['neu', 'geprüft', 'umgesetzt', 'verworfen'];
@@ -138,10 +141,14 @@ export class C_Social {
 			r.fehler = d.status === 'fehler' ? S.txt(d.fehler, 500) || 'Unbekannter Fehler' : null;
 			return r;
 		}
-		if (aktion === 'upload_loeschen') {
-			if (!r.admin) return S.fehler(403, 'Rohvideos löscht nur Timo (Admin).');
+		if (S.UPLOAD_AKTIONEN[aktion]) {
+			// Wer was darf, steht erst nach dem Lesen der Upload-Zeile fest (C_Social.uploadAuftraege)
 			if (!/^up_[a-z0-9]{6,30}$/.test(String(d.upload_id || ''))) return S.fehler(400, 'Upload nicht gefunden.');
 			r.upload_id = String(d.upload_id);
+			if (aktion === 'upload_teilen') {
+				if (typeof d.im_team !== 'boolean') return S.fehler(400, 'Bitte angeben, ob das Video im Team freigegeben werden soll (im_team: true oder false).');
+				r.im_team = d.im_team;
+			}
 			return r;
 		}
 		return S.fehler(400, 'Unbekannte Aktion.');
@@ -218,25 +225,46 @@ export class C_Social {
 				r.db = dataBase.funktion('team_upload_status', { p_id: r.upload_id, p_status: r.status, p_von: r.wer, p_run: r.run_id || null, p_fehler: r.fehler || null });
 				break;
 			case 'upload_loeschen':
-				r.db = dataBase.lesen('team_social_uploads', { spalten: ['upload_id', 'bucket', 'pfad'], wo: [['upload_id', '=', r.upload_id]] });
+			case 'upload_ansehen':
+			case 'upload_teilen':
+				r.db = dataBase.lesen('team_social_uploads', { spalten: ['upload_id', 'bucket', 'pfad', 'status', 'erstellt_von', 'im_team'], wo: [['upload_id', '=', r.upload_id]] });
 				break;
 		}
 		return r;
 	}
 
 	/**
-	 * „Löschen prüfen“ (nur Admin, nach dem Lesen der Upload-Zeile): Datei löschen und Eintrag als „geloescht“ markieren.
+	 * „Upload prüfen“ (nach dem Lesen der Upload-Zeile): Rechte prüfen und die Aufträge festlegen.
+	 *   loeschen: wer hochgeladen hat, und Admins     → Datei löschen, Eintrag als „geloescht“ markieren
+	 *   ansehen:  wer hochgeladen hat, Admins, und alle, wenn das Video im Team freigegeben ist → befristete Lese-Adresse
+	 *   teilen:   nur wer hochgeladen hat               → Freigabe im Team setzen oder zurücknehmen
 	 * a = Ergebnis von „Anfrage prüfen“, zeile = gefundene Upload-Zeile oder undefined.
 	 */
-	static loeschenAuftraege(a, zeile, dataBase, medienSpeicher) {
+	static uploadAuftraege(a, zeile, dataBase, medienSpeicher) {
 		const S = C_Social;
-		if (!zeile) return { aktion: 'fehler', code: 404, antwort: { ok: false, fehler: 'Upload nicht gefunden.' } };
+		const was = S.UPLOAD_AKTIONEN[a.aktion];
+		if (!was) return S.fehler(400, 'Unbekannte Aktion.');
+		if (!zeile || zeile.status === 'geloescht') return S.fehler(404, 'Upload nicht gefunden.');
+		const eigen = !!zeile.erstellt_von && zeile.erstellt_von === a.wer;
 		const bucket = zeile.bucket || S.BUCKET;
-		let speicher;
-		try { speicher = medienSpeicher.loeschen(bucket, zeile.pfad); }
-		catch (e) { return { aktion: 'fehler', code: 409, antwort: { ok: false, fehler: 'Der Upload hat keinen gültigen Dateipfad und wurde nicht gelöscht.' } }; }
-		return { aktion: 'loeschen', upload_id: zeile.upload_id, bucket, pfad: zeile.pfad, wer: a.wer, speicher,
-			db: dataBase.funktion('team_upload_status', { p_id: a.upload_id, p_status: 'geloescht', p_von: a.wer }) };
+		const basis = { aktion: was, upload_id: zeile.upload_id, bucket, pfad: zeile.pfad, wer: a.wer };
+		if (was === 'loeschen') {
+			if (!eigen && !a.admin) return S.fehler(403, 'Löschen darf nur, wer das Video hochgeladen hat, oder ein Admin.');
+			let speicher;
+			try { speicher = medienSpeicher.loeschen(bucket, zeile.pfad); }
+			catch (e) { return S.fehler(409, 'Der Upload hat keinen gültigen Dateipfad und wurde nicht gelöscht.'); }
+			return { ...basis, speicher, db: dataBase.funktion('team_upload_status', { p_id: zeile.upload_id, p_status: 'geloescht', p_von: a.wer }) };
+		}
+		if (was === 'ansehen') {
+			if (!eigen && !a.admin && zeile.im_team !== true) return S.fehler(403, 'Dieses Video ist nicht im Team freigegeben.');
+			let speicher;
+			try { speicher = medienSpeicher.leseAdresseHolen(bucket, zeile.pfad, S.ANSEHEN_SEK); }
+			catch (e) { return S.fehler(409, 'Der Upload hat keinen gültigen Dateipfad.'); }
+			return { ...basis, speicher, gueltig_sek: S.ANSEHEN_SEK };
+		}
+		// teilen
+		if (!eigen) return S.fehler(403, 'Im Team freigeben kann nur, wer das Video hochgeladen hat.');
+		return { ...basis, im_team: a.im_team === true, db: dataBase.funktion('team_upload_teilen', { p_id: zeile.upload_id, p_im_team: a.im_team === true, p_von: a.wer }) };
 	}
 
 	/** Auftragstext für den Medien-Cutter aus einem Upload (kommt aus dem Portal in auftrag_starten). */
@@ -257,6 +285,7 @@ export class C_Social {
 		const U = (uploads || []).filter(x => x && x.upload_id && x.status !== 'geloescht').sort((a, b) => String(b.erstellt || '').localeCompare(String(a.erstellt || '')))
 			.map(u => ({ upload_id: u.upload_id, dateiname: u.dateiname, groesse: Number(u.groesse) || 0, thema: u.thema, kanal: u.kanal, kontext: u.kontext, status: u.status,
 				run_id: u.run_id || null, post_id: u.post_id || null, fehler: u.fehler || null, erstellt: u.erstellt, erstellt_von: u.erstellt_von, aufbewahren_bis: u.aufbewahren_bis,
+				im_team: u.im_team === true,
 				pfad: admin || (ich && ich.typ === 'agent') ? u.pfad : undefined, bucket: u.bucket }));
 		return { ok: true, ideen: I, uploads: U, kanaele: S.KANAELE, idee_status: S.IDEE_STATUS, max_bytes: S.MAX_BYTES, max_bild_bytes: S.MAX_BILD_BYTES, stand: new Date().toISOString() };
 	}

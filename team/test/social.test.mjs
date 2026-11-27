@@ -67,8 +67,48 @@ test('Upload: Datei, Größe, Einwilligung, Pfad', () => {
 	assert.equal(C_Social.anfrage(lilli, 'upload_status', { upload_id: r.upload.upload_id, status: 'beauftragt', run_id: '../x' }).run_id, null, 'kaputte run_id fällt weg');
 	assert.equal(C_Social.anfrage(lilli, 'upload_status', { upload_id: r.upload.upload_id, status: 'fehler' }).fehler, 'Unbekannter Fehler');
 	assert.equal(C_Social.anfrage(lilli, 'upload_status', { upload_id: r.upload.upload_id, status: 'geloescht' }).code, 400, 'löschen ist kein Status aus dem Portal');
-	assert.equal(C_Social.anfrage(lilli, 'upload_loeschen', { upload_id: r.upload.upload_id }).code, 403, 'löschen nur Admin');
-	assert.equal(C_Social.anfrage(timo, 'upload_loeschen', { upload_id: r.upload.upload_id }).upload_id, r.upload.upload_id);
+	// Aktionen an einem bestehenden Upload: die Rechte prüft erst uploadAuftraege (nach dem Lesen der Zeile)
+	assert.equal(C_Social.anfrage(lilli, 'upload_loeschen', { upload_id: r.upload.upload_id }).upload_id, r.upload.upload_id);
+	assert.equal(C_Social.anfrage(lilli, 'upload_ansehen', { upload_id: '../x' }).code, 400);
+	assert.equal(C_Social.anfrage(lilli, 'upload_teilen', { upload_id: r.upload.upload_id }).code, 400, 'im_team fehlt');
+	assert.equal(C_Social.anfrage(lilli, 'upload_teilen', { upload_id: r.upload.upload_id, im_team: 'ja' }).code, 400, 'im_team muss true/false sein');
+	assert.equal(C_Social.anfrage(lilli, 'upload_teilen', { upload_id: r.upload.upload_id, im_team: false }).im_team, false);
+	assert.equal(C_Social.anfrage(claude, 'upload_ansehen', { upload_id: r.upload.upload_id }).code, 403, 'Agenten sehen hier keine Videos an');
+});
+
+test('Upload ansehen, im Team freigeben, löschen: Rechte nach Eigentümer, Admin, Freigabe', () => {
+	const ms = speicher('https://p.supabase.co/storage/v1/');
+	const db = { lesen: () => ({}), funktion: (name, p) => ({ methode: 'POST', pfad: 'rpc/' + name, body: p }) };
+	const zeile = (extra) => ({ upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/10/up_abcdef_a.mp4', status: 'hochgeladen', erstellt_von: 'm_lillien', im_team: false, ...extra });
+	// JSON: Aufträge des Speichers stammen aus dem vm-Kontext (anderer Object-Prototyp)
+	const U = (wer, aktion, z, daten = {}) => JSON.parse(JSON.stringify(C_Social.uploadAuftraege(C_Social.anfrage(wer, aktion, { upload_id: 'up_abcdef', ...daten }), z, db, ms)));
+	const murat = { mitglied_id: 'm_murat', name: 'Murat', rolle: 'team', status: 'aktiv', typ: 'mensch' };
+	// ansehen
+	const eigen = U(lilli, 'upload_ansehen', zeile());
+	assert.equal(eigen.aktion, 'ansehen'); assert.equal(eigen.gueltig_sek, 3600);
+	assert.deepEqual(eigen.speicher, { methode: 'POST', pfad: 'object/sign/medien-roh/2026/10/up_abcdef_a.mp4', body: { expiresIn: 3600 } });
+	assert.equal(U(timo, 'upload_ansehen', zeile()).aktion, 'ansehen', 'Admin sieht alles');
+	assert.equal(U(murat, 'upload_ansehen', zeile()).code, 403, 'andere nur bei Freigabe');
+	assert.equal(U(murat, 'upload_ansehen', zeile({ im_team: true })).aktion, 'ansehen');
+	assert.equal(U(murat, 'upload_ansehen', zeile({ im_team: 'true' })).code, 403, 'nur echtes true zählt');
+	assert.equal(U(lilli, 'upload_ansehen', zeile({ pfad: '../x' })).code, 409);
+	// teilen
+	const t = U(lilli, 'upload_teilen', zeile(), { im_team: true });
+	assert.equal(t.aktion, 'teilen'); assert.equal(t.im_team, true);
+	assert.deepEqual(t.db, { methode: 'POST', pfad: 'rpc/team_upload_teilen', body: { p_id: 'up_abcdef', p_im_team: true, p_von: 'm_lillien' } });
+	assert.equal(U(lilli, 'upload_teilen', zeile({ im_team: true }), { im_team: false }).im_team, false, 'Freigabe zurücknehmen');
+	assert.equal(U(timo, 'upload_teilen', zeile(), { im_team: true }).code, 403, 'freigeben nur, wer hochgeladen hat (auch nicht Admin)');
+	assert.equal(U(murat, 'upload_teilen', zeile({ im_team: true }), { im_team: false }).code, 403);
+	// löschen
+	const l = U(lilli, 'upload_loeschen', zeile());
+	assert.equal(l.aktion, 'loeschen'); assert.deepEqual(l.speicher, { methode: 'DELETE', pfad: 'object/medien-roh/2026/10/up_abcdef_a.mp4', body: {} });
+	assert.deepEqual(l.db.body, { p_id: 'up_abcdef', p_status: 'geloescht', p_von: 'm_lillien' });
+	assert.equal(U(timo, 'upload_loeschen', zeile()).aktion, 'loeschen', 'Admin darf löschen');
+	assert.equal(U(murat, 'upload_loeschen', zeile({ im_team: true })).code, 403, 'Freigabe erlaubt kein Löschen');
+	// nicht gefunden, schon gelöscht, Zeile ohne Eigentümer
+	assert.equal(U(lilli, 'upload_ansehen', undefined).code, 404);
+	assert.equal(U(timo, 'upload_ansehen', zeile({ status: 'geloescht' })).code, 404);
+	assert.equal(U(lilli, 'upload_ansehen', zeile({ erstellt_von: '' })).code, 403, 'leerer Eigentümer gehört niemandem');
 });
 
 test('Bild zu einer Idee: Endung, Größe, Pfad, öffentliche Adresse', () => {
@@ -93,6 +133,10 @@ test('Helfer', () => {
 	assert.equal(C_Social.mimeFuer('mp4', 'video/mp4'), 'video/mp4'); assert.equal(C_Social.mimeFuer('mkv', ''), 'video/x-matroska'); assert.equal(C_Social.mimeFuer('mov', 'text/html'), 'video/quicktime');
 	assert.equal(speicher('https://p.supabase.co/storage/v1/').uploadAdresse({ url: '/object/upload/sign/medien-roh/a.mp4?token=t' }), 'https://p.supabase.co/storage/v1/object/upload/sign/medien-roh/a.mp4?token=t');
 	assert.equal(speicher('https://p.supabase.co/storage/v1').uploadAdresse({}), null);
+	assert.equal(speicher('https://p.supabase.co/storage/v1/').leseAdresse({ signedURL: '/object/sign/medien-roh/a.mp4?token=t' }), 'https://p.supabase.co/storage/v1/object/sign/medien-roh/a.mp4?token=t');
+	assert.equal(speicher('https://p.supabase.co/storage/v1/').leseAdresse({ message: 'Object not found' }), null);
+	assert.throws(() => speicher('https://p').leseAdresseHolen('medien-roh', 'a.mp4', 10), /Gültigkeit/);
+	assert.throws(() => speicher('https://p').leseAdresseHolen('medien-roh', '../a.mp4', 3600), /ungültiger Pfad/);
 	const t = C_Social.auftragsText({ thema: 'Werkstatt', kanal: 'Instagram', pfad: '2026/10/up_1_x.mov', kontext: 'ab Minute 2' });
 	assert.match(t, /^Rohvideo im Momentum-Stil für Instagram schneiden: Werkstatt\n/); assert.match(t, /medien-roh\/2026\/10\/up_1_x\.mov/); assert.match(t, /Kontext: ab Minute 2/); assert.match(t, /zur Abnahme/);
 });
@@ -105,6 +149,7 @@ test('laden: sortiert, ohne gelöschte, Pfad nur für Admin und Agent', () => {
 	assert.equal(a.ideen[0].art, 'bild'); assert.equal(a.ideen[0].bild_url, 'https://p.supabase.co/storage/v1/object/public/social-ideen/ideen/2026/10/bild_q_r.png');
 	assert.equal(a.ideen[1].art, 'link'); assert.equal(a.ideen[1].bild_url, null); assert.equal(a.max_bild_bytes, 20971520);
 	assert.deepEqual(a.uploads.map(u => u.upload_id), ['up_3', 'up_1']);
+	assert.equal(a.uploads[0].im_team, false); assert.equal(C_Social.ladenAntwort([], [{ ...uploads[0], im_team: true }], lilli, speicher('')).uploads[0].im_team, true);
 	assert.equal(a.uploads[1].pfad, undefined, 'Teammitglied sieht keinen Pfad'); assert.equal(a.uploads[1].groesse, 5);
 	assert.equal(C_Social.ladenAntwort([], uploads, timo, speicher('')).uploads[0].pfad, '2026/10/c'); assert.equal(C_Social.ladenAntwort([], uploads, claude, speicher('')).uploads[0].pfad, '2026/10/c');
 	assert.ok(a.kanaele.includes('LinkedIn')); assert.equal(a.max_bytes, 2147483648);

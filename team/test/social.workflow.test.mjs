@@ -63,7 +63,10 @@ test('C_MedienSpeicher_Supabase: Aufträge und Adressen wie bisher im Workflow',
 test('C_Social.auftraege: Methode jedes Auftrags passt zur festen Methode des ausführenden Knotens', () => {
 	const ich = '{ mitglied_id: "m_timo", rolle: "admin", status: "aktiv" }';
 	const r = JSON.parse(JSON.stringify(lib(`const A = (aktion, daten) => C_Social.auftraege(C_Social.anfrage(${ich}, aktion, daten, 1790000000000), dataBase, medienSpeicher);
-		const L = A('upload_loeschen', { upload_id: 'up_abcdef' });
+		const Z = { upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/10/a.mov', status: 'hochgeladen', erstellt_von: 'm_timo', im_team: false };
+		const L = C_Social.uploadAuftraege(A('upload_loeschen', { upload_id: 'up_abcdef' }), Z, dataBase, medienSpeicher);
+		const S = C_Social.uploadAuftraege(A('upload_ansehen', { upload_id: 'up_abcdef' }), Z, dataBase, medienSpeicher);
+		const T = C_Social.uploadAuftraege(A('upload_teilen', { upload_id: 'up_abcdef', im_team: true }), Z, dataBase, medienSpeicher);
 		({
 			'Mitglied prüfen': C_Social.mitgliedLesen(dataBase, 'abc'),
 			'Ideen laden': A('laden').db.ideen,
@@ -74,9 +77,11 @@ test('C_Social.auftraege: Methode jedes Auftrags passt zur festen Methode des au
 			'Upload-Adresse signieren': A('upload_url', { dateiname: 'a.mov', groesse: 1, einwilligung: true, thema: 'Test' }).speicher,
 			'Bild-Adresse signieren': A('idee_bild_url', { dateiname: 'a.png', groesse: 1 }).speicher,
 			'Upload-Status setzen': A('upload_status', { upload_id: 'up_abcdef', status: 'geschnitten' }).db,
-			'Upload suchen': L.db,
-			'Datei löschen': C_Social.loeschenAuftraege(L, { upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/10/a.mov' }, dataBase, medienSpeicher).speicher,
-			'Als gelöscht markieren': C_Social.loeschenAuftraege(L, { upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/10/a.mov' }, dataBase, medienSpeicher).db
+			'Upload suchen': A('upload_loeschen', { upload_id: 'up_abcdef' }).db,
+			'Datei löschen': L.speicher,
+			'Als gelöscht markieren': L.db,
+			'Lese-Adresse signieren': S.speicher,
+			'Freigabe setzen': T.db
 		})`)));
 	assert.deepEqual(Object.keys(r).sort(), Object.keys(AUSFUEHRUNG).sort(), 'jeder ausführende Knoten hat einen Auftrag');
 	for (const [knoten, auftrag] of Object.entries(r)) {
@@ -102,11 +107,12 @@ test('Eingebetteter Code läuft ohne URL (wie im n8n-Code-Knoten)', () => {
 
 // ===== Workflow im Simulator =====
 
-const TOK = { timo: 'a'.repeat(32), lilli: 'b'.repeat(32), agent: 'c'.repeat(32) };
+const TOK = { timo: 'a'.repeat(32), lilli: 'b'.repeat(32), agent: 'c'.repeat(32), murat: 'd'.repeat(32) };
 const MITGLIED = {
 	[TOK.timo]:  { mitglied_id: 'm_timo', name: 'Timo', rolle: 'admin', status: 'aktiv', typ: 'mensch' },
 	[TOK.lilli]: { mitglied_id: 'm_lillien', name: 'Lillien', rolle: 'team', status: 'aktiv', typ: 'mensch' },
-	[TOK.agent]: { mitglied_id: 'agent-claude', name: 'Claude', rolle: 'agent', status: 'aktiv', typ: 'agent' }
+	[TOK.agent]: { mitglied_id: 'agent-claude', name: 'Claude', rolle: 'agent', status: 'aktiv', typ: 'agent' },
+	[TOK.murat]: { mitglied_id: 'm_murat', name: 'Murat', rolle: 'team', status: 'aktiv', typ: 'mensch' }
 };
 const ZEIT = 1790000000000;   // 2026-09-21
 const kontext = () => {
@@ -122,8 +128,9 @@ const antworten = (extra = {}) => Object.assign({
 	'Idee speichern': () => [{}], 'Idee in Papierkorb': () => [{}], 'Upload anlegen': () => [{}], 'Upload-Status setzen': () => [{}],
 	'Upload-Adresse signieren': () => [{ url: '/object/upload/sign/medien-roh/x?token=t' }],
 	'Bild-Adresse signieren': () => [{ url: '/object/upload/sign/social-ideen/y?token=u' }],
-	'Upload suchen': () => [{ upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/09/up_abcdef_D ä.mov' }],
-	'Datei löschen': () => [{}], 'Als gelöscht markieren': () => [{}]
+	'Upload suchen': () => [{ upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/09/up_abcdef_D ä.mov', status: 'hochgeladen', erstellt_von: 'm_lillien', im_team: false }],
+	'Datei löschen': () => [{}], 'Als gelöscht markieren': () => [{}], 'Freigabe setzen': () => [{}],
+	'Lese-Adresse signieren': () => [{ signedURL: '/object/sign/medien-roh/2026/09/up_abcdef_D%20%C3%A4.mov?token=s' }]
 }, extra);
 const WF = workflowLaden(GEN);
 const lauf = (wer, aktion, daten, extra) => ausfuehren(WF, { body: { token: TOK[wer] || 'kaputt', aktion, daten }, antworten: antworten(extra), kontext: kontext() });
@@ -193,17 +200,48 @@ test('Workflow: Status melden', () => {
 	]);
 });
 
-test('Workflow: Rohvideo löschen (nur Admin; nicht gefunden; kaputter Pfad)', () => {
+test('Workflow: Rohvideo löschen (wer hochgeladen hat oder Admin; nicht gefunden; kaputter Pfad)', () => {
 	const r = lauf('timo', 'upload_loeschen', { upload_id: 'up_abcdef' });
 	assert.deepEqual(ohneMitglied(r), [
-		['Upload suchen', 'GET', SUPA + 'team_social_uploads?select=upload_id,bucket,pfad&upload_id=eq.up_abcdef', undefined],
+		['Upload suchen', 'GET', SUPA + 'team_social_uploads?select=upload_id,bucket,pfad,status,erstellt_von,im_team&upload_id=eq.up_abcdef', undefined],
 		['Datei löschen', 'DELETE', STORAGE + 'object/medien-roh/2026/09/up_abcdef_D%20%C3%A4.mov', undefined],
 		['Als gelöscht markieren', 'POST', SUPA + 'rpc/team_upload_status', '{"p_id":"up_abcdef","p_status":"geloescht","p_von":"m_timo"}']
 	]);
 	assert.equal(r.code, 200);
-	assert.equal(lauf('lilli', 'upload_loeschen', { upload_id: 'up_abcdef' }).code, 403);
+	assert.equal(lauf('lilli', 'upload_loeschen', { upload_id: 'up_abcdef' }).code, 200, 'wer hochgeladen hat, darf löschen');
+	const fremd = lauf('murat', 'upload_loeschen', { upload_id: 'up_abcdef' });
+	assert.equal(fremd.code, 403); assert.equal(fremd.anfragen.length, 2, 'nichts gelöscht');
 	const weg = lauf('timo', 'upload_loeschen', { upload_id: 'up_abcdef' }, { 'Upload suchen': () => [] });
 	assert.equal(weg.code, 404); assert.equal(weg.anfragen.length, 2, 'nichts gelöscht');
 	const kaputt = lauf('timo', 'upload_loeschen', { upload_id: 'up_abcdef' }, { 'Upload suchen': () => [{ upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '../x' }] });
 	assert.equal(kaputt.code, 409); assert.equal(kaputt.anfragen.length, 2, 'nichts gelöscht');
+});
+
+test('Workflow: Video ansehen (befristete Lese-Adresse; Rechte; Speicher ohne Adresse)', () => {
+	const r = lauf('lilli', 'upload_ansehen', { upload_id: 'up_abcdef' });
+	assert.deepEqual(ohneMitglied(r), [
+		['Upload suchen', 'GET', SUPA + 'team_social_uploads?select=upload_id,bucket,pfad,status,erstellt_von,im_team&upload_id=eq.up_abcdef', undefined],
+		['Lese-Adresse signieren', 'POST', STORAGE + 'object/sign/medien-roh/2026/09/up_abcdef_D%20%C3%A4.mov', '{"expiresIn":3600}']
+	]);
+	assert.equal(r.code, 200);
+	assert.deepEqual(r.antwort, { ok: true, id: 'up_abcdef', url: STORAGE + 'object/sign/medien-roh/2026/09/up_abcdef_D%20%C3%A4.mov?token=s', gueltig_sek: 3600 });
+	assert.equal(lauf('timo', 'upload_ansehen', { upload_id: 'up_abcdef' }).code, 200, 'Admin');
+	const fremd = lauf('murat', 'upload_ansehen', { upload_id: 'up_abcdef' });
+	assert.equal(fremd.code, 403); assert.equal(fremd.anfragen.length, 2, 'keine Adresse ausgestellt');
+	const geteilt = { 'Upload suchen': () => [{ upload_id: 'up_abcdef', bucket: 'medien-roh', pfad: '2026/09/a.mov', status: 'hochgeladen', erstellt_von: 'm_lillien', im_team: true }] };
+	assert.equal(lauf('murat', 'upload_ansehen', { upload_id: 'up_abcdef' }, geteilt).code, 200, 'im Team freigegeben');
+	assert.equal(lauf('agent', 'upload_ansehen', { upload_id: 'up_abcdef' }).code, 403);
+	const weg = lauf('lilli', 'upload_ansehen', { upload_id: 'up_abcdef' }, { 'Lese-Adresse signieren': () => [{ statusCode: '404', error: 'not_found', message: 'Object not found' }] });
+	assert.equal(weg.code, 502); assert.match(weg.antwort.fehler, /Object not found/);
+});
+
+test('Workflow: Video im Team freigeben und Freigabe zurücknehmen (nur wer hochgeladen hat)', () => {
+	const r = lauf('lilli', 'upload_teilen', { upload_id: 'up_abcdef', im_team: true });
+	assert.deepEqual(ohneMitglied(r).slice(1), [['Freigabe setzen', 'POST', SUPA + 'rpc/team_upload_teilen', '{"p_id":"up_abcdef","p_im_team":true,"p_von":"m_lillien"}']]);
+	assert.equal(r.code, 200); assert.equal(r.antwort.im_team, true); assert.match(r.antwort.hinweis, /für alle im Team sichtbar/);
+	const zurueck = lauf('lilli', 'upload_teilen', { upload_id: 'up_abcdef', im_team: false });
+	assert.equal(JSON.parse(zurueck.anfragen[2].body).p_im_team, false); assert.equal(zurueck.antwort.im_team, false);
+	assert.equal(lauf('timo', 'upload_teilen', { upload_id: 'up_abcdef', im_team: true }).code, 403, 'auch Admin nicht');
+	assert.equal(lauf('lilli', 'upload_teilen', { upload_id: 'up_abcdef' }).code, 400, 'im_team fehlt');
+	assert.equal(lauf('lilli', 'upload_teilen', { upload_id: 'up_abcdef', im_team: true }, { 'Upload suchen': () => [] }).code, 404);
 });

@@ -4,7 +4,7 @@
 //
 // Bereiche: { '<name>': { oeffentlich: true | false } }
 //   öffentlich: jede Datei hat eine feste http-Adresse (oeffentlicheAdresse)
-//   privat:     keine feste Adresse; Zugriff nur über Aufträge des Workflows (z. B. befristete Upload-Adresse)
+//   privat:     keine feste Adresse; Zugriff nur über Aufträge des Workflows (befristete Upload- bzw. Lese-Adresse)
 // Der Name eines Bereichs steht auch in den Datenbank-Zeilen (Feld „bucket“) und ist in allen Varianten gleich.
 //
 // Ein Auftrag hat die Form { methode, pfad, body } (pfad relativ zur Basisadresse des Speichers), wie bei C_DataBase.
@@ -24,6 +24,12 @@ class C_MedienSpeicher {
 
 	// Aus der Antwort auf uploadAdresseHolen die vollständige Upload-Adresse machen (oder null)
 	uploadAdresse(antwort) { this.fehlt('uploadAdresse'); }
+
+	// Auftrag: befristete Adresse holen, unter der der Browser eine Datei ansehen oder herunterladen kann (auch in privaten Bereichen)
+	leseAdresseHolen(bereich, pfad, sekunden) { this.fehlt('leseAdresseHolen'); }
+
+	// Aus der Antwort auf leseAdresseHolen die vollständige Lese-Adresse machen (oder null)
+	leseAdresse(antwort) { this.fehlt('leseAdresse'); }
 
 	// Feste http-Adresse einer Datei in einem öffentlichen Bereich
 	oeffentlicheAdresse(bereich, pfad) { this.fehlt('oeffentlicheAdresse'); }

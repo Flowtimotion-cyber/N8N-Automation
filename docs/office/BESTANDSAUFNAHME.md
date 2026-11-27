@@ -92,6 +92,8 @@ Request: `POST …/team-social`, Body `{ "token": "…", "aktion": "…", "daten
 | `idee_loeschen` | Menschen | `idee_id` | in den Papierkorb (Art „idee“, 30 Tage) |
 | `upload_url` | Menschen | `dateiname`, `groesse`, `mime`, `thema` (Pflicht), `kanal`, `kontext`, `einwilligung` (muss `true` sein) | legt `team_social_uploads` an und liefert eine signierte Upload-Adresse für den Bucket `medien-roh` (PUT, 2 Stunden gültig). Nur Videodateien (.mp4, .mov, .webm, .mkv, .m4v) bis 2 GB |
 | `upload_status` | Menschen und Agenten | `upload_id`, `status` (hochgeladen, beauftragt, geschnitten, fehler), `run_id`, `fehler` | Stand des Uploads; `beauftragt` kommt mit der `run_id` aus `auftrag_starten` (Office-API, Agent `medien-cutter`, Projekt „Social Media“) |
-| `upload_loeschen` | Admin | `upload_id` | Datei aus dem Bucket löschen, Eintrag auf „geloescht“ |
+| `upload_loeschen` | wer hochgeladen hat, Admin | `upload_id` | Datei aus dem Bucket löschen, Eintrag auf „geloescht“ |
+| `upload_ansehen` | wer hochgeladen hat, Admin; alle, wenn im Team freigegeben | `upload_id` | befristete, signierte Lese-Adresse (1 Stunde) zum Abspielen oder Herunterladen |
+| `upload_teilen` | nur wer hochgeladen hat | `upload_id`, `im_team` (`true`/`false`) | Video im Team freigeben oder Freigabe zurücknehmen (`team_social_uploads.im_team`, SQL `supabase/team_social_uploads_teilen.sql`) |
 
 Der Browser bekommt nie einen Supabase-Schlüssel: Er lädt die Datei mit der signierten Adresse direkt in den Bucket (XMLHttpRequest PUT mit Fortschritt). Die Rechteprüfung passiert in n8n (`socialAnfrage`).

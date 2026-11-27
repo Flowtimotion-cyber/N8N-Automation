@@ -21,6 +21,22 @@ class C_MedienSpeicher_Supabase extends C_MedienSpeicher {
 		return /^https?:\/\//.test(u) ? u : this.basis + '/' + u.replace(/^\/+/, '');
 	}
 
+	// sekunden: Gültigkeit der Adresse (1 Minute bis 24 Stunden)
+	leseAdresseHolen(bereich, pfad, sekunden) {
+		this.bereich(bereich);
+		const s = Math.round(Number(sekunden));
+		if (!(s >= 60 && s <= 86400)) throw new Error('C_MedienSpeicher_Supabase: ungültige Gültigkeit „' + sekunden + '“ (60 bis 86400 Sekunden)');
+		return { methode: 'POST', pfad: 'object/sign/' + bereich + '/' + C_MedienSpeicher.pfadUrl(C_MedienSpeicher.pfad(pfad)), body: { expiresIn: s } };
+	}
+
+	// Antwort von storage/v1/object/sign/… : { signedURL: '/object/sign/…?token=…' }
+	leseAdresse(antwort) {
+		const b = antwort && typeof antwort === 'object' ? antwort : {};
+		const u = String(b.signedURL || b.signedUrl || '');
+		if (!u) return null;
+		return /^https?:\/\//.test(u) ? u : this.basis + '/' + u.replace(/^\/+/, '');
+	}
+
 	// Ohne Pfad: null (Zeilen ohne Bild). Der Pfad wird hier nicht abgelehnt, sondern nur kodiert, damit eine
 	// alte, ungewöhnliche Zeile das Laden der Liste nicht verhindert.
 	oeffentlicheAdresse(bereich, pfad) {
