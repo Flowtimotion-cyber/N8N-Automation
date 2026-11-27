@@ -61,7 +61,7 @@ function teamPortalKonfig() {
 	// Datenbank hinter der Portal-API: 'supabase' oder 'postgre'.
 	// Für jede Variante gibt es einen eigenen n8n-Workflow (gebaut von team/n8n/bauen.mjs); das Portal spricht nur
 	// den hier gewählten an. Ist dessen Workflow in n8n nicht eingerichtet, zeigt das Portal eine Fehlermeldung und stoppt.
-	const DATENBANK = 'supabase';
+	const DATENBANK = 'supabase'; // 'postgre';
 	const PORTAL_API = {
 		supabase: { name: 'Supabase',   url: N8N_WEBHOOK_BASIS + 'team-api-v2',    workflow: 'TEAM: Portal-API v2 (Supabase, Agenten)',   id: 'kMuDaDmT9rCN5Vs2' },
 		postgre:  { name: 'PostgreSQL', url: N8N_WEBHOOK_BASIS + 'team-api-v2-pg', workflow: 'TEAM: Portal-API v2 (PostgreSQL, Agenten)', id: '' }
