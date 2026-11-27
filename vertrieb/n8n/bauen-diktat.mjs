@@ -14,7 +14,7 @@ const hier = dirname(fileURLToPath(import.meta.url));
 const LIB = readFileSync(join(hier, '..', 'lib/diktat.js'), 'utf8').replace(/^export \{[^}]*\};?\s*$/m, '').replace(/^export /gm, '');
 const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const ORIGIN = 'https://flowtimotion-cyber.github.io';
-// newCredential('Name') statt fester ID: Der n8n-MCP-Import übernimmt nur diese Form (siehe social/n8n/bauen-social.mjs).
+// newCredential('Name') statt fester ID: Der n8n-MCP-Import übernimmt nur diese Form (siehe team/n8n/bauen-social.mjs).
 const CRED_SUPA = "{ supabaseApi: newCredential('Supabase account') }";
 const CRED_OPENAI = "{ openAiApi: newCredential('OpenAI account') }";
 
@@ -70,7 +70,7 @@ if (a.aktion === 'bereinigen') {
 } else {
   const tp = $('Transkript prüfen').first().json;
   erg = a.kontext && a.kontext.teil ? teilAntwort(tp.transkript, llm, a.kontext) : diktatAntwort(tp.transkript, llm, a.kontext, jetzt);
-  if (!llm) erg.antwort.hinweis = 'Die KI-Bereinigung war nicht erreichbar; du siehst das Rohtranskript.';
+if (!llm) erg.antwort.hinweis = 'Die KI-Bereinigung war nicht erreichbar; du siehst das Rohtranskript.';
 }
 // Fertige Aufnahme (kein Stück) in „Letzte Diktate“ speichern (Supabase team_diktate)
 if (erg.code === 200 && erg.antwort && erg.antwort.ok && !erg.antwort.teil) erg.db = speichernAuftrag(erg.antwort, a.kontext);
@@ -116,7 +116,7 @@ export default workflow('team-diktat', 'TEAM: Diktat')
     .onCase(0, transkribieren.to(transkriptPruefen).to(transkriptDa
       .onCase(0, bereinigen.to(antwortBauen).to(speichernJa
         .onCase(0, diktateDb.to(ergebnis).to(antwort))
-        .onCase(1, antwort)))
+      .onCase(1, antwort)))
       .onCase(1, antwort)))
     .onCase(1, antwort)
     .onCase(2, bereinigen)

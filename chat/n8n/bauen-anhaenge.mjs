@@ -1,5 +1,5 @@
 // Baut die n8n-SDK-Datei für „TEAM: Anhänge (Portal)“ (Webhook team-anhang): node chat/n8n/bauen-anhaenge.mjs → chat/n8n/anhaenge.workflow.gen.js
-// Eingebettet wird chat/lib/anhaenge.js (getestet: node --test chat/test/anhaenge.test.mjs). Muster: chat/n8n/bauen-chat.mjs, social/n8n/bauen-social.mjs.
+// Eingebettet wird chat/lib/anhaenge.js (getestet: node --test chat/test/anhaenge.test.mjs). Muster: chat/n8n/bauen-chat.mjs, team/n8n/bauen-social.mjs.
 // Ablauf A (Webhook): Browser schickt { token, aktion, daten }
 //   → Mitglied prüfen → Anfrage prüfen → Supabase-Funktion team_anhang_* → bei vorbereiten/links: Adresse in Supabase Storage signieren → JSON ans Portal.
 // Ablauf B (täglich 03:40): Liste (entfernt seit 30 Tagen, abgebrochene Uploads seit 1 Tag) → Dateien im Bucket löschen → als gelöscht melden.
@@ -13,7 +13,7 @@ const LIB = readFileSync(join(hier, '..', 'lib/anhaenge.js'), 'utf8').replace(/\
 const SUPA = 'https://llhwmzhvhluamxwemaqx.supabase.co/rest/v1/';
 const STORAGE = 'https://llhwmzhvhluamxwemaqx.supabase.co/storage/v1/';
 const ORIGIN = 'https://flowtimotion-cyber.github.io';
-// newCredential('Name') statt fester ID: Der n8n-MCP-Import übernimmt nur diese Form (siehe social/n8n/bauen-social.mjs).
+// newCredential('Name') statt fester ID: Der n8n-MCP-Import übernimmt nur diese Form (siehe team/n8n/bauen-social.mjs).
 const CRED_SUPA = "{ supabaseApi: newCredential('Supabase account') }";
 
 const jsQuelle = js => js.startsWith(LIB) ? 'LIB + ' + JSON.stringify(js.slice(LIB.length)) : JSON.stringify(js);

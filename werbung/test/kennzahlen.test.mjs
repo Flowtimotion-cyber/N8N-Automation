@@ -96,7 +96,11 @@ test('Schlüssel bleibt serverseitig: nichts davon im Portal, n8n-Datei nennt nu
   const portal = lies('docs', 'team', 'index.html');
   assert.doesNotMatch(portal, /x-api-key/i, 'Kopfzeile der Quelle kommt im Portal nicht vor');
   assert.doesNotMatch(portal, /ads-kpis/, 'das Portal kennt die Adresse der Quelle nicht');
-  assert.match(portal, /const ADS_API = API\.replace\('team-api-v2', 'team-ads'\)/);
+	// Die Adresse steht zentral in docs/team/konfig.js (seit PR #82), das Portal liest sie von dort
+	assert.match(portal, /const ADS_API = WH\.werbung\.url;/);
+	const konfig = lies('docs', 'team', 'konfig.js');
+	assert.match(konfig, /werbung:\s*\{ url: N8N_WEBHOOK_BASIS \+ 'team-ads'/);
+	assert.doesNotMatch(konfig, /x-api-key|ads-kpis/i, 'auch konfig.js kennt weder Kopfzeile noch Adresse der Quelle');
   const gen = lies('werbung', 'n8n', 'werbung.workflow.gen.js');
   assert.match(gen, /httpHeaderAuth: newCredential\('Team-Portal KPI'\)/);
   assert.doesNotMatch(gen, /x-api-key\s*['"]?\s*[:=]/i, 'kein Kopfzeilen-Wert in der Workflow-Datei');
